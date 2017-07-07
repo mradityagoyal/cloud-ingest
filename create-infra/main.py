@@ -126,11 +126,11 @@ def main():
 
   parser.add_argument('--function-name', '-f', type=str,
                       help='Cloud Function name.',
-                      default='cloud-ingest-load-bigquery')
+                      default='cloud-ingest-gcs_to_bq_importer')
 
   parser.add_argument('--function-src-dir', '-sd', type=str,
                       help='Cloud Function source directory.',
-                      default='../cloud-functions/loadbigquery')
+                      default='../cloud-functions/gcs-to-bq-importer')
 
   # TODO(b/63439650): cloud_functions builder should create a bucket if no
   # bucket param is provided.
@@ -140,7 +140,7 @@ def main():
 
   parser.add_argument('--function-staging-object', '-o', type=str,
                       help='Cloud Function source code staging object.',
-                      default='cloud-ingest-load_bq_cloud_function_code.zip')
+                      default='cloud-ingest-gcs_to_bq_importer_code.zip')
 
   parser.add_argument('--function-topic', '-t', type=str,
                       help='PubSub topic Cloud Function is listening to.',
