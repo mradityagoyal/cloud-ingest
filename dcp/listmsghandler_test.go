@@ -104,6 +104,97 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 	}
 }
 
+func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockListReader := NewMockListingResultReader(mockCtrl)
+	c := make(chan string)
+	close(c)
+	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
+
+	listTask := &Task{
+		JobConfigId: jobConfigId,
+		JobRunId:    jobRunId,
+		TaskId:      "task_id_A",
+		TaskSpec: `{
+			"task_id": "task_id_A",
+			"dst_list_result_bucket": "bucket1",
+			"dst_list_result_object": "object",
+			"src_directory": "dir"
+		}`,
+		Status: Success,
+	}
+	store := FakeStore{
+		tasks: map[string]*Task{
+			getTaskFullId(listTask): listTask,
+		},
+	}
+	handler := ListProgressMessageHandler{
+		Store:               &store,
+		ListingResultReader: mockListReader,
+	}
+
+	jobSpec := &JobSpec{
+		GCSBucket: "bucket2",
+	}
+
+	err := handler.HandleMessage(jobSpec, listTask)
+	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "task_id_A", "")
+	if err == nil {
+		t.Errorf("error is nil, expected error: %s.", errorMsg)
+	}
+	if err.Error() != errorMsg {
+		t.Errorf("expected error: %s, found: %s.", errorMsg, err.Error())
+	}
+}
+
+func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockListReader := NewMockListingResultReader(mockCtrl)
+	c := make(chan string)
+	go func() {
+		defer close(c)
+		c <- "task_id_B"
+	}()
+	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
+
+	listTask := &Task{
+		JobConfigId: jobConfigId,
+		JobRunId:    jobRunId,
+		TaskId:      "task_id_A",
+		TaskSpec: `{
+			"task_id": "task_id_A",
+			"dst_list_result_bucket": "bucket1",
+			"dst_list_result_object": "object",
+			"src_directory": "dir"
+		}`,
+		Status: Success,
+	}
+	store := FakeStore{
+		tasks: map[string]*Task{
+			getTaskFullId(listTask): listTask,
+		},
+	}
+	handler := ListProgressMessageHandler{
+		Store:               &store,
+		ListingResultReader: mockListReader,
+	}
+
+	jobSpec := &JobSpec{
+		GCSBucket: "bucket2",
+	}
+
+	err := handler.HandleMessage(jobSpec, listTask)
+	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "task_id_A", "task_id_B")
+	if err == nil {
+		t.Errorf("error is nil, expected error: %s.", errorMsg)
+	}
+	if err.Error() != errorMsg {
+		t.Errorf("expected error: %s, found: %s.", errorMsg, err.Error())
+	}
+}
+
 func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -111,6 +202,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	c := make(chan string)
 	go func() {
 		defer close(c)
+		c <- "task_id_A"
 		c <- "dir/file0"
 		c <- "dir/file1"
 	}()
@@ -119,9 +211,9 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	listTask := &Task{
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
-		TaskId:      "A",
+		TaskId:      "task_id_A",
 		TaskSpec: `{
-			"task_id": "A",
+			"task_id": "task_id_A",
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
 			"src_directory": "dir"

@@ -17,8 +17,13 @@ package dcp
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"path/filepath"
+)
+
+const (
+	noTaskIdInListOutput string = ("expected task ID %s in first line of list task output file, but got %s")
 )
 
 type ListProgressMessageHandler struct {
@@ -54,6 +59,11 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 			"Error reading the list task result, list task spec: %v, with error: %v.\n",
 			listTaskSpec, err)
 		return err
+	}
+	taskIdFromFile := <-filePaths
+
+	if taskIdFromFile != task.TaskId {
+		return errors.New(fmt.Sprintf(noTaskIdInListOutput, task.TaskId, taskIdFromFile))
 	}
 	var newTasks []*Task
 	for filePath := range filePaths {
