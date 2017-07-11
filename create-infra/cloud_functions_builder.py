@@ -17,13 +17,24 @@
 
 import httplib
 import os
+import random
+import re
+import string
 import tempfile
 import time
 import zipfile
 
 import google.auth as googleauth
 from google.auth.transport.requests import AuthorizedSession
+from  google.cloud import exceptions
 from google.cloud import storage
+
+
+_RANDOM_BUCKET_CREATION_TRIALS = 5
+_RANDOM_BUCKET_STRING_SIZE = 5
+
+# Matches bucket strings of the form 'gs://bucket'
+_BUCKET_OBJECT_REGEX = re.compile(r'^gs://(?P<bucket>[^/]*)/(?P<object>.*)')
 
 
 def CreateSourceZip(src_dir, zip_file_path):
@@ -34,6 +45,76 @@ def CreateSourceZip(src_dir, zip_file_path):
         file_path = os.path.join(root, f)
         zip_file.write(file_path,
                        arcname=os.path.relpath(file_path, src_dir))
+
+
+def _CreateFunctionBucket(client, fn_name):
+  """Creates a cloud function bucket.
+
+  Initially, this will try to create bucket with fn_name. If the bucket already
+  exists, it will try to append random suffixes until the bucket is created or
+  max number of attempts has been reached.
+
+  Args:
+    client: Storage client object.
+    fn_name: Cloud function name.
+
+  Returns:
+    The created bucket.
+
+  Raises:
+    Exception: If unable to create the bucket.
+  """
+  fn_name = '{}-{}'.format(client.project, fn_name.lower())
+  bucket_name = fn_name
+  for _ in range(_RANDOM_BUCKET_CREATION_TRIALS):
+    try:
+      bucket = client.create_bucket(bucket_name)
+    except exceptions.Conflict:
+      rand_suffix = ''.join(random.choice(string.ascii_lowercase)
+                            for _ in range(_RANDOM_BUCKET_STRING_SIZE))
+      bucket_name = '{}-{}'.format(fn_name, rand_suffix)
+    else:
+      return bucket
+  raise Exception(
+      'Failed to create bucket for function {} after {} trails.'.format(
+          fn_name, _RANDOM_BUCKET_CREATION_TRIALS))
+
+
+def _DeleteFunctionBucket(client, source_archive_url):
+  """Deletes cloud function bucket.
+
+  Deletes cloud function source code GCS object. Also removes the bucket
+  containing this object if it's empty.
+
+  Args:
+    client: Storage client object.
+    source_archive_url: Function source code archive GCS url.
+
+  Raises:
+    Exception: if the passed source_archive_url is invalid.
+  """
+  # parse out the url to get the bucket name.
+  match = _BUCKET_OBJECT_REGEX.match(source_archive_url)
+  if not match:
+    raise Exception(
+        'Can not parse source URL {}.'.format(source_archive_url))
+  bucket_name = match.group('bucket')
+  object_name = match.group('object')
+
+  bucket = client.bucket(bucket_name)
+  blob = bucket.blob(object_name)
+  try:
+    blob.delete()
+  except exceptions.NOT_FOUND:
+    print('Cloud Function source archive URL {} does not exist, '
+          'skipping delete.'.format(source_archive_url))
+
+  try:
+    # TODO(b/63595663): Remove only buckets that are created by cloud ingest,
+    # this can be done by labeling buckets created by cloud ingest.
+    bucket.delete()
+  except exceptions.Conflict:
+    print 'Bucket {} is not empty, skipping delete.'.format(bucket_name)
 
 
 # TODO(b/63363798): Create unit tests for CloudFunctionsBuilder.
@@ -56,14 +137,18 @@ class CloudFunctionsBuilder(object):
     self.storage_client = storage.Client()
 
   def CreateFunction(self, cloud_function_name, src_dir,
-                     staging_gcs_bucket, staging_gcs_object,
-                     pubsub_topic,
-                     entry_point):
+                     pubsub_topic, entry_point,
+                     staging_gcs_bucket=None, staging_gcs_object=None):
     """Creates a cloud function."""
+    if not staging_gcs_object:
+      staging_gcs_object = '%s_code.zip' % cloud_function_name
     src_zip_path = os.path.join(tempfile.gettempdir(), staging_gcs_object)
     CreateSourceZip(src_dir, src_zip_path)
 
-    bucket = self.storage_client.get_bucket(staging_gcs_bucket)
+    if not staging_gcs_bucket:
+      bucket = _CreateFunctionBucket(self.storage_client, cloud_function_name)
+    else:
+      bucket = self.storage_client.get_bucket(staging_gcs_bucket)
     blob = bucket.blob(staging_gcs_object)
     blob.upload_from_filename(src_zip_path)
 
@@ -72,7 +157,7 @@ class CloudFunctionsBuilder(object):
         self.functions_endpoint, self.functions_path)
     payload = {
         'entryPoint': entry_point,
-        'sourceArchiveUrl': 'gs://{}/{}'.format(staging_gcs_bucket,
+        'sourceArchiveUrl': 'gs://{}/{}'.format(bucket.name,
                                                 staging_gcs_object),
         'eventTrigger': {
             'resource': 'projects/{}/topics/{}'.format(self.project_id,
@@ -91,13 +176,25 @@ class CloudFunctionsBuilder(object):
     """Deletes a cloud function."""
     function_url = '{}/{}/{}'.format(
         self.functions_endpoint, self.functions_path, cloud_function_name)
-    r = self.authed_session.delete(function_url, headers=self.headers)
-    request_time = time.time()
+
+    # Get the cloud function details before deleting it.
+    r = self.authed_session.get(function_url, headers=self.headers)
 
     if r.status_code == httplib.NOT_FOUND:
       print 'Cloud Function {} does not exist, skipping delete.'.format(
           cloud_function_name)
+      return
     elif r.status_code != httplib.OK:
+      raise Exception(
+          'Unexpected error code in getting cloud function {} details, '
+          'response text: {}.', cloud_function_name, r.text)
+
+    source_archive_url = r.json()['sourceArchiveUrl']
+
+    r = self.authed_session.delete(function_url, headers=self.headers)
+    request_time = time.time()
+
+    if r.status_code != httplib.OK:
       raise Exception('Unexpected error code on deleteing cloud function {}, '
                       'response text: {}.', cloud_function_name, r.text)
 
@@ -111,6 +208,8 @@ class CloudFunctionsBuilder(object):
     if r.status_code != httplib.NOT_FOUND:
       raise Exception(
           'Delete cloud function {} timed out.'.format(cloud_function_name))
+
+    _DeleteFunctionBucket(self.storage_client, source_archive_url)
 
     print 'Cloud function {} deleted in {} seconds.'.format(
         cloud_function_name, time.time() - request_time)

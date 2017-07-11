@@ -16,6 +16,7 @@
 """Entry point to create infrastructure for cloud ingest."""
 
 import argparse
+import os
 
 import cloud_functions_builder
 import compute_builder
@@ -23,6 +24,9 @@ import pubsub_builder
 import spanner_builder
 
 import google.auth as googleauth
+
+
+DIR = os.path.dirname(os.path.realpath(__file__))
 
 
 def _ParseTopicSubscriptions(topic_subs_name):
@@ -71,7 +75,7 @@ def CreateInfrastructure(
   print 'Creating spanner instance {}.'.format(args.spanner_instance)
   spanner_bldr.CreateInstance()
   print 'Creating database {}.'.format(args.database)
-  spanner_bldr.CreateDatabase(args.database, 'schema.ddl')
+  spanner_bldr.CreateDatabase(args.database, os.path.join(DIR, 'schema.ddl'))
 
   # Creating the PubSub topics/channels.
   for topic_subs_name in args.pubsub:
@@ -84,8 +88,6 @@ def CreateInfrastructure(
   print 'Creating cloud function {}.'.format(args.function_name)
   fn_bldr.CreateFunction(args.function_name,
                          args.function_src_dir,
-                         args.function_staging_bucket,
-                         args.function_staging_object,
                          args.function_topic,
                          args.function_entrypoint)
 
@@ -128,19 +130,19 @@ def main():
                       help='Cloud Function name.',
                       default='cloud-ingest-gcs_to_bq_importer')
 
+  cloud_function_dir = os.path.realpath(
+      os.path.join(DIR, '../cloud-functions/gcs-to-bq-importer'))
   parser.add_argument('--function-src-dir', '-sd', type=str,
                       help='Cloud Function source directory.',
-                      default='../cloud-functions/gcs-to-bq-importer')
+                      default=cloud_function_dir)
 
-  # TODO(b/63439650): cloud_functions builder should create a bucket if no
-  # bucket param is provided.
   parser.add_argument('--function-staging-bucket', '-b', type=str,
                       help='Cloud Function source code staging bucket.',
-                      required=True)
+                      default=None)
 
   parser.add_argument('--function-staging-object', '-o', type=str,
                       help='Cloud Function source code staging object.',
-                      default='cloud-ingest-gcs_to_bq_importer_code.zip')
+                      default=None)
 
   parser.add_argument('--function-topic', '-t', type=str,
                       help='PubSub topic Cloud Function is listening to.',
