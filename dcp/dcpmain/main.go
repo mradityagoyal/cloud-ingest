@@ -25,7 +25,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/storage"
-	"../../dcp"
+	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 )
 
 const (
