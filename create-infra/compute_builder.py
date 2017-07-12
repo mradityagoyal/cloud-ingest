@@ -38,6 +38,10 @@ runcmd:
   ]
 """
 
+# GCE instance disk size in GB. 50GB is sufficient for instances running DCP
+# container image.
+DISK_SIZE_GB = 50
+
 
 def _WaitComputeOperationToComplete(compute, project_id, zone, operation,
                                     timeout_seconds=180):
@@ -114,6 +118,7 @@ class ComputeBuilder(object):
                 'autoDelete': True,  # Auto-delete disk on instance deletion.
                 'initializeParams': {
                     'sourceImage': source_disk_image,
+                    'diskSizeGb': DISK_SIZE_GB
                 }
             }
         ],
