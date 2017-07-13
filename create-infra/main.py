@@ -117,12 +117,12 @@ def main():
                       help='Comma-separated PubSub topic followed by it\'s '
                            'subscriptions',
                       default=[
-                          ('cloud-ingest-list_progress,'
-                           'cloud-ingest-list_progress'),
-                          ('cloud-ingest-copy_progress,'
-                           'cloud-ingest-copy_progress'),
-                          ('cloud-ingest-loadbigquery_progress,'
-                           'cloud-ingest-loadbigquery_progress'),
+                          ('cloud-ingest-list-progress,'
+                           'cloud-ingest-list-progress'),
+                          ('cloud-ingest-copy-progress,'
+                           'cloud-ingest-copy-progress'),
+                          ('cloud-ingest-loadbigquery-progress,'
+                           'cloud-ingest-loadbigquery-progress'),
                           'cloud-ingest-list,cloud-ingest-list',
                           'cloud-ingest-copy,cloud-ingest-copy',
                           'cloud-ingest-loadbigquery,cloud-ingest-loadbigquery'

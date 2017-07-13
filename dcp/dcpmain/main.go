@@ -29,16 +29,16 @@ import (
 )
 
 const (
-	listProgressSubscription         string = "list_progress"
-	copyProgressSubscription         string = "copy_progress"
-	loadBigQueryProgressSubscription string = "loadbigquery_progress"
+	listProgressSubscription         string = "cloud-ingest-list-progress"
+	copyProgressSubscription         string = "cloud-ingest-copy-progress"
+	loadBigQueryProgressSubscription string = "cloud-ingest-loadbigquery-progress"
 
-	listTopic   string = "list"
-	copyTopic   string = "copy"
-	loadBQTopic string = "loadbigquery"
+	listTopic   string = "cloud-ingest-list"
+	copyTopic   string = "cloud-ingest-copy"
+	loadBQTopic string = "cloud-ingest-loadbigquery"
 
-	spannerInstance string = "spanner-instance"
-	spannerDatabase string = "database"
+	spannerInstance string = "cloud-ingest-spanner-instance"
+	spannerDatabase string = "cloud-ingest-database"
 )
 
 func main() {
