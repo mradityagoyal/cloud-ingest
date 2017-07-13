@@ -9,6 +9,7 @@ var gcs_bq_helper= require('./../bq_helper_methods')
 describe('CallBQImporter', function() {
   beforeEach(function() {
     sinon.stub(gcs_to_bq, 'CallBqImporter').resolves("");
+    gcs_to_bq.project_id = "dummy"
   });
 
   afterEach(function() {
@@ -82,6 +83,7 @@ describe('PublishingSuccess', function() {
   beforeEach(function() {
     sinon.stub(gcs_bq_helper, 'importFileFromGCS').resolves("");
     sinon.stub(gcs_to_bq, 'PublishMessage').resolves("");
+    gcs_to_bq.project_id = "dummy"
   });
 
   afterEach(function() {
@@ -110,16 +112,19 @@ describe('PublishingSuccess', function() {
       var message = gcs_to_bq.PublishMessage.getCall(0).args[2]
       expect(message.task_id).to.equal(123)
       expect(message.status).to.equal('SUCCESS')
+      var topic = gcs_to_bq.PublishMessage.getCall(0).args[1]
+      expect(topic).to.equal('loadbigquery_progress')
     })
 
     done()
   });
 });
 
-describe('PublishingFailure', function() {
+describe('ImportFileFailure', function() {
   beforeEach(function() {
     sinon.stub(gcs_bq_helper, 'importFileFromGCS').rejects(new Error("bad robot"));
     sinon.stub(gcs_to_bq, 'PublishMessage').resolves("");
+    gcs_to_bq.project_id = "dummy"
   });
 
   afterEach(function() {
@@ -127,7 +132,7 @@ describe('PublishingFailure', function() {
     gcs_to_bq.PublishMessage.restore()
   });
 
-  it('Publish failure to PubSub', function(done) {
+  it('Publishes failure to PubSub', function(done) {
     var pubsub_data = {
       'task_id': 123,
       'src_gcs_bucket':'my_gcs_bucket',
@@ -155,3 +160,37 @@ describe('PublishingFailure', function() {
   });
 });
 
+describe('PublishingFailure', function() {
+  beforeEach(function() {
+    sinon.stub(gcs_bq_helper, 'importFileFromGCS').resolves("");
+    gcs_to_bq.project_id = "dummy"
+  });
+
+  afterEach(function() {
+    gcs_bq_helper.importFileFromGCS.restore()
+  });
+
+  it('Failure publishing to PubSub', function(done) {
+    var pubsub_data = {
+      'task_id': 123,
+      'src_gcs_bucket':'my_gcs_bucket',
+      'src_gcs_object':'my_gcs_object',
+      'dst_bq_dataset':'my_bq_dataset',
+      'dst_bq_table':'my_bq_table'
+    };
+    var data_as_str = JSON.stringify(pubsub_data);
+    var data_as_b64 = new Buffer(data_as_str).toString("base64");
+    var event = {
+      'data':{'data':data_as_b64}
+    }
+
+    gcs_to_bq.GcsToBq(event, function(err, res) {
+      // Since PubSub client object is a fake, publishing to
+      // pubsub queue will fail.
+      should.exist(err)
+      expect(err).to.contain('publishing to loadbigquery_progress')
+    })
+
+    done()
+  });
+});

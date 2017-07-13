@@ -5,17 +5,20 @@
 // (1) the GCS object whose contents will be imported into a
 // (2) BigQuery table.
 
+// Exported so that it can be mocked in tests.
+exports.project_id = process.env.GCLOUD_PROJECT;
+
 const BQImporter = require('./bq_helper_methods')
+
+const pubsub_topic_name = 'cloud-ingest-loadbigquery-progress'
 const PubSub = require('@google-cloud/pubsub');
-
 // TODO: take as a constant during creation of cloud function.
-const resultTopicName = 'loadbigquery_progress'
-const projectId = process.env.GCLOUD_PROJECT;
-
 // Publishes a 'message' to a 'pub_sub' 'topic'.
 exports.PublishMessage = (pub_sub, topic, message) => new Promise((resolve, reject) => {
+  var json_message = JSON.stringify(message)
+  var encoded_message = new Buffer(json_message).toString('base64')
   pub_sub.topic(topic)
-    .publish(message)
+    .publish(encoded_message)
     .then((data) => {
       resolve(`publishing to ${topic} with ${message} was successful`);
     })
@@ -42,11 +45,11 @@ const PublishErrorMessage = (pub_sub, topic, task_id, err_message) =>
 // with 'task_id'.
 const PublishSuccessMessage = (pub_sub, topic, task_id) =>
     new Promise((resolve, reject) => {
-  var failure = {
+  var success_message = {
     task_id : task_id,
     status: 'SUCCESS'
   }
-  exports.PublishMessage(pub_sub, topic, failure)
+  exports.PublishMessage(pub_sub, topic, success_message)
     .then((res) => resolve(res))
     .catch((err) => reject(err));
 });
@@ -132,9 +135,14 @@ const ExtractAndValidatePayload = (pubsub_event) =>
 });
 
 exports.GcsToBq = function(pubsub_event, callback) {
+  const pubsub_client = PubSub({
+    projectId: exports.project_id
+  });
+
   ExtractAndValidatePayload(pubsub_event)
     .then((payload) => {
-        exports.CallBqImporter(BQImporter, PubSub, resultTopicName, projectId,
+        exports.CallBqImporter(BQImporter, pubsub_client, pubsub_topic_name,
+                               exports.project_id,
                                payload.task_id, payload.src_gcs_bucket,
                                payload.src_gcs_object, payload.dst_bq_dataset,
                                payload.dst_bq_table)
