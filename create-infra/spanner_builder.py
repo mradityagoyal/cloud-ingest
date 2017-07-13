@@ -61,3 +61,7 @@ class SpannerBuilder(object):
     database = self.instance.database(database_id, ddl_statements=statements)
     operation = database.create()
     operation.result()
+
+  def GetDatabase(self, database_id):
+    """Gets a database object from the spanner instance."""
+    return self.instance.database(database_id)

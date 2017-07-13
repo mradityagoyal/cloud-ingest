@@ -17,9 +17,11 @@
 
 import argparse
 import os
+import time
 
 import cloud_functions_builder
 import compute_builder
+import job_utilities
 import pubsub_builder
 import spanner_builder
 
@@ -168,23 +170,71 @@ def main():
                       help='Command line arguments running in the container.',
                       default=[project_id])
 
+  parser.add_argument('--insert-job', '-j', action='store_true',
+                      help='Insert a new job into the system.',
+                      default=False)
+
+  parser.add_argument('--src-dir', type=str,
+                      help='On-prem source directory.',
+                      default=None)
+
+  parser.add_argument('--dst-gcs-bucket', type=str,
+                      help='GCS destination bucket.',
+                      default=None)
+
+  parser.add_argument('--dst-gcs-dir', type=str,
+                      help='GCS destination directory in the bucket.',
+                      default='')
+
+  parser.add_argument('--dst-bq-dataset', type=str,
+                      help='Big query destination dataset.',
+                      default=None)
+
+  parser.add_argument('--dst-bq-table', type=str,
+                      help='Big query destination table in the dataset.',
+                      default=None)
+
+  parser.add_argument('--force', action='store_true',
+                      help='Forcing tear down cloud ingest infrastructure.',
+                      default=False)
+
   parser.add_argument('mode',
-                      choices=['Create', 'TearDown', 'TearDownAndCreate'],
+                      choices=['Create', 'TearDown', 'CreateThenTearDown'],
                       help='Whether to create or tear down the infrastructure.')
 
   args = parser.parse_args()
+
+  # Make sure that insert job has the sufficient arguments.
+  if args.insert_job:
+    if (not args.src_dir or not args.dst_gcs_bucket or
+        not args.dst_bq_dataset or not args.dst_bq_table):
+      parser.error('--insert-job requires --src-dir, --dst-gcs-bucket, '
+                   '--dst-bq-dataset and --dst-bq-table')
+    if args.mode == 'TearDown':
+      parser.error('Can not insert new jobs in the TearDown mode.')
 
   spanner_bldr = spanner_builder.SpannerBuilder(args.spanner_instance)
   pubsub_bldr = pubsub_builder.PubSubBuilder()
   fn_bldr = cloud_functions_builder.CloudFunctionsBuilder()
   compute_bldr = compute_builder.ComputeBuilder()
 
-  if 'TearDown' in args.mode:
-    TearDownInfrastructure(
-        args, spanner_bldr, pubsub_bldr, fn_bldr, compute_bldr)
-
   if 'Create' in args.mode:
     CreateInfrastructure(
+        args, spanner_bldr, pubsub_bldr, fn_bldr, compute_bldr)
+
+  database = spanner_bldr.GetDatabase(args.database)
+  if args.insert_job:
+    job_utilities.CreateJob(database, args.src_dir,
+                            args.dst_gcs_bucket, args.dst_gcs_dir,
+                            args.dst_bq_dataset, args.dst_bq_table)
+
+  if 'TearDown' in args.mode:
+    while not args.force and not job_utilities.JobsHaveCompleted(database):
+      print('Waiting for jobs to complete before tearing down, run with '
+            '--force argument to force the tear down.')
+      time.sleep(1)
+
+    TearDownInfrastructure(
         args, spanner_bldr, pubsub_bldr, fn_bldr, compute_bldr)
 
 

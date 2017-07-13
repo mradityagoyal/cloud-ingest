@@ -37,7 +37,7 @@ const (
 )
 
 type JobSpec struct {
-	OnpremSrceDirectory string `json:"onprem_src_directory"`
+	OnpremSrceDirectory string `json:"on_prem_src_directory"`
 	GCSBucket           string `json:"gcs_bucket"`
 	GCSDirectory        string `json:"gcs_directory"`
 	BQDataset           string `json:"bigquery_dataset"`
