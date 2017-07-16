@@ -56,6 +56,9 @@ type Store interface {
 	UpdateTasks(tasks []*Task) error
 }
 
+// TODO(b/63749083): Replace empty context (context.Background) when interacting
+// with spanner. If the spanner transaction is stuck for any reason, there are
+// no way to recover. Suggest to use WithTimeOut context.
 // SpannerStore is a Google Cloud Spanner implementation of the Store interface.
 type SpannerStore struct {
 	Client *spanner.Client
@@ -212,7 +215,7 @@ func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
 			"maxtasks": n,
 		},
 	}
-	iter := s.Client.ReadOnlyTransaction().Query(
+	iter := s.Client.Single().Query(
 		context.Background(), stmt)
 	defer iter.Stop()
 	for {
