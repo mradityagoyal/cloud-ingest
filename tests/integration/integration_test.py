@@ -166,46 +166,49 @@ def _IsRunningInteractively():
     return sys.stdout.isatty() and sys.stderr.isatty() and sys.stdin.isatty()
 
 
-def _CreateDCPInfrastructure():
-    """Runs the create infrastructure command to set up DCP infrastructure."""
-    # TODO: Adapt to the new data control plane package when it is available.
-    # TODO: Presently, this inserts the first task into the Spanner database.
+def _DCPInfrastructureCommand(command, insert_job=False):
+    """Runs the infrastructure command to setup/teardown DCP infrastructure.
+
+    Args:
+      command: Either 'Create', 'TearDown' or 'CreateThenTearDown'.
+      insert_job: Whether to insert a new job to the system.
+
+    Raises:
+      Exception: If the command failed for any reason.
+    """
     # TODO: Migrate away from personal docker package (here and below).
     # TODO: Presently, this creates a new GCE VM (which takes a while to
     # start up). When the DCP setup script supports local deployment,
     # do that instead to improve performance.
     create_infra_command = [
         'sudo', 'docker', 'run', '-it' if _IsRunningInteractively() else '-i',
-        'mbassiouny/cloud-ingest-dcp:v1',
-        'python', 'create_infrastructure.py']
-    print 'Creating infrastructure. Command:\n%s' % (
+        'gcr.io/mbassiouny-test/cloud-ingest:dcp',
+        'python', 'create-infra/main.py',
+        command  # Create or tear down infrastructure.
+    ]
+    if insert_job:
+        create_infra_command.extend([
+            '-j',  # Insert new job
+            '--src-dir', TMP_DIR,
+            '--dst-gcs-bucket', _BUCKET_NAME,
+            '--dst-bq-datase', _DATASET_NAME, '--dst-bq-table', _TABLE_NAME
+        ])
+    print 'Infrastructure command:\n%s' % (
         ' '.join(create_infra_command))
     create_infra_process = subprocess.Popen(
         create_infra_command,
         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     infra_stdout_stop = _AsyncStreamPrint(
-        create_infra_process.stdout, 'create infra stdout')
+        create_infra_process.stdout, 'infra stdout')
     infra_stderr_stop = _AsyncStreamPrint(
-        create_infra_process.stderr, 'create infra stderr')
-    create_infra_process.wait()
+        create_infra_process.stderr, 'infra stderr')
+    return_code = create_infra_process.wait()
     infra_stdout_stop.set()
     infra_stderr_stop.set()
 
-
-def _AddNewDCPJob():
-    """Starts the data control plane."""
-    add_dcp_job_command = [
-        'sudo', 'docker', 'run', 'mbassiouny/cloud-ingest-dcp:v1', 'python',
-        'add_new_job.py', TMP_DIR, _BUCKET_NAME, _LIST_OUTPUT_OBJECT_NAME,
-        _DATASET_NAME, _TABLE_NAME]
-    print 'Starting DCP process.  Command line:\n%s\n' % (
-        ' '.join(add_dcp_job_command))
-    dcp_process = subprocess.Popen(
-        add_dcp_job_command,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    add_job_stdout, add_job_stderr = dcp_process.communicate()
-    print 'Add job stdout:\n%s\nAdd job stderr:\n%s\n' % (
-        add_job_stdout, add_job_stderr)
+    if return_code != 0:
+        raise Exception('DCP infrastructure command failed with '
+                        'return code %d' % return_code)
 
 
 def _RunGsutilAgent(project_id):
@@ -222,10 +225,10 @@ def _RunGsutilAgent(project_id):
     gsutil_command = [
         os.path.join(os.path.expanduser('~'), 'gsutil/gsutil'), 'agent',
         'listandcopy',
-        'projects/%s/subscriptions/list' % project_id,
-        'projects/%s/topics/list_progress' % project_id,
-        'projects/%s/subscriptions/copy' % project_id,
-        'projects/%s/topics/copy_progress' % project_id]
+        'projects/%s/subscriptions/cloud-ingest-list' % project_id,
+        'projects/%s/topics/cloud-ingest-list-progress' % project_id,
+        'projects/%s/subscriptions/cloud-ingest-copy' % project_id,
+        'projects/%s/topics/cloud-ingest-copy-progress' % project_id]
     print 'Starting gsutil.  Command line:\n%s\n' % ' '.join(gsutil_command)
     gsutil_process = subprocess.Popen(
          gsutil_command,
@@ -245,9 +248,8 @@ if __name__ == "__main__":
 
     PROJECT_ID = _STORAGE_CLIENT.project
 
-    # Clean up old tables and GCS buckets from previous tests, if they exist.
-    _CleanUpBq(_BIGQUERY_CLIENT)
-    _CleanUpGCS(_STORAGE_CLIENT)
+    # Clean up old infrastructure, if they exist.
+    _DCPInfrastructureCommand('TearDown')
 
     try:
         _CreateBQDatasetAndTable()
@@ -257,8 +259,7 @@ if __name__ == "__main__":
 
         TMP_DIR, FILE_PATHS = _CreateTempFiles()
 
-        _CreateDCPInfrastructure()
-        _AddNewDCPJob()
+        _DCPInfrastructureCommand('Create', insert_job=True)
         gsutil_stdout_stop, gsutil_stderr_stop = _RunGsutilAgent(PROJECT_ID)
 
         print 'Waiting for GCS objects to be created'
@@ -287,3 +288,4 @@ if __name__ == "__main__":
     finally:
         _CleanUpBq(_BIGQUERY_CLIENT)
         _CleanUpGCS(_STORAGE_CLIENT)
+        _DCPInfrastructureCommand('TearDown')

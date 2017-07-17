@@ -160,7 +160,7 @@ def main():
 
   parser.add_argument('--compute-container-image', '-i', type=str,
                       help='Container image deployed to the GCE instance.',
-                      default='mbassiouny/cloud-ingest-dcp:v1')
+                      default='gcr.io/mbassiouny-test/cloud-ingest:dcp')
 
   parser.add_argument('--compute-cmd', '-l', type=str,
                       help='Command line to run in the container.',
