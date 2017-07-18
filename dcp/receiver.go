@@ -92,8 +92,6 @@ func (r *MessageReceiver) ReceiveMessages() error {
 				string(msg.Data), jobSpec, task, err)
 			return
 		}
-		// TODO(b/63015042): Fix the race condition where the task is updated to
-		// success or failure and then the task queuing thread updates it to Queued.
 		if err := r.Store.UpdateTasks([]*Task{task}); err != nil {
 			fmt.Printf("Error Updating task: %v, with error: %v.\n", task, err)
 			return

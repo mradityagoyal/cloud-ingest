@@ -75,6 +75,27 @@ type Task struct {
 	FailureMessage string
 }
 
+// getTaskFullId gets a unique task id  based on task (JobConfigId, JobRunId
+// and TaskId).
+func (t Task) getTaskFullId() string {
+	return getTaskFullId(t.JobConfigId, t.JobRunId, t.TaskId)
+}
+
+// getTaskFullId is a helper method that generates a unique task id based
+// on (JobConfigId, JobRunId, TaskId).
+func getTaskFullId(jobConfigId string, jobRunId string, taskId string) string {
+	return fmt.Sprintf("%s:%s:%s", jobConfigId, jobRunId, taskId)
+}
+
+// canChangeTaskStatus checks weather a task can be moved from a fromStatus to
+// a toStatus.
+func canChangeTaskStatus(fromStatus int64, toStatus int64) bool {
+	// Currently, the Status has to change from Unqueued -> Queued -> Fail -> Success.
+	// Later we may need to change this logic for supporting retrying of failed tasks
+	// or when we add an In-Progress status.
+	return toStatus > fromStatus
+}
+
 func TaskCompletionMessageJsonToTask(msg []byte) (*Task, error) {
 	taskCompletionMsgMap := make(map[string]interface{})
 	if err := json.Unmarshal(msg, &taskCompletionMsgMap); err != nil {

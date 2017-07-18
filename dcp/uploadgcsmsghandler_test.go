@@ -62,7 +62,7 @@ func TestUploadGCSProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 	}
 	store := FakeStore{
 		tasks: map[string]*Task{
-			getTaskFullId(uploadGCSTask): uploadGCSTask,
+			uploadGCSTask.getTaskFullId(): uploadGCSTask,
 		},
 	}
 	handler := UploadGCSProgressMessageHandler{
@@ -92,7 +92,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 	}
 	store := FakeStore{
 		tasks: map[string]*Task{
-			getTaskFullId(uploadGCSTask): uploadGCSTask,
+			uploadGCSTask.getTaskFullId(): uploadGCSTask,
 		},
 	}
 	handler := UploadGCSProgressMessageHandler{
@@ -122,7 +122,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 			"dst_bq_dataset": "dataset",
 			"dst_bq_table": "table"
 		}`, loadBQTaskPrefix)
-	insertedTask, ok := store.tasks[getTaskFullId(&expectedNewTask)]
+	insertedTask, ok := store.tasks[expectedNewTask.getTaskFullId()]
 	if !ok {
 		t.Errorf("task %v should exist in the store", expectedNewTask)
 	}

@@ -51,7 +51,7 @@ func TestListProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 	}
 	store := FakeStore{
 		tasks: map[string]*Task{
-			getTaskFullId(uploadGCSTask): uploadGCSTask,
+			uploadGCSTask.getTaskFullId(): uploadGCSTask,
 		},
 	}
 	handler := UploadGCSProgressMessageHandler{
@@ -87,7 +87,7 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 	}
 	store := FakeStore{
 		tasks: map[string]*Task{
-			getTaskFullId(listTask): listTask,
+			listTask.getTaskFullId(): listTask,
 		},
 	}
 	handler := ListProgressMessageHandler{
@@ -126,7 +126,7 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 	}
 	store := FakeStore{
 		tasks: map[string]*Task{
-			getTaskFullId(listTask): listTask,
+			listTask.getTaskFullId(): listTask,
 		},
 	}
 	handler := ListProgressMessageHandler{
@@ -173,7 +173,7 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 	}
 	store := FakeStore{
 		tasks: map[string]*Task{
-			getTaskFullId(listTask): listTask,
+			listTask.getTaskFullId(): listTask,
 		},
 	}
 	handler := ListProgressMessageHandler{
@@ -222,7 +222,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	}
 	store := FakeStore{
 		tasks: map[string]*Task{
-			getTaskFullId(listTask): listTask,
+			listTask.getTaskFullId(): listTask,
 		},
 	}
 	handler := ListProgressMessageHandler{
@@ -252,7 +252,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 			"dst_bucket": "bucket2",
 			"dst_object": "file%d"
 		}`, uploadGCSTaskPrefix, i, i, i)
-		insertedTask, ok := store.tasks[getTaskFullId(&expectedNewTask)]
+		insertedTask, ok := store.tasks[expectedNewTask.getTaskFullId()]
 		if !ok {
 			t.Errorf("task %v should exist in the store", expectedNewTask)
 		}

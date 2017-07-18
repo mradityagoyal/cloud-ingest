@@ -138,25 +138,54 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 		return nil
 	}
 
-	columns := []string{
-		"JobConfigId",
-		"JobRunId",
-		"TaskId",
-		"Status",
-		"FailureMessage",
-	}
-	mutation := make([]*spanner.Mutation, len(tasks))
+	_, err := s.Client.ReadWriteTransaction(
+		context.Background(),
+		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+			columns := []string{
+				"JobConfigId",
+				"JobRunId",
+				"TaskId",
+				"Status",
+				"FailureMessage",
+			}
+			var keys = spanner.KeySets()
+			tasksmap := map[string]*Task{}
 
-	for i, task := range tasks {
-		mutation[i] = spanner.Update("Tasks", columns, []interface{}{
-			task.JobConfigId,
-			task.JobRunId,
-			task.TaskId,
-			task.Status,
-			task.FailureMessage,
+			for _, task := range tasks {
+				tasksmap[task.getTaskFullId()] = task
+				keys = spanner.KeySets(
+					keys, spanner.Key{task.JobConfigId, task.JobRunId, task.TaskId})
+			}
+
+			iter := txn.Read(ctx, "Tasks", keys, columns)
+
+			return iter.Do(func(row *spanner.Row) error {
+				var jobConfigId string
+				var jobRunId string
+				var taskId string
+				var status int64
+
+				row.ColumnByName("JobConfigId", &jobConfigId)
+				row.ColumnByName("JobRunId", &jobRunId)
+				row.ColumnByName("TaskId", &taskId)
+				row.ColumnByName("Status", &status)
+				task := tasksmap[getTaskFullId(jobConfigId, jobRunId, taskId)]
+				if !canChangeTaskStatus(status, task.Status) {
+					fmt.Printf("Ignore updating task %s from status %d to status %s",
+						taskId, status, task.Status)
+					return nil
+				}
+				return txn.BufferWrite([]*spanner.Mutation{
+					spanner.Update("Tasks", columns, []interface{}{
+						task.JobConfigId,
+						task.JobRunId,
+						task.TaskId,
+						task.Status,
+						task.FailureMessage,
+					}),
+				})
+			})
 		})
-	}
-	_, err := s.Client.Apply(context.Background(), mutation)
 	return err
 }
 

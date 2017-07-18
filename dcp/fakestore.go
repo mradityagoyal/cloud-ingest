@@ -17,7 +17,6 @@ package dcp
 
 import (
 	"errors"
-	"fmt"
 
 	"cloud.google.com/go/pubsub"
 )
@@ -33,12 +32,6 @@ type FakeStore struct {
 	tasks map[string]*Task
 }
 
-// getTaskFullId is a helper method that generates a fake unique task id based
-// on (JobConfigId, JobRunId, TaskId).
-func getTaskFullId(task *Task) string {
-	return fmt.Sprintf("%s:%s:%s", task.JobConfigId, task.JobRunId, task.TaskId)
-}
-
 func (s *FakeStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
 	return nil, errors.New("GetJobSpec: Not implemented.")
 }
@@ -46,11 +39,7 @@ func (s *FakeStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
 func (s *FakeStore) GetTaskSpec(
 	jobConfigId string, jobRunId string, taskId string) (*Task, error) {
 
-	task, ok := s.tasks[getTaskFullId(&Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      taskId,
-	})]
+	task, ok := s.tasks[getTaskFullId(jobConfigId, jobRunId, taskId)]
 	if !ok {
 		return nil, errTaskNotFound
 	}
@@ -62,7 +51,7 @@ func (s *FakeStore) InsertNewTasks(tasks []*Task) error {
 		return errInsertNewTasks
 	}
 	for _, task := range tasks {
-		s.tasks[getTaskFullId(task)] = task
+		s.tasks[task.getTaskFullId()] = task
 	}
 	return nil
 }
