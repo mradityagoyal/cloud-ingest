@@ -128,25 +128,50 @@ def _PrintOutputLines(output_stream, stream_name, cancel_event):
         print '%s: %s' % (stream_name, line.rstrip('\n'))
 
 
-def _AsyncStreamPrint(output_stream, stream_name):
+class _AsyncStreamPrinter(object):
     """Performs reads on input stream and prints them without blocking.
 
-    Args:
-      output_stream: Stream of output to print asynchronously (typically a
-          subprocess.PIPE).
-      stream_name: Display name of the stream to print before each line read.
+    This class prints the stream as it is written, and also buffers the
+    stream locally in self.buffered_stream_output so that the contents can
+    be read and compared.
 
-    Returns:
-      threading.Event() that will halt the thread (after the next stream read)
-          when set.
+    To stop printing/buffering, call self.cancel_event.set().
     """
-    cancel_event = threading.Event()
-    reader_thread = threading.Thread(
-        target=_PrintOutputLines,
-        args=(output_stream, stream_name, cancel_event))
-    reader_thread.daemon = True
-    reader_thread.start()
-    return cancel_event
+
+    def __init__(self, output_stream, stream_name):
+        """Initializes the printer.
+
+        Args:
+          output_stream: Stream of output to print asynchronously (typically a
+              subprocess.PIPE).
+          stream_name: Display name of the stream to accompany each printout.
+        """
+        self._cancel_event = threading.Event()
+        self._buffered_stream_output = b''
+
+        reader_thread = threading.Thread(
+            target=self._PrintOutputLines,
+            args=(output_stream, stream_name, self.cancel_event))
+        reader_thread.daemon = True
+        reader_thread.start()
+
+    @property
+    def cancel_event(self):
+        """Getter for cancel_event."""
+        return self._cancel_event
+
+    @property
+    def buffered_stream_output(self):
+        """Getter for buffered_stream_output."""
+        return self._buffered_stream_output
+
+    def _PrintOutputLines(self, output_stream, stream_name, cancel_event):
+        """Prints lines from output_stream until cancel_event is set."""
+        for line in iter(output_stream.readline, b''):
+            self._buffered_stream_output += line
+            if cancel_event.isSet():
+                return
+            print '%s: %s' % (stream_name, line.rstrip('\n'))
 
 
 def _CreateBQDatasetAndTable():
@@ -178,8 +203,7 @@ def _RunCommand(command, async=False, short_name=None):
             and stderr.
 
     Returns:
-        If running synchronously, return tuple of 2 threading.Events used to
-        stop output prints, else return (None, None) tuple.
+        tuple of _AsyncStreamPrinter for (stdout, stderr)
     """
     if not short_name:
         short_name = command[0]
@@ -188,22 +212,22 @@ def _RunCommand(command, async=False, short_name=None):
 
     command_process = subprocess.Popen(
         command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout_stop = _AsyncStreamPrint(
+    stdout_printer = _AsyncStreamPrinter(
         command_process.stdout, short_name + ' stdout')
-    stderr_stop = _AsyncStreamPrint(
+    stderr_printer = _AsyncStreamPrinter(
         command_process.stderr, short_name + ' stderr')
 
-    if async:
-        return stdout_stop, stderr_stop
+    if not async:
+        return_code = command_process.wait()
+        stdout_printer.cancel_event.set()
+        stderr_printer.cancel_event.set()
 
-    return_code = command_process.wait()
-    stdout_stop.set()
-    stderr_stop.set()
+        if command_process.returncode != 0:
+            raise Exception('command %s failed with return code %d' % (
+                ' '.join(command), return_code))
 
-    if return_code != 0:
-        raise Exception('command %s failed with return code %d' % (
-            ' '.join(command), return_code))
-    return None, None
+    return stdout_printer, stderr_printer
+
 
 
 def _PullDCPDockerImage():
@@ -253,10 +277,9 @@ def _RunDCP(project_id):
         'sudo', 'docker', 'run', '-d', _DCP_DOCKER_IMAGE,
         './dcpmain', project_id
     ]
-    print 'DCP command:\n%s' % (' '.join(dcp_command))
-    # TODO(b/63853372): Use _RunCommand method after refactoring it to be able
-    # to return the stdout.
-    return subprocess.check_output(dcp_command).strip()
+    dcp_stdout_printer, _ = _RunCommand(dcp_command, short_name='Start DCP',
+                                        async=False)
+    return dcp_stdout_printer.buffered_stream_output.strip()
 
 
 def _RunGsutilAgent(project_id):
@@ -305,7 +328,8 @@ if __name__ == '__main__':
         _DCPInfrastructureCommand('Create', insert_job=True)
         dcp_container_id = _RunDCP(PROJECT_ID)
 
-        gsutil_stdout_stop, gsutil_stderr_stop = _RunGsutilAgent(PROJECT_ID)
+        gsutil_stdout_printer, gsutil_stderr_printer = (
+            _RunGsutilAgent(PROJECT_ID))
 
         print 'Waiting for GCS objects to be created'
         _WaitForFunc(lambda: _GetNumGCSObjects() >= _NUM_EXPECTED_OBJECTS,
@@ -318,8 +342,8 @@ if __name__ == '__main__':
         # Once the objects have been created, gsutil's work is done, but gsutil
         # will continue listening. There's no need to print its output to the
         # console any further.
-        gsutil_stdout_stop.set()
-        gsutil_stderr_stop.set()
+        gsutil_stdout_printer.cancel_event.set()
+        gsutil_stderr_printer.cancel_event.set()
 
         print 'Waiting for BQ rows to be created'
         _WaitForFunc(lambda: _GetNumBQRows() >= _NUM_EXPECTED_BQ_ROWS,
