@@ -38,6 +38,8 @@ _TABLE_NAME = 'opi_integration_test_table%s' % _TEST_SUFFIX
 _BUCKET_NAME = 'opi-integration-test-bucket%s' % _TEST_SUFFIX
 _LIST_OUTPUT_OBJECT_NAME = 'opi-integration-test-list-output-object'
 
+_DCP_DOCKER_IMAGE = 'gcr.io/mbassiouny-test/cloud-ingest:dcp'
+
 _BIGQUERY_CLIENT = bigquery.Client()
 _STORAGE_CLIENT = storage.Client()
 
@@ -166,6 +168,50 @@ def _IsRunningInteractively():
     return sys.stdout.isatty() and sys.stderr.isatty() and sys.stdin.isatty()
 
 
+def _RunCommand(command, async=False, short_name=None):
+    """Runs the passed command array.
+
+    Args:
+        command: String array of the command to run.
+        async: Whether to run the command asynchronously.
+        short_name: short name to identify the command for printing in stdout
+            and stderr.
+
+    Returns:
+        If running synchronously, return tuple of 2 threading.Events used to
+        stop output prints, else return (None, None) tuple.
+    """
+    if not short_name:
+        short_name = command[0]
+
+    print 'Running command(%s): %s' % (short_name, ' '.join(command))
+
+    command_process = subprocess.Popen(
+        command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    stdout_stop = _AsyncStreamPrint(
+        command_process.stdout, short_name + ' stdout')
+    stderr_stop = _AsyncStreamPrint(
+        command_process.stderr, short_name + ' stderr')
+
+    if async:
+        return stdout_stop, stderr_stop
+
+    return_code = command_process.wait()
+    stdout_stop.set()
+    stderr_stop.set()
+
+    if return_code != 0:
+        raise Exception('command %s failed with return code %d' % (
+            ' '.join(command), return_code))
+    return None, None
+
+
+def _PullDCPDockerImage():
+    """Pulls a fresh docker image."""
+    dcp_command = ['sudo', 'docker', 'pull', _DCP_DOCKER_IMAGE]
+    _RunCommand(dcp_command, short_name='pull image')
+
+
 def _DCPInfrastructureCommand(command, insert_job=False):
     """Runs the infrastructure command to setup/teardown DCP infrastructure.
 
@@ -180,35 +226,37 @@ def _DCPInfrastructureCommand(command, insert_job=False):
     # TODO: Presently, this creates a new GCE VM (which takes a while to
     # start up). When the DCP setup script supports local deployment,
     # do that instead to improve performance.
-    create_infra_command = [
+    infra_command = [
         'sudo', 'docker', 'run', '-it' if _IsRunningInteractively() else '-i',
-        'gcr.io/mbassiouny-test/cloud-ingest:dcp',
+        _DCP_DOCKER_IMAGE,
         'python', 'create-infra/main.py',
-        command  # Create or tear down infrastructure.
+        command,  # Create or tear down infrastructure.
+        '--skip-running-dcp'
     ]
     if insert_job:
-        create_infra_command.extend([
+        infra_command.extend([
             '-j',  # Insert new job
             '--src-dir', TMP_DIR,
             '--dst-gcs-bucket', _BUCKET_NAME,
             '--dst-bq-datase', _DATASET_NAME, '--dst-bq-table', _TABLE_NAME
         ])
-    print 'Infrastructure command:\n%s' % (
-        ' '.join(create_infra_command))
-    create_infra_process = subprocess.Popen(
-        create_infra_command,
-        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    infra_stdout_stop = _AsyncStreamPrint(
-        create_infra_process.stdout, 'infra stdout')
-    infra_stderr_stop = _AsyncStreamPrint(
-        create_infra_process.stderr, 'infra stderr')
-    return_code = create_infra_process.wait()
-    infra_stdout_stop.set()
-    infra_stderr_stop.set()
 
-    if return_code != 0:
-        raise Exception('DCP infrastructure command failed with '
-                        'return code %d' % return_code)
+    if command == 'TearDown':
+        infra_command.append('--force')
+
+    _RunCommand(infra_command, short_name='infra')
+
+
+def _RunDCP(project_id):
+    """Runs the DCP as a container and returns the container id."""
+    dcp_command = [
+        'sudo', 'docker', 'run', '-d', _DCP_DOCKER_IMAGE,
+        './dcpmain', project_id
+    ]
+    print 'DCP command:\n%s' % (' '.join(dcp_command))
+    # TODO(b/63853372): Use _RunCommand method after refactoring it to be able
+    # to return the stdout.
+    return subprocess.check_output(dcp_command).strip()
 
 
 def _RunGsutilAgent(project_id):
@@ -229,29 +277,24 @@ def _RunGsutilAgent(project_id):
         'projects/%s/topics/cloud-ingest-list-progress' % project_id,
         'projects/%s/subscriptions/cloud-ingest-copy' % project_id,
         'projects/%s/topics/cloud-ingest-copy-progress' % project_id]
-    print 'Starting gsutil.  Command line:\n%s\n' % ' '.join(gsutil_command)
-    gsutil_process = subprocess.Popen(
-         gsutil_command,
-         stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    stdout_stop = _AsyncStreamPrint(gsutil_process.stdout,
-        'gsutil stdout')
-    stderr_stop = _AsyncStreamPrint(gsutil_process.stderr,
-        'gsutil stderr')
-    return stdout_stop, stderr_stop
+    return _RunCommand(gsutil_command, async=True)
 
 
-
-if __name__ == "__main__":
+if __name__ == '__main__':
     # TODO: Presently, this test runs from GCE and expects service account
     # credentials on the GCE instance with cloud-platform auth scope. Extend
     # this to alternatively accept a service account credential key file.
 
     PROJECT_ID = _STORAGE_CLIENT.project
 
+    # Get a fresh DCP docker image
+    _PullDCPDockerImage()
+
     # Clean up old infrastructure, if they exist.
     _DCPInfrastructureCommand('TearDown')
 
     try:
+        dcp_container_id = None
         _CreateBQDatasetAndTable()
 
         # Set up the GCS staging bucket for objects to be loaded into BigQuery.
@@ -260,6 +303,8 @@ if __name__ == "__main__":
         TMP_DIR, FILE_PATHS = _CreateTempFiles()
 
         _DCPInfrastructureCommand('Create', insert_job=True)
+        dcp_container_id = _RunDCP(PROJECT_ID)
+
         gsutil_stdout_stop, gsutil_stderr_stop = _RunGsutilAgent(PROJECT_ID)
 
         print 'Waiting for GCS objects to be created'
@@ -288,4 +333,7 @@ if __name__ == "__main__":
     finally:
         _CleanUpBq(_BIGQUERY_CLIENT)
         _CleanUpGCS(_STORAGE_CLIENT)
+        if dcp_container_id:
+            _RunCommand(['sudo', 'docker', 'stop', dcp_container_id],
+                        short_name='Stop DCP')
         _DCPInfrastructureCommand('TearDown')
