@@ -93,11 +93,15 @@ def CreateInfrastructure(
                          args.function_topic,
                          args.function_entrypoint)
 
-  print 'Creating GCE instance {}.'.format(args.compute_name)
-  compute_bldr.CreateInstance(args.compute_name,
-                              args.compute_container_image,
-                              args.compute_cmd,
-                              args.compute_args)
+  if args.skip_running_dcp:
+    print('Skipping create GCE VM for running DCP. All compute arguments will '
+          'be ignored')
+  else:
+    print 'Creating GCE instance {}.'.format(args.compute_name)
+    compute_bldr.CreateInstance(args.compute_name,
+                                args.compute_container_image,
+                                args.compute_cmd,
+                                args.compute_args)
 
 
 def main():
@@ -153,6 +157,10 @@ def main():
   parser.add_argument('--function-entrypoint', '-e', type=str,
                       help='Cloud Function entry point.',
                       default='GcsToBq')
+
+  parser.add_argument('--skip-running-dcp', '-sdcp', action='store_true',
+                      help='Skip running the DCP in a new VM.',
+                      default=False)
 
   parser.add_argument('--compute-name', '-c', type=str,
                       help='GCE instance name.',
