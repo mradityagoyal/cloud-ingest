@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 )
 
 const (
@@ -27,13 +28,11 @@ const (
 	Failed   int64 = 2
 	Success  int64 = 3
 
-	listTaskPrefix      string = "list"
-	uploadGCSTaskPrefix string = "uploadGCS:"
-	loadBQTaskPrefix    string = "loadBigQuery:"
+	taskIdSeparator string = ":"
 
-	// TODO(b/63017649): Remove this hard-coded job config and run ids.
-	jobConfigId string = "ingest-job-00"
-	jobRunId    string = "job-run-00"
+	listTaskPrefix      string = "list"
+	uploadGCSTaskPrefix string = "uploadGCS" + taskIdSeparator
+	loadBQTaskPrefix    string = "loadBigQuery" + taskIdSeparator
 )
 
 type JobSpec struct {
@@ -45,21 +44,18 @@ type JobSpec struct {
 }
 
 type ListTaskSpec struct {
-	TaskId              string `json:"task_id"`
 	DstListResultBucket string `json:"dst_list_result_bucket"`
 	DstListResultObject string `json:"dst_list_result_object"`
 	SrcDirectory        string `json:"src_directory"`
 }
 
 type UploadGCSTaskSpec struct {
-	TaskId    string `json:"task_id"`
 	SrcFile   string `json:"src_file"`
 	DstBucket string `json:"dst_bucket"`
 	DstObject string `json:"dst_object"`
 }
 
 type LoadBQTaskSpec struct {
-	TaskId       string `json:"task_id"`
 	SrcGCSBucket string `json:"src_gcs_bucket"`
 	SrcGCSObject string `json:"src_gcs_object"`
 	DstBQDataset string `json:"dst_bq_dataset"`
@@ -84,7 +80,23 @@ func (t Task) getTaskFullId() string {
 // getTaskFullId is a helper method that generates a unique task id based
 // on (JobConfigId, JobRunId, TaskId).
 func getTaskFullId(jobConfigId string, jobRunId string, taskId string) string {
-	return fmt.Sprintf("%s:%s:%s", jobConfigId, jobRunId, taskId)
+	return fmt.Sprintf(
+		"%s%s%s%s%s", jobConfigId, taskIdSeparator, jobRunId, taskIdSeparator, taskId)
+}
+
+// constructTaskFromFullTaskId constructs a task from a colon-separated full
+// task id "job_config_id:job_run_id:task_id"
+func constructTaskFromFullTaskId(fullTaskId string) (*Task, error) {
+	task_id_components := strings.SplitN(fullTaskId, taskIdSeparator, 3)
+	if len(task_id_components) != 3 {
+		return nil, errors.New(fmt.Sprintf(
+			"can not parse full task id: %s, expecting 3 strings separated by ':'", fullTaskId))
+	}
+	return &Task{
+		JobConfigId: task_id_components[0],
+		JobRunId:    task_id_components[1],
+		TaskId:      task_id_components[2],
+	}, nil
 }
 
 // canChangeTaskStatus checks weather a task can be moved from a fromStatus to
@@ -96,23 +108,35 @@ func canChangeTaskStatus(fromStatus int64, toStatus int64) bool {
 	return toStatus > fromStatus
 }
 
+// constructPubSubTaskMsg constructs the pubsub message for the passed task to
+// send to the worker agents.
+func constructPubSubTaskMsg(task *Task) ([]byte, error) {
+	taskMsg := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(task.TaskSpec), &taskMsg); err != nil {
+		return nil, errors.New(fmt.Sprintf(
+			"error decoding JSON task spec string %s for task %v.",
+			task.TaskSpec, task))
+	}
+
+	taskMsg["task_id"] = task.getTaskFullId()
+	return json.Marshal(taskMsg)
+}
+
 func TaskCompletionMessageJsonToTask(msg []byte) (*Task, error) {
 	taskCompletionMsgMap := make(map[string]interface{})
 	if err := json.Unmarshal(msg, &taskCompletionMsgMap); err != nil {
 		return nil, err
 	}
 
-	taskId, ok := taskCompletionMsgMap["task_id"]
+	fullTaskId, ok := taskCompletionMsgMap["task_id"].(string)
 	if !ok {
 		return nil, errors.New(fmt.Sprintf(
 			"error reading task id from completion message: %s.", string(msg)))
 	}
 
-	// TODO(b/63017649): Remove hard-coded jobConfigId and jobRunId.
-	task := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      taskId.(string),
+	task, err := constructTaskFromFullTaskId(fullTaskId)
+	if err != nil {
+		return nil, err
 	}
 
 	if taskCompletionMsgMap["status"] == "FAILED" {

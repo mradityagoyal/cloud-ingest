@@ -62,14 +62,16 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 	}
 	taskIdFromFile := <-filePaths
 
-	if taskIdFromFile != task.TaskId {
+	if taskIdFromFile != task.getTaskFullId() {
 		return errors.New(fmt.Sprintf(noTaskIdInListOutput, task.TaskId, taskIdFromFile))
 	}
 	var newTasks []*Task
 	for filePath := range filePaths {
+		// TODO(b/64038794): The task ids should be a hash of the filePath, the
+		// filePath might be too long and already duplicated in the task spec.
+		uploadGCSTaskId := uploadGCSTaskPrefix + filePath
 		dstObject, _ := filepath.Rel(listTaskSpec.SrcDirectory, filePath)
 		uploadGCSTaskSpec := UploadGCSTaskSpec{
-			TaskId:    uploadGCSTaskPrefix + filePath,
 			SrcFile:   filePath,
 			DstBucket: jobSpec.GCSBucket,
 			DstObject: dstObject,
@@ -82,9 +84,9 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 			return err
 		}
 		newTasks = append(newTasks, &Task{
-			JobConfigId: jobConfigId,
-			JobRunId:    jobRunId,
-			TaskId:      uploadGCSTaskSpec.TaskId,
+			JobConfigId: task.JobConfigId,
+			JobRunId:    task.JobRunId,
+			TaskId:      uploadGCSTaskId,
 			TaskSpec:    string(uploadGCSTaskSpecJson),
 		})
 	}

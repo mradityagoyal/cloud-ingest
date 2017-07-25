@@ -214,8 +214,14 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 		// Publish the messages.
 		// TODO(b/63018625): Adjust the PubSub publish settings to control batching
 		// the messages and the timeout to publish any set of messages.
+		taskMsgJSON, err := constructPubSubTaskMsg(task)
+		if err != nil {
+			fmt.Printf("Unable to form task msg from task: %v with error: %v.\n",
+				task, err)
+			return err
+		}
 		publishResults = append(publishResults, topic.Publish(
-			context.Background(), &pubsub.Message{Data: []byte(task.TaskSpec)}))
+			context.Background(), &pubsub.Message{Data: taskMsgJSON}))
 		// Mark the tasks as queued.
 		tasks[i].Status = Queued
 	}

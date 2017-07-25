@@ -74,7 +74,6 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
                                                     JOB_RUN_NAME,
                                                     task_id))
     task_spec = {
-        'task_id': task_id,
         'dst_list_result_bucket': dst_gcs_bucket,
         'dst_list_result_object': list_result_object_name,
         'src_directory': src_dir

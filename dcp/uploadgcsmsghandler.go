@@ -44,8 +44,10 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *
 		return err
 	}
 
+	// TODO(b/64038794): The task ids should be a hash of the SrcGCSObject, the
+	// SrcGCSObject might be too long and already duplicated in the task spec.
+	loadBQTaskId := loadBQTaskPrefix + uploadGCSTaskSpec.DstObject
 	loadBQTaskSpec := LoadBQTaskSpec{
-		TaskId:       loadBQTaskPrefix + uploadGCSTaskSpec.DstObject,
 		SrcGCSBucket: uploadGCSTaskSpec.DstBucket,
 		SrcGCSObject: uploadGCSTaskSpec.DstObject,
 		DstBQDataset: jobSpec.BQDataset,
@@ -60,9 +62,9 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *
 		return err
 	}
 	return h.Store.InsertNewTasks([]*Task{&Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      loadBQTaskSpec.TaskId,
+		JobConfigId: task.JobConfigId,
+		JobRunId:    task.JobRunId,
+		TaskId:      loadBQTaskId,
 		TaskSpec:    string(loadBigQueryTaskSpecJson),
 	}})
 }
