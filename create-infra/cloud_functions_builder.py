@@ -138,7 +138,8 @@ class CloudFunctionsBuilder(object):
 
   def CreateFunction(self, cloud_function_name, src_dir,
                      pubsub_topic, entry_point,
-                     staging_gcs_bucket=None, staging_gcs_object=None):
+                     staging_gcs_bucket=None, staging_gcs_object=None,
+                     timeout_seconds=180):
     """Creates a cloud function."""
     if not staging_gcs_object:
       staging_gcs_object = '%s_code.zip' % cloud_function_name
@@ -168,9 +169,31 @@ class CloudFunctionsBuilder(object):
     }
     r = self.authed_session.post(
         functions_url, headers=self.headers, json=payload)
+    request_time = time.time()
     if r.status_code != httplib.OK:
       raise Exception('Unexpected error code when creating cloud function {}, '
                       'response text: {}.', cloud_function_name, r.text)
+
+    # Wait until the cloud function is ready.
+    function_get_url = '{}/{}'.format(functions_url, cloud_function_name)
+    while time.time() - request_time < timeout_seconds:
+      print 'Waiting for cloud function to get deployed.'
+      time.sleep(1)
+      r = self.authed_session.get(function_get_url, headers=self.headers)
+      if r.status_code != httplib.OK or 'status' not in r.json():
+        # Something went wrong, skip checking the status of the cloud function.
+        continue
+      if r.json()['status'] == 'READY':
+        print 'Cloud function {} created in {} seconds.'.format(
+            cloud_function_name, time.time() - request_time)
+        return
+      elif r.json()['status'] == 'FAILED':
+        raise Exception(
+            'Create cloud function {} failed.'.format(cloud_function_name))
+
+    raise Exception('Create cloud function {} timed out. Last query response '
+                    'code: {}, response text: {}.'.format(
+                        cloud_function_name, r.status_code, r.text))
 
   def DeleteFunction(self, cloud_function_name, timeout_seconds=180):
     """Deletes a cloud function."""
