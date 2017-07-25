@@ -8,5 +8,11 @@ ADD create-infra /cloud-ingest/create-infra
 ADD cloud-functions /cloud-ingest/cloud-functions
 ADD dcpmain /cloud-ingest/
 
+# Fix libraries dependencies.
+# TODO(b/64027988): Build the dcp go binary on the docker image instead of
+# fixing the dependencies.
+RUN mkdir -p /usr/grte/v4/lib64
+RUN ln -s /lib/x86_64-linux-gnu/ld-2.19.so /usr/grte/v4/lib64/ld-linux-x86-64.so.2
+
 # Default running bash when the container launches
 CMD ["/bin/bash"]
