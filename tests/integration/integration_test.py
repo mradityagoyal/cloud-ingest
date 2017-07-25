@@ -38,7 +38,7 @@ _TABLE_NAME = 'opi_integration_test_table%s' % _TEST_SUFFIX
 _BUCKET_NAME = 'opi-integration-test-bucket%s' % _TEST_SUFFIX
 _LIST_OUTPUT_OBJECT_NAME = 'opi-integration-test-list-output-object'
 
-_DCP_DOCKER_IMAGE = 'gcr.io/mbassiouny-test/cloud-ingest:dcp'
+_DCP_DOCKER_IMAGE = 'gcr.io/mbassiouny-test/cloud-ingest:test'
 
 _BIGQUERY_CLIENT = bigquery.Client()
 _STORAGE_CLIENT = storage.Client()

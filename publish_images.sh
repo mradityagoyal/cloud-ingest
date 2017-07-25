@@ -12,6 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+# The script builds and publishes a docker images based on the passed param.
+# This param should be one of:
+#   base: Publish the cloud ingest base image which contains the cloud ingest
+#         dependency packages pre-installed.
+#   dcp: Publish the stable cloud ingest data control plane image.
+#   test: Publish the cloud ingest data control plane image used for testing.
+
 #!/bin/bash
 
 # Exit the script on the first failure.
@@ -26,7 +33,7 @@ pushd "$SCRIPT_DIR"
 # Return back to the original dir.
 trap popd EXIT
 
-# TODO(b/63626194): Change with google official container registery.
+# TODO(b/63626194): Change with google official container registry.
 PROJECT_ID="mbassiouny-test"
 
 fail() {
@@ -36,8 +43,9 @@ fail() {
   exit 1
 }
 
-if [ $# -ne 1 ] || ( [ "$1" != "base" ] && [ "$1" != "dcp" ] ); then
- fail "Should provide 1 argument (base|dcp)"
+if [ $# -ne 1 ] || ( [ "$1" != "base" ] && [ "$1" != "dcp" ] && \
+                     [ "$1" != "test" ] ); then
+ fail "Should provide 1 argument (base|dcp|test)"
 fi
 
 if [ "$1" = "base" ]; then
@@ -47,9 +55,9 @@ if [ "$1" = "base" ]; then
 else
   # Build the dcp go binary
   go build ./dcp/dcpmain
-  docker build -t cloud-ingest:dcp -f Dockerfile-dcp .
+  docker build -t "cloud-ingest:$1" -f Dockerfile-dcp .
   # Clean up the dcp binary after building the image.
   rm -f dcpmain
-  docker tag cloud-ingest:dcp "gcr.io/$PROJECT_ID/cloud-ingest:dcp"
-  gcloud docker -- push "gcr.io/$PROJECT_ID/cloud-ingest:dcp"
+  docker tag "cloud-ingest:$1" "gcr.io/$PROJECT_ID/cloud-ingest:$1"
+  gcloud docker -- push "gcr.io/$PROJECT_ID/cloud-ingest:$1"
 fi
