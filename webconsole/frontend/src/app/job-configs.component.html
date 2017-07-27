@@ -1,0 +1,14 @@
+<table>
+  <tr>
+    <th i18n="Header for column containing job config id strings">
+      Config Id
+    </th>
+    <th i18n="Header for column containing job spec strings">
+      Job Spec
+    </th>
+  </tr>
+  <tr *ngFor="let jobConfig of jobConfigs">
+    <td>{{jobConfig.JobConfigId}}</td>
+    <td>{{jobConfig.JobSpec}}</td>
+  </tr>
+</table>

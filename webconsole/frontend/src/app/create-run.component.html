@@ -1,0 +1,49 @@
+<h2 i18n="Title of job run creation page">Create Job Run</h2>
+<div [hidden]="!formError" i18n="Error message for invalid values in job run creation">
+  There was an error due to invalid values. Try again and make sure the
+  (config id, run id) pair is unique.
+</div>
+
+<div [hidden]="!appError" i18n="Error message for unexpected application errors">
+  There was an error in the application. Please try again later and contact site
+  owners if the problem persists.
+</div>
+
+<form (ngSubmit)="onSubmit()" #createJobForm="ngForm">
+  <div>
+    <label for="jobRunId" i18n="Label for Job Run Id input">Job Run Id</label>
+    <input type="text" id="jobRunId" required [(ngModel)]="model.JobRunId"
+        name="JobRunId" #jobRunId="ngModel">
+    <div [hidden]="!jobRunId.errors || !jobRunId.errors.required
+                   || jobRunId.untouched"
+         i18n="Diplayed when required input Job Run Id is empty">
+      Job Run Id is required
+    </div>
+  </div>
+
+  <div>
+    <label for="configId" i18n="Label for Job Config Id input">
+      Job Config Id
+    </label>
+    <select id="configId" required [(ngModel)]="model.JobConfigId"
+        name="JobConfigId" #configId="ngModel">
+      <option *ngFor="let config of jobConfigs" [value]=config.JobConfigId>
+        {{config.JobConfigId}}
+      </option>
+    </select>
+    <div [hidden]="!configId.errors || !configId.errors.required
+                   || configId.untouched"
+         i18n="Diplayed when required input Job Config Id is empty">
+      Job Config Id is required
+    </div>
+  </div>
+
+  <button type="submit" [disabled]="!createJobForm.form.valid || submittingForm"
+      i18n="Label for a submit button">
+    Submit
+  </button>
+
+</form>
+<div [hidden]="!submittingForm" i18n="Displayed while a form is submitting">
+  Submitting...
+</div>

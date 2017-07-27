@@ -1,1 +1,14 @@
 *.pyc
+
+# Angular compiled output
+# dist contains all build artifacts necessary to serve the application
+dist/
+tmp/
+out-tsc/
+
+# Angular app dependencies
+node_modules/
+
+# e2e build artifacts
+e2e/*.js
+e2e/*.map

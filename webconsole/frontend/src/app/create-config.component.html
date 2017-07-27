@@ -1,0 +1,38 @@
+<h2 i18n="Title for job config creation page">Create Job Config</h2>
+<div [hidden]="!formError"
+     i18n="Error message for invalid values in job config creation">
+  There was an error due to invalid values. Try again and make sure the
+  config id is unique.
+</div>
+
+<div [hidden]="!appError" i18n="Error message for unexpected application errors">
+  There was an error in the application. Please try again later and contact site
+  owners if the problem persists.
+</div>
+
+<form (ngSubmit)="onSubmit()" #createConfigForm="ngForm">
+  <div>
+    <label for="configId" i18n="Label for Job Config Id input">Config Id</label>
+    <input type="text" id="configId" required [(ngModel)]="model.JobConfigId"
+        name="JobConfigId" #configId="ngModel">
+    <div [hidden]="!configId.errors || !configId.errors.required
+                   || configId.untouched"
+         i18n="Displayed when required input Job Config Id is empty">
+      Config Id is required
+    </div>
+  </div>
+
+  <div>
+    <label for="jobSpec" i18n="Label for Job Spec input">Job Spec</label>
+    <textarea id="jobSpec" name="JobSpec" [(ngModel)]="model.JobSpec"></textarea>
+  </div>
+
+  <button type="submit" [disabled]="!createConfigForm.form.valid ||
+      submittingForm" i18n="Label for submit button">
+    Submit
+  </button>
+
+</form>
+<div *ngIf="submittingForm" i18n="Displayed while form is submitting">
+  Submitting...
+</div>

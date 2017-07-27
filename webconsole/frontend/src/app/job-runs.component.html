@@ -1,0 +1,22 @@
+<table>
+  <tr>
+    <th i18n="Header for the column containing job run id strings">
+      Run Id
+    </th>
+    <th i18n="Header for the column containing job config id strings">
+      Config Id
+    </th>
+    <th i18n="Header for the column containing job creation times">
+      Creation Time
+    </th>
+    <th i18n="Header for the column containing job statuses">
+      Status
+    </th>
+  </tr>
+  <tr *ngFor="let jobRun of jobRuns">
+    <td>{{jobRun.JobRunId}}
+    <td>{{jobRun.JobConfigId}}</td>
+    <td>{{jobRun.JobCreationTime}}</td>
+    <td>{{jobRun.Status}}</td>
+  </tr>
+</table>
