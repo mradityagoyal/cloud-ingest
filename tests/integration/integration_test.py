@@ -262,7 +262,7 @@ def _DCPInfrastructureCommand(command, insert_job=False):
             '-j',  # Insert new job
             '--src-dir', TMP_DIR,
             '--dst-gcs-bucket', _BUCKET_NAME,
-            '--dst-bq-datase', _DATASET_NAME, '--dst-bq-table', _TABLE_NAME
+            '--dst-bq-dataset', _DATASET_NAME, '--dst-bq-table', _TABLE_NAME
         ])
 
     if command == 'TearDown':
