@@ -88,10 +88,9 @@ def CreateInfrastructure(
     pubsub_bldr.CreateTopicAndSubscriptions(topic_name, sub_names)
 
   print 'Creating cloud function {}.'.format(args.function_name)
-  fn_bldr.CreateFunction(args.function_name,
-                         args.function_src_dir,
-                         args.function_topic,
-                         args.function_entrypoint)
+  fn_bldr.CreateFunction(args.function_name, args.function_src_dir,
+                         args.function_topic, args.function_entrypoint,
+                         args.cloud_function_timeout)
 
   if args.skip_running_dcp:
     print('Skipping create GCE VM for running DCP. All compute arguments will '
@@ -157,6 +156,13 @@ def main():
   parser.add_argument('--function-entrypoint', '-e', type=str,
                       help='Cloud Function entry point.',
                       default='GcsToBq')
+
+  parser.add_argument('--cloud-function-timeout', type=str,
+                      help='The Cloud Function execution timeout. It determines'
+                            ' how long before a cloud function is considered '
+                            'timed out. Must be a duration in seconds, followed'
+                            ' by an s. The default is 9 minutes.',
+                      default='540s')
 
   parser.add_argument('--skip-running-dcp', '-sdcp', action='store_true',
                       help='Skip running the DCP in a new VM.',

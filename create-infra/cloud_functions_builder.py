@@ -136,9 +136,14 @@ class CloudFunctionsBuilder(object):
     # Used to upload the cloud function source code to GCS.
     self.storage_client = storage.Client()
 
-  def CreateFunction(self, cloud_function_name, src_dir,
-                     pubsub_topic, entry_point,
-                     staging_gcs_bucket=None, staging_gcs_object=None,
+  def CreateFunction(self,
+                     cloud_function_name,
+                     src_dir,
+                     pubsub_topic,
+                     entry_point,
+                     cloud_function_timeout,
+                     staging_gcs_bucket=None,
+                     staging_gcs_object=None,
                      timeout_seconds=180):
     """Creates a cloud function."""
     if not staging_gcs_object:
@@ -165,7 +170,8 @@ class CloudFunctionsBuilder(object):
                                                        pubsub_topic),
             'eventType': 'providers/cloud.pubsub/eventTypes/topic.publish'
         },
-        'name': '{}/{}'.format(self.functions_path, cloud_function_name)
+        'name': '{}/{}'.format(self.functions_path, cloud_function_name),
+        'timeout': cloud_function_timeout
     }
     r = self.authed_session.post(
         functions_url, headers=self.headers, json=payload)
