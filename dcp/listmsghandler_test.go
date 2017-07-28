@@ -25,6 +25,11 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
+var (
+	jobConfigId string = "job_config_id_A"
+	jobRunId    string = "job_run_id_A"
+)
+
 func TestListProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 	store := FakeStore{}
 	handler := UploadGCSProgressMessageHandler{
@@ -117,7 +122,6 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 		JobRunId:    jobRunId,
 		TaskId:      "task_id_A",
 		TaskSpec: `{
-			"task_id": "task_id_A",
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
 			"src_directory": "dir"
@@ -139,7 +143,7 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 	}
 
 	err := handler.HandleMessage(jobSpec, listTask)
-	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "task_id_A", "")
+	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	}
@@ -164,7 +168,6 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 		JobRunId:    jobRunId,
 		TaskId:      "task_id_A",
 		TaskSpec: `{
-			"task_id": "task_id_A",
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
 			"src_directory": "dir"
@@ -186,7 +189,7 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 	}
 
 	err := handler.HandleMessage(jobSpec, listTask)
-	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "task_id_A", "task_id_B")
+	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "task_id_B")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	}
@@ -202,7 +205,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	c := make(chan string)
 	go func() {
 		defer close(c)
-		c <- "task_id_A"
+		c <- "job_config_id_A:job_run_id_A:task_id_A"
 		c <- "dir/file0"
 		c <- "dir/file1"
 	}()
@@ -213,7 +216,6 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		JobRunId:    jobRunId,
 		TaskId:      "task_id_A",
 		TaskSpec: `{
-			"task_id": "task_id_A",
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
 			"src_directory": "dir"
@@ -247,11 +249,10 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 			TaskId:      uploadGCSTaskPrefix + "dir/file" + strconv.Itoa(i),
 		}
 		expectedNewTaskSpec := fmt.Sprintf(`{
-			"task_id": "%sdir/file%d",
 			"src_file": "dir/file%d",
 			"dst_bucket": "bucket2",
 			"dst_object": "file%d"
-		}`, uploadGCSTaskPrefix, i, i, i)
+		}`, i, i)
 		insertedTask, ok := store.tasks[expectedNewTask.getTaskFullId()]
 		if !ok {
 			t.Errorf("task %v should exist in the store", expectedNewTask)

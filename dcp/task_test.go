@@ -28,7 +28,7 @@ func TestTaskCompletionMessageJsonToTask(t *testing.T) {
 	}
 
 	msgFormat := `{
-		"task_id": "A",
+		"task_id": "job_config_id_A:job_run_id_A:A",
 		"status": "%s"
 	}`
 
@@ -60,7 +60,7 @@ func TestTaskCompletionMessageJsonToTaskFailureMsg(t *testing.T) {
 		FailureMessage: "Failure",
 	}
 	msg := []byte(`{
-		"task_id": "A",
+		"task_id": "job_config_id_A:job_run_id_A:A",
 		"status": "FAILED",
 		"failure_message": "Failure"
 	}`)

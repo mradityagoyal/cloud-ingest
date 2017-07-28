@@ -16,7 +16,6 @@ limitations under the License.
 package dcp
 
 import (
-	"fmt"
 	"reflect"
 	"testing"
 )
@@ -115,13 +114,13 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 		JobRunId:    jobRunId,
 		TaskId:      loadBQTaskPrefix + "object",
 	}
-	expectedNewTaskSpec := fmt.Sprintf(`{
-			"task_id": "%sobject",
+	expectedNewTaskSpec :=
+		`{
 			"src_gcs_bucket": "bucket",
 			"src_gcs_object": "object",
 			"dst_bq_dataset": "dataset",
 			"dst_bq_table": "table"
-		}`, loadBQTaskPrefix)
+		}`
 	insertedTask, ok := store.tasks[expectedNewTask.getTaskFullId()]
 	if !ok {
 		t.Errorf("task %v should exist in the store", expectedNewTask)

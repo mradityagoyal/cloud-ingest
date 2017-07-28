@@ -63,7 +63,7 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 	taskIdFromFile := <-filePaths
 
 	if taskIdFromFile != task.getTaskFullId() {
-		return errors.New(fmt.Sprintf(noTaskIdInListOutput, task.TaskId, taskIdFromFile))
+		return errors.New(fmt.Sprintf(noTaskIdInListOutput, task.getTaskFullId(), taskIdFromFile))
 	}
 	var newTasks []*Task
 	for filePath := range filePaths {
