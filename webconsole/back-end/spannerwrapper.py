@@ -37,11 +37,16 @@ class SpannerWrapper(object):
   JOB_RUN_ID = "JobRunId"
   JOB_CREATION_TIME = "JobCreationTime"
   STATUS = "Status"
-  JOB_RUNS_COLUMNS = [JOB_CONFIG_ID, JOB_RUN_ID, JOB_CREATION_TIME, STATUS]
+  JOB_RUNS_COLUMNS = [JOB_CONFIG_ID, JOB_RUN_ID, STATUS, JOB_CREATION_TIME]
 
   TASKS_TABLE = "Tasks"
   TASK_ID = "TaskId"
+  FAILURE_MESSAGE = "FailureMessage"
   LAST_MODIFICATION_TIME = "LastModificationTime"
+  TASK_SPEC = "TaskSpec"
+  WORKER_ID = "WorkerId"
+  TASKS_COLUMNS = [JOB_CONFIG_ID, JOB_RUN_ID, TASK_ID, FAILURE_MESSAGE,
+                   LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, WORKER_ID]
 
   def __init__(self, json_key_file_path, instance_id, database_id):
     """Creates and initializes an instance of the SpannerWrapper class.
@@ -124,7 +129,7 @@ class SpannerWrapper(object):
     """
     config_id = unicode(config_id)
     run_id = unicode(run_id)
-    values = [config_id, run_id, int(time.time()), 1]
+    values = [config_id, run_id, 1, int(time.time())]
 
     return self.insert(
         SpannerWrapper.JOB_RUNS_TABLE,

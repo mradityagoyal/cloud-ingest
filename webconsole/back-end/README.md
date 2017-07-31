@@ -25,3 +25,6 @@
    your local config file.
 Linux: `export INGEST_CONFIG_PATH="example/path/to/ingestwebconsole.local_settings"`
 5. Run 'python main.py' to start the web console back-end
+
+## Testing
+From `cloud-ingest/webconsole/back-end` run `python -m unittest discover`.
