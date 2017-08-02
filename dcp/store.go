@@ -115,6 +115,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 		"JobConfigId",
 		"JobRunId",
 		"TaskId",
+		"TaskType",
 		"TaskSpec",
 		"Status",
 	}
@@ -125,6 +126,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 			task.JobConfigId,
 			task.JobRunId,
 			task.TaskId,
+			task.TaskType,
 			task.TaskSpec,
 			Unqueued,
 		})
@@ -169,9 +171,10 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 				row.ColumnByName("JobRunId", &jobRunId)
 				row.ColumnByName("TaskId", &taskId)
 				row.ColumnByName("Status", &status)
+
 				task := tasksmap[getTaskFullId(jobConfigId, jobRunId, taskId)]
 				if !canChangeTaskStatus(status, task.Status) {
-					fmt.Printf("Ignore updating task %s from status %d to status %s",
+					fmt.Printf("Ignore updating task %s from status %d to status %d.\n",
 						taskId, status, task.Status)
 					return nil
 				}
@@ -199,16 +202,15 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 	messagesPublished := true
 	for i, task := range tasks {
 		var topic *pubsub.Topic
-		// TODO(b/63104595): Separating out the tasks type in the task spec instead
-		// parsing out the task id to get the type.
-		if strings.HasPrefix(task.TaskId, listTaskPrefix) {
+		switch task.TaskType {
+		case listTaskType:
 			topic = listTopic
-		} else if strings.HasPrefix(task.TaskId, uploadGCSTaskPrefix) {
+		case uploadGCSTaskType:
 			topic = copyTopic
-		} else if strings.HasPrefix(task.TaskId, loadBQTaskPrefix) {
+		case loadBQTaskType:
 			topic = loadBigQueryTopic
-		} else {
-			return errors.New(fmt.Sprintf("Unknown Task, task id: %s.", task.TaskId))
+		default:
+			return errors.New(fmt.Sprintf("unknown Task, task id: %s.", task.TaskId))
 		}
 
 		// Publish the messages.
@@ -242,7 +244,7 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
 	var tasks []*Task
 	stmt := spanner.Statement{
-		SQL: `SELECT JobConfigId, JobRunId, TaskId, TaskSpec
+		SQL: `SELECT JobConfigId, JobRunId, TaskId, TaskType, TaskSpec
           FROM Tasks@{FORCE_INDEX=TasksByStatus}
           WHERE Status = @status LIMIT @maxtasks`,
 		Params: map[string]interface{}{
@@ -269,6 +271,9 @@ func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
 			return nil, err
 		}
 		if err := row.ColumnByName("TaskId", &task.TaskId); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("TaskType", &task.TaskType); err != nil {
 			return nil, err
 		}
 		if err := row.ColumnByName("TaskSpec", &task.TaskSpec); err != nil {

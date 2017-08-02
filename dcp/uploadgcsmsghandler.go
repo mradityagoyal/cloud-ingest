@@ -65,6 +65,7 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *
 		JobConfigId: task.JobConfigId,
 		JobRunId:    task.JobRunId,
 		TaskId:      loadBQTaskId,
+		TaskType:    loadBQTaskType,
 		TaskSpec:    string(loadBigQueryTaskSpecJson),
 	}})
 }

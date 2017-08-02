@@ -16,6 +16,7 @@ CREATE TABLE Tasks (
       JobRunId STRING(MAX) NOT NULL,
       TaskId STRING(MAX) NOT NULL,
       TaskSpec STRING(MAX) NOT NULL,
+      TaskType INT64 NOT NULL,
       Status INT64 NOT NULL,
       WorkerId STRING(MAX),
       LastModificationTime INT64,

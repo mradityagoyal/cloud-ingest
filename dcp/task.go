@@ -33,6 +33,10 @@ const (
 	listTaskPrefix      string = "list"
 	uploadGCSTaskPrefix string = "uploadGCS" + taskIdSeparator
 	loadBQTaskPrefix    string = "loadBigQuery" + taskIdSeparator
+
+	listTaskType      int64 = 1
+	uploadGCSTaskType int64 = 2
+	loadBQTaskType    int64 = 3
 )
 
 type JobSpec struct {
@@ -67,6 +71,7 @@ type Task struct {
 	JobRunId       string
 	TaskId         string
 	TaskSpec       string
+	TaskType       int64
 	Status         int64
 	FailureMessage string
 }

@@ -28,6 +28,7 @@ TASK_STATUS_QUEUED = 1
 TASK_STATUS_FAILED = 2
 TASK_STATUS_SUCCESS = 3
 
+TASK_TYPE_LIST = 1
 
 def JobsHaveCompleted(database):
   """Check whether all jobs in the systems have completed."""
@@ -85,9 +86,11 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
                  'JobRunId',
                  'TaskId',
                  'TaskSpec',
+                 'TaskType',
                  'Status'),
         values=[(JOB_CONFIG_NAME,
                  JOB_RUN_NAME,
                  task_id,
                  json.dumps(task_spec).encode('utf-8'),
+                 TASK_TYPE_LIST,
                  TASK_STATUS_UNQUEUED)])

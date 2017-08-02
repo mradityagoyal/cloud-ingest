@@ -56,6 +56,7 @@ func TestUploadGCSProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
 		TaskId:      "A",
+		TaskType:    uploadGCSTaskType,
 		TaskSpec:    "Invalid JSON Task Spec",
 		Status:      Success,
 	}
@@ -80,6 +81,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 	uploadGCSTask := &Task{
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
+		TaskType:    uploadGCSTaskType,
 		TaskId:      "A",
 		TaskSpec: `{
 			"task_id": "A",
@@ -112,6 +114,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 	expectedNewTask := Task{
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
+		TaskType:    loadBQTaskType,
 		TaskId:      loadBQTaskPrefix + "object",
 	}
 	expectedNewTaskSpec :=

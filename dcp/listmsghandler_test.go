@@ -51,6 +51,7 @@ func TestListProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
 		TaskId:      "A",
+		TaskType:    uploadGCSTaskType,
 		TaskSpec:    "Invalid JSON Task Spec",
 		Status:      Success,
 	}
@@ -82,6 +83,7 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
 		TaskId:      "A",
+		TaskType:    listTaskType,
 		TaskSpec: `{
 			"task_id": "A",
 			"dst_list_result_bucket": "bucket",
@@ -121,6 +123,7 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
 		TaskId:      "task_id_A",
+		TaskType:    listTaskType,
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
@@ -167,6 +170,7 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
 		TaskId:      "task_id_A",
+		TaskType:    listTaskType,
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
@@ -215,6 +219,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
 		TaskId:      "task_id_A",
+		TaskType:    listTaskType,
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
@@ -246,6 +251,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		expectedNewTask := Task{
 			JobConfigId: jobConfigId,
 			JobRunId:    jobRunId,
+			TaskType:    uploadGCSTaskType,
 			TaskId:      uploadGCSTaskPrefix + "dir/file" + strconv.Itoa(i),
 		}
 		expectedNewTaskSpec := fmt.Sprintf(`{

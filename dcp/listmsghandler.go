@@ -87,6 +87,7 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 			JobConfigId: task.JobConfigId,
 			JobRunId:    task.JobRunId,
 			TaskId:      uploadGCSTaskId,
+			TaskType:    uploadGCSTaskType,
 			TaskSpec:    string(uploadGCSTaskSpecJson),
 		})
 	}
