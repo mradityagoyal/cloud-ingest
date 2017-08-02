@@ -18,6 +18,8 @@
 #         dependency packages pre-installed.
 #   dcp: Publish the stable cloud ingest data control plane image.
 #   test: Publish the cloud ingest data control plane image used for testing.
+#   dev: Publish the local dev cloud ingest data control plane image used for
+#        testing local changes.
 
 #!/bin/bash
 
@@ -44,8 +46,8 @@ fail() {
 }
 
 if [ $# -ne 1 ] || ( [ "$1" != "base" ] && [ "$1" != "dcp" ] && \
-                     [ "$1" != "test" ] ); then
- fail "Should provide 1 argument (base|dcp|test)"
+                     [ "$1" != "test" ] && [ "$1" != "dev" ] ); then
+ fail "Should provide 1 argument (base|dcp|test|dev)"
 fi
 
 if [ "$1" = "base" ]; then
@@ -53,11 +55,16 @@ if [ "$1" = "base" ]; then
   docker tag cloud-ingest:base "gcr.io/$PROJECT_ID/cloud-ingest:base"
   gcloud docker -- push "gcr.io/$PROJECT_ID/cloud-ingest:base"
 else
+  if [ "$1" = "dev" ]; then
+    label="$USER"
+  else
+    label="$1"
+  fi
   # Build the dcp go binary
   go build ./dcp/dcpmain
-  docker build -t "cloud-ingest:$1" -f Dockerfile-dcp .
+  docker build -t "cloud-ingest:$label" -f Dockerfile-dcp .
   # Clean up the dcp binary after building the image.
   rm -f dcpmain
-  docker tag "cloud-ingest:$1" "gcr.io/$PROJECT_ID/cloud-ingest:$1"
-  gcloud docker -- push "gcr.io/$PROJECT_ID/cloud-ingest:$1"
+  docker tag "cloud-ingest:$label" "gcr.io/$PROJECT_ID/cloud-ingest:$label"
+  gcloud docker -- push "gcr.io/$PROJECT_ID/cloud-ingest:$label"
 fi
