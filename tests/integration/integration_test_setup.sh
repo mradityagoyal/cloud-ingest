@@ -24,6 +24,9 @@ sudo ~/venv/bin/pip install --upgrade google-compute-engine
 sudo ~/venv/bin/pip install --upgrade google-cloud-storage
 sudo ~/venv/bin/pip install --upgrade google-cloud-bigquery
 
-# Download and run the integration test
-~/venv/bin/python ~/gsutil/gsutil.py cp gs://cloud-ingest-pub/integration_test.py ~/integration_test.py
-~/venv/bin/python ~/integration_test.py
+# Download the integration test
+curl https://raw.githubusercontent.com/GoogleCloudPlatform/cloud-ingest/master/tests/integration/integration_test.py > ~/integration_test.py
+if [ "$1" == "run" ]
+then
+  ~/venv/bin/python ~/integration_test.py
+fi
