@@ -14,6 +14,7 @@
 # limitations under the License
 
 """Integration test for on-premises ingest into BigQuery via GCS."""
+import argparse
 import os
 import random
 import string
@@ -37,8 +38,6 @@ _DATASET_NAME = 'opi_integration_test_dataset%s' % _TEST_SUFFIX
 _TABLE_NAME = 'opi_integration_test_table%s' % _TEST_SUFFIX
 _BUCKET_NAME = 'opi-integration-test-bucket%s' % _TEST_SUFFIX
 _LIST_OUTPUT_OBJECT_NAME = 'opi-integration-test-list-output-object'
-
-_DCP_DOCKER_IMAGE = 'gcr.io/mbassiouny-test/cloud-ingest:test'
 
 _BIGQUERY_CLIENT = bigquery.Client()
 _STORAGE_CLIENT = storage.Client()
@@ -230,17 +229,18 @@ def _RunCommand(command, async=False, short_name=None):
 
 
 
-def _PullDCPDockerImage():
+def _PullDCPDockerImage(docker_image):
     """Pulls a fresh docker image."""
-    dcp_command = ['sudo', 'docker', 'pull', _DCP_DOCKER_IMAGE]
+    dcp_command = ['sudo', 'docker', 'pull', docker_image]
     _RunCommand(dcp_command, short_name='pull image')
 
 
-def _DCPInfrastructureCommand(command, insert_job=False):
+def _DCPInfrastructureCommand(command, docker_image, insert_job=False):
     """Runs the infrastructure command to setup/teardown DCP infrastructure.
 
     Args:
       command: Either 'Create', 'TearDown' or 'CreateThenTearDown'.
+      docker_image: The DCP docker image.
       insert_job: Whether to insert a new job to the system.
 
     Raises:
@@ -252,7 +252,7 @@ def _DCPInfrastructureCommand(command, insert_job=False):
     # do that instead to improve performance.
     infra_command = [
         'sudo', 'docker', 'run', '-it' if _IsRunningInteractively() else '-i',
-        _DCP_DOCKER_IMAGE,
+        docker_image,
         'python', 'create-infra/main.py',
         command,  # Create or tear down infrastructure.
         '--skip-running-dcp'
@@ -271,10 +271,10 @@ def _DCPInfrastructureCommand(command, insert_job=False):
     _RunCommand(infra_command, short_name='infra')
 
 
-def _RunDCP(project_id):
+def _RunDCP(project_id, docker_image):
     """Runs the DCP as a container and returns the container id."""
     dcp_command = [
-        'sudo', 'docker', 'run', '-d', _DCP_DOCKER_IMAGE,
+        'sudo', 'docker', 'run', '-d', docker_image,
         './dcpmain', project_id
     ]
     dcp_stdout_printer, _ = _RunCommand(dcp_command, short_name='Start DCP',
@@ -307,14 +307,25 @@ if __name__ == '__main__':
     # TODO: Presently, this test runs from GCE and expects service account
     # credentials on the GCE instance with cloud-platform auth scope. Extend
     # this to alternatively accept a service account credential key file.
+    parser = argparse.ArgumentParser(
+        description='Run end-end integration tests')
+
+    parser.add_argument(
+        '--docker-image', '-d', type=str,
+        help='Name of docker image to run. Default is the test environment '
+             'image (cloud-ingest:test). Use (cloud-ingest:dcp) to run the '
+             'prod image, or use (cloud-ingest:$USER) to run your dev image.',
+        default='cloud-ingest:test')
+    args = parser.parse_args()
 
     PROJECT_ID = _STORAGE_CLIENT.project
+    DCP_DOCKER_IMAGE = 'gcr.io/mbassiouny-test/%s' % args.docker_image
 
     # Get a fresh DCP docker image
-    _PullDCPDockerImage()
+    _PullDCPDockerImage(DCP_DOCKER_IMAGE)
 
     # Clean up old infrastructure, if they exist.
-    _DCPInfrastructureCommand('TearDown')
+    _DCPInfrastructureCommand('TearDown', DCP_DOCKER_IMAGE)
 
     try:
         dcp_container_id = None
@@ -325,8 +336,8 @@ if __name__ == '__main__':
 
         TMP_DIR, FILE_PATHS = _CreateTempFiles()
 
-        _DCPInfrastructureCommand('Create', insert_job=True)
-        dcp_container_id = _RunDCP(PROJECT_ID)
+        _DCPInfrastructureCommand('Create', DCP_DOCKER_IMAGE, insert_job=True)
+        dcp_container_id = _RunDCP(PROJECT_ID, DCP_DOCKER_IMAGE)
 
         gsutil_stdout_printer, gsutil_stderr_printer = (
             _RunGsutilAgent(PROJECT_ID))
@@ -360,4 +371,4 @@ if __name__ == '__main__':
         if dcp_container_id:
             _RunCommand(['sudo', 'docker', 'stop', dcp_container_id],
                         short_name='Stop DCP')
-        _DCPInfrastructureCommand('TearDown')
+        _DCPInfrastructureCommand('TearDown', DCP_DOCKER_IMAGE)
