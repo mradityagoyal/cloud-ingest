@@ -305,6 +305,37 @@ class TestSpannerWrapper(unittest.TestCase):
         query = self.database.execute_sql.call_args[0][0]
         self.assertIn(SpannerWrapper.JOB_RUNS_TABLE, query)
 
+    def test_get_job_runs_invalid_num(self):
+        """Asserts that an exception is raised when max_num_runs <= 0."""
+        self.assertRaises(ValueError, self.spanner_wrapper.get_job_runs, 0)
+
+    def test_get_job_runs_above_cap(self):
+        """Asserts an exception is raised when max_num_runs > ROW_CAP."""
+        self.assertRaises(ValueError, self.spanner_wrapper.get_job_runs,
+                          SpannerWrapper.ROW_CAP + 1)
+
+    def test_get_job_runs_correct_num(self):
+        """Asserts that the proper max_num_runs is used in the query."""
+        num_runs = 15
+        self.spanner_wrapper.get_job_runs(num_runs)
+        self.database.execute_sql.assert_called()
+        self.check_query_param(
+            "num_runs",
+            num_runs,
+            self.database.execute_sql.call_args
+        )
+
+    def test_get_runs_created_before(self):
+        """Asserts that the proper created before is used in the query."""
+        created_before = 10
+        self.spanner_wrapper.get_job_runs(1, created_before)
+        self.database.execute_sql.assert_called()
+        self.check_query_param(
+            "created_before",
+            created_before,
+            self.database.execute_sql.call_args
+        )
+
     def test_get_tasks_for_run(self):
         """Asserts that two tasks are successfully processed and returned."""
         # pylint: disable=too-many-locals
@@ -367,6 +398,11 @@ class TestSpannerWrapper(unittest.TestCase):
         """Asserts that an exception is raised when max_num_tasks <= 0."""
         self.assertRaises(ValueError, self.spanner_wrapper.get_tasks_for_run,
                           'config', 'run', 0)
+
+    def test_get_tasks_above_cap(self):
+        """Asserts an exception is raised when max_num_tasks > ROW_CAP."""
+        self.assertRaises(ValueError, self.spanner_wrapper.get_tasks_for_run,
+                          'config', 'run', SpannerWrapper.ROW_CAP + 1)
 
     def test_get_tasks_correct_num(self):
         """Asserts that the proper max_num_tasks is used in the query."""
