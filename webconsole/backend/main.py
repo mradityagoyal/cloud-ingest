@@ -48,7 +48,7 @@ def job_configs():
                 'message': ('Missing at least one of the required properties: '
                             '[\'JobConfigId\', \'JobSpec\']')
             }
-            return jsonify({}), httplib.BAD_REQUEST
+            return jsonify(response), httplib.BAD_REQUEST
 
         created = SPANNER_CLIENT.create_job_config(content['JobConfigId'],
                                                    content['JobSpec'])
@@ -65,8 +65,16 @@ def job_configs():
 def job_runs():
     """Handle all job run related requests."""
     if request.method == 'GET':
-        response = jsonify(SPANNER_CLIENT.get_job_runs())
-        return response
+        num_runs = get_int_param(request, 'pageSize')
+        created_before = get_int_param(request, 'createdBefore')
+
+        result = None
+        if num_runs is None:
+            result = SPANNER_CLIENT.get_job_runs(created_before=created_before)
+        else:
+            result = SPANNER_CLIENT.get_job_runs(max_num_runs=num_runs,
+                                                 created_before=created_before)
+        return jsonify(result)
     elif request.method == 'POST':
         content = request.json
         if 'JobConfigId' not in content or 'JobRunId' not in content:
@@ -76,7 +84,7 @@ def job_runs():
                 'message': ('Missing at least one of the required properties: '
                             '[\'JobConfigId\', \'JobRunId\']')
             }
-            return jsonify({}), httplib.BAD_REQUEST
+            return jsonify(response), httplib.BAD_REQUEST
 
         created = SPANNER_CLIENT.create_job_run(content['JobConfigId'],
                                                 content['JobRunId'])
@@ -86,6 +94,31 @@ def job_runs():
             return jsonify(created_job_run), httplib.CREATED
         # TODO(b/64075962) Better error handling
         return jsonify({}), httplib.BAD_REQUEST
+
+def get_int_param(get_request, param_name):
+    """Returns the int GET parameter named param_name from the given request.
+
+    Returns the int value of param_name in the given GET request.
+    If the given parameter is not set in the request, returns None.
+
+    Args:
+        get_request: The GET request
+        param_name: The name of the GET parameter
+
+    Returns:
+        The value of the parameter, or None if it is not set.
+
+    Raises:
+        ValueError with a helpful message if the type of the value
+        is something other than int.
+    """
+    try:
+        value = get_request.args.get(param_name)
+        if value is not None:
+            return int(get_request.args.get(param_name))
+    except ValueError:
+        raise ValueError("GET param '%s' must be a valid integer. "
+                         "Current value: %s" % (param_name, value))
 
 @APP.errorhandler(httplib.INTERNAL_SERVER_ERROR)
 def server_error(error):
@@ -101,6 +134,16 @@ def server_error(error):
                     'the request could not be completed')
     }
     return jsonify(response), httplib.INTERNAL_SERVER_ERROR
+
+@APP.errorhandler(ValueError)
+def value_error(error):
+    """Handles any uncaught value errors."""
+    logging.info('A bad request was made: %s', str(error))
+    response = {
+        'error': 'Bad Request',
+        'message': str(error)
+    }
+    return jsonify(response), httplib.BAD_REQUEST
 
 
 if __name__ == '__main__':
