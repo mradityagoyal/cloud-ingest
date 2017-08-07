@@ -5,8 +5,12 @@
   "main": "gcs_to_bq_importer_main.js",
   "dependencies": {
     "@google-cloud/bigquery": "^0.9.6",
+    "@google-cloud/common": "^0.13.0",
     "@google-cloud/pubsub": "^0.13.1",
-    "@google-cloud/storage": "^1.2.0"
+    "@google-cloud/storage": "^1.2.0",
+    "extend": "^3.0.0",
+    "mocha": "^3.5.0",
+    "proxyquire": "^1.7.10"
   },
   "devDependencies": {
     "sinon": "^2.3.6"

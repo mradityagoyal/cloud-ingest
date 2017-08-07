@@ -12,6 +12,9 @@ const BQImporter = require('./bq_helper_methods')
 
 const pubsub_topic_name = 'cloud-ingest-loadbigquery-progress'
 const PubSub = require('@google-cloud/pubsub');
+const BigQuery = require('@google-cloud/bigquery');
+const Storage = require('@google-cloud/storage');
+
 // TODO: take as a constant during creation of cloud function.
 // Publishes a 'message' to a 'pub_sub' 'topic'. This value should
 // eventually be configurable although right now it is hard coded.
@@ -63,7 +66,8 @@ exports.CallBqImporter = (bq_importer, pub_sub, topic, project_id, task_id,
     new Promise((resolve, reject) => {
   console.log(`Processing task_id: ${task_id}`);
   bq_importer
-    .importFileFromGCS(dataset_id, table_id, bucket_name, file_name, project_id)
+    .importFileFromGCS(BigQuery, Storage, dataset_id, table_id, bucket_name, file_name, project_id,
+        task_id)
     .then((results) => {
       // BQ-Import was successful, so publish a message to progress topic
       // that import is done.
