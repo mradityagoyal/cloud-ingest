@@ -113,7 +113,7 @@ describe('PublishingSuccess', function() {
       expect(message.task_id).to.equal(123)
       expect(message.status).to.equal('SUCCESS')
       var topic = gcs_to_bq.PublishMessage.getCall(0).args[1]
-      expect(topic).to.equal('loadbigquery_progress')
+      expect(topic).to.equal('cloud-ingest-loadbigquery-progress')
     })
 
     done()

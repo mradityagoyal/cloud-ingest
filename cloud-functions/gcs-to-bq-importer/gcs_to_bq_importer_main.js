@@ -13,7 +13,9 @@ const BQImporter = require('./bq_helper_methods')
 const pubsub_topic_name = 'cloud-ingest-loadbigquery-progress'
 const PubSub = require('@google-cloud/pubsub');
 // TODO: take as a constant during creation of cloud function.
-// Publishes a 'message' to a 'pub_sub' 'topic'.
+// Publishes a 'message' to a 'pub_sub' 'topic'. This value should
+// eventually be configurable although right now it is hard coded.
+// The topic can be something other than 'cloud-ingest-loadbigquery-progress'
 exports.PublishMessage = (pub_sub, topic, message) => new Promise((resolve, reject) => {
   var json_message = JSON.stringify(message)
   var encoded_message = new Buffer(json_message).toString('base64')
