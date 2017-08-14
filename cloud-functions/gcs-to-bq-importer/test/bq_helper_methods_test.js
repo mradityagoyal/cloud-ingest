@@ -12,8 +12,10 @@ let FakeStorage;
 let storageStub;
 let bigQueryStub;
 let bigQueryTableStub;
-let fake_resp;
-let fake_job;
+let fakeSuccessJobResource;
+let fakeBigqueryJobResponse;
+let fakePendingJobResource;
+let fakeAlreadyExistsError;
 
 const FAKE_DATASET_ID = 'fake-datasetid';
 const FAKE_TABLE_ID = 'fake-tableid';
@@ -51,8 +53,24 @@ describe('importFileFromGCS', function() {
     bigQueryTableStub.bigQuery = bigQueryStub;
     bigQueryTableStub.dataset = bigQueryDatasetStub;
 
-    fake_resp = {jobReference: {jobId: FAKE_TASKID_MD5_HASH}};
-    fake_job = {status: {errors: []}};
+    fakeSuccessJobResource = {
+      id: 'job_project_bucket:' + FAKE_TASKID_MD5_HASH,
+      jobReference: {jobId: FAKE_TASKID_MD5_HASH},
+      status: {errors: [], state: 'DONE'}
+    };
+    fakeErrorJobResource = {
+      id: 'job_project_bucket:' + FAKE_TASKID_MD5_HASH,
+      jobReference: {jobId: FAKE_TASKID_MD5_HASH},
+      status: {errors: ['FakeErrorMessage'], state: 'DONE'}
+    };
+    fakePendingJobResource = {
+      id: 'job_project_bucket:' + FAKE_TASKID_MD5_HASH,
+      jobReference: {jobId: FAKE_TASKID_MD5_HASH},
+      status: {errors: [], state: 'PENDING'}
+    };
+    fakeBigqueryJobResponse = {};
+
+    fakeAlreadyExistsError = {code: 409, errorMessage: 'job already exists'};
 
     storageFileStub.bucket = {name: FAKE_BUCKET_NAME};
     storageFileStub.name = FAKE_FILENAME;
@@ -61,6 +79,9 @@ describe('importFileFromGCS', function() {
     bigQueryStub.projectId = FAKE_PROJECTID;
     bigQueryDatasetStub.id = FAKE_DATASET_ID;
     bigQueryTableStub.id = FAKE_TABLE_ID;
+
+    // Instant polling rate for unit test speed.
+    bq_helper_methods.CHECK_JOB_DONE_POLLING_RATE_MILLISECONDS = 0;
   });
 
 
@@ -146,18 +167,18 @@ describe('importFileFromGCS', function() {
 
   it('should resolve with job if the bigquery job request succeeds',
      function(done) {
-       fake_job.promise = sinon.stub().resolves([fake_job]);
 
        // Bigquery responds to request call with null error and fake response
-       bigQueryStub.request.callsArgWith(1, null, fake_resp);
-       bigQueryStub.job.withArgs(FAKE_TASKID_MD5_HASH).returns(fake_job);
+       bigQueryStub.request.callsArgWith(1, null, fakeSuccessJobResource);
+       bigQueryStub.job.withArgs(FAKE_TASKID_MD5_HASH)
+           .returns(fakeBigqueryJobResponse);
 
        bq_helper_methods
            .importFileFromGCS(
                FakeBigQuery, FakeStorage, FAKE_DATASET_ID, FAKE_TABLE_ID,
                FAKE_BUCKET_NAME, FAKE_FILENAME, FAKE_PROJECTID, FAKE_TASKID)
-           .then((job) => {
-             expect(job).to.equal(fake_job);
+           .then((response) => {
+             expect(response).to.equal(fakeSuccessJobResource);
              done();
            })
            .catch((error) => {
@@ -169,7 +190,7 @@ describe('importFileFromGCS', function() {
   it('should reject with job if the bigquery job request fails',
      function(done) {
        bigQueryStub.request.callsArgWith(
-           1, {errroMessage: 'fakeErrorMessage'}, fake_resp);
+           1, {errorMessage: 'fakeErrorMessage'}, fakeSuccessJobResource);
 
        bq_helper_methods
            .importFileFromGCS(
@@ -177,8 +198,7 @@ describe('importFileFromGCS', function() {
                FAKE_BUCKET_NAME, FAKE_FILENAME, FAKE_PROJECTID, FAKE_TASKID)
            .then((job) => {
              assert.fail(
-                 job, fake_job,
-                 'The promise resolved when bigquery had error.');
+                 job, null, 'The promise resolved when bigquery had error.');
            })
            .catch((error) => {
              done();
@@ -244,4 +264,108 @@ describe('importFileFromGCS', function() {
     expect(jobResourceJson.jobReference.jobId).to.have.lengthOf.below(1025);
     done();
   });
+
+  it('should resolve with the job metadata if the job is done and succeeded',
+     function(done) {
+       bigQueryStub.request.callsArgWith(
+           1, fakeAlreadyExistsError, fakeSuccessJobResource);
+       fakeBigqueryJobResponse.getMetadata =
+           sinon.stub().resolves([fakeSuccessJobResource]);
+       bigQueryStub.job.withArgs(FAKE_TASKID_MD5_HASH)
+           .returns(fakeBigqueryJobResponse);
+
+       bq_helper_methods
+           .importFileFromGCS(
+               FakeBigQuery, FakeStorage, FAKE_DATASET_ID, FAKE_TABLE_ID,
+               FAKE_BUCKET_NAME, FAKE_FILENAME, FAKE_PROJECTID, FAKE_TASKID)
+           .then((response) => {
+             expect(response).to.equal(fakeSuccessJobResource);
+             done();
+           })
+           .catch((error) => {
+             assert.fail(
+                 job, error,
+                 'The promised rejected when the job already existed');
+           });
+     });
+
+  it('should wait for the job if the job is pending and succeeded',
+     function(done) {
+       bigQueryStub.request.callsArgWith(
+           1, fakeAlreadyExistsError, fakeSuccessJobResource);
+       fakeBigqueryJobResponse.getMetadata =
+           sinon.stub()
+               .onFirstCall()
+               .resolves([fakePendingJobResource])
+               .onSecondCall()
+               .resolves([fakeSuccessJobResource]);
+       bigQueryStub.job.withArgs(FAKE_TASKID_MD5_HASH)
+           .returns(fakeBigqueryJobResponse);
+
+       bq_helper_methods
+           .importFileFromGCS(
+               FakeBigQuery, FakeStorage, FAKE_DATASET_ID, FAKE_TABLE_ID,
+               FAKE_BUCKET_NAME, FAKE_FILENAME, FAKE_PROJECTID, FAKE_TASKID)
+           .then((response) => {
+             expect(response).to.equal(fakeSuccessJobResource);
+             done();
+           })
+           .catch((error) => {
+             assert.fail(
+                 job, error,
+                 'The promised rejected when the job already existed');
+           });
+     });
+
+  it('should reject with the job metadata if the job done and failed',
+     function(done) {
+       bigQueryStub.request.callsArgWith(
+           1, fakeAlreadyExistsError, fakeErrorJobResource);
+       fakeBigqueryJobResponse.getMetadata =
+           sinon.stub().resolves([fakeErrorJobResource]);
+       bigQueryStub.job.withArgs(FAKE_TASKID_MD5_HASH)
+           .returns(fakeBigqueryJobResponse);
+
+       bq_helper_methods
+           .importFileFromGCS(
+               FakeBigQuery, FakeStorage, FAKE_DATASET_ID, FAKE_TABLE_ID,
+               FAKE_BUCKET_NAME, FAKE_FILENAME, FAKE_PROJECTID, FAKE_TASKID)
+           .then((response) => {
+             assert.fail(
+                 response, null,
+                 'The promise resolved when there was an error in existing job');
+           })
+           .catch((error) => {
+             expect(error).to.equal(fakeErrorJobResource);
+             done();
+           });
+     });
+
+  it('should reject with job metadata if the job is pending and failed',
+     function(done) {
+       bigQueryStub.request.callsArgWith(
+           1, fakeAlreadyExistsError, fakeErrorJobResource);
+       fakeBigqueryJobResponse.getMetadata =
+           sinon.stub()
+               .onFirstCall()
+               .resolves([fakePendingJobResource])
+               .onSecondCall()
+               .resolves([fakeErrorJobResource]);
+       bigQueryStub.job.withArgs(FAKE_TASKID_MD5_HASH)
+           .returns(fakeBigqueryJobResponse);
+
+       bq_helper_methods
+           .importFileFromGCS(
+               FakeBigQuery, FakeStorage, FAKE_DATASET_ID, FAKE_TABLE_ID,
+               FAKE_BUCKET_NAME, FAKE_FILENAME, FAKE_PROJECTID, FAKE_TASKID)
+           .then((response) => {
+             assert.fail(
+                 response, null,
+                 'The promise resolved with there was an error in the pending job');
+           })
+           .catch((error) => {
+             expect(error).to.equal(fakeErrorJobResource);
+             done();
+           });
+     });
 });
