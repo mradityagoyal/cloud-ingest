@@ -1,6 +1,7 @@
 import { TestBed, async } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { AppComponent } from './app.component';
+import { AngularMaterialImporterModule } from './angular-material-importer.module';
 
 describe('AppComponent', () => {
   beforeEach(async(() => {
@@ -9,7 +10,8 @@ describe('AppComponent', () => {
         AppComponent
       ],
       imports: [
-        RouterTestingModule
+        RouterTestingModule,
+        AngularMaterialImporterModule
       ],
     }).compileComponents();
   }));
@@ -69,6 +71,22 @@ describe('AppComponent', () => {
     const element = compiled.querySelector('#createjobrunlink');
     expect(element).not.toBeNull();
     expect(element.textContent).toContain('Create Job Run');
+  }));
+
+  it('should contain a toolbar', async(() => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const compiled = fixture.debugElement.nativeElement;
+    const element = compiled.querySelector('md-toolbar');
+    expect(element).not.toBeNull();
+  }));
+
+  it('should contain a side nav', async(() => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    const compiled = fixture.debugElement.nativeElement;
+    const element = compiled.querySelector('md-sidenav');
+    expect(element).not.toBeNull();
   }));
 
 });

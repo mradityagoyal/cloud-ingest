@@ -1,8 +1,10 @@
 import { BrowserModule } from '@angular/platform-browser';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { NgModule } from '@angular/core';
 import { RouterModule } from '@angular/router';
 import { HttpClientModule } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
+import { AngularMaterialImporterModule } from './angular-material-importer.module';
 
 import { AppComponent } from './app.component';
 import { JobsService } from './jobs.service';
@@ -18,8 +20,10 @@ import { CreateRunComponent } from './create-run.component';
   ],
   imports: [
     BrowserModule,
+    NoopAnimationsModule,
     HttpClientModule,
     FormsModule,
+    AngularMaterialImporterModule,
     RouterModule.forRoot([
       {
         path: 'jobconfigs',

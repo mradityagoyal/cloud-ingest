@@ -1,0 +1,15 @@
+.ingest-toolbar-icon {
+  padding: 0 14px;
+}
+
+.ingest-sidenav-container {
+  margin-top: 64px;
+  z-index: 0;
+}
+
+.ingest-toolbar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
