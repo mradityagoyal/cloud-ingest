@@ -5,22 +5,28 @@
 <md-sidenav-container fullscreen class="ingest-sidenav-container">
   <md-sidenav #sidenav mode="side" opened="true">
     <md-list>
-      <a md-list-item routerLink="/jobconfigs" id="jobconfigslink"
+      <a *ngIf="loggedIn" md-list-item routerLink="/jobconfigs" id="jobconfigslink"
       i18n="Link to page listing job configs">
         Job Configs
       </a>
-      <a md-list-item routerLink="/jobruns" id="jobrunslink"
+      <a *ngIf="loggedIn" md-list-item routerLink="/jobruns" id="jobrunslink"
           i18n="Link to page listing job runs">
         Job Runs
       </a>
-      <a md-list-item routerLink="/createconfig" id="createconfiglink"
+      <a *ngIf="loggedIn" md-list-item routerLink="/createconfig" id="createconfiglink"
           i18n="Link to page for job config creation">
         Create Job Config
       </a>
-      <a md-list-item routerLink="/createrun" id="createjobrunlink"
+      <a *ngIf="loggedIn" md-list-item routerLink="/createrun" id="createjobrunlink"
           i18n="Link to page for job run creation">
         Create Job Run
       </a>
+      <button *ngIf="authServiceInitialized && !loggedIn" md-list-item (click)="signIn()">
+        Sign In
+      </button>
+      <button *ngIf="authServiceInitialized && loggedIn" md-list-item (click)="signOut()">
+        {{ userName }} - Signout
+      </button>
     </md-list>
   </md-sidenav>
 

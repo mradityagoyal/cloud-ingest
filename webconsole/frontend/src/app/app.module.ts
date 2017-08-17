@@ -8,6 +8,7 @@ import { AngularMaterialImporterModule } from './angular-material-importer.modul
 
 import { AppComponent } from './app.component';
 import { JobsService } from './jobs.service';
+import { AuthService } from './auth.service';
 import { JobConfigsComponent } from './job-configs.component';
 import { JobRunsComponent } from './job-runs.component';
 import { CreateConfigComponent } from './create-config.component';
@@ -27,23 +28,30 @@ import { CreateRunComponent } from './create-run.component';
     RouterModule.forRoot([
       {
         path: 'jobconfigs',
-        component: JobConfigsComponent
+        component: JobConfigsComponent,
+        canActivate: [AuthService],
       },
       {
         path: 'jobruns',
-        component: JobRunsComponent
+        component: JobRunsComponent,
+        canActivate: [AuthService],
       },
       {
         path: 'createconfig',
-        component: CreateConfigComponent
+        component: CreateConfigComponent,
+        canActivate: [AuthService],
       },
       {
         path: 'createrun',
-        component: CreateRunComponent
+        component: CreateRunComponent,
+        canActivate: [AuthService],
       }
     ])
   ],
-  providers: [JobsService],
+  providers: [
+    JobsService,
+    AuthService,
+  ],
   bootstrap: [AppComponent]
 })
 export class AppModule { }
