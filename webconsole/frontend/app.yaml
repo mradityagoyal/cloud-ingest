@@ -1,0 +1,29 @@
+# [START runtime]
+runtime: python27
+threadsafe: yes
+# [END runtime]
+
+handlers:
+
+- url: /(.+\.(js|map|css))$
+  static_files: dist/\1
+  upload: dist/(.*)
+
+# Serve index.html and ensure routes such as '/jobconfigs' are handled properly
+- url: /[a-zA-Z\/]*
+  static_files: dist/index.html
+  upload: dist/index.html
+
+# Skip files not needed for static serving
+skip_files:
+- ^.angular-cli.json
+- ^app\.yaml
+- ^e2e$
+- ^karma\.config\.js
+- ^node_modules$
+- ^package\.json
+- ^protractor\.conf\.js
+- ^README.md
+- ^src$
+- ^tsconfig\.json
+- ^tslint\.json

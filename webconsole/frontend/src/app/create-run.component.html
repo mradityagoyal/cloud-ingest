@@ -38,12 +38,12 @@
     </div>
   </div>
 
-  <button type="submit" [disabled]="!createJobForm.form.valid || submittingForm"
+  <button type="submit" [disabled]="!createJobForm.form.valid || formSubmitting"
       i18n="Label for a submit button">
     Submit
   </button>
 
 </form>
-<div [hidden]="!submittingForm" i18n="Displayed while a form is submitting">
+<div [hidden]="!formSubmitting" i18n="Displayed while a form is submitting">
   Submitting...
 </div>

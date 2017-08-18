@@ -10,9 +10,9 @@ back-end up and running. See the back-end directory for instructions.
 node modules (npm install uses the package.json file).
 
 ## Local Deployment
-Run ng serve
+Run `ng serve`
 
----
+If your local back-end is not at localhost:8080, update `apiUrl` in `src/environments/environment.ts`.
 
 ## Angular CLI Info
 This project was generated with [Angular CLI](https://github.com/angular/angular-cli) version 1.2.1.
@@ -44,8 +44,24 @@ new component named new-feature. You can also use
 To learn more about the different types, read about them on the
 [official Angular site](https://angular.io/guide/architecture).
 
-
 ### Further help
 
 To get more help on the Angular CLI use `ng help` or go check out the
 [Angular CLI README](https://github.com/angular/angular-cli/blob/master/README.md).
+
+
+## App Engine Deployment
+1. Make sure you have installed the [Google Cloud SDK](https://cloud.google.com/sdk/docs/)
+2. Update `src/environments/environment.prod.ts` with the url of your back-end.
+  For example:
+  ```python
+  export const environment = {
+    production: true,
+    apiUrl: 'http://myprodbackend.wow:8080'
+  }
+  ```
+3. Run `ng build --prod --env=prod`  
+  The --prod enables ahead of time compilation, and the --env=prod flag tells Angular CLI to use the prod environment file.
+4. Run `gcloud app deploy --project <your-cloud-project-id>` with the id of your Google Cloud project.
+
+
