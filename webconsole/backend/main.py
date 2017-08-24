@@ -13,7 +13,10 @@
 # limitations under the License.
 """Runs the back-end of the Ingest Web Console, an application written in Flask.
 
-The application is set-up to be a RESTful API.
+The application is set-up to be a RESTful API. Any uncaught exceptions raised
+during the processing of a request will be handled by the error handler
+for Internal Server Errors and a response of 500 Internal Server Error will
+be sent.
 """
 import httplib
 import logging
@@ -30,7 +33,7 @@ APP.config.from_envvar('INGEST_CONFIG_PATH')
 SPANNER_CLIENT = SpannerWrapper(APP.config['JSON_KEY_PATH'],
                                 APP.config['SPANNER_INSTANCE'],
                                 APP.config['SPANNER_DATABASE'])
-
+DEFAULT_PAGE_SIZE = 25
 
 @APP.route('/jobconfigs', methods=['GET', 'OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=['Content-Type'])
@@ -65,16 +68,13 @@ def job_configs():
 def job_runs():
     """Handle all job run related requests."""
     if request.method == 'GET':
-        num_runs = get_int_param(request, 'pageSize')
         created_before = get_int_param(request, 'createdBefore')
+        num_runs = get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
 
-        result = None
-        if num_runs is None:
-            result = SPANNER_CLIENT.get_job_runs(created_before=created_before)
-        else:
-            result = SPANNER_CLIENT.get_job_runs(max_num_runs=num_runs,
-                                                 created_before=created_before)
-        return jsonify(result)
+        return jsonify(SPANNER_CLIENT.get_job_runs(
+            num_runs,
+            created_before=created_before
+        ))
     elif request.method == 'POST':
         content = request.json
         if 'JobConfigId' not in content or 'JobRunId' not in content:
@@ -94,6 +94,45 @@ def job_runs():
             return jsonify(created_job_run), httplib.CREATED
         # TODO(b/64075962) Better error handling
         return jsonify({}), httplib.BAD_REQUEST
+
+@APP.route('/tasks/<config_id>/<run_id>', methods=['GET'])
+@crossdomain(origin=APP.config['CLIENT'], headers=['Content-Type'])
+def tasks(config_id, run_id):
+    """Handles GET requests for tasks.
+
+    This route has several optional query parameters.
+        pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
+                  Values less than 1 and greater than 10,000 result in a
+                  response of 400 BAD_REQUEST.
+        lastModifiedBefore- The unix epoch time used to filter tasks. Only tasks
+                            with last modified times before the given time
+                            will be returned.
+        type- Only tasks with the given type will be returned.
+
+    Args:
+        config_id: The id of the job config for the desired tasks
+        run_id: The id of the job run for the desired tasks
+
+    Returns:
+        On success-
+            200, A JSON list of pageSize (defaults to DEFAULT_PAGE_SIZE)
+                 matching tasks
+        On failure-
+            400, Bad request due to invalid values for query params
+            500, Any uncaught exception is raised during the processing of
+                 the request
+    """
+    last_modified_before = get_int_param(request, 'lastModifiedBefore')
+    task_type = request.args.get('type')
+    num_tasks = get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
+
+    return jsonify(SPANNER_CLIENT.get_tasks_for_run(
+        config_id,
+        run_id,
+        num_tasks,
+        last_modified=last_modified_before,
+        task_type=task_type
+    ))
 
 def get_int_param(get_request, param_name):
     """Returns the int GET parameter named param_name from the given request.

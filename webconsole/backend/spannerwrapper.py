@@ -136,7 +136,7 @@ class SpannerWrapper(object):
         return self.insert(SpannerWrapper.JOB_RUNS_TABLE,
                            SpannerWrapper.JOB_RUNS_COLUMNS, values)
 
-    def get_job_runs(self, max_num_runs=25, created_before=None):
+    def get_job_runs(self, max_num_runs, created_before=None):
         """Retrieves job runs from Cloud Spanner.
 
         Retrieves 0 to max_num_runs job runs. If a created_before time is
@@ -146,8 +146,8 @@ class SpannerWrapper(object):
         recent runs listed first.
 
         Args:
-            max_num_runs: 0 to max_num_runs will be returned. Must be > 0.
-                          Defaults to 25.
+            max_num_runs: 0 to max_num_runs will be returned. Must be > 0
+                          and < ROW_CAP.
             created_before: The time before which all returned runs were created
 
         Returns:
@@ -176,7 +176,7 @@ class SpannerWrapper(object):
         return self.list_query(query, params, param_types)
 
     # pylint: disable=too-many-arguments
-    def get_tasks_for_run(self, config_id, run_id, max_num_tasks=25,
+    def get_tasks_for_run(self, config_id, run_id, max_num_tasks,
                           task_type=None, last_modified=None):
         """Retrieves the tasks with the given type for the specified job run.
 
@@ -189,10 +189,10 @@ class SpannerWrapper(object):
         Args:
             config_id: The config id of the desired tasks
             run_id: The job run id of the desired tasks
-            max_num_tasks: The number of tasks to return, default is 25.
-                           Must be > 0. max_num_tasks is the max number of
-                           tasks returned, less than max_num_tasks will be
-                           returned if there are not enough matching tasks.
+            max_num_tasks: The number of tasks to return. Must be > 0.
+                           max_num_tasks is the max number of tasks returned,
+                           less than max_num_tasks will be returned if there
+                           are not enough matching tasks.
             task_type: The desired type of the tasks, defaults to None.
             last_modified: All returned tasks will have a last_modified time
                          less than the given time
