@@ -28,3 +28,13 @@ Linux: `export INGEST_CONFIG_PATH="example/path/to/ingestwebconsole.local_settin
 
 ## Testing
 From `cloud-ingest/webconsole/back-end` run `python -m unittest discover`.
+
+## App Engine Deployment
+1. Make sure you have installed the [Google Cloud SDK](https://cloud.google.com/sdk/docs/)
+2. In `ingestwebconsole.prod_settings`, set the `CLIENT` value to the address
+   of your front-end. Here is an example:
+   ```
+   CLIENT='http://awesomefrontend.appspot.com'
+   DEBUG=False
+   ```
+4. Run `gcloud app deploy --project <your-cloud-project-id>` with the id of your Google Cloud project.
