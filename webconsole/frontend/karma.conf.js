@@ -4,6 +4,7 @@
 module.exports = function (config) {
   config.set({
     basePath: '',
+    files: ['./src/app/fake-gapi.js'],
     frameworks: ['jasmine', '@angular/cli'],
     plugins: [
       require('karma-jasmine'),
