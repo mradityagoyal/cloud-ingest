@@ -35,8 +35,11 @@ SPANNER_CLIENT = SpannerWrapper(APP.config['JSON_KEY_PATH'],
                                 APP.config['SPANNER_DATABASE'])
 DEFAULT_PAGE_SIZE = 25
 
+# Allowed headers in cross-site http requests.
+ALLOWED_HEADERS = ['Content-Type', 'Authorization']
+
 @APP.route('/jobconfigs', methods=['GET', 'OPTIONS', 'POST'])
-@crossdomain(origin=APP.config['CLIENT'], headers=['Content-Type'])
+@crossdomain(origin=APP.config['CLIENT'], headers=ALLOWED_HEADERS)
 def job_configs():
     """Handle all job config related requests."""
     if request.method == 'GET':
@@ -64,7 +67,7 @@ def job_configs():
 
 
 @APP.route('/jobruns', methods=['GET', 'OPTIONS', 'POST'])
-@crossdomain(origin=APP.config['CLIENT'], headers=['Content-Type'])
+@crossdomain(origin=APP.config['CLIENT'], headers=ALLOWED_HEADERS)
 def job_runs():
     """Handle all job run related requests."""
     if request.method == 'GET':
@@ -96,7 +99,7 @@ def job_runs():
         return jsonify({}), httplib.BAD_REQUEST
 
 @APP.route('/tasks/<config_id>/<run_id>', methods=['GET'])
-@crossdomain(origin=APP.config['CLIENT'], headers=['Content-Type'])
+@crossdomain(origin=APP.config['CLIENT'], headers=ALLOWED_HEADERS)
 def tasks(config_id, run_id):
     """Handles GET requests for tasks.
 
