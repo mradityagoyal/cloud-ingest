@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"time"
 
 	"golang.org/x/net/context"
 
@@ -117,8 +118,10 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 		"TaskType",
 		"TaskSpec",
 		"Status",
+		"LastModificationTime",
 	}
 	mutation := make([]*spanner.Mutation, len(tasks))
+	timestamp := time.Now().UnixNano()
 
 	for i, task := range tasks {
 		mutation[i] = spanner.InsertOrUpdate("Tasks", columns, []interface{}{
@@ -128,6 +131,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 			task.TaskType,
 			task.TaskSpec,
 			Unqueued,
+			timestamp,
 		})
 	}
 	_, err := s.Client.Apply(context.Background(), mutation)
@@ -148,6 +152,7 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 				"TaskId",
 				"Status",
 				"FailureMessage",
+				"LastModificationTime",
 			}
 			var keys = spanner.KeySets()
 			tasksmap := map[string]*Task{}
@@ -159,6 +164,7 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 			}
 
 			iter := txn.Read(ctx, "Tasks", keys, columns)
+			timestamp := time.Now().UnixNano()
 
 			return iter.Do(func(row *spanner.Row) error {
 				var jobConfigId string
@@ -184,6 +190,7 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 						task.TaskId,
 						task.Status,
 						task.FailureMessage,
+						timestamp,
 					}),
 				})
 			})

@@ -67,13 +67,14 @@ type LoadBQTaskSpec struct {
 }
 
 type Task struct {
-	JobConfigId    string
-	JobRunId       string
-	TaskId         string
-	TaskSpec       string
-	TaskType       int64
-	Status         int64
-	FailureMessage string
+	JobConfigId          string
+	JobRunId             string
+	TaskId               string
+	TaskSpec             string
+	TaskType             int64
+	Status               int64
+	LastModificationTime int64
+	FailureMessage       string
 }
 
 // getTaskFullId gets a unique task id  based on task (JobConfigId, JobRunId

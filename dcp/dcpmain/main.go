@@ -39,7 +39,25 @@ const (
 
 	spannerInstance string = "cloud-ingest-spanner-instance"
 	spannerDatabase string = "cloud-ingest-database"
+
+	// The number of consecutive failures after which the program aborts
+	maxNumFailures int = 15
+	// The time for which the program sleeps between calls to store.QueueTasks
+	queueTasksSleepTime time.Duration = 10 * time.Millisecond
+	// The max time for which the program sleeps between calls to store.QueueTasks
+	maxQueueTasksSleepTime time.Duration = 5 * time.Minute
 )
+
+// GetQueueTasksClosure returns a function that calls the function QueueTasks
+// on the given store with the given values as the parameters.
+func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
+	listTopic *pubsub.Topic, copyTopic *pubsub.Topic,
+	loadBQTopic *pubsub.Topic) func() error {
+
+	return func() error {
+		return store.QueueTasks(num, listTopic, copyTopic, loadBQTopic)
+	}
+}
 
 func main() {
 	// TODO(b/63103890): Do proper parsing of command line params.
@@ -110,9 +128,19 @@ func main() {
 
 	// Loop for infinity to queue tasks
 	for {
-		// TODO(b/63018200): The number of tasks to queue(100) should be
-		// configurable, may be as a command line param.
-		store.QueueTasks(100, listTopic, copyTopic, loadBQTopic)
-		time.Sleep(10 * time.Millisecond)
+		err := dcp.RetryWithExponentialBackoff(
+			queueTasksSleepTime,
+			maxQueueTasksSleepTime,
+			maxNumFailures,
+			"QueueTasks",
+			// TODO(b/63018200): The number of tasks to queue(100) should be
+			// configurable, maybe as a command line param.
+			GetQueueTasksClosure(store, 100, listTopic, copyTopic, loadBQTopic),
+		)
+		if err != nil {
+			fmt.Printf("%v\n", err)
+			os.Exit(1)
+		}
+		time.Sleep(queueTasksSleepTime)
 	}
 }

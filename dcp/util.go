@@ -17,7 +17,9 @@ package dcp
 
 import (
 	"encoding/json"
+	"fmt"
 	"reflect"
+	"time"
 )
 
 // AreEqualJson checkes if strings s1 and s2 are identical JSON represention
@@ -35,4 +37,50 @@ func AreEqualJSON(s1, s2 string) bool {
 	}
 
 	return reflect.DeepEqual(o1, o2)
+}
+
+// RetryWithExponentialBackoff tries the given function until it succeeds,
+// using exponential back off when errors occur. When a failure occurs,
+// an error message that includes functionName is printed and the sleepTime
+// is increased (though the sleep time will never exceed maxSleepTime). After
+// maxFails failures in a row, the method returns with an error. If maxFails
+// is less than or equal to 0, the function is retried indefinitely until
+// success. Both sleepTime and maxSleepTime must be greater than 0, else
+// an error is returned.
+func RetryWithExponentialBackoff(sleepTime time.Duration,
+	maxSleepTime time.Duration, maxFails int, functionName string,
+	function func() error) error {
+	// TODO(b/65115935): Add jitter to the sleep time
+
+	if sleepTime <= 0 {
+		return fmt.Errorf("RetryWithExponentialBackoff: sleepTime must be greater "+
+			"than 0. Current value: %v", sleepTime)
+	}
+	if maxSleepTime <= 0 {
+		return fmt.Errorf("RetryWithExponentialBackoff: maxSleepTime must be "+
+			"greater than 0. Current value: %v", maxSleepTime)
+	}
+
+	failures := 0
+	for err := function(); err != nil; {
+		failures++
+		fmt.Printf("Error occurred in %s: %v.\n", functionName, err)
+
+		if maxFails > 0 && failures >= maxFails {
+			// Has failed maxFails times in a row, return with error
+			return fmt.Errorf("Aborting calls to %s after %d failures in a row.",
+				functionName, maxFails)
+		}
+
+		fmt.Printf("Retrying in %v.\n", sleepTime)
+		time.Sleep(sleepTime)
+
+		if sleepTime > maxSleepTime/2 {
+			// sleepTime * 2 will be greater than maxSleepTime, just use maxSleepTime
+			sleepTime = maxSleepTime
+		} else {
+			sleepTime *= 2
+		}
+	}
+	return nil
 }
