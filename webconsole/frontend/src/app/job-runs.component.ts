@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { DatePipe } from '@angular/common';
 import { JobRun } from './api.resources';
 import { JobsService } from './jobs.service';
 

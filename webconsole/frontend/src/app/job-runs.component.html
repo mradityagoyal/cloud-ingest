@@ -16,7 +16,11 @@
   <tr *ngFor="let jobRun of jobRuns">
     <td>{{jobRun.JobRunId}}
     <td>{{jobRun.JobConfigId}}</td>
-    <td>{{jobRun.JobCreationTime}}</td>
+    <!--
+      Convert JobCreationTime from nanoseconds to milliseconds.
+      Short format: 'yMdjm' (e.g. 9/3/2010, 12:05 PM for en-US)
+    -->
+    <td>{{jobRun.JobCreationTime / 1000000 | date:'short'}}</td>
     <td>{{jobRun.Status}}</td>
   </tr>
 </table>
