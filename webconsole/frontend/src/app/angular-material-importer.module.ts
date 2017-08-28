@@ -8,11 +8,23 @@ import { NgModule } from '@angular/core';
 import { MdIconModule,
         MdSidenavModule,
         MdListModule,
-        MdToolbarModule } from '@angular/material';
+        MdToolbarModule,
+        MdCardModule,
+        MdTooltipModule } from '@angular/material';
 
 @NgModule({
-  imports: [MdIconModule, MdSidenavModule, MdListModule, MdToolbarModule],
-  exports: [MdIconModule, MdSidenavModule, MdListModule, MdToolbarModule]
+  imports: [MdIconModule,
+            MdSidenavModule,
+            MdListModule,
+            MdToolbarModule,
+            MdCardModule,
+            MdTooltipModule],
+  exports: [MdIconModule,
+            MdSidenavModule,
+            MdListModule,
+            MdToolbarModule,
+            MdCardModule,
+            MdTooltipModule]
 })
 
 export class AngularMaterialImporterModule { }

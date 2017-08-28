@@ -1,14 +1,19 @@
-<table>
-  <tr>
-    <th i18n="Header for column containing job config id strings">
-      Config Id
-    </th>
-    <th i18n="Header for column containing job spec strings">
-      Job Spec
-    </th>
-  </tr>
-  <tr *ngFor="let jobConfig of jobConfigs">
-    <td>{{jobConfig.JobConfigId}}</td>
-    <td>{{jobConfig.JobSpec}}</td>
-  </tr>
-</table>
+<div class="ingest-job-config-heading">
+  <h2> Job Configurations </h2>
+  <md-icon class="ingest-info-icon" mdTooltip="Job configurations are used to specify details of data transfer jobs. They
+  include information such as the on-premise source directory and the Google Cloud
+  Storage bucket to use." [mdTooltipPosition]="'after'">info</md-icon>
+</div>
+<div class="ingest-card-container" >
+  <md-card class="ingest-job-configs-card" *ngFor="let jobConfig of jobConfigs">
+   <md-card-title> {{jobConfig.JobConfigId}} </md-card-title>
+   <md-card-content>
+   <dl>
+    <ng-container *ngFor="let key of getKeys(jobConfig.JobSpec)">
+      <dt> <strong> {{key}}: </strong> </dt>
+      <dd>{{jobConfig.JobSpec[key]}}</dd>
+    </ng-container>
+   </dl>
+   </md-card-content>
+  </md-card>
+</div>

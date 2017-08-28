@@ -4,7 +4,8 @@ import { JobsService } from './jobs.service';
 
 @Component({
   selector: 'app-job-configs',
-  templateUrl: './job-configs.component.html'
+  templateUrl: './job-configs.component.html',
+  styleUrls: ['./job-configs.component.css']
 })
 
 export class JobConfigsComponent implements OnInit {
@@ -16,5 +17,9 @@ export class JobConfigsComponent implements OnInit {
     this.jobsService.getJobConfigs().subscribe(data => {
       this.jobConfigs = data;
     });
+  }
+
+  private getKeys(jsonObject: Object): String[] {
+    return Object.keys(jsonObject);
   }
 }
