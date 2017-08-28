@@ -18,6 +18,7 @@ during the processing of a request will be handled by the error handler
 for Internal Server Errors and a response of 500 Internal Server Error will
 be sent.
 """
+# pylint: disable=import-error,no-name-in-module
 import httplib
 import logging
 from corsdecorator import crossdomain  # To allow requests from the front-end
@@ -33,13 +34,13 @@ APP.config.from_envvar('INGEST_CONFIG_PATH')
 SPANNER_CLIENT = SpannerWrapper(APP.config['JSON_KEY_PATH'],
                                 APP.config['SPANNER_INSTANCE'],
                                 APP.config['SPANNER_DATABASE'])
-DEFAULT_PAGE_SIZE = 25
+_DEFAULT_PAGE_SIZE = 25
 
 # Allowed headers in cross-site http requests.
-ALLOWED_HEADERS = ['Content-Type', 'Authorization']
+_ALLOWED_HEADERS = ['Content-Type', 'Authorization']
 
 @APP.route('/jobconfigs', methods=['GET', 'OPTIONS', 'POST'])
-@crossdomain(origin=APP.config['CLIENT'], headers=ALLOWED_HEADERS)
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def job_configs():
     """Handle all job config related requests."""
     if request.method == 'GET':
@@ -67,12 +68,12 @@ def job_configs():
 
 
 @APP.route('/jobruns', methods=['GET', 'OPTIONS', 'POST'])
-@crossdomain(origin=APP.config['CLIENT'], headers=ALLOWED_HEADERS)
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def job_runs():
     """Handle all job run related requests."""
     if request.method == 'GET':
-        created_before = get_int_param(request, 'createdBefore')
-        num_runs = get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
+        created_before = _get_int_param(request, 'createdBefore')
+        num_runs = _get_int_param(request, 'pageSize') or _DEFAULT_PAGE_SIZE
 
         return jsonify(SPANNER_CLIENT.get_job_runs(
             num_runs,
@@ -99,12 +100,12 @@ def job_runs():
         return jsonify({}), httplib.BAD_REQUEST
 
 @APP.route('/tasks/<config_id>/<run_id>', methods=['GET'])
-@crossdomain(origin=APP.config['CLIENT'], headers=ALLOWED_HEADERS)
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def tasks(config_id, run_id):
     """Handles GET requests for tasks.
 
     This route has several optional query parameters.
-        pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
+        pageSize- The number of tasks to return. Default is _DEFAULT_PAGE_SIZE.
                   Values less than 1 and greater than 10,000 result in a
                   response of 400 BAD_REQUEST.
         lastModifiedBefore- The unix epoch time used to filter tasks. Only tasks
@@ -118,16 +119,16 @@ def tasks(config_id, run_id):
 
     Returns:
         On success-
-            200, A JSON list of pageSize (defaults to DEFAULT_PAGE_SIZE)
+            200, A JSON list of pageSize (defaults to _DEFAULT_PAGE_SIZE)
                  matching tasks
         On failure-
             400, Bad request due to invalid values for query params
             500, Any uncaught exception is raised during the processing of
                  the request
     """
-    last_modified_before = get_int_param(request, 'lastModifiedBefore')
+    last_modified_before = _get_int_param(request, 'lastModifiedBefore')
     task_type = request.args.get('type')
-    num_tasks = get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
+    num_tasks = _get_int_param(request, 'pageSize') or _DEFAULT_PAGE_SIZE
 
     return jsonify(SPANNER_CLIENT.get_tasks_for_run(
         config_id,
@@ -137,7 +138,7 @@ def tasks(config_id, run_id):
         task_type=task_type
     ))
 
-def get_int_param(get_request, param_name):
+def _get_int_param(get_request, param_name):
     """Returns the int GET parameter named param_name from the given request.
 
     Returns the int value of param_name in the given GET request.
