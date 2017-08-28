@@ -25,26 +25,46 @@ from corsdecorator import crossdomain  # To allow requests from the front-end
 from flask import Flask
 from flask import jsonify
 from flask import request
+from google.oauth2.credentials import Credentials
+import re
 from spannerwrapper import SpannerWrapper
 
 APP = Flask(__name__)
 APP.config.from_pyfile('ingestwebconsole.default_settings')
 APP.config.from_envvar('INGEST_CONFIG_PATH')
 
-SPANNER_CLIENT = SpannerWrapper(APP.config['JSON_KEY_PATH'],
-                                APP.config['SPANNER_INSTANCE'],
-                                APP.config['SPANNER_DATABASE'])
 _DEFAULT_PAGE_SIZE = 25
 
 # Allowed headers in cross-site http requests.
 _ALLOWED_HEADERS = ['Content-Type', 'Authorization']
 
-@APP.route('/jobconfigs', methods=['GET', 'OPTIONS', 'POST'])
+_AUTH_HEADER_REGEX = re.compile(r'^\s*Bearer\s+(?P<access_token>[^\s]*)$')
+
+def _get_credentials():
+    """Gets OAuth2 credentials from request Authorization headers."""
+    auth_header = request.headers.get('Authorization')
+    match = _AUTH_HEADER_REGEX.match(auth_header)
+    if not match:
+        raise ValueError(
+            'Invalid Authorization header format, the Authorization header '
+            'should be in the format "Bearer <access_token>".')
+    access_token = match.group('access_token')
+
+    credentials = Credentials(access_token)
+    return credentials
+
+
+@APP.route('/projects/<project_id>/jobconfigs',
+           methods=['GET', 'OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def job_configs():
+def job_configs(project_id):
     """Handle all job config related requests."""
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
     if request.method == 'GET':
-        response = jsonify(SPANNER_CLIENT.get_job_configs())
+        response = jsonify(spanner_wrapper.get_job_configs())
         return response
     elif request.method == 'POST':
         content = request.json
@@ -57,25 +77,29 @@ def job_configs():
             }
             return jsonify(response), httplib.BAD_REQUEST
 
-        created = SPANNER_CLIENT.create_job_config(content['JobConfigId'],
-                                                   content['JobSpec'])
+        created = spanner_wrapper.create_job_config(content['JobConfigId'],
+                                                    content['JobSpec'])
         if created:
-            created_config = SPANNER_CLIENT.get_job_config(
+            created_config = spanner_wrapper.get_job_config(
                 content['JobConfigId'])
             return jsonify(created_config), httplib.CREATED
         # TODO(b/64075962) Better error handling
         return jsonify({}), httplib.BAD_REQUEST
 
 
-@APP.route('/jobruns', methods=['GET', 'OPTIONS', 'POST'])
+@APP.route('/projects/<project_id>/jobruns', methods=['GET', 'OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def job_runs():
+def job_runs(project_id):
     """Handle all job run related requests."""
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
     if request.method == 'GET':
         created_before = _get_int_param(request, 'createdBefore')
         num_runs = _get_int_param(request, 'pageSize') or _DEFAULT_PAGE_SIZE
 
-        return jsonify(SPANNER_CLIENT.get_job_runs(
+        return jsonify(spanner_wrapper.get_job_runs(
             num_runs,
             created_before=created_before
         ))
@@ -90,18 +114,18 @@ def job_runs():
             }
             return jsonify(response), httplib.BAD_REQUEST
 
-        created = SPANNER_CLIENT.create_job_run(content['JobConfigId'],
-                                                content['JobRunId'])
+        created = spanner_wrapper.create_job_run(content['JobConfigId'],
+                                                 content['JobRunId'])
         if created:
-            created_job_run = SPANNER_CLIENT.get_job_run(
+            created_job_run = spanner_wrapper.get_job_run(
                 content['JobConfigId'], content['JobRunId'])
             return jsonify(created_job_run), httplib.CREATED
         # TODO(b/64075962) Better error handling
         return jsonify({}), httplib.BAD_REQUEST
 
-@APP.route('/tasks/<config_id>/<run_id>', methods=['GET'])
+@APP.route('/projects/<project_id>/tasks/<config_id>/<run_id>', methods=['GET'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def tasks(config_id, run_id):
+def tasks(project_id, config_id, run_id):
     """Handles GET requests for tasks.
 
     This route has several optional query parameters.
@@ -114,6 +138,7 @@ def tasks(config_id, run_id):
         type- Only tasks with the given type will be returned.
 
     Args:
+        project_id: The id of the project.
         config_id: The id of the job config for the desired tasks
         run_id: The id of the job run for the desired tasks
 
@@ -126,11 +151,15 @@ def tasks(config_id, run_id):
             500, Any uncaught exception is raised during the processing of
                  the request
     """
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
     last_modified_before = _get_int_param(request, 'lastModifiedBefore')
     task_type = request.args.get('type')
     num_tasks = _get_int_param(request, 'pageSize') or _DEFAULT_PAGE_SIZE
 
-    return jsonify(SPANNER_CLIENT.get_tasks_for_run(
+    return jsonify(spanner_wrapper.get_tasks_for_run(
         config_id,
         run_id,
         num_tasks,

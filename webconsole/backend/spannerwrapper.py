@@ -53,17 +53,17 @@ class SpannerWrapper(object):
     # TODO(b/64092801): Replace cap with streaming of large results
     ROW_CAP = 10000
 
-    def __init__(self, json_key_file_path, instance_id, database_id):
+    def __init__(self, credentials, project_id, instance_id, database_id):
         """Creates and initializes an instance of the SpannerWrapper class.
 
         Args:
-          json_key_file_path: The path to the JSON file holding the key
-                              for a Cloud Spanner authorized service account.
+          credentials: The OAuth2 Credentials to use to create spanner instance.
+          project_id: The cloud ingest project id.
           instance_id: The id of the Cloud Spanner instance.
           database_id: The id of the Cloud Spanner instance.
         """
-        self.spanner_client = spanner.Client.from_service_account_json(
-            json_key_file_path)
+        self.spanner_client = spanner.Client(credentials=credentials,
+                                             project=project_id)
 
         # Get a Cloud Spanner instance by ID.
         self.instance = self.spanner_client.instance(instance_id)

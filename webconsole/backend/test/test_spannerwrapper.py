@@ -49,9 +49,7 @@ class TestSpannerWrapper(unittest.TestCase):
         self.spanner_client = MagicMock()
         self.spanner_client.instance.return_value = self.spanner_instance
 
-        client_mock = MagicMock()
-        client_mock.from_service_account_json.return_value = self.spanner_client
-        spanner_mock.Client = client_mock
+        spanner_mock.Client.return_value = self.spanner_client
 
         self.pool = MagicMock()
 
@@ -59,7 +57,7 @@ class TestSpannerWrapper(unittest.TestCase):
         pool_mock.BurstyPool.return_value = self.pool
         spanner_mock.pool = pool_mock
 
-        self.spanner_wrapper = SpannerWrapper('', '', '')
+        self.spanner_wrapper = SpannerWrapper('', '', '', '')
 
     def test_get_job_configs(self):
         """Asserts that two job configs are successfully returned."""
