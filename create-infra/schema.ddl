@@ -18,8 +18,9 @@ CREATE TABLE Tasks (
       TaskSpec STRING(MAX) NOT NULL,
       TaskType INT64 NOT NULL,
       Status INT64 NOT NULL,
+      CreationTime INT64 NOT NULL,
       WorkerId STRING(MAX),
-      LastModificationTime INT64,
+      LastModificationTime INT64 NOT NULL,
       FailureMessage STRING(MAX),
     ) PRIMARY KEY(JobConfigId, JobRunId, TaskId),
     INTERLEAVE IN PARENT JobRuns ON DELETE NO ACTION

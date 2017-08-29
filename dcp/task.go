@@ -73,6 +73,7 @@ type Task struct {
 	TaskSpec             string
 	TaskType             int64
 	Status               int64
+	CreationTime         int64
 	LastModificationTime int64
 	FailureMessage       string
 }

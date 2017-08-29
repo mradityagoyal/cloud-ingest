@@ -17,6 +17,7 @@
 
 import json
 import os
+import time
 
 
 # TODO(b/63017649): Remove the hard coded JobConfigId and JobRunId.
@@ -80,6 +81,8 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
         'src_directory': src_dir
     }
 
+    timestamp = int(time.time() * 1e9)
+
     batch.insert(
         table='Tasks',
         columns=('JobConfigId',
@@ -87,10 +90,14 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
                  'TaskId',
                  'TaskSpec',
                  'TaskType',
-                 'Status'),
+                 'Status',
+                 'CreationTime',
+                 'LastModificationTime'),
         values=[(JOB_CONFIG_NAME,
                  JOB_RUN_NAME,
                  task_id,
                  json.dumps(task_spec).encode('utf-8'),
                  TASK_TYPE_LIST,
-                 TASK_STATUS_UNQUEUED)])
+                 TASK_STATUS_UNQUEUED,
+                 timestamp,
+                 timestamp)])

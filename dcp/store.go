@@ -118,6 +118,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 		"TaskType",
 		"TaskSpec",
 		"Status",
+		"CreationTime",
 		"LastModificationTime",
 	}
 	mutation := make([]*spanner.Mutation, len(tasks))
@@ -131,6 +132,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 			task.TaskType,
 			task.TaskSpec,
 			Unqueued,
+			timestamp,
 			timestamp,
 		})
 	}
