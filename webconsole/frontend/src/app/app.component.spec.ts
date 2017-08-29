@@ -87,6 +87,7 @@ describe('AppComponent', () => {
       const element = compiled.querySelector('#jobrunslink');
       expect(element).not.toBeNull();
       expect(element.textContent).toContain('Job Runs');
+      expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));
 
@@ -99,6 +100,7 @@ describe('AppComponent', () => {
       const element = compiled.querySelector('#jobconfigslink');
       expect(element).not.toBeNull();
       expect(element.textContent).toContain('Job Configs');
+      expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));
 
@@ -111,6 +113,7 @@ describe('AppComponent', () => {
       const element = compiled.querySelector('#createconfiglink');
       expect(element).not.toBeNull();
       expect(element.textContent).toContain('Create Job Config');
+      expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));
 
@@ -123,6 +126,7 @@ describe('AppComponent', () => {
       const element = compiled.querySelector('#createjobrunlink');
       expect(element).not.toBeNull();
       expect(element.textContent).toContain('Create Job Run');
+      expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));
 

@@ -37,7 +37,8 @@ export class CreateRunComponent implements OnInit {
     this.jobsService.postJobRun(this.model).finally(() => {
         this.formSubmitting = false;
       }).subscribe(
-        data => this.router.navigateByUrl('jobruns'),
+        data => this.router.navigate(['jobruns'],
+                                     { queryParamsHandling: 'merge' }),
         (err: HttpErrorResponse) => {
           if (err.error instanceof Error) {
             // Client-side or network error occurred

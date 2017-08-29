@@ -38,7 +38,8 @@ export class CreateConfigComponent {
     this.jobsService.postJobConfig(this.model).finally(() => {
         this.submittingForm = false;
       }).subscribe(
-        data => this.router.navigateByUrl('jobconfigs'),
+        data => this.router.navigate(['jobconfigs'],
+                                     { queryParamsHandling: 'merge' }),
         (err: HttpErrorResponse) => {
           if (err.error instanceof Error) {
             // Client-side or network error occurred
