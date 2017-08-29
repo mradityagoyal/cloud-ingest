@@ -277,7 +277,7 @@ class TestSpannerWrapper(unittest.TestCase):
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
         self.database.execute_sql.return_value = result
 
-        actual = self.spanner_wrapper.get_job_runs()
+        actual = self.spanner_wrapper.get_job_runs(25)
         expected = [
             self.get_job_run(config_id1, run_id1, status1, job_creation_time1),
             self.get_job_run(config_id2, run_id2, status2, job_creation_time2)
@@ -293,14 +293,14 @@ class TestSpannerWrapper(unittest.TestCase):
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
         self.database.execute_sql.return_value = result
 
-        actual = self.spanner_wrapper.get_job_runs()
+        actual = self.spanner_wrapper.get_job_runs(25)
         expected = []
 
         self.assertEqual(actual, expected)
 
     def test_get_job_runs_table(self):
         """Asserts that the get_job_runs query uses the JobRuns table."""
-        self.spanner_wrapper.get_job_runs()
+        self.spanner_wrapper.get_job_runs(25)
         self.database.execute_sql.assert_called()
         query = self.database.execute_sql.call_args[0][0]
         self.assertIn(SpannerWrapper.JOB_RUNS_TABLE, query)
@@ -366,7 +366,7 @@ class TestSpannerWrapper(unittest.TestCase):
         result.fields = self.get_fields_list(SpannerWrapper.TASKS_COLUMNS)
         self.database.execute_sql.return_value = result
 
-        actual = self.spanner_wrapper.get_tasks_for_run(config_id, run_id)
+        actual = self.spanner_wrapper.get_tasks_for_run(config_id, run_id, 25)
         expected = [
             self.get_task(config_id, run_id, task_id1, failure_msg1,
                           last_mod_time1, status1, task_spec1, worker_id1),
@@ -382,14 +382,14 @@ class TestSpannerWrapper(unittest.TestCase):
         result.__iter__.return_value = []
         self.database.execute_sql.return_value = result
 
-        actual = self.spanner_wrapper.get_tasks_for_run('', '')
+        actual = self.spanner_wrapper.get_tasks_for_run('', '', 25)
         expected = []
 
         self.assertEqual(actual, expected)
 
     def test_get_tasks_table(self):
         """Asserts that the get_tasks_for_run query uses the Tasks table."""
-        self.spanner_wrapper.get_tasks_for_run('', '')
+        self.spanner_wrapper.get_tasks_for_run('', '', 25)
         self.database.execute_sql.assert_called()
         query = self.database.execute_sql.call_args[0][0]
         self.assertIn(SpannerWrapper.TASKS_TABLE, query)
