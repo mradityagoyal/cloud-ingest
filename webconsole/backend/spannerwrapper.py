@@ -131,7 +131,7 @@ class SpannerWrapper(object):
         """
         config_id = unicode(config_id)
         run_id = unicode(run_id)
-        values = [config_id, run_id, 1, int(time.time())]
+        values = [config_id, run_id, 1, self._get_unix_nano()]
 
         return self.insert(SpannerWrapper.JOB_RUNS_TABLE,
                            SpannerWrapper.JOB_RUNS_COLUMNS, values)
@@ -352,3 +352,14 @@ class SpannerWrapper(object):
             i += 1
 
         return obj
+
+    @staticmethod
+    def _get_unix_nano():
+        """Returns the current Unix time in nanoseconds
+
+        Returns:
+            An integer representing the current Unix time in nanoseconds
+        """
+        # time.time() returns Unix time in seconds. Multiply by 1e9 to get
+        # the time in nanoseconds
+        return int(time.time() * 1e9)
