@@ -1,6 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CanActivate } from '@angular/router';
 import { UserProfile } from './auth.resources';
+import { environment } from './../environments/environment';
 
 /**
   * TODO(b/65052265): Implement type definitions for gapi library. Library documentations:
@@ -9,11 +10,6 @@ import { UserProfile } from './auth.resources';
   */
 declare let gapi: any;
 
-/**
-  * TODO(b/64804385): The client id should be configurable to distinguish
-  * multiple deployment environment.
-  */
-const CLIENT_ID = '416127938080-vosnnsq7758ub1iai84ei3u1enstq8kp.apps.googleusercontent.com';
 const AUTH_SCOPE = 'https://www.googleapis.com/auth/cloud-platform';
 
 /**
@@ -35,7 +31,7 @@ export class AuthService implements CanActivate {
       gapi.load('auth2', {
         callback: () => {
           this.gapiAuth2 = gapi.auth2.init({
-            client_id: CLIENT_ID,
+            client_id: environment.authClientId,
             scope: AUTH_SCOPE,
           });
           resolve();

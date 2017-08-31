@@ -5,5 +5,6 @@
 
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:8080'
+  apiUrl: 'http://localhost:8080',
+  authClientId: '416127938080-vosnnsq7758ub1iai84ei3u1enstq8kp.apps.googleusercontent.com',
 };
