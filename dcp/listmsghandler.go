@@ -67,9 +67,7 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 	}
 	var newTasks []*Task
 	for filePath := range filePaths {
-		// TODO(b/64038794): The task ids should be a hash of the filePath, the
-		// filePath might be too long and already duplicated in the task spec.
-		uploadGCSTaskId := uploadGCSTaskPrefix + filePath
+		uploadGCSTaskId := GetUploadGCSTaskId(filePath)
 		dstObject, _ := filepath.Rel(listTaskSpec.SrcDirectory, filePath)
 		uploadGCSTaskSpec := UploadGCSTaskSpec{
 			SrcFile:   filePath,

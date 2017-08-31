@@ -44,9 +44,7 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *
 		return err
 	}
 
-	// TODO(b/64038794): The task ids should be a hash of the SrcGCSObject, the
-	// SrcGCSObject might be too long and already duplicated in the task spec.
-	loadBQTaskId := loadBQTaskPrefix + uploadGCSTaskSpec.DstObject
+	loadBQTaskId := GetLoadBQTaskId(uploadGCSTaskSpec.DstObject)
 	loadBQTaskSpec := LoadBQTaskSpec{
 		SrcGCSBucket: uploadGCSTaskSpec.DstBucket,
 		SrcGCSObject: uploadGCSTaskSpec.DstObject,

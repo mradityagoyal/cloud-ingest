@@ -252,7 +252,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 			JobConfigId: jobConfigId,
 			JobRunId:    jobRunId,
 			TaskType:    uploadGCSTaskType,
-			TaskId:      uploadGCSTaskPrefix + "dir/file" + strconv.Itoa(i),
+			TaskId:      GetUploadGCSTaskId("dir/file" + strconv.Itoa(i)),
 		}
 		expectedNewTaskSpec := fmt.Sprintf(`{
 			"src_file": "dir/file%d",

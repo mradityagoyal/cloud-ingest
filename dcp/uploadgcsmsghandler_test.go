@@ -115,7 +115,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
 		TaskType:    loadBQTaskType,
-		TaskId:      loadBQTaskPrefix + "object",
+		TaskId:      GetLoadBQTaskId("object"),
 	}
 	expectedNewTaskSpec :=
 		`{

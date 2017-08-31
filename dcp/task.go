@@ -31,8 +31,8 @@ const (
 	taskIdSeparator string = ":"
 
 	listTaskPrefix      string = "list"
-	uploadGCSTaskPrefix string = "uploadGCS" + taskIdSeparator
-	loadBQTaskPrefix    string = "loadBigQuery" + taskIdSeparator
+	uploadGCSTaskPrefix string = "uploadGCS"
+	loadBQTaskPrefix    string = "loadBigQuery"
 
 	listTaskType      int64 = 1
 	uploadGCSTaskType int64 = 2
@@ -82,6 +82,22 @@ type Task struct {
 // and TaskId).
 func (t Task) getTaskFullId() string {
 	return getTaskFullId(t.JobConfigId, t.JobRunId, t.TaskId)
+}
+
+// GetUploadGCSTaskId returns the task id of an uploadGCS type task for
+// the given file.
+func GetUploadGCSTaskId(filePath string) string {
+	// TODO(b/64038794): The task ids should be a hash of the filePath, the
+	// filePath might be too long and already duplicated in the task spec.
+	return uploadGCSTaskPrefix + taskIdSeparator + filePath
+}
+
+// GetLoadBQTaskId returns the task id of a loadBiqQuery type task for
+// the given file.
+func GetLoadBQTaskId(srcGCSObject string) string {
+	// TODO(b/64038794): The task ids should be a hash of the SrcGCSObject, the
+	// SrcGCSObject might be too long and already duplicated in the task spec.
+	return loadBQTaskPrefix + taskIdSeparator + srcGCSObject
 }
 
 // getTaskFullId is a helper method that generates a unique task id based
