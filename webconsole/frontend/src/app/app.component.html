@@ -5,26 +5,28 @@
 <md-sidenav-container fullscreen class="ingest-sidenav-container">
   <md-sidenav #sidenav mode="side" opened="true">
     <md-list>
-      <a *ngIf="loggedIn" md-list-item routerLink="/jobconfigs"
-          queryParamsHandling="merge" id="jobconfigslink"
-          i18n="Link to page listing job configs">
-        Job Configs
-      </a>
-      <a *ngIf="loggedIn" md-list-item routerLink="/jobruns"
-          queryParamsHandling="merge" id="jobrunslink"
-          i18n="Link to page listing job runs">
-        Job Runs
-      </a>
-      <a *ngIf="loggedIn" md-list-item routerLink="/createconfig"
-          queryParamsHandling="merge" id="createconfiglink"
-          i18n="Link to page for job config creation">
-        Create Job Config
-      </a>
-      <a *ngIf="loggedIn" md-list-item routerLink="/createrun"
-          queryParamsHandling="merge"  id="createjobrunlink"
-          i18n="Link to page for job run creation">
-        Create Job Run
-      </a>
+      <ng-container *ngIf="loggedIn">
+        <a md-list-item routerLink="/jobconfigs"
+            queryParamsHandling="merge" id="jobconfigslink"
+            i18n="Link to page listing job configs">
+          Job Configs
+        </a>
+        <a md-list-item routerLink="/jobruns"
+            queryParamsHandling="merge" id="jobrunslink"
+            i18n="Link to page listing job runs">
+          Job Runs
+        </a>
+        <a md-list-item routerLink="/createconfig"
+            queryParamsHandling="merge" id="createconfiglink"
+            i18n="Link to page for job config creation">
+          Create Job Config
+        </a>
+        <a md-list-item routerLink="/createrun"
+            queryParamsHandling="merge"  id="createjobrunlink"
+            i18n="Link to page for job run creation">
+          Create Job Run
+        </a>
+      </ng-container>
       <button *ngIf="authServiceInitialized && !loggedIn" md-list-item (click)="signIn()">
         Sign In
       </button>
