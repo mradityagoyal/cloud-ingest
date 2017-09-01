@@ -51,11 +51,11 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
   with database.batch() as batch:
     # Adding job config.
     job_spec = {
-        'on_prem_src_directory': src_dir,
-        'gcs_bucket': dst_gcs_bucket,
-        'gcs_directory': dst_gcs_dir,
-        'bigquery_dataset': dst_bq_dataset,
-        'bigquery_table': dst_bq_table
+        'onPremSrcDirectory': src_dir,
+        'gcsBucket': dst_gcs_bucket,
+        'gcsDirectory': dst_gcs_dir,
+        'bigqueryDataset': dst_bq_dataset,
+        'bigqueryTable': dst_bq_table
     }
     batch.insert(
         table='JobConfigs',

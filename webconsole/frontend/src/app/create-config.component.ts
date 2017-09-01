@@ -18,10 +18,10 @@ export class CreateConfigComponent {
   appError = false; // The application is broken (bug, back-end error, etc.)
   model: JobConfig = {
         JobConfigId: '',
-        JobSpec: '{\'gcs_directory\': \'<gcs directory>\', ' +
-        '\'oprem_src_directory\': \'<on-premise source directory>\', ' +
-        '\'gcs_bucket\': \'<GCS bucket>\', \'bigquery_table\': ' +
-        '\'<BigQuery Table>\', \'bigquery_dataset\': ' +
+        JobSpec: '{\'gcsDirectory\': \'<gcs directory>\', ' +
+        '\'onPremSrcDirectory\': \'<on-premise source directory>\', ' +
+        '\'gcsBucket\': \'<GCS bucket>\', \'bigqueryTable\': ' +
+        '\'<BigQuery Table>\', \'bigqueryDataset\': ' +
         '\'<BigQuery Dataset>\'}'
     };
 

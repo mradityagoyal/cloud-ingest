@@ -40,11 +40,11 @@ const (
 )
 
 type JobSpec struct {
-	OnpremSrceDirectory string `json:"on_prem_src_directory"`
-	GCSBucket           string `json:"gcs_bucket"`
-	GCSDirectory        string `json:"gcs_directory"`
-	BQDataset           string `json:"bigquery_dataset"`
-	BQTable             string `json:"bigquery_table"`
+	OnpremSrcDirectory string `json:"onPremSrcDirectory"`
+	GCSBucket          string `json:"gcsBucket"`
+	GCSDirectory       string `json:"gcsDirectory"`
+	BQDataset          string `json:"bigqueryDataset"`
+	BQTable            string `json:"bigqueryTable"`
 }
 
 type ListTaskSpec struct {
