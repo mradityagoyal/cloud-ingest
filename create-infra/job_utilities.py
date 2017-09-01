@@ -62,11 +62,19 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
         columns=('JobConfigId', 'JobSpec'),
         values=[(JOB_CONFIG_NAME, json.dumps(job_spec))])
 
+    job_progress = {
+      'totalTasks': 0,
+      'tasksCompleted': 0,
+      'tasksFailed': 0
+    }
+
     # Adding a job run.
     batch.insert(
         table='JobRuns',
-        columns=('JobConfigId', 'JobRunId'),
-        values=[(JOB_CONFIG_NAME, JOB_RUN_NAME)]
+        columns=('JobConfigId',
+                 'JobRunId',
+                 'Progress'),
+        values=[(JOB_CONFIG_NAME, JOB_RUN_NAME, json.dumps(job_progress))]
     )
 
     # Adding the listing task

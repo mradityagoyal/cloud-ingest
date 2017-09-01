@@ -8,6 +8,7 @@ CREATE TABLE JobRuns (
      JobRunId STRING(MAX) NOT NULL,
      Status INT64,
      JobCreationTime INT64,
+     Progress STRING(MAX) NOT NULL,
    ) PRIMARY KEY(JobConfigId, JobRunId),
    INTERLEAVE IN PARENT JobConfigs ON DELETE NO ACTION
 
