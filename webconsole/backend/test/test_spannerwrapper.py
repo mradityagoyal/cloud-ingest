@@ -32,6 +32,13 @@ from mock import patch
 
 from spannerwrapper import SpannerWrapper
 
+JOB_CONFIG_ID_1 = u'test-config1'
+JOB_CONFIG_ID_2 = u'test-config2'
+JOB_SPEC_1 = {u'srcDir': u'usr/home/'}
+JOB_SPEC_2 = {u'srcDir': u'usr/home2/'}
+JOB_SPEC_STR_1 = '{"srcDir": "usr/home/"}'
+JOB_SPEC_STR_2 = '{"srcDir": "usr/home2/"}'
+
 class TestSpannerWrapper(unittest.TestCase):
     """Unit tests for spannerwrapper.py with the Cloud Spanner client mocked."""
     # pylint: disable=too-many-public-methods
@@ -61,23 +68,18 @@ class TestSpannerWrapper(unittest.TestCase):
 
     def test_get_job_configs(self):
         """Asserts that two job configs are successfully returned."""
-        config_id1 = 'test-config1'
-        job_spec1 = '{\'srcDir\': \'usr/home/\'}'
-        config_id2 = 'test-config2'
-        job_spec2 = '{\'srcDir\': \'usr/home2/\'}'
-
         result = MagicMock()
-        result.__iter__.return_value = [[config_id1, job_spec1],
-                                        [config_id2, job_spec2]]
+        result.__iter__.return_value = [[JOB_CONFIG_ID_1, JOB_SPEC_STR_1],
+                                        [JOB_CONFIG_ID_2, JOB_SPEC_STR_2]]
         result.fields = self.get_fields_list(
             SpannerWrapper.JOB_CONFIGS_COLUMNS)
         self.database.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_configs()
-        expected = [
-            self.get_job_config(config_id1, job_spec1),
-            self.get_job_config(config_id2, job_spec2)
-        ]
+        expected = [{u'JobConfigId': JOB_CONFIG_ID_1,
+                     u'JobSpec': JOB_SPEC_1},
+                    {u'JobConfigId': JOB_CONFIG_ID_2,
+                     u'JobSpec': JOB_SPEC_2}]
         self.assertEqual(actual, expected)
 
     def test_get_configs_nonexistent(self):
@@ -87,8 +89,7 @@ class TestSpannerWrapper(unittest.TestCase):
         self.database.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_configs()
-        expected = []
-        self.assertEqual(actual, expected)
+        self.assertEqual(actual, [])
 
     def test_get_job_configs_table(self):
         """Asserts that the get_job_configs query uses the JobConfigs table."""

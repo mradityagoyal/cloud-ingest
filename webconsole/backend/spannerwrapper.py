@@ -24,6 +24,7 @@ from google.cloud import spanner
 from google.cloud.proto.spanner.v1 import type_pb2
 from google.gax import GaxError
 #pylint: enable=no-name-in-module, import-error, relative-import
+import util
 
 class SpannerWrapper(object):
     """SpannerWrapper class handles all interactions with cloud Spanner."""
@@ -81,7 +82,8 @@ class SpannerWrapper(object):
           A list containing the retrieved job configs in JSON format.
         """
         query = "SELECT * FROM %s" % SpannerWrapper.JOB_CONFIGS_TABLE
-        return self.list_query(query)
+        list_query = self.list_query(query)
+        return util.json_to_dictionary_in_field(list_query, self.JOB_SPEC)
 
     def get_job_config(self, config_id):
         """Retrieves the specified job config from Cloud Spanner.
