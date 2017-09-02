@@ -15,49 +15,50 @@
 
 """Google Cloud PubSub admin utilities."""
 
+# pylint: disable=import-error,no-name-in-module
 from google.cloud import exceptions
 from google.cloud import pubsub
 
 
 class PubSubBuilder(object):
-  """Manipulates PubSub topics/subscriptions."""
+    """Manipulates PubSub topics/subscriptions."""
 
-  def __init__(self):
-    self.client = pubsub.Client()
+    def __init__(self):
+        self.client = pubsub.Client()
 
-  def CreateTopic(self, topic_name):
-    """Creates topic_name topic."""
-    topic = self.client.topic(topic_name)
-    topic.create()
-    return topic
+    def create_topic(self, topic_name):
+        """Creates topic_name topic."""
+        topic = self.client.topic(topic_name)
+        topic.create()
+        return topic
 
-  @classmethod
-  def CreateSubscription(cls, topic, sub_name, ack_deadline=15):
-    """Creates sub_name subscription into topic with deadline ack_deadline."""
-    sub = topic.subscription(sub_name, ack_deadline=ack_deadline)
-    sub.create()
+    @classmethod
+    def create_subscription(cls, topic, sub_name, ack_deadline=15):
+        """Creates sub_name subscription in topic with deadline ack_deadline."""
+        sub = topic.subscription(sub_name, ack_deadline=ack_deadline)
+        sub.create()
 
-  def CreateTopicAndSubscriptions(self, topic_name, sub_names):
-    """Creates topic_name topics and associate sub_names subscriptions."""
-    topic = self.CreateTopic(topic_name)
-    for sub_name in sub_names:
-      self.CreateSubscription(topic, sub_name)
+    def create_topic_and_subscriptions(self, topic_name, sub_names):
+        """Creates topic_name topics and associate sub_names subscriptions."""
+        topic = self.create_topic(topic_name)
+        for sub_name in sub_names:
+            self.create_subscription(topic, sub_name)
 
-  def DeleteTopicAndSubscriptions(self, topic_name):
-    """Deletes topic_name topic and its subscriptions."""
-    topic = self.client.topic(topic_name)
-    if not topic.exists():
-      print 'Topic {} does not exist, skipping delete.'.format(topic.name)
-      return
+    def delete_topic_and_subscriptions(self, topic_name):
+        """Deletes topic_name topic and its subscriptions."""
+        topic = self.client.topic(topic_name)
+        if not topic.exists():
+            print 'Topic {} does not exist, skipping delete.'.format(topic.name)
+            return
 
-    # Deleting subscriptions associated with the topic
-    subs = topic.list_subscriptions()
-    for sub in subs:
-      try:
-        sub.delete()
-      except exceptions.NotFound:
-        print 'Subscription {} does not exist, skipping delete.'.format(
-            sub.name)
+        # Deleting subscriptions associated with the topic
+        subs = topic.list_subscriptions()
+        for sub in subs:
+            try:
+                sub.delete()
+            except exceptions.NotFound:
+                print 'Subscription {} does not exist, skipping delete.'.format(
+                    sub.name)
 
-    # Delete the topic
-    topic.delete()
+        # Delete the topic
+        topic.delete()

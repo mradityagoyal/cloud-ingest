@@ -20,6 +20,7 @@ import httplib
 import json
 import time
 
+# pylint: disable=import-error,no-name-in-module
 import googleapiclient.discovery
 import google.auth as googleauth
 
@@ -43,172 +44,177 @@ runcmd:
 DISK_SIZE_GB = 50
 
 
-def _WaitComputeOperationToComplete(compute, project_id, zone, operation,
-                                    timeout_seconds=180):
-  """Wait for compute operation to complete."""
-  print 'Waiting for operation %s to finish...' % operation
-  start_time = time.time()
-  while time.time() - start_time < timeout_seconds:
-    result = compute.zoneOperations().get(
-        project=project_id, zone=zone, operation=operation).execute()
+def _wait_operation_to_complete(compute, project_id, zone, operation,
+                                timeout_seconds=180):
+    """Wait for compute operation to complete."""
+    print 'Waiting for operation %s to finish...' % operation
+    start_time = time.time()
+    while time.time() - start_time < timeout_seconds:
+        result = compute.zoneOperations().get(
+            project=project_id, zone=zone, operation=operation).execute()
 
-    if result['status'] == 'DONE':
-      print 'Operation %s done.' % operation
-      if 'error' in result:
-        raise Exception(result['error'])
-      print 'Operation %s completed in %d seconds.' % (operation,
-                                                       time.time() - start_time)
-      return result
+        if result['status'] == 'DONE':
+            print 'Operation %s done.' % operation
+            if 'error' in result:
+                raise Exception(result['error'])
+            print 'Operation %s completed in %d seconds.' % (
+                operation, time.time() - start_time)
+            return result
 
-    time.sleep(1)
-  raise Exception(
-      'Operation {} timed out.'.format(operation))
+        time.sleep(1)
+    raise Exception(
+        'Operation {} timed out.'.format(operation))
 
 
 class ComputeBuilder(object):
-  """Manipulates creation/deletion of GCE instances.
+    """Manipulates creation/deletion of GCE instances.
 
-  ComputeBuilder is used to create/delete GCE instances that are initially
-  intended to host the cloud ingest data control plane (DCP). Currently, it
-  creates GCE instances based on the "Container-Optimized OS from Google" image,
-  and runs the cloud ingest DCP container into this instance. Later, this can be
-  a generic class for all manipulation of GCE instances.
-  """
-
-  def __init__(self):
-    self.compute = googleapiclient.discovery.build('compute', 'v1')
-    _, self.project_id = googleauth.default()
-
-    # Getting the optimized container GCE os. This may change in the future if
-    # we decide to create generic instance. List of images can be found at
-    # https://cloud.google.com/compute/docs/images
-    image_response = self.compute.images().getFromFamily(
-        project='cos-cloud', family='cos-stable').execute()
-    source_disk_image = image_response['selfLink']
-
-    self.container_spec_template = """
-    {
-      "apiVersion": "v1",
-      "kind": "Pod",
-      "metadata": {
-        "name": "%s"
-      },
-      "spec": {
-        "containers": [
-          {
-            "name": "%s",
-            "image": "%s",
-            "imagePullPolicy": "Always",
-            "command": ["%s"],
-            "args": %s
-          }
-        ]
-      }
-    }
+    ComputeBuilder is used to create/delete GCE instances that are initially
+    intended to host the cloud ingest data control plane (DCP). Currently, it
+    creates GCE instances based on the "Container-Optimized OS from Google"
+    image, and runs the cloud ingest DCP container into this instance. Later,
+    this can be a generic class for all manipulation of GCE instances.
     """
 
-    self.config_template = {
-        # 'name': <gce_instance_name>,
-        # 'machineType': <machine_type>,
+    def __init__(self):
+        self.compute = googleapiclient.discovery.build('compute', 'v1')
+        _, self.project_id = googleauth.default()
 
-        # Specify the boot disk and the image to use as a source.
-        'disks': [
-            {
-                'boot': True,  # This is the boot disk
-                'autoDelete': True,  # Auto-delete disk on instance deletion.
-                'initializeParams': {
-                    'sourceImage': source_disk_image,
-                    'diskSizeGb': DISK_SIZE_GB
-                }
+        # Getting the optimized container GCE os. This may change in the future
+        # if we decide to create generic instance. List of images can be found
+        # at https://cloud.google.com/compute/docs/images
+        image_response = self.compute.images().getFromFamily(
+            project='cos-cloud', family='cos-stable').execute()
+        source_disk_image = image_response['selfLink']
+
+        self.container_spec_template = """
+        {
+            "apiVersion": "v1",
+            "kind": "Pod",
+            "metadata": {
+                "name": "%s"
+            },
+            "spec": {
+                "containers": [
+                  {
+                      "name": "%s",
+                      "image": "%s",
+                      "imagePullPolicy": "Always",
+                      "command": ["%s"],
+                      "args": %s
+                  }
+                ]
             }
-        ],
-
-        # Specify a network interface with NAT to access the public internet.
-        'networkInterfaces': [{
-            'network': 'global/networks/default',  # Use the default network.
-            'accessConfigs': [
-                # Provide external public internet access.
-                {'type': 'ONE_TO_ONE_NAT', 'name': 'External NAT'}
-            ]
-        }],
-
-        # Allow the instance to access all services.
-        'serviceAccounts': [
-            {
-                'email': 'default',
-                'scopes': ['https://www.googleapis.com/auth/cloud-platform']
-            }
-        ],
-
-        # Metadata is readable from the instance and allows you to
-        # pass configuration from deployment scripts to instances.
-        'metadata': {
-            'items': [
-                # Specify the the container running on this instance.
-                # {
-                #     'key': 'google-container-manifest',
-                #     'value': <container_spec>
-                # },
-                {
-                    # Initialize K8 on the boot using cloud-config.
-                    'key': 'user-data',
-                    'value': _CLOUD_CONFIG
-                },
-                {
-                    # Ensure containers are always running.
-                    'key': 'gci-ensure-gke-docker',
-                    'value': 'true'
-                }
-            ]
         }
-    }
+        """
 
-  def CreateInstance(self, name, container_image, cmd, cmd_args,
-                     zone='us-central1-f', machine_type='n1-standard-1'):
-    """Creates a GCE instance running a container image.
+        self.config_template = {
+            # 'name': <gce_instance_name>,
+            # 'machineType': <machine_type>,
 
-    Args:
-      name: Name of the GCE instance to create.
-      container_image: Container image to deploy to the instance.
-      cmd: Command line to run in the deployed container.
-      cmd_args: Array of params to be passed to the command that runs in the
-          deployed container.
-      zone: Zone of the GCE instance.
-      machine_type: The instance machine type,
-          https://cloud.google.com/compute/docs/machine-types lists possible
-          values of the machine type.
-    """
-    args_json_str = '[%s]' % (','.join('"%s"' % x for x in cmd_args))
-    container_spec = self.container_spec_template % (
-        name, name, container_image, cmd, args_json_str)
+            # Specify the boot disk and the image to use as a source.
+            'disks': [
+                {
+                    'boot': True,  # This is the boot disk
+                    'autoDelete': True,  # Auto-delete disk on instance deletion
+                    'initializeParams': {
+                        'sourceImage': source_disk_image,
+                        'diskSizeGb': DISK_SIZE_GB
+                    }
+                }
+            ],
 
-    config = copy.deepcopy(self.config_template)
-    config['name'] = name
-    config['machineType'] = 'zones/%s/machineTypes/%s' % (zone, machine_type)
-    config['metadata']['items'].append({
-        'key': 'google-container-manifest',
-        'value': container_spec
-    })
+            # Specify a network interface with NAT to access public internet.
+            'networkInterfaces': [{
+                'network': 'global/networks/default',  # Use the default network
+                'accessConfigs': [
+                    # Provide external public internet access.
+                    {'type': 'ONE_TO_ONE_NAT', 'name': 'External NAT'}
+                ]
+            }],
 
-    operation = self.compute.instances().insert(
-        project=self.project_id, zone=zone, body=config).execute()
-    _WaitComputeOperationToComplete(
-        self.compute, self.project_id, zone, operation['name'])
+            # Allow the instance to access all services.
+            'serviceAccounts': [
+                {
+                    'email': 'default',
+                    'scopes': ['https://www.googleapis.com/auth/cloud-platform']
+                }
+            ],
 
-  def DeleteInstance(self, name, zone='us-central1-f'):
-    """Deletes a GCE instance."""
-    try:
-      operation = self.compute.instances().delete(
-          project=self.project_id, zone=zone, instance=name).execute()
-    except googleapiclient.errors.HttpError as e:
-      try:
-        error_code = json.loads(e.content.decode('utf-8'))['error']['code']
-        if error_code == httplib.NOT_FOUND:
-          print 'GCE instance %s does not exist, skipping delete.' % name
-          return
-      except:  # pylint: disable=bare-except
-        pass
-      raise
+            # Metadata is readable from the instance and allows you to
+            # pass configuration from deployment scripts to instances.
+            'metadata': {
+                'items': [
+                    # Specify the the container running on this instance.
+                    # {
+                    #     'key': 'google-container-manifest',
+                    #     'value': <container_spec>
+                    # },
+                    {
+                        # Initialize K8 on the boot using cloud-config.
+                        'key': 'user-data',
+                        'value': _CLOUD_CONFIG
+                    },
+                    {
+                        # Ensure containers are always running.
+                        'key': 'gci-ensure-gke-docker',
+                        'value': 'true'
+                    }
+                ]
+            }
+        }
 
-    _WaitComputeOperationToComplete(
-        self.compute, self.project_id, zone, operation['name'])
+    # pylint: disable=too-many-arguments,too-many-locals
+    def create_instance(self, name, container_image, cmd, cmd_args,
+                        zone='us-central1-f', machine_type='n1-standard-1'):
+        """Creates a GCE instance running a container image.
+
+        Args:
+            name: Name of the GCE instance to create.
+            container_image: Container image to deploy to the instance.
+            cmd: Command line to run in the deployed container.
+            cmd_args: Array of params to be passed to the command that runs in
+                the deployed container.
+            zone: Zone of the GCE instance.
+            machine_type: The instance machine type,
+                https://cloud.google.com/compute/docs/machine-types lists
+                possible values of the machine type.
+        """
+        args_json_str = '[%s]' % (','.join('"%s"' % x for x in cmd_args))
+        container_spec = self.container_spec_template % (
+            name, name, container_image, cmd, args_json_str)
+
+        config = copy.deepcopy(self.config_template)
+        config['name'] = name
+        config['machineType'] = 'zones/%s/machineTypes/%s' % (zone,
+                                                              machine_type)
+        config['metadata']['items'].append({
+            'key': 'google-container-manifest',
+            'value': container_spec
+        })
+
+        operation = self.compute.instances().insert(
+            project=self.project_id, zone=zone, body=config).execute()
+        _wait_operation_to_complete(
+            self.compute, self.project_id, zone, operation['name'])
+
+    # pylint: enable=too-many-arguments,too-many-locals
+    def delete_instance(self, name, zone='us-central1-f'):
+        """Deletes a GCE instance."""
+        try:
+            operation = self.compute.instances().delete(
+                project=self.project_id, zone=zone, instance=name).execute()
+        except googleapiclient.errors.HttpError as err:
+            try:
+                error_code = json.loads(
+                    err.content.decode('utf-8'))['error']['code']
+                if error_code == httplib.NOT_FOUND:
+                    print 'GCE instance %s does not exist, skipping delete.' % (
+                        name)
+                    return
+            except:  # pylint: disable=bare-except
+                pass
+            raise
+
+        _wait_operation_to_complete(
+            self.compute, self.project_id, zone, operation['name'])

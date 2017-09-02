@@ -15,53 +15,55 @@
 
 """Google Cloud Spanner admin utilities."""
 
+# pylint: disable=import-error,no-name-in-module
 from google.cloud import spanner
 
 
 class SpannerBuilder(object):
-  """Manipulates creation/deletion of spanner instances/databases."""
+    """Manipulates creation/deletion of spanner instances/databases."""
 
-  def __init__(self,
-               instance_id,
-               location='us-central1',
-               node_count=1):
-    client = spanner.Client()
-    # Search for a configuration matching the input location.
-    config = None
-    configs = client.list_instance_configs()
-    for c in configs:
-      if c.name.endswith(location):
-        config = c
-        break
-    if not config:
-      raise Exception(
-          'Can not get spanner config for location {}.'.format(location))
-    self.instance = client.instance(
-        instance_id, configuration_name=config.name, node_count=node_count,
-        display_name=instance_id)
+    def __init__(self,
+                 instance_id,
+                 location='us-central1',
+                 node_count=1):
+        client = spanner.Client()
+        # Search for a configuration matching the input location.
+        selected_config = None
+        configs = client.list_instance_configs()
+        for config in configs:
+            if config.name.endswith(location):
+                selected_config = config
+                break
+        if not selected_config:
+            raise Exception(
+                'Can not get spanner config for location {}.'.format(location))
+        self.instance = client.instance(
+            instance_id, configuration_name=selected_config.name,
+            node_count=node_count, display_name=instance_id)
 
-  def CreateInstance(self):
-    """Creates the spanner instance."""
-    operation = self.instance.create()
-    operation.result()
+    def create_instance(self):
+        """Creates the spanner instance."""
+        operation = self.instance.create()
+        operation.result()
 
-  def DeleteInstance(self):
-    """Deletes the spanner instance."""
-    self.instance.delete()
+    def delete_instance(self):
+        """Deletes the spanner instance."""
+        self.instance.delete()
 
-  def CreateDatabase(self, database_id, schema_file):
-    """Creates a database in the spanner instance."""
-    # Read the schema file
-    with open(schema_file, 'r') as f:
-      schema = f.read()
+    def create_database(self, database_id, schema_file_path):
+        """Creates a database in the spanner instance."""
+        # Read the schema file
+        with open(schema_file_path, 'r') as schema_file:
+            schema = schema_file.read()
 
-    # Split the schema into statement array.
-    statements = [x for x in schema.split('\n\n') if x]
+        # Split the schema into statement array.
+        statements = [x for x in schema.split('\n\n') if x]
 
-    database = self.instance.database(database_id, ddl_statements=statements)
-    operation = database.create()
-    operation.result()
+        database = self.instance.database(database_id,
+                                          ddl_statements=statements)
+        operation = database.create()
+        operation.result()
 
-  def GetDatabase(self, database_id):
-    """Gets a database object from the spanner instance."""
-    return self.instance.database(database_id)
+    def get_database(self, database_id):
+        """Gets a database object from the spanner instance."""
+        return self.instance.database(database_id)
