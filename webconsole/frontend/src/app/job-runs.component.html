@@ -1,26 +1,39 @@
-<table>
-  <tr>
-    <th i18n="Header for the column containing job run id strings">
-      Run Id
-    </th>
-    <th i18n="Header for the column containing job config id strings">
-      Config Id
-    </th>
-    <th i18n="Header for the column containing job creation times">
-      Creation Time
-    </th>
-    <th i18n="Header for the column containing job statuses">
-      Status
-    </th>
-  </tr>
-  <tr *ngFor="let jobRun of jobRuns">
-    <td>{{jobRun.JobRunId}}
-    <td>{{jobRun.JobConfigId}}</td>
+<div class="ingest-job-run-heading">
+  <h2> Job Runs </h2>
+  <md-icon class="ingest-info-icon" mdTooltip="Each Job Run corresponds to a Job Configuration. Each Job Run represents a data transfer action. Multiple Job Runs represent a refresh that brings files up to date" [mdTooltipPosition]="'after'">info</md-icon>
+</div>
+
+<md-table #table [dataSource]="jobRunsDataSource" class="ingest-job-runs-table">
+  <ng-container mdColumnDef="runId">
+    <md-header-cell *mdHeaderCellDef> Run Id </md-header-cell>
+    <md-cell *mdCellDef="let jobRun"> {{jobRun.JobRunId}} </md-cell>
+  </ng-container>
+  <ng-container mdColumnDef="configId">
+    <md-header-cell *mdHeaderCellDef> Job Config Id </md-header-cell>
+    <md-cell *mdCellDef="let jobRun"> {{jobRun.JobConfigId}} </md-cell>
+  </ng-container>
+  <ng-container mdColumnDef="creationTime">
+    <md-header-cell *mdHeaderCellDef> Creation Time </md-header-cell>
     <!--
       Convert JobCreationTime from nanoseconds to milliseconds.
       Short format: 'yMdjm' (e.g. 9/3/2010, 12:05 PM for en-US)
     -->
-    <td>{{jobRun.JobCreationTime / 1000000 | date:'short'}}</td>
-    <td>{{jobRun.Status}}</td>
-  </tr>
-</table>
+    <md-cell *mdCellDef="let jobRun"> {{jobRun.JobCreationTime / 1000000 | date:'short'}} </md-cell>
+  </ng-container>
+  <ng-container mdColumnDef="status">
+    <md-header-cell *mdHeaderCellDef> Status </md-header-cell>
+    <md-cell *mdCellDef="let jobRun">
+      <!--
+        TODO(b/64680346): Status name should be read from protocol buffer.
+      -->
+      <ng-container [ngSwitch]="jobRun.Status">
+        <ng-container *ngSwitchCase="0">Unqueued</ng-container>
+        <ng-container *ngSwitchCase="1">Queued</ng-container>
+        <ng-container *ngSwitchCase="2">Failed</ng-container>
+        <ng-container *ngSwitchCase="3">Success</ng-container>
+      </ng-container>
+    </md-cell>
+  </ng-container>
+  <md-header-row *mdHeaderRowDef="displayedColumns"></md-header-row>
+  <md-row *mdRowDef="let row; columns: displayedColumns;"></md-row>
+</md-table>

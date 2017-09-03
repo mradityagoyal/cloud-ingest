@@ -14,7 +14,9 @@ import { MdIconModule,
         MdButtonModule,
         MdDialogModule,
         MdInputModule,
-        MdCheckboxModule } from '@angular/material';
+        MdCheckboxModule,
+        MdTableModule } from '@angular/material';
+import { CdkTableModule } from '@angular/cdk/table';
 
 @NgModule({
   imports: [MdIconModule,
@@ -26,7 +28,9 @@ import { MdIconModule,
             MdButtonModule,
             MdDialogModule,
             MdInputModule,
-            MdCheckboxModule],
+            MdCheckboxModule,
+            MdTableModule,
+            CdkTableModule],
   exports: [MdIconModule,
             MdSidenavModule,
             MdListModule,
@@ -36,7 +40,9 @@ import { MdIconModule,
             MdButtonModule,
             MdDialogModule,
             MdInputModule,
-            MdCheckboxModule]
+            MdCheckboxModule,
+            MdTableModule,
+            CdkTableModule]
 })
 
 export class AngularMaterialImporterModule { }

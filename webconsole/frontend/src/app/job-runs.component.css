@@ -1,0 +1,14 @@
+.ingest-job-run-heading {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 0 0 10px;
+}
+
+.ingest-info-icon {
+  opacity: 0.5;
+  margin: 0 0 0 10px;
+}
+
+.ingest-job-runs-table {
+  margin: 0 20px 0 0;
+}
