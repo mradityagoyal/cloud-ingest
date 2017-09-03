@@ -35,10 +35,11 @@
       </button>
     </md-list>
   </md-sidenav>
-
-<router-outlet *ngIf="isProjectSelected"></router-outlet>
-<div *ngIf="!isProjectSelected">
-  Project should be selected in the query param.
-</div>
+  <div class="ingest-content-container">
+    <router-outlet *ngIf="isProjectSelected"></router-outlet>
+    <div *ngIf="!isProjectSelected">
+      Project should be selected in the query param.
+    </div>
+  </div>
 
 </md-sidenav-container>
