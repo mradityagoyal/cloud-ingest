@@ -72,7 +72,7 @@ describe('AppComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.querySelectorAll('a').length).toBe(4);
+      expect(compiled.querySelectorAll('a').length).toBe(3);
 
       const signOutButton = compiled.querySelector('button');
       expect(signOutButton).not.toBeNull();
@@ -102,19 +102,6 @@ describe('AppComponent', () => {
       const element = compiled.querySelector('#jobconfigslink');
       expect(element).not.toBeNull();
       expect(element.textContent).toContain('Job Configs');
-      expect(element.getAttribute('queryParamsHandling')).toBe('merge');
-    });
-  }));
-
-  it('should contain a Create Job Config link', async(() => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#createconfiglink');
-      expect(element).not.toBeNull();
-      expect(element.textContent).toContain('Create Job Config');
       expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));

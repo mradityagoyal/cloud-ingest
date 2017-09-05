@@ -10,7 +10,11 @@ import { MdIconModule,
         MdListModule,
         MdToolbarModule,
         MdCardModule,
-        MdTooltipModule } from '@angular/material';
+        MdTooltipModule,
+        MdButtonModule,
+        MdDialogModule,
+        MdInputModule,
+        MdCheckboxModule } from '@angular/material';
 
 @NgModule({
   imports: [MdIconModule,
@@ -18,13 +22,21 @@ import { MdIconModule,
             MdListModule,
             MdToolbarModule,
             MdCardModule,
-            MdTooltipModule],
+            MdTooltipModule,
+            MdButtonModule,
+            MdDialogModule,
+            MdInputModule,
+            MdCheckboxModule],
   exports: [MdIconModule,
             MdSidenavModule,
             MdListModule,
             MdToolbarModule,
             MdCardModule,
-            MdTooltipModule]
+            MdTooltipModule,
+            MdButtonModule,
+            MdDialogModule,
+            MdInputModule,
+            MdCheckboxModule]
 })
 
 export class AngularMaterialImporterModule { }

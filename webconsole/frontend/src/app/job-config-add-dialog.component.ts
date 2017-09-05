@@ -1,32 +1,36 @@
-import { Component } from '@angular/core';
-import { Router } from '@angular/router';
+import { Component, Inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/operator/finally';
 import { JobConfig } from './api.resources';
 import { JobsService } from './jobs.service';
-
+import { JobConfigFormModel } from './job-config-add-dialog.resources';
+import { MdDialogRef } from '@angular/material';
 
 @Component({
-  selector: 'app-create-config',
-  templateUrl: './create-config.component.html'
+  selector: 'app-job-config-add-dialog',
+  templateUrl: './job-config-add-dialog.component.html',
+  styleUrls: ['./job-config-add-dialog.component.css']
 })
-
-export class CreateConfigComponent {
+/**
+ * Contains the Job Config Add Dialog component. It opens as a dialog in the job configurations
+ * page.
+ */
+export class JobConfigAddDialogComponent {
   submittingForm = false;
+  bigQueryTransferChecked = false;
   formError = false; // The user submitted bad data
   appError = false; // The application is broken (bug, back-end error, etc.)
-  model: JobConfig = {
-        JobConfigId: '',
-        JobSpec: '{\'gcsDirectory\': \'<gcs directory>\', ' +
-        '\'onPremSrcDirectory\': \'<on-premise source directory>\', ' +
-        '\'gcsBucket\': \'<GCS bucket>\', \'bigqueryTable\': ' +
-        '\'<BigQuery Table>\', \'bigqueryDataset\': ' +
-        '\'<BigQuery Dataset>\'}'
-    };
+  model = new JobConfigFormModel(
+    /** jobConfigId **/ '',
+    /** gcsDirectory **/ '',
+    /** gcsBucket **/ '',
+    /** fileSystemDirectory **/ '',
+    /** bigqueryDataset **/ '',
+    /** bigqueryTable **/ '');
 
   constructor(private readonly jobsService: JobsService,
-              private readonly router: Router) { }
+              private readonly dialogRef: MdDialogRef<JobConfigAddDialogComponent>) { }
 
   onSubmit() {
     this.submittingForm = true;
@@ -35,11 +39,12 @@ export class CreateConfigComponent {
     this.formError = false;
     this.appError = false;
 
-    this.jobsService.postJobConfig(this.model).finally(() => {
+    this.jobsService.postJobConfig(this.model.toApiJobConfig()).finally(() => {
         this.submittingForm = false;
       }).subscribe(
-        data => this.router.navigate(['jobconfigs'],
-                                     { queryParamsHandling: 'merge' }),
+        (response) => {
+          this.dialogRef.close(/**configSuccessfullyPosted**/ true);
+        },
         (err: HttpErrorResponse) => {
           if (err.error instanceof Error) {
             // Client-side or network error occurred

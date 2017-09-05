@@ -1,0 +1,46 @@
+<h3 i18n="Title for job config creation dialog">Create a new job configuration</h3>
+<div [hidden]="!formError"
+     i18n="Error message for invalid values in job config creation">
+  There was an error due to invalid values. Try again and make sure the
+  config id is unique.
+</div>
+
+<div [hidden]="!appError" i18n="Error message for unexpected application errors">
+  There was an error in the application. Please try again later and <a href="https://github.com/GoogleCloudPlatform/cloud-ingest/issues" target="_blank"> contact site owners </a> if the problem persists.
+</div>
+<form (ngSubmit)="onSubmit()" #jobConfigAddDialogForm="ngForm">
+  <md-form-field class="ingest-full-width">
+    <input id="jobConfigId" name="jobConfigId" mdInput required [(ngModel)]="model.jobConfigId" #jobConfigId="ngModel" placeholder="Config Id" i18n="Label for Job Config Id input">
+  </md-form-field>
+  <h4 i18n="Subtitle in a form for the fields of the destination information for Google Cloud Storage"> Destination information at Google Cloud Storage: </h4>
+  <md-form-field class="ingest-full-width">
+      <input id="gcsBucket" name="gcsBucket" mdInput required [(ngModel)]="model.gcsBucket" #gcsBucket="ngModel" placeholder="Google Cloud Storage bucket" i18n="Label for Google Cloud Storage bucket">
+  </md-form-field>
+  <md-form-field class="ingest-full-width">
+      <input id="gcsDirectory" name="gcsDirectory" mdInput required [(ngModel)]="model.gcsDirectory" #gcsDirectory="ngModel" placeholder="Google Cloud Storage directory" i18n="Label for Google Cloud Storage directory">
+  </md-form-field>
+  <h4 i18n="Subtitle in a form for the fields of the source information for the on-premises file system"> Source information for the on-premises file system: </h4>
+  <md-form-field class="ingest-full-width">
+      <input id="fileSystemDirectory" name="fileSystemDirectory" mdInput required [(ngModel)]="model.fileSystemDirectory" #fileSystemDirectory="ngModel" placeholder="File system directory" i18n="Label for the directory on the file system">
+  </md-form-field>
+  <h4 i18n=""> Destination information at BigQuery: </h4>
+
+  <md-checkbox class="ingest-full-width" id="bigQueryTransferChecked" name="bigQueryTransferChecked" i18n="Label for checkbox to select the transfer rows to BigQuery option" [(ngModel)]="bigQueryTransferChecked">Transfer rows into BigQuery</md-checkbox>
+  <ng-container *ngIf="bigQueryTransferChecked">
+    <md-form-field class="ingest-full-width">
+      <input id="bigqueryDataset" name="bigqueryDataset" mdInput required [(ngModel)]="model.bigqueryDataset" #bigqueryDataset="ngModel" placeholder="BigQuery dataset" i18n="Label for input of a BigQuery dataset">
+    </md-form-field>
+    <md-form-field class="ingest-full-width">
+      <input id="bigqueryTable" name="bigqueryTable" mdInput required [(ngModel)]="model.bigqueryTable" #bigqueryTable="ngModel" placeholder="BigQuery table" i18n="Label for input of a BigQuery table">
+    </md-form-field>
+  </ng-container>
+
+  <button md-raised-button class="ingest-job-config-add-submit" type="submit" [disabled]="!jobConfigAddDialogForm.form.valid ||
+      submittingForm" i18n="Label for submit button">
+    Submit Job Configuration
+  </button>
+
+</form>
+<div *ngIf="submittingForm" i18n="Displayed while a job configuration is being created after submitting the job configuration form">
+  Creating Job Configuration...
+</div>

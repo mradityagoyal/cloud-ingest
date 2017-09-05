@@ -3,6 +3,10 @@
   <md-icon class="ingest-info-icon" mdTooltip="Job configurations are used to specify details of data transfer jobs. They
   include information such as the on-premise source directory and the Google Cloud
   Storage bucket to use." [mdTooltipPosition]="'after'">info</md-icon>
+  <button md-raised-button class="ingest-add-job-config" (click)="openAddJobConfigDialog()">
+    <md-icon class="md-24" aria-label="Add a Job Configuration">add_box</md-icon>
+    Add a job configuration
+  </button>
 </div>
 <div class="ingest-card-container" >
   <md-card class="ingest-job-configs-card" *ngFor="let jobConfig of jobConfigs">

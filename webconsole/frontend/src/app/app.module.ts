@@ -12,14 +12,15 @@ import { AuthInterceptor } from './auth-interceptor';
 import { AuthService } from './auth.service';
 import { JobConfigsComponent } from './job-configs.component';
 import { JobRunsComponent } from './job-runs.component';
-import { CreateConfigComponent } from './create-config.component';
 import { CreateRunComponent } from './create-run.component';
+import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
 
 @NgModule({
   declarations: [
-    AppComponent, JobConfigsComponent, JobRunsComponent, CreateConfigComponent,
-    CreateRunComponent
+    AppComponent, JobConfigsComponent, JobRunsComponent, CreateRunComponent,
+    JobConfigAddDialogComponent
   ],
+  entryComponents: [JobConfigAddDialogComponent],
   imports: [
     BrowserModule,
     BrowserAnimationsModule,
@@ -35,11 +36,6 @@ import { CreateRunComponent } from './create-run.component';
       {
         path: 'jobruns',
         component: JobRunsComponent,
-        canActivate: [AuthService],
-      },
-      {
-        path: 'createconfig',
-        component: CreateConfigComponent,
         canActivate: [AuthService],
       },
       {
