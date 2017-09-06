@@ -23,8 +23,11 @@ from google.cloud import pubsub
 class PubSubBuilder(object):
     """Manipulates PubSub topics/subscriptions."""
 
-    def __init__(self):
-        self.client = pubsub.Client()
+    def __init__(self, client=None):
+        self.client = client
+        if not self.client:
+            # Use the default client if not specified.
+            self.client = pubsub.Client()
 
     def create_topic(self, topic_name):
         """Creates topic_name topic."""
