@@ -19,17 +19,13 @@ import json
 import os
 import time
 
-
-# TODO(b/63017649): Remove the hard coded JobConfigId and JobRunId.
-JOB_CONFIG_NAME = 'ingest-job-00'
-JOB_RUN_NAME = 'job-run-00'
-
 TASK_STATUS_UNQUEUED = 0
 TASK_STATUS_QUEUED = 1
 TASK_STATUS_FAILED = 2
 TASK_STATUS_SUCCESS = 3
 
 TASK_TYPE_LIST = 1
+
 
 def JobsHaveCompleted(database):
   """Check whether all jobs in the systems have completed."""
@@ -46,7 +42,7 @@ def JobsHaveCompleted(database):
 
 
 def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
-              dst_bq_dataset, dst_bq_table):
+              dst_bq_dataset, dst_bq_table, config_name, run_name):
   """Creates a new transfer job into the spanner database."""
   with database.batch() as batch:
     # Adding job config.
@@ -60,12 +56,12 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
     batch.insert(
         table='JobConfigs',
         columns=('JobConfigId', 'JobSpec'),
-        values=[(JOB_CONFIG_NAME, json.dumps(job_spec))])
+        values=[(config_name, json.dumps(job_spec))])
 
     job_progress = {
-      'totalTasks': 0,
-      'tasksCompleted': 0,
-      'tasksFailed': 0
+        'totalTasks': 0,
+        'tasksCompleted': 0,
+        'tasksFailed': 0
     }
 
     # Adding a job run.
@@ -74,14 +70,14 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
         columns=('JobConfigId',
                  'JobRunId',
                  'Progress'),
-        values=[(JOB_CONFIG_NAME, JOB_RUN_NAME, json.dumps(job_progress))]
+        values=[(config_name, run_name, json.dumps(job_progress))]
     )
 
     # Adding the listing task
     task_id = 'list'
     list_result_object_name = os.path.join(
-        dst_gcs_dir, 'list-task-output-%s-%s-%s' % (JOB_CONFIG_NAME,
-                                                    JOB_RUN_NAME,
+        dst_gcs_dir, 'list-task-output-%s-%s-%s' % (config_name,
+                                                    run_name,
                                                     task_id))
     task_spec = {
         'dst_list_result_bucket': dst_gcs_bucket,
@@ -101,8 +97,8 @@ def CreateJob(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
                  'Status',
                  'CreationTime',
                  'LastModificationTime'),
-        values=[(JOB_CONFIG_NAME,
-                 JOB_RUN_NAME,
+        values=[(config_name,
+                 run_name,
                  task_id,
                  json.dumps(task_spec).encode('utf-8'),
                  TASK_TYPE_LIST,

@@ -23,6 +23,7 @@ import sys
 import tempfile
 import threading
 import time
+import uuid
 
 # pylint: disable=import-error,no-name-in-module,no-member,invalid-name
 import google.cloud
@@ -33,6 +34,10 @@ _TEST_SUFFIX_LENGTH = 6
 _TEST_SUFFIX = ''.join(
     random.choice(string.ascii_lowercase + string.digits)
     for _ in xrange(_TEST_SUFFIX_LENGTH))
+
+_JOB_SUFFIX = str(uuid.uuid4())
+_JOB_CONFIG_NAME = 'ingest-job-%s' % _JOB_SUFFIX
+_JOB_RUN_NAME = 'ingest-job-run-%s' % _JOB_SUFFIX
 
 _DATASET_NAME = 'opi_integration_test_dataset%s' % _TEST_SUFFIX
 _TABLE_NAME = 'opi_integration_test_table%s' % _TEST_SUFFIX
@@ -262,7 +267,9 @@ def _DCPInfrastructureCommand(command, docker_image, insert_job=False):
             '-j',  # Insert new job
             '--src-dir', TMP_DIR,
             '--dst-gcs-bucket', _BUCKET_NAME,
-            '--dst-bq-dataset', _DATASET_NAME, '--dst-bq-table', _TABLE_NAME
+            '--dst-bq-dataset', _DATASET_NAME, '--dst-bq-table', _TABLE_NAME,
+            '--job-config-name', _JOB_CONFIG_NAME,
+            '--job-run-name', _JOB_RUN_NAME
         ])
 
     if command == 'TearDown':

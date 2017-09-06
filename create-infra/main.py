@@ -204,6 +204,14 @@ def main():
                       help='Big query destination dataset.',
                       default=None)
 
+  parser.add_argument('--job-config-name', type=str,
+                      help='Name of the job config for the job being inserted',
+                      default='ingest-job-00')
+
+  parser.add_argument('--job-run-name', type=str,
+                      help='Name of the job run for the job being inserted',
+                      default='job-run-00')
+
   parser.add_argument('--dst-bq-table', type=str,
                       help='Big query destination table in the dataset.',
                       default=None)
@@ -240,7 +248,8 @@ def main():
   if args.insert_job:
     job_utilities.CreateJob(database, args.src_dir,
                             args.dst_gcs_bucket, args.dst_gcs_dir,
-                            args.dst_bq_dataset, args.dst_bq_table)
+                            args.dst_bq_dataset, args.dst_bq_table,
+                            args.job_config_name, args.job_run_name)
 
   if 'TearDown' in args.mode:
     while not args.force and not job_utilities.JobsHaveCompleted(database):
