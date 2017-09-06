@@ -41,6 +41,27 @@ class PubSubBuilder(object):
         sub = topic.subscription(sub_name, ack_deadline=ack_deadline)
         sub.create()
 
+    def topic_and_subscriptions_exist(self, topic_name, sub_names):
+        """Checks the existence of a topic and associated subscriptions.
+
+        Checks whether a topic_name and the associated sub_names subscriptions
+        exist.
+
+        Args:
+            topic_name: Name of the topic.
+            sub_names: Array of the subscriptions names.
+
+        Returns:
+            True if the topic and all the subscriptions exist.
+        """
+        topic = self.client.topic(topic_name)
+        if not topic.exists():
+            return False
+        for sub_name in sub_names:
+            if not topic.subscriptions(sub_name).exists():
+                return False
+        return True
+
     def create_topic_and_subscriptions(self, topic_name, sub_names):
         """Creates topic_name topics and associate sub_names subscriptions."""
         topic = self.create_topic(topic_name)
