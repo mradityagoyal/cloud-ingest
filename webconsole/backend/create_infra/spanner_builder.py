@@ -66,3 +66,9 @@ class SpannerBuilder(object):
     def get_database(self, database_id):
         """Gets a database object from the spanner instance."""
         return self.instance.database(database_id)
+
+    def database_exists(self, database_id):
+        """Checks the existence of a spanner databasee."""
+        if not self.instance.exists():
+            return False
+        return self.instance.database(database_id).exists()
