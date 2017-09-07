@@ -5,6 +5,7 @@ import { AppComponent } from './app.component';
 import { AngularMaterialImporterModule } from './angular-material-importer.module';
 import { AuthService } from './auth.service';
 import { UserProfile } from './auth.resources';
+import { NoopAnimationsModule} from '@angular/platform-browser/animations';
 
 const FAKE_USER = 'Fake User';
 const FAKE_AUTH = 'Fake Auth';
@@ -45,6 +46,7 @@ describe('AppComponent', () => {
       ],
       imports: [
         RouterTestingModule,
+        NoopAnimationsModule,
         AngularMaterialImporterModule
       ],
     }).compileComponents();
