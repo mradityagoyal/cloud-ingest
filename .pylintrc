@@ -39,7 +39,9 @@ load-plugins=
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
 disable=locally-disabled,
-        fixme
+        fixme,
+        import-error,
+        no-name-in-module
 
 
 [REPORTS]

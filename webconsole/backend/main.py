@@ -18,7 +18,6 @@ during the processing of a request will be handled by the error handler
 for Internal Server Errors and a response of 500 Internal Server Error will
 be sent.
 """
-# pylint: disable=import-error,no-name-in-module
 import httplib
 import logging
 from corsdecorator import crossdomain  # To allow requests from the front-end

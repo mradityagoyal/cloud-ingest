@@ -20,7 +20,6 @@ import httplib
 import json
 import time
 
-# pylint: disable=import-error,no-name-in-module
 import googleapiclient.discovery
 import google.auth as googleauth
 

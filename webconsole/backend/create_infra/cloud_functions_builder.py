@@ -24,7 +24,6 @@ import tempfile
 import time
 import zipfile
 
-# pylint: disable=import-error,no-name-in-module
 import google.auth as googleauth
 from google.auth.transport.requests import AuthorizedSession
 from  google.cloud import exceptions

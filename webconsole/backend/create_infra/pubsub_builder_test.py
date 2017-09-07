@@ -17,7 +17,6 @@
 
 import unittest
 
-# pylint: disable=import-error,no-name-in-module
 from google.cloud import exceptions
 from google.cloud import pubsub
 from mock import MagicMock

@@ -15,7 +15,6 @@
 
 """Google Cloud PubSub admin utilities."""
 
-# pylint: disable=import-error,no-name-in-module
 from google.cloud import exceptions
 from google.cloud import pubsub
 

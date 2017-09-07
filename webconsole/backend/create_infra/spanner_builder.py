@@ -15,7 +15,6 @@
 
 """Google Cloud Spanner admin utilities."""
 
-# pylint: disable=import-error,no-name-in-module
 from google.cloud import spanner
 
 

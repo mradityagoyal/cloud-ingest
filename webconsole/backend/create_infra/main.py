@@ -25,7 +25,6 @@ import job_utilities
 import pubsub_builder
 import spanner_builder
 
-# pylint: disable=import-error,no-name-in-module
 import google.auth as googleauth
 
 

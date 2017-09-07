@@ -19,11 +19,9 @@ client is in JSON format and stored in a dictionary.
 """
 import logging
 import time
-#pylint: disable=no-name-in-module, import-error, relative-import
 from google.cloud import spanner
 from google.cloud.proto.spanner.v1 import type_pb2
 from google.gax import GaxError
-#pylint: enable=no-name-in-module, import-error, relative-import
 import util
 
 class SpannerWrapper(object):
