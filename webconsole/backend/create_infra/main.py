@@ -209,11 +209,12 @@ def main():
                         default=None)
 
     parser.add_argument('--job-config-name', type=str,
-                        help='Name of the job config for the job being inserted',
+                        help='Name of the job config for the job being '
+                             'inserted.',
                         default='ingest-job-00')
-  
+
     parser.add_argument('--job-run-name', type=str,
-                        help='Name of the job run for the job being inserted',
+                        help='Name of the job run for the job being inserted.',
                         default='job-run-00')
 
     parser.add_argument('--dst-bq-table', type=str,
