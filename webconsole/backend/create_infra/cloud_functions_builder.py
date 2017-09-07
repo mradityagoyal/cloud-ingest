@@ -252,3 +252,36 @@ class CloudFunctionsBuilder(object):
 
         print 'Cloud function {} deleted in {} seconds.'.format(
             cloud_function_name, time.time() - request_time)
+
+
+    def get_function_status(self, cloud_function_name):
+        """Gets cloud function status.
+
+        Args:
+            cloud_function_name: Name of the cloud function.
+
+        Returns:
+            String. 'NOT_FOUND' or a CloudFunctionStatus enum as defined at
+            https://cloud.google.com/functions/docs/reference/rest/v1beta2/projects.locations.functions#CloudFunctionStatus
+        """
+        function_url = '{}/{}/{}'.format(
+            self.functions_endpoint, self.functions_path, cloud_function_name)
+        res = self.authed_session.get(function_url, headers=self.headers)
+
+        if res.status_code == httplib.NOT_FOUND:
+            return 'NOT_FOUND'
+
+        # TODO(b/65457064): Retry getting the cloud function status on transient
+        # error status.
+        if res.status_code != httplib.OK:
+            raise Exception('Unexpected error code {} on getting cloud '
+                            'function {} status, response text: {}.',
+                            res.status_code, cloud_function_name, res.text)
+
+        res_json = res.json()
+        if 'status' not in res_json:
+            raise Exception('Unexpected error, cloud function {} status '
+                            'missing, response text: {}.',
+                            cloud_function_name, res.text)
+
+        return res_json['status']
