@@ -217,3 +217,29 @@ class ComputeBuilder(object):
 
         _wait_operation_to_complete(
             self.compute, self.project_id, zone, operation['name'])
+
+    def get_instance_status(self, name, zone='us-central1-f'):
+        """Gets GCE instance status.
+
+        Args:
+            name: Name of the GCE instance.
+            zone: GCE instance zone.
+
+        Returns:
+            String. 'NOT_FOUND' or a GCE instance resource status defined at
+            https://cloud.google.com/compute/docs/reference/latest/instances
+        """
+        try:
+            res = self.compute.instances().get(
+                project=self.project_id, zone=zone, instance=name).execute()
+        except googleapiclient.errors.HttpError as err:
+            if err.resp.status == httplib.NOT_FOUND:
+                return 'NOT_FOUND'
+            raise
+
+        if 'status' not in res:
+            raise Exception('Unexpected error, instance {} status '
+                            'missing, response: {}.',
+                            name, res)
+
+        return res['status']
