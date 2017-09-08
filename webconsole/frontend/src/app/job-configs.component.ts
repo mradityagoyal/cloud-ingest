@@ -12,6 +12,7 @@ import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
 
 export class JobConfigsComponent implements OnInit {
   jobConfigs: JobConfig[];
+  showLoadingSpinner = false;
 
   constructor(
       private readonly jobsService: JobsService,
@@ -23,8 +24,10 @@ export class JobConfigsComponent implements OnInit {
   }
 
   private updateJobConfigs(): void {
+    this.showLoadingSpinner = true;
     this.jobsService.getJobConfigs().subscribe(data => {
       this.jobConfigs = data;
+      this.showLoadingSpinner = false;
     });
   }
 

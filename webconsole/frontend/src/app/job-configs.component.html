@@ -8,16 +8,22 @@
     Add a job configuration
   </button>
 </div>
-<div class="ingest-card-container" >
-  <md-card class="ingest-job-configs-card" *ngFor="let jobConfig of jobConfigs">
-   <md-card-title> {{jobConfig.JobConfigId}} </md-card-title>
-   <md-card-content>
-   <dl>
-    <ng-container *ngFor="let key of getKeys(jobConfig.JobSpec)">
-      <dt> <strong> {{key}}: </strong> </dt>
-      <dd>{{jobConfig.JobSpec[key]}}</dd>
-    </ng-container>
-   </dl>
-   </md-card-content>
-  </md-card>
-</div>
+<ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else cardContainer"></ng-container>
+<ng-template #loadingSpinner>
+  <md-spinner></md-spinner>
+</ng-template>
+<ng-template #cardContainer>
+  <div class="ingest-card-container" >
+    <md-card class="ingest-job-configs-card" *ngFor="let jobConfig of jobConfigs">
+     <md-card-title> {{jobConfig.JobConfigId}} </md-card-title>
+     <md-card-content>
+     <dl>
+      <ng-container *ngFor="let key of getKeys(jobConfig.JobSpec)">
+        <dt> <strong> {{key}}: </strong> </dt>
+        <dd>{{jobConfig.JobSpec[key]}}</dd>
+      </ng-container>
+     </dl>
+     </md-card-content>
+    </md-card>
+  </div>
+</ng-template>

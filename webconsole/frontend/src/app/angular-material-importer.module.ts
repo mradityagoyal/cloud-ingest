@@ -15,7 +15,8 @@ import { MdIconModule,
         MdDialogModule,
         MdInputModule,
         MdCheckboxModule,
-        MdTableModule } from '@angular/material';
+        MdTableModule,
+        MdProgressSpinnerModule } from '@angular/material';
 import { CdkTableModule } from '@angular/cdk/table';
 
 @NgModule({
@@ -30,6 +31,7 @@ import { CdkTableModule } from '@angular/cdk/table';
             MdInputModule,
             MdCheckboxModule,
             MdTableModule,
+            MdProgressSpinnerModule,
             CdkTableModule],
   exports: [MdIconModule,
             MdSidenavModule,
@@ -42,6 +44,7 @@ import { CdkTableModule } from '@angular/cdk/table';
             MdInputModule,
             MdCheckboxModule,
             MdTableModule,
+            MdProgressSpinnerModule,
             CdkTableModule]
 })
 
