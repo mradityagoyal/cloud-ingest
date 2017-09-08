@@ -14,13 +14,16 @@ import 'rxjs/add/observable/of';
 
 export class JobRunsComponent implements OnInit {
   displayedColumns = ['runId', 'configId', 'creationTime', 'status'];
+  showLoadingSpinner = false;
   jobRunsDataSource: JobRunsDataSource;
 
   constructor(private readonly jobsService: JobsService) { }
 
   ngOnInit() {
+    this.showLoadingSpinner = true;
     this.jobsService.getJobRuns().subscribe(response => {
       this.jobRunsDataSource = new JobRunsDataSource(response);
+      this.showLoadingSpinner = false;
     });
   }
 }
