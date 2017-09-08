@@ -38,7 +38,7 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 
 	// TODO(b/63014658): denormalize the task spec into the progress message, so
 	// you do not have to query the database to get the task spec.
-	task, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
+	taskSpec, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
 	if err != nil {
 		fmt.Printf("Error getting task spec of task: %v, with error: %v.\n",
 			task, err)
@@ -46,9 +46,9 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 	}
 
 	var listTaskSpec ListTaskSpec
-	if err := json.Unmarshal([]byte(task.TaskSpec), &listTaskSpec); err != nil {
+	if err := json.Unmarshal([]byte(taskSpec), &listTaskSpec); err != nil {
 		fmt.Printf(
-			"Error decoding task spec: %s, with error: %v.\n", task.TaskSpec, err)
+			"Error decoding task spec: %s, with error: %v.\n", taskSpec, err)
 		return err
 	}
 
@@ -89,7 +89,10 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 			TaskSpec:    string(uploadGCSTaskSpecJson),
 		})
 	}
-	if err := h.Store.InsertNewTasks(newTasks); err != nil {
+
+	taskMap := make(map[*Task][]*Task)
+	taskMap[task] = newTasks
+	if err := h.Store.UpdateAndInsertTasks(taskMap); err != nil {
 		fmt.Printf("Error adding new tasks to store with err: %v.\n", err)
 		return err
 	}

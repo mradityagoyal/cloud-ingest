@@ -30,7 +30,7 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *
 	}
 	// TODO(b/63014658): de-normalize the task spec into the progress message,
 	// so you do not have to query the database again.
-	task, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
+	taskSpec, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
 	if err != nil {
 		fmt.Printf("Error getting task spec of task: %v, with error: %v.\n",
 			task, err)
@@ -38,9 +38,9 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *
 	}
 
 	var uploadGCSTaskSpec UploadGCSTaskSpec
-	if err := json.Unmarshal([]byte(task.TaskSpec), &uploadGCSTaskSpec); err != nil {
+	if err := json.Unmarshal([]byte(taskSpec), &uploadGCSTaskSpec); err != nil {
 		fmt.Printf(
-			"Error decoding task spec: %s, with error: %v.\n", task.TaskSpec, err)
+			"Error decoding task spec: %s, with error: %v.\n", taskSpec, err)
 		return err
 	}
 
@@ -59,11 +59,15 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *
 			loadBQTaskSpec, err)
 		return err
 	}
-	return h.Store.InsertNewTasks([]*Task{&Task{
+
+	taskMap := make(map[*Task][]*Task)
+	taskMap[task] = []*Task{&Task{
 		JobConfigId: task.JobConfigId,
 		JobRunId:    task.JobRunId,
 		TaskId:      loadBQTaskId,
 		TaskType:    loadBQTaskType,
 		TaskSpec:    string(loadBigQueryTaskSpecJson),
-	}})
+	}}
+
+	return h.Store.UpdateAndInsertTasks(taskMap)
 }

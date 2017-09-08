@@ -92,10 +92,7 @@ func (r *MessageReceiver) ReceiveMessages() error {
 				string(msg.Data), jobSpec, task, err)
 			return
 		}
-		if err := r.Store.UpdateTasks([]*Task{task}); err != nil {
-			fmt.Printf("Error Updating task: %v, with error: %v.\n", task, err)
-			return
-		}
+
 		fmt.Printf("Acking message: %s.\n", string(decodedMsg))
 		msg.Ack()
 	})

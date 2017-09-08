@@ -33,9 +33,9 @@ type Store interface {
 	// GetJobSpec retrieves the JobSpec from the store.
 	GetJobSpec(jobConfigId string) (*JobSpec, error)
 
-	// GetTaskSpec returns a task from the store that matches the id
+	// GetTaskSpec returns the task spec string for the task with the given
 	// (jobConfigId, jobRunId, taskId).
-	GetTaskSpec(jobConfigId string, jobRunId string, taskId string) (*Task, error)
+	GetTaskSpec(jobConfigId string, jobRunId string, taskId string) (string, error)
 
 	// QueueTasks retrieves at most n tasks from the unqueued tasks, sends PubSub
 	// messages to the corresponding topic, and updates the status of the task to
@@ -46,22 +46,79 @@ type Store interface {
 		loadBigQueryTopic *pubsub.Topic) error
 
 	// InsertNewTasks adds the passed tasks to the store.
-	// TODO(b/63017414): Optimize insert new tasks and update tasks to be done in
-	// one transaction.
 	InsertNewTasks(tasks []*Task) error
 
 	// UpdateTasks updates the store with the passed tasks. Each passed task must
 	// contain an existing (JobConfigId, JobRunId, TaskId), otherwise, error will
 	// be returned.
 	UpdateTasks(tasks []*Task) error
+
+	// UpdateAndInsertTasks takes in a map that maps from task to be updated to
+	// a list of tasks to be inserted if the update task can be updated.
+	// If there are two update tasks (keys in the taskMap) with the same full id
+	// but different statuses, the statuses will be compared and only the task
+	// with the higher status (as defined by can canChangeTaskStatus) will be
+	// processed.
+	//
+	// For example, consider two update tasks that only differ by status:
+	// let taskA = &Task{JobConfigId: "a", JobRunId: "a", TaskId: "list",
+	//                   Status: Fail}
+	// let taskAList = []
+	// let taskB = &Task{JobConfigId: "a", JobRunId: "a", TaskId: "list",
+	//                   Status: Success}
+	// let taskC = &Task{JobConfigId: "a", JobRunId: "a", TaskId: "uploadGCS:file",
+	//                   Status: Unqueued}
+	// let taskBList = [taskC]
+	// let taskMap = {taskA: taskAList, taskB: taskBList}
+	//
+	// Since taskA and taskB both have the same full id,
+	// (JobConfigId, JobRunId, TaskId), only one of them will be processed.
+	// Since canChangeTaskStatus(taskA.Status, taskB.Status) is true
+	// (fail -> success), taskB will be used to update the task in the
+	// database with the same full id and the tasks in taskBList (taskC)
+	// will be inserted.
+	UpdateAndInsertTasks(taskMap map[*Task][]*Task) error
 }
 
 // TODO(b/63749083): Replace empty context (context.Background) when interacting
 // with spanner. If the spanner transaction is stuck for any reason, there are
 // no way to recover. Suggest to use WithTimeOut context.
+// TODO(b/65497968): Write tests for Store class
 // SpannerStore is a Google Cloud Spanner implementation of the Store interface.
 type SpannerStore struct {
 	Client *spanner.Client
+}
+
+// getTaskInsertColumns returns an array of the columns necessary for task
+// insertion
+func getTaskInsertColumns() []string {
+	// TODO(b/63100514): Define constants for spanner table names that can be
+	// shared across store and potentially infrastructure setup implementation.
+	return []string{
+		"JobConfigId",
+		"JobRunId",
+		"TaskId",
+		"TaskType",
+		"TaskSpec",
+		"Status",
+		"CreationTime",
+		"LastModificationTime",
+	}
+}
+
+// getTaskUpdateColumns returns an array of the columns necessary for task
+// updates
+func getTaskUpdateColumns() []string {
+	// TODO(b/63100514): Define constants for spanner table names that can be
+	// shared across store and potentially infrastructure setup implementation.
+	return []string{
+		"JobConfigId",
+		"JobRunId",
+		"TaskId",
+		"Status",
+		"FailureMessage",
+		"LastModificationTime",
+	}
 }
 
 func (s *SpannerStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
@@ -84,7 +141,7 @@ func (s *SpannerStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
 }
 
 func (s *SpannerStore) GetTaskSpec(
-	jobConfigId string, jobRunId string, taskId string) (*Task, error) {
+	jobConfigId string, jobRunId string, taskId string) (string, error) {
 
 	taskRow, err := s.Client.Single().ReadRow(
 		context.Background(),
@@ -92,49 +149,35 @@ func (s *SpannerStore) GetTaskSpec(
 		spanner.Key{jobConfigId, jobRunId, taskId},
 		[]string{"TaskSpec"})
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	task := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      taskId,
-	}
+	var taskSpec string
 
-	taskRow.Column(0, &task.TaskSpec)
-	return task, nil
+	taskRow.Column(0, &taskSpec)
+	return taskSpec, nil
 }
 
 func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 	if len(tasks) == 0 {
 		return nil
 	}
-	// TODO(b/63100514): Define constants for spanner table names that can be
-	// shared across store and potentially infrastructure setup implementation.
-	columns := []string{
-		"JobConfigId",
-		"JobRunId",
-		"TaskId",
-		"TaskType",
-		"TaskSpec",
-		"Status",
-		"CreationTime",
-		"LastModificationTime",
-	}
+
 	mutation := make([]*spanner.Mutation, len(tasks))
 	timestamp := time.Now().UnixNano()
 
 	for i, task := range tasks {
-		mutation[i] = spanner.InsertOrUpdate("Tasks", columns, []interface{}{
-			task.JobConfigId,
-			task.JobRunId,
-			task.TaskId,
-			task.TaskType,
-			task.TaskSpec,
-			Unqueued,
-			timestamp,
-			timestamp,
-		})
+		mutation[i] = spanner.Insert("Tasks", getTaskInsertColumns(),
+			[]interface{}{
+				task.JobConfigId,
+				task.JobRunId,
+				task.TaskId,
+				task.TaskType,
+				task.TaskSpec,
+				Unqueued,
+				timestamp,
+				timestamp,
+			})
 	}
 	_, err := s.Client.Apply(context.Background(), mutation)
 	return err
@@ -148,14 +191,6 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 	_, err := s.Client.ReadWriteTransaction(
 		context.Background(),
 		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
-			columns := []string{
-				"JobConfigId",
-				"JobRunId",
-				"TaskId",
-				"Status",
-				"FailureMessage",
-				"LastModificationTime",
-			}
 			var keys = spanner.KeySets()
 			tasksmap := map[string]*Task{}
 
@@ -165,7 +200,7 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 					keys, spanner.Key{task.JobConfigId, task.JobRunId, task.TaskId})
 			}
 
-			iter := txn.Read(ctx, "Tasks", keys, columns)
+			iter := txn.Read(ctx, "Tasks", keys, getTaskUpdateColumns())
 			timestamp := time.Now().UnixNano()
 
 			return iter.Do(func(row *spanner.Row) error {
@@ -186,7 +221,7 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 					return nil
 				}
 				return txn.BufferWrite([]*spanner.Mutation{
-					spanner.Update("Tasks", columns, []interface{}{
+					spanner.Update("Tasks", getTaskUpdateColumns(), []interface{}{
 						task.JobConfigId,
 						task.JobRunId,
 						task.TaskId,
@@ -195,6 +230,172 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 						timestamp,
 					}),
 				})
+			})
+		})
+	return err
+}
+
+// removeDuplicatesAndCreateIdMaps removes any duplicate update tasks and
+// creates two maps, one mapping from task full id to update tasks and the
+// other mapping from the update task full id to the list of tasks that should
+// be inserted if the specified update task can be updated.
+func removeDuplicatesAndCreateIdMaps(
+	taskMap map[*Task][]*Task) (map[string]*Task, map[string][]*Task) {
+
+	updateTasks := make(map[string]*Task)
+	insertTasks := make(map[string][]*Task)
+	for updateTask, _ := range taskMap {
+		fullId := updateTask.getTaskFullId()
+		otherTask, exists := updateTasks[fullId]
+		if !exists || canChangeTaskStatus(otherTask.Status, updateTask.Status) {
+			// This is the only task so far with this full id or it is
+			// more recent than any other tasks seen so far with the same full id
+			updateTasks[fullId] = updateTask
+			insertTasks[fullId] = taskMap[updateTask]
+		}
+	}
+
+	return updateTasks, insertTasks
+}
+
+// getFullTaskIdFromRow returns the full task id constructed
+// from the JobConfigId, JobRunId, and TaskId values stored in the row.
+func getFullTaskIdFromRow(row *spanner.Row) (string, error) {
+	var jobConfigId string
+	var jobRunId string
+	var taskId string
+
+	err := row.ColumnByName("JobConfigId", &jobConfigId)
+	if err != nil {
+		return "", err
+	}
+	err = row.ColumnByName("JobRunId", &jobRunId)
+	if err != nil {
+		return "", err
+	}
+	err = row.ColumnByName("TaskId", &taskId)
+	if err != nil {
+		return "", err
+	}
+
+	return getTaskFullId(jobConfigId, jobRunId, taskId), nil
+}
+
+// readTasksFromSpanner takes in a map from task full id to Task and
+// batch reads the tasks rows with the given full ids. Only JobConfigId,
+// JobRunId, TaskId, and Status columns are read. Returns a spanner.RowIterator
+// that can be used to iterate over the read rows. (Does not modify idToTask.)
+func readTasksFromSpanner(ctx context.Context,
+	txn *spanner.ReadWriteTransaction,
+	idToTask map[string]*Task) *spanner.RowIterator {
+	var keys = spanner.KeySets()
+
+	// Create a KeySet for all the tasks to be updated
+	for _, task := range idToTask {
+		keys = spanner.KeySets(
+			keys, spanner.Key{task.JobConfigId, task.JobRunId, task.TaskId})
+	}
+
+	// Read the previous state of the tasks to be updated
+	return txn.Read(ctx, "Tasks", keys, []string{
+		"JobConfigId",
+		"JobRunId",
+		"TaskId",
+		"Status",
+	})
+}
+
+// getTaskUpdateAndInsertMutations takes in a task to update and a list
+// of tasks to insert and returns a list of mutations that contains both
+// the mutation to update the updateTask and the mutations to insert the
+// insert tasks.
+func getTaskUpdateAndInsertMutations(ctx context.Context,
+	txn *spanner.ReadWriteTransaction, updateTask *Task,
+	insertTasks map[string][]*Task) []*spanner.Mutation {
+
+	timestamp := time.Now().UnixNano()
+	taskId := updateTask.getTaskFullId()
+	mutations := make([]*spanner.Mutation, len(insertTasks[taskId]))
+
+	// Insert the tasks associated with the update task
+	for i, insertTask := range insertTasks[taskId] {
+		mutations[i] = spanner.Insert("Tasks", getTaskInsertColumns(),
+			[]interface{}{
+				insertTask.JobConfigId,
+				insertTask.JobRunId,
+				insertTask.TaskId,
+				insertTask.TaskType,
+				insertTask.TaskSpec,
+				Unqueued,
+				timestamp,
+				timestamp,
+			})
+	}
+
+	// Update the task
+	mutations = append(mutations, spanner.Update("Tasks", getTaskUpdateColumns(),
+		[]interface{}{
+			updateTask.JobConfigId,
+			updateTask.JobRunId,
+			updateTask.TaskId,
+			updateTask.Status,
+			updateTask.FailureMessage,
+			timestamp,
+		}))
+	return mutations
+}
+
+// isValidUpdate takes in a spanner row containing the currently stored
+// task and the updated version of the task, returning whether or not the
+// updated task represents a valid update. The method also returns
+// the currently stored task status.
+func isValidUpdate(row *spanner.Row,
+	updateTask *Task) (isValid bool, oldStatus int64, err error) {
+	// Read the previous status from the row
+	var status int64
+	err = row.ColumnByName("Status", &status)
+	if err != nil {
+		return false, 0, err
+	}
+
+	return canChangeTaskStatus(status, updateTask.Status), status, nil
+}
+
+func (s *SpannerStore) UpdateAndInsertTasks(taskMap map[*Task][]*Task) error {
+	if len(taskMap) == 0 {
+		return nil
+	}
+
+	updateTasks, insertTasks := removeDuplicatesAndCreateIdMaps(taskMap)
+
+	_, err := s.Client.ReadWriteTransaction(
+		context.Background(),
+		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+			iter := readTasksFromSpanner(ctx, txn, updateTasks)
+
+			// Iterate over all of the tasks to be updated, checking if they
+			// can be updated. If they can be updated, update the task and insert
+			// the associated tasks.
+			return iter.Do(func(row *spanner.Row) error {
+				taskId, err := getFullTaskIdFromRow(row)
+				if err != nil {
+					return err
+				}
+				updateTask := updateTasks[taskId]
+
+				validUpdate, oldStatus, err := isValidUpdate(row, updateTask)
+				if err != nil {
+					return err
+				}
+				if !validUpdate {
+					fmt.Printf("Ignore updating task %s from status %d to status %d.\n",
+						taskId, oldStatus, updateTask.Status)
+					return nil
+				}
+
+				mutations := getTaskUpdateAndInsertMutations(ctx, txn, updateTask,
+					insertTasks)
+				return txn.BufferWrite(mutations)
 			})
 		})
 	return err

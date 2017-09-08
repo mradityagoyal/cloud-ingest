@@ -37,13 +37,13 @@ func (s *FakeStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
 }
 
 func (s *FakeStore) GetTaskSpec(
-	jobConfigId string, jobRunId string, taskId string) (*Task, error) {
+	jobConfigId string, jobRunId string, taskId string) (string, error) {
 
 	task, ok := s.tasks[getTaskFullId(jobConfigId, jobRunId, taskId)]
 	if !ok {
-		return nil, errTaskNotFound
+		return "", errTaskNotFound
 	}
-	return task, nil
+	return task.TaskSpec, nil
 }
 
 func (s *FakeStore) InsertNewTasks(tasks []*Task) error {
@@ -57,7 +57,20 @@ func (s *FakeStore) InsertNewTasks(tasks []*Task) error {
 }
 
 func (s *FakeStore) UpdateTasks(tasks []*Task) error {
-	return errors.New("UpdateTasks: Not implemented.")
+	for _, task := range tasks {
+		s.tasks[task.getTaskFullId()] = task
+	}
+	return nil
+}
+
+func (s *FakeStore) UpdateAndInsertTasks(taskMap map[*Task][]*Task) error {
+	for updateTask, insertList := range taskMap {
+		s.tasks[updateTask.getTaskFullId()] = updateTask
+		for _, task := range insertList {
+			s.tasks[task.getTaskFullId()] = task
+		}
+	}
+	return nil
 }
 
 func (s *FakeStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic,

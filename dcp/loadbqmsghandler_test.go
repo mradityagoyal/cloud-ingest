@@ -20,8 +20,14 @@ import (
 )
 
 func TestHandleMessage(t *testing.T) {
-	var handler LoadBQProgressMessageHandler
-	if err := handler.HandleMessage(nil /* jobSpec */, nil /* task */); err != nil {
+	store := FakeStore{
+		tasks: make(map[string]*Task),
+	}
+	handler := LoadBQProgressMessageHandler{
+		Store: &store,
+	}
+	task := &Task{Status: Success}
+	if err := handler.HandleMessage(nil /* jobSpec */, task); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 }

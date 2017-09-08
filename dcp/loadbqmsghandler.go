@@ -16,10 +16,11 @@ limitations under the License.
 package dcp
 
 type LoadBQProgressMessageHandler struct {
+	Store Store
 }
 
 func (h *LoadBQProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task) error {
 	// TODO(mbassiouny): Add the next transition task after loading to BQ when
 	// it's defined.
-	return nil
+	return h.Store.UpdateTasks([]*Task{task})
 }

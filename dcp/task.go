@@ -122,7 +122,7 @@ func constructTaskFromFullTaskId(fullTaskId string) (*Task, error) {
 	}, nil
 }
 
-// canChangeTaskStatus checks weather a task can be moved from a fromStatus to
+// canChangeTaskStatus checks whether a task can be moved from a fromStatus to
 // a toStatus.
 func canChangeTaskStatus(fromStatus int64, toStatus int64) bool {
 	// Currently, the Status has to change from Unqueued -> Queued -> Fail -> Success.
