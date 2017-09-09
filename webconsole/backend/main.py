@@ -25,12 +25,15 @@ from corsdecorator import crossdomain  # To allow requests from the front-end
 from flask import Flask
 from flask import jsonify
 from flask import request
-from google.oauth2.credentials import Credentials # pylint: disable=relative-import
-from spannerwrapper import SpannerWrapper
 from google.cloud.exceptions import Forbidden
 from google.cloud.exceptions import Unauthorized
 from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import Conflict
+from google.oauth2.credentials import Credentials
+
+import infra_util
+from spannerwrapper import SpannerWrapper
+
 
 APP = Flask(__name__)
 APP.config.from_pyfile('ingestwebconsole.default_settings')
@@ -194,6 +197,20 @@ def tasks(project_id, config_id, run_id):
         last_modified=last_modified_before,
         task_type=task_type
     ))
+
+@APP.route('/projects/<project_id>/infrastructure-status', methods=['GET'])
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
+def infrastructure_status(project_id):
+    """Gets the ingest infrastructure status.
+
+    Responds with a JSON object contains all the infrastructure component
+    statuses. Each status is a string from one of the following values
+    ('RUNNING', 'DEPLOYING', 'DELETING', 'FAILED', 'NOT_FOUND', or 'UNKNOWN')
+    """
+    # TODO(b/65586429): Getting the infrastructure status API may take the
+    # resources (in the request body) to query for.
+    return jsonify(infra_util.infrastructure_status(_get_credentials(),
+                                                    project_id))
 
 def _get_int_param(get_request, param_name):
     """Returns the int GET parameter named param_name from the given request.
