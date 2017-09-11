@@ -36,7 +36,7 @@ describe('AppComponent', () => {
   const mockAuthService = new MockAuthService();
 
   beforeEach(async(() => {
-
+    mockAuthService.isSignedIn = true;
     TestBed.configureTestingModule({
       declarations: [
         AppComponent
@@ -61,9 +61,12 @@ describe('AppComponent', () => {
   it('should render title in a h1 tag', async(() => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    const compiled = fixture.debugElement.nativeElement;
-    expect(compiled.querySelector('h1').textContent).
-        toContain('Ingest Web Console');
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      expect(compiled.querySelector('h1').textContent).
+          toContain(`Ingest Web Console - ${FAKE_USER}`);
+    });
   }));
 
   it('should contain four links and signout', async(() => {
@@ -76,7 +79,7 @@ describe('AppComponent', () => {
 
       const signOutButton = compiled.querySelector('button');
       expect(signOutButton).not.toBeNull();
-      expect(signOutButton.textContent).toContain(`${FAKE_USER} - Signout`);
+      expect(signOutButton.textContent).toContain('Signout');
     });
   }));
 
@@ -137,16 +140,23 @@ describe('AppComponent', () => {
   it('should contain a toolbar', async(() => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
-    const compiled = fixture.debugElement.nativeElement;
-    const element = compiled.querySelector('md-toolbar');
-    expect(element).not.toBeNull();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('md-toolbar');
+      expect(element).not.toBeNull();
+    });
   }));
 
   it('should contain a side nav', async(() => {
     const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.debugElement.componentInstance;
     fixture.detectChanges();
-    const compiled = fixture.debugElement.nativeElement;
-    const element = compiled.querySelector('md-sidenav');
-    expect(element).not.toBeNull();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('md-sidenav');
+      expect(element).not.toBeNull();
+    });
   }));
 });

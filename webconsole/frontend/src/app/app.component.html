@@ -1,11 +1,11 @@
-<md-toolbar color="primary" class="mat-elevation-z6 ingest-toolbar">
-  <md-icon class="ingest-toolbar-icon">cloud_upload</md-icon>
-  <h1> Ingest Web Console </h1>
-</md-toolbar>
-<md-sidenav-container fullscreen class="ingest-sidenav-container">
-  <md-sidenav #sidenav mode="side" opened="true">
-    <md-list>
-      <ng-container *ngIf="loggedIn">
+<ng-container *ngIf="authServiceInitialized && loggedIn">
+  <md-toolbar color="primary" class="mat-elevation-z6 ingest-toolbar">
+    <md-icon class="ingest-toolbar-icon">cloud_upload</md-icon>
+    <h1> Ingest Web Console - {{userName}}</h1>
+  </md-toolbar>
+  <md-sidenav-container fullscreen class="ingest-sidenav-container">
+    <md-sidenav #sidenav mode="side" opened="true">
+      <md-list>
         <a md-list-item routerLink="/jobconfigs"
             queryParamsHandling="merge" id="jobconfigslink"
             i18n="Link to page listing job configs">
@@ -21,20 +21,26 @@
             i18n="Link to page for job run creation">
           Create Job Run
         </a>
-      </ng-container>
-      <button *ngIf="authServiceInitialized && !loggedIn" md-list-item (click)="signIn()">
-        Sign In
-      </button>
-      <button *ngIf="authServiceInitialized && loggedIn" md-list-item (click)="signOut()">
-        {{ userName }} - Signout
-      </button>
-    </md-list>
-  </md-sidenav>
-  <div class="ingest-content-container">
-    <router-outlet *ngIf="isProjectSelected"></router-outlet>
-    <div *ngIf="!isProjectSelected">
-      Project should be selected in the query param.
+        <md-list-item>
+          <button md-raised-button color="accent" md-list-item (click)="signOut()">
+            Signout
+          </button>
+        </md-list-item>
+      </md-list>
+    </md-sidenav>
+    <div class="ingest-content-container">
+      <router-outlet *ngIf="isProjectSelected"></router-outlet>
+      <div *ngIf="!isProjectSelected">
+        Project should be selected in the query param.
+      </div>
     </div>
-  </div>
 
-</md-sidenav-container>
+  </md-sidenav-container>
+</ng-container>
+<div *ngIf="authServiceInitialized && !loggedIn" class="ingest-sign-in" flex layout="row">
+  <h1> Welcome to the Ingest Web Console </h1>
+  <p> To start, sign into your Google account. </p>
+  <button md-raised-button color="primary" md-list-item (click)="signIn()" class="ingest-sign-in-button">
+    Sign In
+  </button>
+</div>
