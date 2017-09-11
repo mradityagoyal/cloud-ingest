@@ -138,7 +138,7 @@ def main():
                         default='cloud-ingest-gcs_to_bq_importer')
 
     cloud_function_dir = os.path.realpath(
-        os.path.join(DIR, '../cloud-functions/gcs-to-bq-importer'))
+        os.path.join(DIR, '../../../cloud-functions/gcs-to-bq-importer'))
     parser.add_argument('--function-src-dir', '-sd', type=str,
                         help='Cloud Function source directory.',
                         default=cloud_function_dir)

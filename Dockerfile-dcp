@@ -4,7 +4,10 @@ FROM gcr.io/mbassiouny-test/cloud-ingest:base
 # Set the working directory to /cloud-ingest
 WORKDIR /cloud-ingest
 
-ADD webconsole/backend/create_infra /cloud-ingest/create-infra
+ADD webconsole/backend/create_infra /cloud-ingest/webconsole/backend/create_infra
+# Adding sym-link to create_infra for backward compatibility.
+RUN ln -s webconsole/backend/create_infra /cloud-ingest/create-infra
+
 ADD cloud-functions /cloud-ingest/cloud-functions
 ADD dcpmain /cloud-ingest/
 
