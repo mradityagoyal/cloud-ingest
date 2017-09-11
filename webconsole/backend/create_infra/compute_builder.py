@@ -75,9 +75,12 @@ class ComputeBuilder(object):
     this can be a generic class for all manipulation of GCE instances.
     """
 
-    def __init__(self):
-        self.compute = googleapiclient.discovery.build('compute', 'v1')
-        _, self.project_id = googleauth.default()
+    def __init__(self, credentials=None, project_id=None):
+        self.compute = googleapiclient.discovery.build('compute', 'v1',
+                                                       credentials=credentials)
+        self.project_id = project_id
+        if not self.project_id:
+            _, self.project_id = googleauth.default()
 
         # Getting the optimized container GCE os. This may change in the future
         # if we decide to create generic instance. List of images can be found

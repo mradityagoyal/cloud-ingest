@@ -121,8 +121,18 @@ def _delete_function_bucket(client, source_archive_url):
 class CloudFunctionsBuilder(object):
     """Manipulates creation/deletion of cloud functions."""
 
-    def __init__(self, location='us-central1'):
-        credentials, self.project_id = googleauth.default()
+    def __init__(self, credentials=None, project_id=None,
+                 location='us-central1'):
+        if not credentials or not project_id:
+            default_credentials, default_project_id = googleauth.default()
+
+        if not credentials:
+            credentials = default_credentials
+
+        self.project_id = project_id
+        if not self.project_id:
+            self.project_id = default_project_id
+
         self.authed_session = AuthorizedSession(credentials)
 
         self.headers = {
@@ -135,7 +145,8 @@ class CloudFunctionsBuilder(object):
             'https://cloudfunctions.googleapis.com/v1beta2')
 
         # Used to upload the cloud function source code to GCS.
-        self.storage_client = storage.Client()
+        self.storage_client = storage.Client(project=self.project_id,
+                                             credentials=credentials)
 
     # pylint: disable=too-many-arguments,too-many-locals
     # TODO(b/65407745): Reduce the number of arguments in

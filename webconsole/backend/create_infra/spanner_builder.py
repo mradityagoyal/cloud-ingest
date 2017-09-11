@@ -23,9 +23,11 @@ class SpannerBuilder(object):
 
     def __init__(self,
                  instance_id,
+                 client=None,
                  location='us-central1',
                  node_count=1):
-        client = spanner.Client()
+        if not client:
+            client = spanner.Client()
         # Search for a configuration matching the input location.
         selected_config = None
         configs = client.list_instance_configs()
