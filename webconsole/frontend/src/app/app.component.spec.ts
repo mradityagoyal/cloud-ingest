@@ -1,11 +1,14 @@
 import { TestBed, async } from '@angular/core/testing';
+import { ActivatedRoute, Params, NavigationExtras } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs/Observable';
 import { AppComponent } from './app.component';
 import { AngularMaterialImporterModule } from './angular-material-importer.module';
 import { AuthService } from './auth.service';
 import { UserProfile } from './auth.resources';
 import { NoopAnimationsModule} from '@angular/platform-browser/animations';
+import 'rxjs/add/observable/of';
 
 const FAKE_USER = 'Fake User';
 const FAKE_AUTH = 'Fake Auth';
@@ -32,21 +35,28 @@ class MockAuthService extends AuthService {
   }
 }
 
+let activatedRouteStub: ActivatedRoute;
+
 describe('AppComponent', () => {
   const mockAuthService = new MockAuthService();
 
   beforeEach(async(() => {
     mockAuthService.isSignedIn = true;
+    activatedRouteStub = new ActivatedRoute();
+    activatedRouteStub.queryParams = Observable.of({project: 'fakeProjectId'});
+
     TestBed.configureTestingModule({
       declarations: [
         AppComponent
       ],
       providers: [
         {provide: AuthService, useValue: mockAuthService},
+        {provide: ActivatedRoute, useValue: activatedRouteStub},
       ],
       imports: [
         RouterTestingModule,
         NoopAnimationsModule,
+        FormsModule,
         AngularMaterialImporterModule
       ],
     }).compileComponents();
@@ -159,4 +169,31 @@ describe('AppComponent', () => {
       expect(element).not.toBeNull();
     });
   }));
+
+  it('should navigate to the job configs page with project id', async(() => {
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.debugElement.componentInstance;
+    app.gcsProjectId = 'fakeGcsProjectId';
+    const navigateSpy = spyOn((<any>app).router, 'navigate');
+    const fakeNavigationExtras: NavigationExtras = {
+      queryParams: { project: 'fakeGcsProjectId' }
+    };
+
+    app.onProjectSelectSubmit();
+    expect(navigateSpy).toHaveBeenCalledWith(['/jobconfigs'], fakeNavigationExtras);
+  }));
+
+  it('should show a project selection input if no project is selected', async(() => {
+    activatedRouteStub.queryParams = Observable.of({project: ''});
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.debugElement.componentInstance;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const projectInput = compiled.querySelector('#projectId');
+      expect(projectInput).not.toBeNull();
+    });
+  }));
+
 });

@@ -11,6 +11,16 @@
   margin: 0 0 0 150px;
 }
 
+.ingest-project-info {
+  opacity: 0.5;
+  margin: 0 0 0 10px;
+}
+.ingest-project-select-heading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
 .ingest-toolbar {
   position: absolute;
   top: 0;
@@ -23,6 +33,26 @@
   margin: 5% 0 0 0;
 }
 
+.ingest-project-select{
+  text-align: center;
+  justify-content: center;
+  margin: 5% 0 0 0;
+  align-items: center;
+}
+
+.ingest-project-select-full-width {
+  width: 100%;
+}
+
+.ingest-project-select-form {
+  width: 30%;
+  margin: 0 auto;
+}
+
+.ingest-project-input-field {
+  width: 20%;
+}
+
 .ingest-sign-in-button {
   width: 20%;
 }
@@ -30,3 +60,4 @@
 .ingest-username-display {
   margin-left: 10px;
 }
+

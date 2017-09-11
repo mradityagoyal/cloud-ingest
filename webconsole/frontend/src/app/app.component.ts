@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { Router, ActivatedRoute, Params } from '@angular/router';
+import { Router, ActivatedRoute, Params, NavigationExtras } from '@angular/router';
 import { AuthService } from './auth.service';
 
 @Component({
@@ -12,6 +12,7 @@ export class AppComponent implements OnInit {
   authServiceInitialized: boolean;
   loggedIn: boolean;
   userName: string;
+  gcsProjectId: string;
 
   constructor(private authService: AuthService,
               private router: Router, private route: ActivatedRoute) { }
@@ -54,5 +55,12 @@ export class AppComponent implements OnInit {
     }).catch((err) => {
       // TODO(b/64808404): Show the error messages in the web console.
     });
+  }
+
+  onProjectSelectSubmit() {
+    const navigationExtras: NavigationExtras = {
+      queryParams: { project: this.gcsProjectId }
+    };
+    this.router.navigate(['/jobconfigs'], navigationExtras);
   }
 }

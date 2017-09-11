@@ -1,41 +1,57 @@
+<!-- TODO(b/65589147): Simplify the app component. -->
 <ng-container *ngIf="authServiceInitialized && loggedIn">
-  <md-toolbar color="primary" class="mat-elevation-z6 ingest-toolbar">
-    <md-icon class="ingest-toolbar-icon">cloud_upload</md-icon>
-    <h1> Ingest Web Console - {{userName}}</h1>
-  </md-toolbar>
-  <md-sidenav-container fullscreen class="ingest-sidenav-container">
-    <md-sidenav #sidenav mode="side" opened="true">
-      <md-list>
-        <a md-list-item routerLink="/jobconfigs"
-            queryParamsHandling="merge" id="jobconfigslink"
-            i18n="Link to page listing job configs">
-          Job Configs
-        </a>
-        <a md-list-item routerLink="/jobruns"
-            queryParamsHandling="merge" id="jobrunslink"
-            i18n="Link to page listing job runs">
-          Job Runs
-        </a>
-        <a md-list-item routerLink="/createrun"
-            queryParamsHandling="merge"  id="createjobrunlink"
-            i18n="Link to page for job run creation">
-          Create Job Run
-        </a>
-        <md-list-item>
-          <button md-raised-button color="accent" md-list-item (click)="signOut()">
-            Signout
-          </button>
-        </md-list-item>
-      </md-list>
-    </md-sidenav>
-    <div class="ingest-content-container">
-      <router-outlet *ngIf="isProjectSelected"></router-outlet>
-      <div *ngIf="!isProjectSelected">
-        Project should be selected in the query param.
+  <ng-container *ngIf="isProjectSelected; else selectProject">
+    <md-toolbar color="primary" class="mat-elevation-z6 ingest-toolbar">
+      <md-icon class="ingest-toolbar-icon">cloud_upload</md-icon>
+      <h1> Ingest Web Console - {{userName}}</h1>
+    </md-toolbar>
+    <md-sidenav-container fullscreen class="ingest-sidenav-container">
+      <md-sidenav #sidenav mode="side" opened="true">
+        <md-list>
+          <a md-list-item routerLink="/jobconfigs"
+              queryParamsHandling="merge" id="jobconfigslink"
+              i18n="Link to page listing job configs">
+            Job Configs
+          </a>
+          <a md-list-item routerLink="/jobruns"
+              queryParamsHandling="merge" id="jobrunslink"
+              i18n="Link to page listing job runs">
+            Job Runs
+          </a>
+          <a md-list-item routerLink="/createrun"
+              queryParamsHandling="merge"  id="createjobrunlink"
+              i18n="Link to page for job run creation">
+            Create Job Run
+          </a>
+          <md-list-item>
+            <button md-raised-button color="accent" md-list-item (click)="signOut()">
+              Signout
+            </button>
+          </md-list-item>
+        </md-list>
+      </md-sidenav>
+      <div class="ingest-content-container">
+        <router-outlet></router-outlet>
       </div>
+    </md-sidenav-container>
+  </ng-container>
+  <ng-template #selectProject>
+    <div class="ingest-project-select" flex layout="row">
+      <div class="ingest-project-select-heading">
+        <h3>  Project ID </h3>
+        <md-icon class="ingest-project-info" mdTooltip="The Google Cloud Project ID is different from the Project Name and Project Number. The Project ID appears in the Google Cloud Platform Dashboard, under the project info." [mdTooltipPosition]="'after'">info</md-icon>
+      </div>
+      <p> What's the Google Cloud Project that you wish to use with cloud ingest? </p>
+      <form (ngSubmit)="onProjectSelectSubmit()" class="ingest-project-select-form" #projectSelectForm="ngForm">
+        <md-form-field class="ingest-project-select-full-width">
+          <input [(ngModel)]="gcsProjectId" #projectId="ngModel" name="projectId" id="projectId" mdInput required placeholder="Google Cloud Project ID" >
+        </md-form-field>
+        <button [disabled]="projectId.invalid || projectId.pristine" md-raised-button color="primary" type="submit" class="ingest-project-select-full-width">
+          Use project {{ gcsProjectId }}
+        </button>
+      </form>
     </div>
-
-  </md-sidenav-container>
+  </ng-template>
 </ng-container>
 <div *ngIf="authServiceInitialized && !loggedIn" class="ingest-sign-in" flex layout="row">
   <h1> Welcome to the Ingest Web Console </h1>
