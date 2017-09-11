@@ -84,6 +84,11 @@ func (t Task) getTaskFullId() string {
 	return getTaskFullId(t.JobConfigId, t.JobRunId, t.TaskId)
 }
 
+// getJobRunFullId gets a JobRunFullId for the job run of this task
+func (t Task) getJobRunFullId() JobRunFullId {
+	return JobRunFullId{t.JobConfigId, t.JobRunId}
+}
+
 // GetUploadGCSTaskId returns the task id of an uploadGCS type task for
 // the given file.
 func GetUploadGCSTaskId(filePath string) string {

@@ -41,12 +41,14 @@ type LoadBQTaskProgressSpec struct {
 }
 
 type JobProgressSpec struct {
-	TotalTasks        int64                     `json:"totalTasks"`
-	TasksCompleted    int64                     `json:"tasksCompleted"`
-	TasksFailed       int64                     `json:"tasksFailed"`
-	ListProgress      ListTaskProgressSpec      `json:"list,omitempty"`
-	UploadGCSProgress UploadGCSTaskProgressSpec `json:"uploadGCS,omitempty"`
-	LoadBQProgress    LoadBQTaskProgressSpec    `json:"loadBigQuery,omitempty"`
+	TotalTasks     int64 `json:"totalTasks"`
+	TasksCompleted int64 `json:"tasksCompleted"`
+	TasksFailed    int64 `json:"tasksFailed"`
+	// Store the progress of each task type as a pointer so it's
+	// omitted when empty
+	ListProgress      *ListTaskProgressSpec      `json:"list,omitempty"`
+	UploadGCSProgress *UploadGCSTaskProgressSpec `json:"uploadGCS,omitempty"`
+	LoadBQProgress    *LoadBQTaskProgressSpec    `json:"loadBigQuery,omitempty"`
 }
 
 type JobRun struct {
@@ -55,4 +57,9 @@ type JobRun struct {
 	JobCreationTime int64
 	Status          int64
 	Progress        string
+}
+
+type JobRunFullId struct {
+	JobConfigId string
+	JobRunId    string
 }

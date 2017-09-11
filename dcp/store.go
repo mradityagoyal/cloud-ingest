@@ -45,7 +45,15 @@ type Store interface {
 	QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic,
 		loadBigQueryTopic *pubsub.Topic) error
 
-	// InsertNewTasks adds the passed tasks to the store.
+	// InsertNewTasks should only be used for tasks that you are certain
+	// do not already exist in the store. Calling this method with tasks already
+	// in the store WILL result in an error being returned. If you are inserting
+	// tasks as a result of receiving a PubSub message, use UpdateAndInsertTasks
+	// instead.
+	// InsertNewTasks adds the passed tasks to the store. Also updates the
+	// totalTasks field in the relevant job run progress string.
+	// TODO(b/63017414): Optimize insert new tasks and update tasks to be done in
+	// one transaction.
 	InsertNewTasks(tasks []*Task) error
 
 	// UpdateTasks updates the store with the passed tasks. Each passed task must
@@ -158,28 +166,165 @@ func (s *SpannerStore) GetTaskSpec(
 	return taskSpec, nil
 }
 
+// getProgressObjFromRow returns a JobProgressSpec created from the progress
+// string stored in the given row
+func getProgressObjFromRow(row *spanner.Row) (*JobProgressSpec, error) {
+	var progressString string
+	if err := row.ColumnByName("Progress", &progressString); err != nil {
+		return nil, err
+	}
+
+	progress := new(JobProgressSpec)
+	if err := json.Unmarshal([]byte(progressString), progress); err != nil {
+		return nil, err
+	}
+	return progress, nil
+}
+
+// getFullIdFromJobRow returns a JobFullRunId created from the given row.
+func getFullIdFromJobRow(row *spanner.Row) (JobRunFullId, error) {
+	var fullId JobRunFullId
+	if err := row.ColumnByName("JobConfigId", &fullId.JobConfigId); err != nil {
+		return fullId, err
+	}
+	if err := row.ColumnByName("JobRunId", &fullId.JobRunId); err != nil {
+		return fullId, err
+	}
+	return fullId, nil
+}
+
+// writeJobProgressObjectUpdatesToBuffer takes in a map from JobRunFullId to
+// delta counts (amount by which to increase TotalTasks) and creates and adds
+// the Spanner mutations that save the modified JobProgressSpecs to the buffer
+// of writes to be executed when the transaction is committed (uses BufferWrite).
+// In order to create the update mutations, the method batch reads the existing
+// job progress objects from Spanner.
+func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
+	txn *spanner.ReadWriteTransaction,
+	taskDeltas map[JobRunFullId]int64) error {
+
+	// Batch read the job progress strings to be updated
+	jobColumns := []string{
+		"JobConfigId",
+		"JobRunId",
+		"Progress",
+	}
+
+	keys := spanner.KeySets()
+	for fullRunId, _ := range(taskDeltas) {
+		keys = spanner.KeySets(
+			keys, spanner.Key{fullRunId.JobConfigId, fullRunId.JobRunId})
+	}
+	iter := txn.Read(ctx, "JobRuns", keys, jobColumns)
+
+	// Create update mutations for each job progress string
+	// and write them to the transaction write buffer using
+	// BufferWrite
+	return iter.Do(func(row *spanner.Row) error {
+		progressObj, err := getProgressObjFromRow(row)
+		if err != nil {
+			return err
+		}
+		fullJobId, err := getFullIdFromJobRow(row)
+		if err != nil {
+			return err
+		}
+
+		// Update totalTasks and create mutation
+		progressObj.TotalTasks += taskDeltas[fullJobId]
+		progressBytes, err := json.Marshal(progressObj)
+		if err != nil {
+			return err
+		}
+		return txn.BufferWrite([]*spanner.Mutation{spanner.Update(
+				"JobRuns",
+				jobColumns,
+				[]interface{}{
+					fullJobId.JobConfigId,
+					fullJobId.JobRunId,
+					string(progressBytes),
+				},
+		)})
+	})
+}
+
+// getNumOfNewTasksPerJob takes in a list of tasks and returns a map
+// mapping from JobRunFullId to the number of of new tasks for that JobRun.
+func getNumOfNewTasksPerJob(tasks []*Task) map[JobRunFullId]int64 {
+	taskDeltas := make(map[JobRunFullId]int64)
+	for _, task := range(tasks) {
+		fullId := task.getJobRunFullId()
+		delta, exists := taskDeltas[fullId]
+		if !exists {
+			delta = 0
+		}
+		taskDeltas[fullId] = delta + 1
+	}
+	return taskDeltas
+}
+
+// CAUTION: Call only with tasks that do not already exist in the store.
+// Calling this method with tasks that already exist will result in an error
+// being returned. If inserting tasks as a result of receiving a PubSub message,
+// use UpdateAndInsertTasks instead.
 func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
+	// TODO(b/65546216): Better error handling, especially for duplicate inserts
 	if len(tasks) == 0 {
 		return nil
 	}
 
-	mutation := make([]*spanner.Mutation, len(tasks))
-	timestamp := time.Now().UnixNano()
+	taskDeltas := getNumOfNewTasksPerJob(tasks)
 
-	for i, task := range tasks {
-		mutation[i] = spanner.Insert("Tasks", getTaskInsertColumns(),
-			[]interface{}{
-				task.JobConfigId,
-				task.JobRunId,
-				task.TaskId,
-				task.TaskType,
-				task.TaskSpec,
-				Unqueued,
-				timestamp,
-				timestamp,
-			})
-	}
-	_, err := s.Client.Apply(context.Background(), mutation)
+	_, err := s.Client.ReadWriteTransaction(
+		context.Background(),
+		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+			// Insert the new tasks
+			// TODO(b/63100514): Define constants for spanner table names that can be
+			// shared across store and potentially infrastructure setup implementation.
+			taskColumns := []string{
+				"JobConfigId",
+				"JobRunId",
+				"TaskId",
+				"TaskType",
+				"TaskSpec",
+				"Status",
+				"CreationTime",
+				"LastModificationTime",
+			}
+
+			mutation := make([]*spanner.Mutation, len(tasks))
+			timestamp := time.Now().UnixNano()
+
+			for i, task := range tasks {
+				// Create a mutation to insert the task
+				mutation[i] = spanner.Insert("Tasks",
+					taskColumns,
+					[]interface{}{
+						task.JobConfigId,
+						task.JobRunId,
+						task.TaskId,
+						task.TaskType,
+						task.TaskSpec,
+						Unqueued,
+						timestamp,
+						timestamp,
+					})
+			}
+
+			// Store the task insertion mutations in the transaction write buffer
+			err := txn.BufferWrite(mutation)
+			if err != nil {
+				return err
+			}
+
+			// Calculate and store the job progress update mutations in the
+			// transaction write buffer
+			return writeJobProgressObjectUpdatesToBuffer(
+				ctx,
+				txn,
+				taskDeltas,
+			)
+		})
 	return err
 }
 

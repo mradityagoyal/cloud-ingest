@@ -59,7 +59,7 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
             values=[(config_name, json.dumps(job_spec))])
 
         job_progress = {
-          'totalTasks': 0,
+          'totalTasks': 1, # Start with 1 because list task is manually inserted
           'tasksCompleted': 0,
           'tasksFailed': 0
         }
