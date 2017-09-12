@@ -20,6 +20,7 @@ import os
 import time
 
 import cloud_functions_builder
+import constants
 import compute_builder
 import job_utilities
 import pubsub_builder
@@ -111,31 +112,39 @@ def main():
 
     parser.add_argument('--spanner-instance', '-s', type=str,
                         help='Name of spanner instance.',
-                        default='cloud-ingest-spanner-instance')
+                        default=constants.SPANNER_INSTANCE)
 
     parser.add_argument('--database', '-d', type=str,
                         help='Name of the database.',
-                        default='cloud-ingest-database')
+                        default=constants.SPANNER_DATABASE)
 
     parser.add_argument('--pubsub', '-p', type=str, nargs='+',
                         help='Comma-separated PubSub topic followed by it\'s '
                              'subscriptions',
                         default=[
-                            ('cloud-ingest-list-progress,'
-                             'cloud-ingest-list-progress'),
-                            ('cloud-ingest-copy-progress,'
-                             'cloud-ingest-copy-progress'),
-                            ('cloud-ingest-loadbigquery-progress,'
-                             'cloud-ingest-loadbigquery-progress'),
-                            'cloud-ingest-list,cloud-ingest-list',
-                            'cloud-ingest-copy,cloud-ingest-copy',
-                            ('cloud-ingest-loadbigquery,'
-                             'cloud-ingest-loadbigquery')
+                            '%s,%s' % (
+                                constants.LIST_PROGRESS_TOPIC,
+                                constants.LIST_PROGRESS_SUBSCRIPTION),
+                            '%s,%s' % (
+                                constants.UPLOAD_GCS_PROGRESS_TOPIC,
+                                constants.UPLOAD_GCS_PROGRESS_SUBSCRIPTION),
+                            '%s,%s' % (
+                                constants.LOAD_BQ_PROGRESS_TOPIC,
+                                constants.LOAD_BQ_PROGRESS_SUBSCRIPTION),
+                            '%s,%s' % (
+                                constants.LIST_TOPIC,
+                                constants.LIST_SUBSCRIPTION),
+                            '%s,%s' % (
+                                constants.UPLOAD_GCS_TOPIC,
+                                constants.UPLOAD_GCS_SUBSCRIPTION),
+                            '%s,%s' % (
+                                constants.LOAD_BQ_TOPIC,
+                                constants.LOAD_BQ_SUBSCRIPTION)
                         ])
 
     parser.add_argument('--function-name', '-f', type=str,
                         help='Cloud Function name.',
-                        default='cloud-ingest-gcs_to_bq_importer')
+                        default=constants.LOAD_BQ_CLOUD_FN)
 
     cloud_function_dir = os.path.realpath(
         os.path.join(DIR, '../../../cloud-functions/gcs-to-bq-importer'))
@@ -153,7 +162,7 @@ def main():
 
     parser.add_argument('--function-topic', '-t', type=str,
                         help='PubSub topic Cloud Function is listening to.',
-                        default='cloud-ingest-loadbigquery')
+                        default=constants.LOAD_BQ_TOPIC)
 
     parser.add_argument('--function-entrypoint', '-e', type=str,
                         help='Cloud Function entry point.',
@@ -173,7 +182,7 @@ def main():
 
     parser.add_argument('--compute-name', '-c', type=str,
                         help='GCE instance name.',
-                        default='cloud-ingest-dcp')
+                        default=constants.DCP_INSTANCE)
 
     parser.add_argument('--compute-container-image', '-i', type=str,
                         help='Container image deployed to the GCE instance.',
