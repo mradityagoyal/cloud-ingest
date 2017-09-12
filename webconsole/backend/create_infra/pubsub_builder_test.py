@@ -142,7 +142,7 @@ class PubsubBuilderTest(unittest.TestCase):
         sub_mock_2 = MagicMock()
         sub_mock_2.exists.return_value = False
 
-        topic_mock.subscriptions.side_effect = [sub_mock_1, sub_mock_2]
+        topic_mock.subscription.side_effect = [sub_mock_1, sub_mock_2]
         self.assertFalse(builder.topic_and_subscriptions_exist(
             'mytopic', ['sub1', 'sub2']))
 
@@ -155,7 +155,7 @@ class PubsubBuilderTest(unittest.TestCase):
         topic_mock.exists.return_value = True
 
         subscriptions_mock = MagicMock()
-        topic_mock.subscriptions = subscriptions_mock
+        topic_mock.subscription = subscriptions_mock
 
         sub_mock_1 = MagicMock()
         sub_mock_1.exists.return_value = True

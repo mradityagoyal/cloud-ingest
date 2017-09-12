@@ -57,7 +57,7 @@ class PubSubBuilder(object):
         if not topic.exists():
             return False
         for sub_name in sub_names:
-            if not topic.subscriptions(sub_name).exists():
+            if not topic.subscription(sub_name).exists():
                 return False
         return True
 
