@@ -17,6 +17,7 @@
 
 from google.cloud import spanner
 
+from resource_status import ResourceStatus
 
 class SpannerBuilder(object):
     """Manipulates creation/deletion of spanner instances/databases."""
@@ -74,3 +75,16 @@ class SpannerBuilder(object):
         if not self.instance.exists():
             return False
         return self.instance.database(database_id).exists()
+
+    def database_status(self, database_id):
+        """Gets a spanner database status.
+
+        Args:
+            database_id: The spanner database id.
+
+        Returns:
+            ResourceStatus enum of the status of the database.
+        """
+        if self.database_exists(database_id):
+            return ResourceStatus.RUNNING
+        return ResourceStatus.NOT_FOUND

@@ -18,6 +18,7 @@
 from google.cloud import exceptions
 from google.cloud import pubsub
 
+from resource_status import ResourceStatus
 
 class PubSubBuilder(object):
     """Manipulates PubSub topics/subscriptions."""
@@ -60,6 +61,20 @@ class PubSubBuilder(object):
             if not topic.subscription(sub_name).exists():
                 return False
         return True
+
+    def topic_and_subscriptions_status(self, topic_name, sub_name):
+        """Gets status of of a topic and associated subscriptions.
+
+        Args:
+            topic_name: Name of the topic.
+            sub_names: Array of the subscriptions names.
+
+        Returns:
+            ResourceStatus enum of the status of the topic and subscriptions.
+        """
+        if self.topic_and_subscriptions_exist(topic_name, sub_name):
+            return ResourceStatus.RUNNING
+        return ResourceStatus.NOT_FOUND
 
     def create_topic_and_subscriptions(self, topic_name, sub_names):
         """Creates topic_name topics and associate sub_names subscriptions."""

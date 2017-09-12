@@ -23,6 +23,7 @@ import time
 import googleapiclient.discovery
 import google.auth as googleauth
 
+from resource_status import ResourceStatus
 
 # Cloud config used to initialize the GCE vm and run K8 on it. Running K8
 # ensures that the container image is always running and re-spawns it if it's
@@ -42,6 +43,20 @@ runcmd:
 # container image.
 DISK_SIZE_GB = 50
 
+# A mapping between GCE instance status
+# https://cloud.google.com/compute/docs/reference/latest/instances
+# to ReourceStatus enum
+_GCE_INSTANCE_STATUS_MAPPING = {
+    'PROVISIONING': ResourceStatus.DEPLOYING,
+    'STAGING': ResourceStatus.DEPLOYING,
+    'RUNNING': ResourceStatus.RUNNING,
+    # Considering halting the VM is an UNKNOWN status.
+    'STOPPING': ResourceStatus.UNKNOWN,
+    'STOPPED': ResourceStatus.UNKNOWN,
+    'SUSPENDING': ResourceStatus.UNKNOWN,
+    'SUSPENDED': ResourceStatus.UNKNOWN,
+    'TERMINATED': ResourceStatus.UNKNOWN,
+}
 
 def _wait_operation_to_complete(compute, project_id, zone, operation,
                                 timeout_seconds=180):
@@ -221,7 +236,7 @@ class ComputeBuilder(object):
         _wait_operation_to_complete(
             self.compute, self.project_id, zone, operation['name'])
 
-    def get_instance_status(self, name, zone='us-central1-f'):
+    def instance_status(self, name, zone='us-central1-f'):
         """Gets GCE instance status.
 
         Args:
@@ -229,15 +244,14 @@ class ComputeBuilder(object):
             zone: GCE instance zone.
 
         Returns:
-            String. 'NOT_FOUND' or a GCE instance resource status defined at
-            https://cloud.google.com/compute/docs/reference/latest/instances
+            ResourceStatus enum of the status of the GCE instance.
         """
         try:
             res = self.compute.instances().get(
                 project=self.project_id, zone=zone, instance=name).execute()
         except googleapiclient.errors.HttpError as err:
             if err.resp.status == httplib.NOT_FOUND:
-                return 'NOT_FOUND'
+                return ResourceStatus.NOT_FOUND
             raise
 
         if 'status' not in res:
@@ -245,4 +259,5 @@ class ComputeBuilder(object):
                             'missing, response: {}.',
                             name, res)
 
-        return res['status']
+        return _GCE_INSTANCE_STATUS_MAPPING.get(res['status'],
+                                                ResourceStatus.UNKNOWN)

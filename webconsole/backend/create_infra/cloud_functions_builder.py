@@ -29,6 +29,8 @@ from google.auth.transport.requests import AuthorizedSession
 from  google.cloud import exceptions
 from google.cloud import storage
 
+from resource_status import ResourceStatus
+
 
 _RANDOM_BUCKET_CREATION_TRIALS = 5
 _RANDOM_BUCKET_STRING_SIZE = 5
@@ -36,6 +38,16 @@ _RANDOM_BUCKET_STRING_SIZE = 5
 # Matches bucket strings of the form 'gs://bucket'
 _BUCKET_OBJECT_REGEX = re.compile(r'^gs://(?P<bucket>[^/]*)/(?P<object>.*)')
 
+# A mapping between cloud functions status
+# https://cloud.google.com/functions/docs/reference/rest/v1beta2/projects.locations.functions#CloudFunctionStatus
+# to ReourceStatus enum
+_FUNCTIONS_STATUS_MAPPING = {
+    'STATUS_UNSPECIFIED': ResourceStatus.UNKNOWN,
+    'READY' : ResourceStatus.RUNNING,
+    'FAILED' : ResourceStatus.FAILED,
+    'DEPLOYING' : ResourceStatus.DEPLOYING,
+    'DELETING' : ResourceStatus.DELETING,
+}
 
 def _create_source_zip(src_dir, zip_file_path):
     """Create source code zip file from src_dir."""
@@ -264,23 +276,21 @@ class CloudFunctionsBuilder(object):
         print 'Cloud function {} deleted in {} seconds.'.format(
             cloud_function_name, time.time() - request_time)
 
-
-    def get_function_status(self, cloud_function_name):
+    def function_status(self, cloud_function_name):
         """Gets cloud function status.
 
         Args:
             cloud_function_name: Name of the cloud function.
 
         Returns:
-            String. 'NOT_FOUND' or a CloudFunctionStatus enum as defined at
-            https://cloud.google.com/functions/docs/reference/rest/v1beta2/projects.locations.functions#CloudFunctionStatus
+            ResourceStatus enum of the status of the cloud function.
         """
         function_url = '{}/{}/{}'.format(
             self.functions_endpoint, self.functions_path, cloud_function_name)
         res = self.authed_session.get(function_url, headers=self.headers)
 
         if res.status_code == httplib.NOT_FOUND:
-            return 'NOT_FOUND'
+            return ResourceStatus.NOT_FOUND
 
         # TODO(b/65457064): Retry getting the cloud function status on transient
         # error status.
@@ -295,4 +305,5 @@ class CloudFunctionsBuilder(object):
                             'missing, response text: {}.',
                             cloud_function_name, res.text)
 
-        return res_json['status']
+        return _FUNCTIONS_STATUS_MAPPING.get(res_json['status'],
+                                             ResourceStatus.UNKNOWN)
