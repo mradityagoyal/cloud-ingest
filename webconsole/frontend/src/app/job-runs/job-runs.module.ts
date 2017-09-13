@@ -10,7 +10,7 @@ import { JobRunListComponent } from './job-run-list/job-run-list.component';
 import { CreateRunComponent } from './create-run/create-run.component';
 import { JobStatusPipe } from './job-status.pipe';
 
-import { JobRunsRoutingModule } from './job-runs-routing.module'
+import { JobRunsRoutingModule } from './job-runs-routing.module';
 
 
 @NgModule({

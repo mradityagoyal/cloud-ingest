@@ -1,0 +1,23 @@
+<md-list-item>
+  <md-icon md-list-icon>
+    <ng-container [ngSwitch]="itemStatus">
+      <md-icon md-list-icon *ngSwitchCase="INFRA_STATUS.RUNNING">check_circle</md-icon>
+      <md-icon md-list-icon *ngSwitchCase="INFRA_STATUS.NOT_FOUND">warning</md-icon>
+      <md-icon md-list-icon *ngSwitchCase="INFRA_STATUS.FAILED">error</md-icon>
+      <md-icon md-list-icon *ngSwitchCase="INFRA_STATUS.UNKNOWN">help</md-icon>
+      <md-spinner md-list-icon *ngSwitchCase="INFRA_STATUS.DEPLOYING"></md-spinner>
+      <md-spinner [color]="'accent'" md-list-icon *ngSwitchCase="INFRA_STATUS.DELETING"></md-spinner>
+    </ng-container>
+  </md-icon>
+  <h3 mdLine> {{ itemName }} </h3>
+  <p class="item-status" mdLine>
+    <ng-container [ngSwitch]="itemStatus">
+      <ng-container *ngSwitchCase="INFRA_STATUS.RUNNING">Ok</ng-container>
+      <ng-container *ngSwitchCase="INFRA_STATUS.NOT_FOUND">Not deployed</ng-container>
+      <ng-container *ngSwitchCase="INFRA_STATUS.FAILED">Failed</ng-container>
+      <ng-container *ngSwitchCase="INFRA_STATUS.UNKNOWN">Unknown: Could not retrieve status.</ng-container>
+      <ng-container *ngSwitchCase="INFRA_STATUS.DEPLOYING">Deploying...</ng-container>
+      <ng-container *ngSwitchCase="INFRA_STATUS.DELETING">Deleting...</ng-container>
+    </ng-container>
+  </p>
+</md-list-item>

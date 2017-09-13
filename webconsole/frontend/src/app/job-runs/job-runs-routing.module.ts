@@ -15,7 +15,7 @@ const jobRunsRoutes: Routes = [
     component: CreateRunComponent,
     canActivate: [AuthService],
   }
-]
+];
 
 @NgModule({
   imports: [

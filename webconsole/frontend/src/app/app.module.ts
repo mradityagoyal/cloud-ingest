@@ -10,16 +10,19 @@ import { AppComponent } from './app.component';
 import { JobsService } from './jobs.service';
 import { AuthInterceptor } from './auth-interceptor';
 import { AuthService } from './auth.service';
-import { AppRoutingModule } from './app-routing.module'
+import { AppRoutingModule } from './app-routing.module';
 import { JobConfigsComponent } from './job-configs.component';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
+import { InfrastructureComponent } from './infrastructure.component';
+import { InfrastructureStatusItemComponent } from './infrastructure-status-item.component';
+import { InfrastructureService } from './infrastructure.service';
 
-import { JobRunsModule } from './job-runs/job-runs.module'
+import { JobRunsModule } from './job-runs/job-runs.module';
 
 @NgModule({
   declarations: [
     AppComponent, JobConfigsComponent,
-    JobConfigAddDialogComponent
+    JobConfigAddDialogComponent, InfrastructureComponent, InfrastructureStatusItemComponent
   ],
   entryComponents: [JobConfigAddDialogComponent],
   imports: [
@@ -34,6 +37,7 @@ import { JobRunsModule } from './job-runs/job-runs.module'
   providers: [
     JobsService,
     AuthService,
+    InfrastructureService,
     {
       provide: HTTP_INTERCEPTORS,
       useClass: AuthInterceptor,

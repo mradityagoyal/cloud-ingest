@@ -93,7 +93,7 @@ describe('AppComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.querySelectorAll('a').length).toBe(3);
+      expect(compiled.querySelectorAll('a').length).toBe(4);
 
       const signOutButton = compiled.querySelector('button');
       expect(signOutButton).not.toBeNull();
@@ -136,6 +136,19 @@ describe('AppComponent', () => {
       const element = compiled.querySelector('#createjobrunlink');
       expect(element).not.toBeNull();
       expect(element.textContent).toContain('Create Job Run');
+      expect(element.getAttribute('queryParamsHandling')).toBe('merge');
+    });
+  }));
+
+  it('should contain an infrastructure link', async(() => {
+    const fixture = TestBed.createComponent(AppComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('#infrastructure-link');
+      expect(element).not.toBeNull();
+      expect(element.textContent).toContain('Infrastructure');
       expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));

@@ -23,6 +23,11 @@
               i18n="Link to page for job run creation">
             Create Job Run
           </a>
+          <a md-list-item routerLink="/infrastructure"
+              queryParamsHandling="merge" id="infrastructure-link"
+              i18n="Link to page displaying the infrastructure status.">
+            Infrastructure
+          </a>
           <md-list-item>
             <button md-raised-button color="accent" md-list-item (click)="signOut()">
               Signout
