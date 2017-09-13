@@ -2,11 +2,13 @@ import { TestBed, async } from '@angular/core/testing';
 import { JobsService } from './jobs.service';
 import { JobConfig } from './api.resources';
 import { JobConfigsComponent } from './job-configs.component';
+import { HttpErrorResponse } from '@angular/common/http';
 import { AngularMaterialImporterModule } from './angular-material-importer.module';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/observable/of';
 import 'rxjs/add/operator/delay';
 import 'rxjs/add/observable/never';
+import 'rxjs/add/observable/throw';
 
 class JobsServiceStub {
   public getJobConfigs = jasmine.createSpy('getJobConfigs');
@@ -30,6 +32,8 @@ const FAKE_JOB_CONFIGS: JobConfig[] = [
     JobSpec: FAKE_JOBSPEC3
   }
 ];
+
+const FAKE_HTTP_ERROR = {message: 'fakeErrorText', statusText: 'fakeStatusText'};
 
 let jobsServiceStub: JobsServiceStub;
 
@@ -62,6 +66,12 @@ describe('JobConfigsComponent', () => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
     expect(component.showLoadingSpinner = false);
+  }));
+
+  it('should initialize the component with display error message as false', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    const component = fixture.debugElement.componentInstance;
+    expect(component.displayErrorMessage = false);
   }));
 
   it('should show a loading spinner while job configs are loading', async(() => {
@@ -139,6 +149,33 @@ describe('JobConfigsComponent', () => {
       const compiled = fixture.debugElement.nativeElement;
       const element = compiled.querySelector('.ingest-add-job-config');
       expect(element).not.toBeNull();
+    });
+  }));
+
+  it('should display an error message if getJobConfigs returns an error', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    const component = fixture.debugElement.componentInstance;
+    jobsServiceStub.getJobConfigs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-error-message');
+      expect(element).not.toBeNull();
+    });
+  }));
+
+  it('should display status text and error message from the response', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    const component = fixture.debugElement.componentInstance;
+    jobsServiceStub.getJobConfigs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-error-message');
+      expect(element.innerText).toContain('fakeErrorText');
+      expect(element.innerText).toContain('fakeStatusText');
     });
   }));
 });

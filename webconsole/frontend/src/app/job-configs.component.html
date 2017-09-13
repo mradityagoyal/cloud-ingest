@@ -13,6 +13,11 @@
   <md-spinner></md-spinner>
 </ng-template>
 <ng-template #cardContainer>
+  <div class="ingest-error-message" [hidden]="!displayErrorMessage">
+    <h3> There was an error getting your job configurations </h3>
+    <strong> {{ errorStatusText }} </strong>
+    <p> {{ errorMessage }} </p>
+  </div>
   <div class="ingest-card-container" >
     <md-card class="ingest-job-configs-card" *ngFor="let jobConfig of jobConfigs">
      <md-card-title> {{jobConfig.JobConfigId}} </md-card-title>

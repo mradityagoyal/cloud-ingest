@@ -2,6 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { JobConfig } from './api.resources';
 import { JobsService } from './jobs.service';
 import { MdDialog } from '@angular/material';
+import { HttpErrorResponse } from '@angular/common/http';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
 
 @Component({
@@ -13,6 +14,9 @@ import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
 export class JobConfigsComponent implements OnInit {
   jobConfigs: JobConfig[];
   showLoadingSpinner = false;
+  errorMessage: string;
+  errorStatusText: string;
+  displayErrorMessage = false;
 
   constructor(
       private readonly jobsService: JobsService,
@@ -25,10 +29,17 @@ export class JobConfigsComponent implements OnInit {
 
   private updateJobConfigs(): void {
     this.showLoadingSpinner = true;
-    this.jobsService.getJobConfigs().subscribe(data => {
-      this.jobConfigs = data;
-      this.showLoadingSpinner = false;
-    });
+    this.jobsService.getJobConfigs().subscribe(
+      (response) => {
+        this.jobConfigs = response;
+        this.showLoadingSpinner = false;
+      },
+      (error: HttpErrorResponse) => {
+        this.errorStatusText = error.statusText;
+        this.errorMessage = error.message;
+        this.displayErrorMessage = true;
+        this.showLoadingSpinner = false;
+      });
   }
 
   private getKeys(jsonObject: Object): String[] {
