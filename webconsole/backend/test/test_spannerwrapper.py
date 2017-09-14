@@ -27,9 +27,13 @@ import json
 # Disable pylint since pylint bug makes pylint think google.gax
 # is a relative import. Fix has been merged and will be included in
 # next version of pylint (current version 1.7.2).
+from test.testutils import get_rpc_error_with_status_code
 from google.gax import GaxError # pylint: disable=relative-import
+from google.cloud.exceptions import Conflict
 from mock import MagicMock
 from mock import patch
+from grpc import StatusCode
+
 
 from spannerwrapper import SpannerWrapper
 
@@ -43,6 +47,9 @@ JOB_SPEC_STR_2 = '{"srcDir": "usr/home2/"}'
 class TestSpannerWrapper(unittest.TestCase):
     """Unit tests for spannerwrapper.py with the Cloud Spanner client mocked."""
     # pylint: disable=too-many-public-methods
+
+    time_mock = MagicMock()
+    time_mock.return_value = 12345
 
     @patch('spannerwrapper.spanner')
     # pylint: disable=arguments-differ
@@ -143,7 +150,7 @@ class TestSpannerWrapper(unittest.TestCase):
         Asserts that create_job_config inserts into the JobConfigs table and
         returns true when no exception is raised."""
         transaction = self.set_up_transaction()
-        self.assertTrue(self.spanner_wrapper.create_job_config('', ''))
+        self.spanner_wrapper.create_job_config('', '')
         transaction.insert.assert_called()
         table = transaction.insert.call_args[0][0]
         self.assertEqual(table, SpannerWrapper.JOB_CONFIGS_TABLE)
@@ -191,10 +198,13 @@ class TestSpannerWrapper(unittest.TestCase):
         a duplicate id.
         """
         transaction = self.set_up_transaction()
-        transaction.insert.side_effect = GaxError('Duplicate id')
+        transaction.insert.side_effect = GaxError(
+            "msg",
+            get_rpc_error_with_status_code(StatusCode.ALREADY_EXISTS))
 
-        self.assertFalse(
-            self.spanner_wrapper.create_job_config('config-id', 'spec'))
+        self.assertRaises(
+            Conflict,
+            self.spanner_wrapper.create_job_config, 'config-id', 'spec')
 
     def test_create_job_run_table(self):
         """Asserts that create_job_run uses the correct table and returns true.
@@ -202,20 +212,23 @@ class TestSpannerWrapper(unittest.TestCase):
         Asserts that create_job_run inserts into the JobRuns table and
         returns true when no exception is raised."""
         transaction = self.set_up_transaction()
-        self.assertTrue(self.spanner_wrapper.create_job_run('', ''))
+        self.spanner_wrapper.create_job_run('', '')
         transaction.insert.assert_called()
         table = transaction.insert.call_args[0][0]
         self.assertEqual(table, SpannerWrapper.JOB_RUNS_TABLE)
 
+    @patch('time.time', time_mock)
     def test_create_run_params(self):
         """Asserts that the correct values are passed to insert.
 
         Asserts that in create_job_run for each column the expected
-        value is passed.
+        value is passed. time.time() is mocked to always return the same
+        value.
         """
+        # pylint: disable=protected-access
         config_id = 'config-id'
         run_id = 'run-id'
-        start_time = int(time.time())
+        start_time = SpannerWrapper._get_unix_nano()
         progress = {
             "totalTasks": 0,
             "tasksCompleted": 0,
@@ -240,9 +253,8 @@ class TestSpannerWrapper(unittest.TestCase):
                 # TODO(b/64227413): Replace 1 with enum or constant
                 self.assertEqual(values[i], 1)
             elif column == SpannerWrapper.JOB_CREATION_TIME:
-                # Test that the time inserted was the current time
-                self.assertLessEqual(values[i], int(time.time()))
-                self.assertGreaterEqual(values[i], start_time)
+                # Test that the time inserted was the correct time
+                self.assertEqual(values[i], start_time)
             elif column == SpannerWrapper.PROGRESS:
                 self.assertEqual(json.loads(values[i]), progress)
             else:
@@ -264,10 +276,13 @@ class TestSpannerWrapper(unittest.TestCase):
         a duplicate id.
         """
         transaction = self.set_up_transaction()
-        transaction.insert.side_effect = GaxError('Duplicate id')
+        transaction.insert.side_effect = GaxError(
+            "msg",
+            get_rpc_error_with_status_code(StatusCode.ALREADY_EXISTS))
 
-        self.assertFalse(
-            self.spanner_wrapper.create_job_run('config-id', 'run_id'))
+        self.assertRaises(
+            Conflict,
+            self.spanner_wrapper.create_job_run, 'config-id', 'run_id')
 
     def test_get_job_runs(self):
         """Asserts that two job runs are successfully processed and returned."""

@@ -26,7 +26,14 @@ from gaxerrordecorator import handle_common_gax_errors
 
 
 class SpannerWrapper(object):
-    """SpannerWrapper class handles all interactions with cloud Spanner."""
+    """SpannerWrapper class handles all interactions with cloud Spanner.
+
+    Any of the methods in the class can raise the following exceptions:
+        Forbidden - Not allowed to access the specified Project or Spanner
+                    resources
+        NotFound - Allowed to access the Spanner resource, but it doesn't exist
+        Unauthorized - Not properly authorized
+    """
     JOB_CONFIGS_TABLE = "JobConfigs"
     JOB_CONFIG_ID = "JobConfigId"
     JOB_SPEC = "JobSpec"
@@ -55,14 +62,16 @@ class SpannerWrapper(object):
     # TODO(b/64092801): Replace cap with streaming of large results
     ROW_CAP = 10000
 
+    @handle_common_gax_errors
     def __init__(self, credentials, project_id, instance_id, database_id):
         """Creates and initializes an instance of the SpannerWrapper class.
 
         Args:
-          credentials: The OAuth2 Credentials to use to create spanner instance.
-          project_id: The cloud ingest project id.
-          instance_id: The id of the Cloud Spanner instance.
-          database_id: The id of the Cloud Spanner instance.
+            credentials: The OAuth2 Credentials to use to create spanner
+                         instance.
+            project_id: The cloud ingest project id.
+            instance_id: The id of the Cloud Spanner instance.
+            database_id: The id of the Cloud Spanner instance.
         """
         self.project_id = project_id
         self.instance_id = instance_id
@@ -83,7 +92,7 @@ class SpannerWrapper(object):
         """Retrieves all job configs from Cloud Spanner.
 
         Returns:
-          A list containing the retrieved job configs in JSON format.
+            A list containing the retrieved job configs in JSON format.
         """
         query = "SELECT * FROM %s" % SpannerWrapper.JOB_CONFIGS_TABLE
         list_query = self.list_query(query)
@@ -93,11 +102,11 @@ class SpannerWrapper(object):
         """Retrieves the specified job config from Cloud Spanner.
 
         Args:
-          config_id: The id of the desired job config.
+            config_id: The id of the desired job config.
 
         Returns:
-          A dictionary containing the desired job config, mapping from
-          attribute to value.
+            A dictionary containing the desired job config, mapping from
+            attribute to value.
         """
         query = ("SELECT * FROM %s WHERE %s = @config_id" %
                  (SpannerWrapper.JOB_CONFIGS_TABLE,
@@ -112,28 +121,28 @@ class SpannerWrapper(object):
         """Creates a new job config using the given config attributes.
 
         Args:
-          config_id: The desired config id for the new job config
-          job_spec: The desired job spec for the new job config
+            config_id: The desired config id for the new job config
+            job_spec: The desired job spec for the new job config
 
-        Returns:
-          True if the JobConfig was created, false otherwise.
+        Raises:
+            Conflict if the job config already exists
         """
         config_id = unicode(config_id)
         job_spec = unicode(job_spec)
         values = [config_id, job_spec]
 
-        return self.insert(SpannerWrapper.JOB_CONFIGS_TABLE,
-                           SpannerWrapper.JOB_CONFIGS_COLUMNS, values)
+        self.insert(SpannerWrapper.JOB_CONFIGS_TABLE,
+                    SpannerWrapper.JOB_CONFIGS_COLUMNS, values)
 
     def create_job_run(self, config_id, run_id):
         """Creates a new job run with the given JobRun attributes.
 
         Args:
-          config_id: The desired JobConfigId of the new job run
-          run_id: The desired JobRunId of the new job run
+            config_id: The desired JobConfigId of the new job run
+            run_id: The desired JobRunId of the new job run
 
-        Returns:
-          True if the JobRun was created, false otherwise.
+        Raises:
+            Conflict if the job run already exists
         """
         config_id = unicode(config_id)
         run_id = unicode(run_id)
@@ -145,8 +154,8 @@ class SpannerWrapper(object):
         values = [config_id, run_id, 1, self._get_unix_nano(),
                   json.dumps(progress)]
 
-        return self.insert(SpannerWrapper.JOB_RUNS_TABLE,
-                           SpannerWrapper.JOB_RUNS_COLUMNS, values)
+        self.insert(SpannerWrapper.JOB_RUNS_TABLE,
+                    SpannerWrapper.JOB_RUNS_COLUMNS, values)
 
     def get_job_runs(self, max_num_runs, created_before=None):
         """Retrieves job runs from Cloud Spanner.
@@ -163,10 +172,10 @@ class SpannerWrapper(object):
             created_before: The time before which all returned runs were created
 
         Returns:
-          A list of dictionaries, where each dictionary represents a job run.
+            A list of dictionaries, where each dictionary represents a job run.
 
         Raises:
-          ValueError: If max_num_runs is <= 0 or > ROW_CAP
+            ValueError: If max_num_runs is <= 0 or > ROW_CAP
         """
         if max_num_runs <= 0:
             raise ValueError("max_num_runs must be greater than 0")
@@ -289,14 +298,13 @@ class SpannerWrapper(object):
           values: The values to insert into the given columns. Passed as an
                   array. Note: Any string values should be in unicode.
 
-        Returns:
-          True if the insertion succeeds, False otherwise.
+        Raises:
+          Conflict: If the item to insert already exists
         """
         with self.session_pool.session() as session:
             with session.transaction() as transaction:
                 transaction.insert(table, columns=columns,
                                    values=[values])
-                return True
 
     @handle_common_gax_errors
     def list_query(self, query, query_params=None, param_types=None):

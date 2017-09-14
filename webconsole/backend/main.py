@@ -84,14 +84,11 @@ def job_configs(project_id):
             }
             return jsonify(response), httplib.BAD_REQUEST
 
-        created = spanner_wrapper.create_job_config(content['JobConfigId'],
-                                                    content['JobSpec'])
-        if created:
-            created_config = spanner_wrapper.get_job_config(
-                content['JobConfigId'])
-            return jsonify(created_config), httplib.CREATED
-        # TODO(b/64075962) Better error handling
-        return jsonify({}), httplib.BAD_REQUEST
+        spanner_wrapper.create_job_config(content['JobConfigId'],
+                                          content['JobSpec'])
+        created_config = spanner_wrapper.get_job_config(
+            content['JobConfigId'])
+        return jsonify(created_config), httplib.CREATED
 
 
 @APP.route('/projects/<project_id>/jobruns', methods=['GET', 'OPTIONS', 'POST'])
@@ -121,14 +118,11 @@ def job_runs(project_id):
             }
             return jsonify(response), httplib.BAD_REQUEST
 
-        created = spanner_wrapper.create_job_run(content['JobConfigId'],
-                                                 content['JobRunId'])
-        if created:
-            created_job_run = spanner_wrapper.get_job_run(
-                content['JobConfigId'], content['JobRunId'])
-            return jsonify(created_job_run), httplib.CREATED
-        # TODO(b/64075962) Better error handling
-        return jsonify({}), httplib.BAD_REQUEST
+        spanner_wrapper.create_job_run(content['JobConfigId'],
+                                       content['JobRunId'])
+        created_job_run = spanner_wrapper.get_job_run(
+            content['JobConfigId'], content['JobRunId'])
+        return jsonify(created_job_run), httplib.CREATED
 
 @APP.route('/projects/<project_id>/tasks/<config_id>/<run_id>', methods=['GET'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
