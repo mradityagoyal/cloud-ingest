@@ -163,16 +163,31 @@ class CloudFunctionsBuilder(object):
     # pylint: disable=too-many-arguments,too-many-locals
     # TODO(b/65407745): Reduce the number of arguments in
     # CloudFunctionsBuilder.create_function
-    def create_function(self,
-                        cloud_function_name,
-                        src_dir,
-                        pubsub_topic,
-                        entry_point,
-                        cloud_function_timeout,
-                        staging_gcs_bucket=None,
-                        staging_gcs_object=None,
-                        timeout_seconds=180):
-        """Creates a cloud function."""
+    def create_function_async(self,
+                              cloud_function_name,
+                              src_dir,
+                              pubsub_topic,
+                              entry_point,
+                              cloud_function_timeout,
+                              staging_gcs_bucket=None,
+                              staging_gcs_object=None):
+        """Async create of a cloud function. It will call create cloud function
+        api and returns the response of that call. It does not wait for the
+        cloud function to deploy on the server.
+
+        Args:
+            cloud_function_name: Cloud function name.
+            src_dir: Cloud function source code directory.
+            pubsub_topic: Cloud function Pub/sub topic trigger.
+            entry_point: The name of the function (as defined in source code)
+                that will be executed.
+            cloud_function_timeout: Function execution timeout.
+            staging_gcs_bucket: Source code staging GCS bucket.
+            staging_gcs_object: Source code staging GCS object.
+
+        Returns:
+            HTTP response resulting from the cloud function create API.
+        """
         if not staging_gcs_object:
             staging_gcs_object = '%s_code.zip' % cloud_function_name
         src_zip_path = os.path.join(tempfile.gettempdir(), staging_gcs_object)
@@ -203,14 +218,48 @@ class CloudFunctionsBuilder(object):
         }
         res = self.authed_session.post(
             functions_url, headers=self.headers, json=payload)
-        request_time = time.time()
         if res.status_code != httplib.OK:
             raise Exception('Unexpected error code when creating cloud '
                             'function {}, response text: {}.',
                             cloud_function_name, res.text)
+    # pylint: enable=too-many-arguments,too-many-locals
+
+    # pylint: disable=too-many-arguments,too-many-locals
+    # TODO(b/65407745): Reduce the number of arguments in
+    # CloudFunctionsBuilder.create_function
+    def create_function(self,
+                        cloud_function_name,
+                        src_dir,
+                        pubsub_topic,
+                        entry_point,
+                        cloud_function_timeout,
+                        staging_gcs_bucket=None,
+                        staging_gcs_object=None,
+                        timeout_seconds=180):
+        """Creates a cloud function. It waits for the cloud function to deploy
+        on the server.
+
+        Args:
+            cloud_function_name: Cloud function name.
+            src_dir: Cloud function source code directory.
+            pubsub_topic: Cloud function Pub/sub topic trigger.
+            entry_point: The name of the function (as defined in source code)
+                that will be executed.
+            cloud_function_timeout: Function execution timeout.
+            staging_gcs_bucket: Source code staging GCS bucket.
+            staging_gcs_object: Source code staging GCS object.
+            timeout_seconds: Waiting for deployment to complete on the server
+                timeout.
+        """
+        self.create_function_async(
+            cloud_function_name, src_dir, pubsub_topic, entry_point,
+            cloud_function_timeout, staging_gcs_bucket, staging_gcs_object)
 
         # Wait until the cloud function is ready.
-        function_get_url = '{}/{}'.format(functions_url, cloud_function_name)
+        function_get_url = '{}/{}/{}'.format(
+            self.functions_endpoint, self.functions_path, cloud_function_name)
+        request_time = time.time()
+
         while time.time() - request_time < timeout_seconds:
             print 'Waiting for cloud function to get deployed.'
             time.sleep(1)
@@ -231,10 +280,19 @@ class CloudFunctionsBuilder(object):
         raise Exception('Create cloud function {} timed out. Last query '
                         'response code: {}, response text: {}.'.format(
                             cloud_function_name, res.status_code, res.text))
-
     # pylint: enable=too-many-arguments,too-many-locals
-    def delete_function(self, cloud_function_name, timeout_seconds=180):
-        """Deletes a cloud function."""
+
+    def delete_function_async(self, cloud_function_name):
+        """Async delete of a cloud function. It will call delete cloud function
+        api and returns the response of that call. It does not wait for the
+        cloud function to delete on the server.
+
+        Args:
+            cloud_function_name: Cloud function name.
+
+        Returns:
+            HTTP response resulting from the cloud function delete API.
+        """
         function_url = '{}/{}/{}'.format(
             self.functions_endpoint, self.functions_path, cloud_function_name)
 
@@ -244,7 +302,7 @@ class CloudFunctionsBuilder(object):
         if res.status_code == httplib.NOT_FOUND:
             print 'Cloud Function {} does not exist, skipping delete.'.format(
                 cloud_function_name)
-            return
+            return res
         elif res.status_code != httplib.OK:
             raise Exception(
                 'Unexpected error code in getting cloud function {} details, '
@@ -253,12 +311,29 @@ class CloudFunctionsBuilder(object):
         source_archive_url = res.json()['sourceArchiveUrl']
 
         res = self.authed_session.delete(function_url, headers=self.headers)
-        request_time = time.time()
 
         if res.status_code != httplib.OK:
             raise Exception('Unexpected error code on deleteing cloud function '
                             '{}, response text: {}.',
                             cloud_function_name, res.text)
+
+        _delete_function_bucket(self.storage_client, source_archive_url)
+        return res
+
+    def delete_function(self, cloud_function_name, timeout_seconds=180):
+        """Deletes a cloud function. It waits for the cloud function to delete
+        on the server.
+
+        Args:
+            cloud_function_name: Cloud function name.
+            timeout_seconds: Waiting for deletion to complete on the server
+                timeout.
+        """
+        res = self.delete_function_async(cloud_function_name)
+
+        request_time = time.time()
+        function_url = '{}/{}/{}'.format(
+            self.functions_endpoint, self.functions_path, cloud_function_name)
 
         # Polling until the cloud function get deleted.
         while (res.status_code != httplib.NOT_FOUND and
@@ -270,8 +345,6 @@ class CloudFunctionsBuilder(object):
         if res.status_code != httplib.NOT_FOUND:
             raise Exception('Delete cloud function {} timed out.'.format(
                 cloud_function_name))
-
-        _delete_function_bucket(self.storage_client, source_archive_url)
 
         print 'Cloud function {} deleted in {} seconds.'.format(
             cloud_function_name, time.time() - request_time)
