@@ -20,13 +20,17 @@ be sent.
 """
 import httplib
 import logging
+import re
 from corsdecorator import crossdomain  # To allow requests from the front-end
 from flask import Flask
 from flask import jsonify
 from flask import request
-from google.oauth2.credentials import Credentials
-import re
+from google.oauth2.credentials import Credentials # pylint: disable=relative-import
 from spannerwrapper import SpannerWrapper
+from google.cloud.exceptions import Forbidden
+from google.cloud.exceptions import Unauthorized
+from google.cloud.exceptions import NotFound
+from google.cloud.exceptions import Conflict
 
 APP = Flask(__name__)
 APP.config.from_pyfile('ingestwebconsole.default_settings')
@@ -42,6 +46,10 @@ _AUTH_HEADER_REGEX = re.compile(r'^\s*Bearer\s+(?P<access_token>[^\s]*)$')
 def _get_credentials():
     """Gets OAuth2 credentials from request Authorization headers."""
     auth_header = request.headers.get('Authorization')
+    if not auth_header:
+        raise Unauthorized(('Missing Authorization header. Please add ' +
+                            'Authorization header in the format "Bearer ' +
+                            '<access_token>".'))
     match = _AUTH_HEADER_REGEX.match(auth_header)
     if not match:
         raise ValueError(
@@ -215,6 +223,56 @@ def value_error(error):
         'message': str(error)
     }
     return jsonify(response), httplib.BAD_REQUEST
+
+@APP.errorhandler(Conflict)
+def conflict_handler(error):
+    """Handles any uncaught conflict errors."""
+    logging.info('A request resulted in a conflict: %s', str(error))
+    response = {
+        'error': 'Conflict',
+        'message': str(error.message)
+    }
+    return jsonify(response), httplib.CONFLICT
+
+@APP.errorhandler(Unauthorized)
+def unauthorized_handler(error):
+    """Handles any uncaught Unauthorized errors."""
+    logging.info('A unauthorized request was made: %s', str(error))
+    response = {
+        'error': 'Unauthorized',
+        'message': str(error.message)
+    }
+    return jsonify(response), httplib.UNAUTHORIZED
+
+@APP.errorhandler(Forbidden)
+def forbidden_handler(error):
+    """Handles any uncaught Unauthorized errors."""
+    logging.info('A forbidden request was made: %s', str(error))
+    response = {
+        'error': 'Forbidden',
+        'message': str(error.message)
+    }
+    return jsonify(response), httplib.FORBIDDEN
+
+@APP.errorhandler(NotFound)
+def not_found_handler(error):
+    """Handles any uncaught NotFound errors."""
+    logging.info('A request was made for an unknown resource: %s', str(error))
+    response = {
+        'error': 'NotFound',
+        'message': str(error.message)
+    }
+    return jsonify(response), httplib.NOT_FOUND
+
+@APP.errorhandler(httplib.NOT_FOUND)
+def bad_url(error):
+    """ Handles 404 Not Found errors caused by a bad request url"""
+    # pylint: disable=unused-argument
+    response = {
+        'error': 'NotFound',
+        'message': 'The requested url could not be found on the server.'
+    }
+    return jsonify(response), httplib.NOT_FOUND
 
 
 if __name__ == '__main__':

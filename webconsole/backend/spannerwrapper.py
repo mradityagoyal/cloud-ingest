@@ -17,12 +17,12 @@ SpannerWrapper lists JobConfigs, JobRuns, and Tasks. It
 also writes new JobConfigs and JobRuns. All data passed to and from the
 client is in JSON format and stored in a dictionary.
 """
-import logging
 import time
+import util
 from google.cloud import spanner
 from google.cloud.proto.spanner.v1 import type_pb2
-from google.gax import GaxError
-import util
+from gaxerrordecorator import handle_common_gax_errors
+
 
 class SpannerWrapper(object):
     """SpannerWrapper class handles all interactions with cloud Spanner."""
@@ -61,6 +61,9 @@ class SpannerWrapper(object):
           instance_id: The id of the Cloud Spanner instance.
           database_id: The id of the Cloud Spanner instance.
         """
+        self.project_id = project_id
+        self.instance_id = instance_id
+        self.database_id = database_id
         self.spanner_client = spanner.Client(credentials=credentials,
                                              project=project_id)
 
@@ -260,6 +263,7 @@ class SpannerWrapper(object):
             }
         )
 
+    @handle_common_gax_errors
     def insert(self, table, columns, values):
         """Inserts the given values into the specified table.
 
@@ -273,15 +277,12 @@ class SpannerWrapper(object):
           True if the insertion succeeds, False otherwise.
         """
         with self.session_pool.session() as session:
-            try:
-                with session.transaction() as transaction:
-                    transaction.insert(table, columns=columns, values=[values])
-                    return True
-            except GaxError:
-                # TODO(b/64075962): Better error handling
-                logging.exception("Error inserting into Cloud Spanner")
-                return False
+            with session.transaction() as transaction:
+                transaction.insert(table, columns=columns,
+                                   values=[values])
+                return True
 
+    @handle_common_gax_errors
     def list_query(self, query, query_params=None, param_types=None):
         """Performs the given query and processes the result list.
 
@@ -300,7 +301,8 @@ class SpannerWrapper(object):
         Returns:
           A list of dictionaries mapping from attribute name to value
         """
-        results = self.database.execute_sql(query, query_params, param_types)
+        results = self.database.execute_sql(query, query_params,
+                                            param_types)
         result_list = []
         for row in results:
             obj = self.row_to_object(row, results.fields)
@@ -308,6 +310,7 @@ class SpannerWrapper(object):
 
         return result_list
 
+    @handle_common_gax_errors
     def single_result_query(self, query, query_params=None, param_types=None):
         """Performs the given query and processes the result.
 
@@ -327,7 +330,8 @@ class SpannerWrapper(object):
           A dictionary mapping from attribute name to value, or None if the
           query had no results.
         """
-        results = self.database.execute_sql(query, query_params, param_types)
+        results = self.database.execute_sql(query, query_params,
+                                            param_types)
 
         for row in results:
             return self.row_to_object(row, results.fields)
