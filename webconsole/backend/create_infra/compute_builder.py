@@ -182,9 +182,11 @@ class ComputeBuilder(object):
         }
 
     # pylint: disable=too-many-arguments,too-many-locals
-    def create_instance(self, name, container_image, cmd, cmd_args,
-                        zone='us-central1-f', machine_type='n1-standard-1'):
-        """Creates a GCE instance running a container image.
+    def create_instance_async(self, name, container_image, cmd, cmd_args,
+                              zone='us-central1-f',
+                              machine_type='n1-standard-1'):
+        """Async create of a GCE instance running a container image. It does not
+        wait for the instance create operation to complete.
 
         Args:
             name: Name of the GCE instance to create.
@@ -196,6 +198,9 @@ class ComputeBuilder(object):
             machine_type: The instance machine type,
                 https://cloud.google.com/compute/docs/machine-types lists
                 possible values of the machine type.
+
+        Returns:
+            The GCE insert operation.
         """
         args_json_str = '[%s]' % (','.join('"%s"' % x for x in cmd_args))
         container_spec = self.container_spec_template % (
@@ -210,14 +215,44 @@ class ComputeBuilder(object):
             'value': container_spec
         })
 
-        operation = self.compute.instances().insert(
+        return self.compute.instances().insert(
             project=self.project_id, zone=zone, body=config).execute()
+    # pylint: enable=too-many-arguments,too-many-locals
+
+    # pylint: disable=too-many-arguments,too-many-locals
+    def create_instance(self, name, container_image, cmd, cmd_args,
+                        zone='us-central1-f', machine_type='n1-standard-1'):
+        """Creates a GCE instance running a container image. It waits for the
+        instance create operation to complete.
+
+        Args:
+            name: Name of the GCE instance to create.
+            container_image: Container image to deploy to the instance.
+            cmd: Command line to run in the deployed container.
+            cmd_args: Array of params to be passed to the command that runs in
+                the deployed container.
+            zone: Zone of the GCE instance.
+            machine_type: The instance machine type,
+                https://cloud.google.com/compute/docs/machine-types lists
+                possible values of the machine type.
+        """
+        operation = self.create_instance_async(
+            name, container_image, cmd, cmd_args, zone, machine_type)
         _wait_operation_to_complete(
             self.compute, self.project_id, zone, operation['name'])
-
     # pylint: enable=too-many-arguments,too-many-locals
-    def delete_instance(self, name, zone='us-central1-f'):
-        """Deletes a GCE instance."""
+
+    def delete_instance_async(self, name, zone='us-central1-f'):
+        """Async delete of a GCE instance. It does not wait for the instance
+        delete operation to complete.
+
+        Args:
+            name: Name of the GCE instance to create.
+            zone: Zone of the GCE instance.
+
+        Returns:
+            The GCE delete operation.
+        """
         try:
             operation = self.compute.instances().delete(
                 project=self.project_id, zone=zone, instance=name).execute()
@@ -228,13 +263,20 @@ class ComputeBuilder(object):
                 if error_code == httplib.NOT_FOUND:
                     print 'GCE instance %s does not exist, skipping delete.' % (
                         name)
-                    return
+                    return None
             except:  # pylint: disable=bare-except
                 pass
             raise
+        return operation
 
-        _wait_operation_to_complete(
-            self.compute, self.project_id, zone, operation['name'])
+    def delete_instance(self, name, zone='us-central1-f'):
+        """Deletes a GCE instance.  It waits for the instance delete operation
+        to complete.
+        """
+        operation = self.delete_instance_async(name, zone)
+        if operation:
+            _wait_operation_to_complete(
+                self.compute, self.project_id, zone, operation['name'])
 
     def instance_status(self, name, zone='us-central1-f'):
         """Gets GCE instance status.
