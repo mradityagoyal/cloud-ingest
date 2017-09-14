@@ -33,7 +33,7 @@ type ListProgressMessageHandler struct {
 
 func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task) error {
 	if task.Status != Success {
-		return nil
+		return h.Store.UpdateTasks([]*Task{task})
 	}
 
 	// TODO(b/63014658): denormalize the task spec into the progress message, so

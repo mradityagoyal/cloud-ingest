@@ -26,7 +26,7 @@ type UploadGCSProgressMessageHandler struct {
 
 func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task) error {
 	if task.Status != Success {
-		return nil
+		return h.Store.UpdateTasks([]*Task{task})
 	}
 	// TODO(b/63014658): de-normalize the task spec into the progress message,
 	// so you do not have to query the database again.

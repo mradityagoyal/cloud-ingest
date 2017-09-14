@@ -21,22 +21,35 @@ import (
 )
 
 func TestUploadGCSProgressMessageHandlerFailedTask(t *testing.T) {
-	store := FakeStore{}
+	store := FakeStore{
+		tasks: make(map[string]*Task),
+	}
 	handler := UploadGCSProgressMessageHandler{
 		Store: &store,
 	}
-	task := &Task{Status: Failed}
+	task := &Task{Status: Failed, TaskId: "A"}
 	if err := handler.HandleMessage(nil /* jobSpec */, task); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	if store.tasks != nil {
-		t.Errorf("expected empty store, found %d tasks in the store.", len(store.tasks))
+	if store.tasks == nil {
+		t.Errorf("expected store to contain a single task, found 0 tasks in the store.")
+	}
+
+	storeTask, exists := store.tasks[task.getTaskFullId()]
+	if !exists {
+		t.Errorf("task %v should exist in the store", task)
+	}
+	if storeTask.Status != Failed {
+		t.Errorf("expected store task to have status Failed(2), found %d",
+			storeTask.Status)
 	}
 }
 
 func TestUploadGCSProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
-	store := FakeStore{}
+	store := FakeStore{
+		tasks: make(map[string]*Task),
+	}
 	handler := UploadGCSProgressMessageHandler{
 		Store: &store,
 	}

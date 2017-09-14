@@ -51,6 +51,12 @@ type JobProgressSpec struct {
 	LoadBQProgress    *LoadBQTaskProgressSpec    `json:"loadBigQuery,omitempty"`
 }
 
+type JobProgressDelta struct {
+	NewTasks       int64
+	TasksCompleted int64
+	TasksFailed    int64
+}
+
 type JobRun struct {
 	JobConfigId     string
 	JobRunId        string
@@ -62,4 +68,11 @@ type JobRun struct {
 type JobRunFullId struct {
 	JobConfigId string
 	JobRunId    string
+}
+
+// ApplyDelta applies the changes in the given deltaObj to this
+func (j *JobProgressSpec) ApplyDelta(deltaObj *JobProgressDelta) {
+	j.TotalTasks += deltaObj.NewTasks
+	j.TasksCompleted += deltaObj.TasksCompleted
+	j.TasksFailed += deltaObj.TasksFailed
 }
