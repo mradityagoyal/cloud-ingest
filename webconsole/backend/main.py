@@ -124,6 +124,33 @@ def job_runs(project_id):
             content['JobConfigId'], content['JobRunId'])
         return jsonify(created_job_run), httplib.CREATED
 
+@APP.route('/projects/<project_id>/jobruns/<config_id>/<run_id>',
+           methods=['GET', 'OPTIONS'])
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
+def job_run(project_id, config_id, run_id):
+    """Responds with the specified job run, or 404 Not Found.
+
+    Args:
+        project_id: The id of the project.
+        config_id: The id of the job config
+        run_id: The id of the job run
+
+    Returns:
+        On success-
+            200, A JSON job run object
+        On failure-
+            404, Not found if a job run with the given ids does not exist
+    """
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
+    result = spanner_wrapper.get_job_run(config_id, run_id)
+    if not result:
+        raise NotFound(("Could not find a job run with config_id: %s,"
+                        " run_id: %s") % (config_id, run_id))
+    return jsonify(result), httplib.OK
+
 @APP.route('/projects/<project_id>/tasks/<config_id>/<run_id>', methods=['GET'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def tasks(project_id, config_id, run_id):
