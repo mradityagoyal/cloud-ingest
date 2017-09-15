@@ -22,6 +22,7 @@ mocked, so these tests do not cover connecting to Cloud Spanner.
 import logging
 import unittest
 import time
+import json
 
 # Disable pylint since pylint bug makes pylint think google.gax
 # is a relative import. Fix has been merged and will be included in
@@ -178,6 +179,8 @@ class TestSpannerWrapper(unittest.TestCase):
 
         self.assertEqual(len(columns),
                          len(SpannerWrapper.JOB_CONFIGS_COLUMNS))
+        self.assertEqual(len(values),
+                         len(columns))
 
     def test_create_job_config_failure(self):
         """Asserts that create_job_config handles a raised GaxError.
@@ -213,6 +216,11 @@ class TestSpannerWrapper(unittest.TestCase):
         config_id = 'config-id'
         run_id = 'run-id'
         start_time = int(time.time())
+        progress = {
+            "totalTasks": 0,
+            "tasksCompleted": 0,
+            "tasksFailed": 0
+        }
         transaction = self.set_up_transaction()
 
         self.spanner_wrapper.create_job_run(config_id, run_id)
@@ -235,6 +243,8 @@ class TestSpannerWrapper(unittest.TestCase):
                 # Test that the time inserted was the current time
                 self.assertLessEqual(values[i], int(time.time()))
                 self.assertGreaterEqual(values[i], start_time)
+            elif column == SpannerWrapper.PROGRESS:
+                self.assertEqual(json.loads(values[i]), progress)
             else:
                 self.fail("Tried to insert a value into a column that " +
                           "doesn't exist in %s. Column: %s" % (
@@ -242,6 +252,8 @@ class TestSpannerWrapper(unittest.TestCase):
 
         self.assertEqual(len(columns),
                          len(SpannerWrapper.JOB_RUNS_COLUMNS))
+        self.assertEqual(len(values),
+                        len(columns))
 
     def test_create_run_failure(self):
         """Asserts that create_job_run handles a raised GaxError.
@@ -263,23 +275,27 @@ class TestSpannerWrapper(unittest.TestCase):
         run_id1 = 'test-run1'
         status1 = 1
         job_creation_time1 = 1501287255
+        progress1 = "{}"
 
         config_id2 = 'test-config2'
         run_id2 = 'test-run2'
         status2 = 1
         job_creation_time2 = 1501287287
+        progress2 = "{}"
 
         result = MagicMock()
-        result.__iter__.return_value = [[
-            config_id1, run_id1, status1, job_creation_time1
-        ], [config_id2, run_id2, status2, job_creation_time2]]
+        result.__iter__.return_value = [
+            [config_id1, run_id1, status1, job_creation_time1, progress1],
+            [config_id2, run_id2, status2, job_creation_time2, progress2]]
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
         self.database.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_runs(25)
         expected = [
-            self.get_job_run(config_id1, run_id1, status1, job_creation_time1),
-            self.get_job_run(config_id2, run_id2, status2, job_creation_time2)
+            self.get_job_run(
+                config_id1, run_id1, status1, job_creation_time1, progress1),
+            self.get_job_run(
+                config_id2, run_id2, status2, job_creation_time2, progress2)
         ]
 
         self.assertEqual(actual, expected)
@@ -442,17 +458,18 @@ class TestSpannerWrapper(unittest.TestCase):
         run_id = 'test-run'
         status = 1
         job_creation_time = 1501284844
+        progress = "{}"
 
         result = MagicMock()
         result.__iter__.return_value = [[
-            config_id, run_id, status, job_creation_time
+            config_id, run_id, status, job_creation_time, progress
         ]]
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
         self.database.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_run(config_id, run_id)
         expected = self.get_job_run(config_id, run_id, status,
-                                    job_creation_time)
+                                    job_creation_time, progress)
 
         self.assertEqual(actual, expected)
 
@@ -576,7 +593,7 @@ class TestSpannerWrapper(unittest.TestCase):
         }
 
     @staticmethod
-    def get_job_run(config_id, run_id, status, job_creation_time):
+    def get_job_run(config_id, run_id, status, job_creation_time, progress):
         """Returns a job run in dictionary format containing the given values.
 
         Args:
@@ -584,6 +601,7 @@ class TestSpannerWrapper(unittest.TestCase):
           run_id: The job run id
           status: An int representing the status of the job
           job_creation_time: An int representing the job_creation_time
+          progress: A string holding the JSON job progress obj
 
         Returns:
           A job run in dictionary format containing the given values.
@@ -592,7 +610,8 @@ class TestSpannerWrapper(unittest.TestCase):
             SpannerWrapper.JOB_CONFIG_ID: config_id,
             SpannerWrapper.JOB_RUN_ID: run_id,
             SpannerWrapper.STATUS: status,
-            SpannerWrapper.JOB_CREATION_TIME: job_creation_time
+            SpannerWrapper.JOB_CREATION_TIME: job_creation_time,
+            SpannerWrapper.PROGRESS: json.loads(progress)
         }
 
     @staticmethod

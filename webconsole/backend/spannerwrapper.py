@@ -17,6 +17,7 @@ SpannerWrapper lists JobConfigs, JobRuns, and Tasks. It
 also writes new JobConfigs and JobRuns. All data passed to and from the
 client is in JSON format and stored in a dictionary.
 """
+import json
 import time
 import util
 from google.cloud import spanner
@@ -35,7 +36,9 @@ class SpannerWrapper(object):
     JOB_RUN_ID = "JobRunId"
     JOB_CREATION_TIME = "JobCreationTime"
     STATUS = "Status"
-    JOB_RUNS_COLUMNS = [JOB_CONFIG_ID, JOB_RUN_ID, STATUS, JOB_CREATION_TIME]
+    PROGRESS = "Progress"
+    JOB_RUNS_COLUMNS = [JOB_CONFIG_ID, JOB_RUN_ID, STATUS, JOB_CREATION_TIME,
+                        PROGRESS]
 
     TASKS_TABLE = "Tasks"
     TASK_ID = "TaskId"
@@ -134,7 +137,13 @@ class SpannerWrapper(object):
         """
         config_id = unicode(config_id)
         run_id = unicode(run_id)
-        values = [config_id, run_id, 1, self._get_unix_nano()]
+        progress = {
+            "totalTasks": 0,
+            "tasksCompleted": 0,
+            "tasksFailed": 0
+        }
+        values = [config_id, run_id, 1, self._get_unix_nano(),
+                  json.dumps(progress)]
 
         return self.insert(SpannerWrapper.JOB_RUNS_TABLE,
                            SpannerWrapper.JOB_RUNS_COLUMNS, values)
@@ -176,7 +185,9 @@ class SpannerWrapper(object):
 
         query += " ORDER BY %s DESC LIMIT @num_runs" % (
             SpannerWrapper.JOB_CREATION_TIME)
-        return self.list_query(query, params, param_types)
+        job_runs = self.list_query(query, params, param_types)
+        return util.json_to_dictionary_in_field(job_runs,
+                                                SpannerWrapper.PROGRESS)
 
     # pylint: disable=too-many-arguments
     def get_tasks_for_run(self, config_id, run_id, max_num_tasks,
@@ -249,12 +260,13 @@ class SpannerWrapper(object):
           run_id: The job run id of the desired job run.
 
         Returns:
-          A dictionary containing the job_run with the given job_run_id.
+          A dictionary containing the job_run with the given job_run_id or
+          None if no such job run exists.
         """
         query = ("SELECT * FROM %s WHERE %s = @run_id AND %s = @config_id" %
                  (SpannerWrapper.JOB_RUNS_TABLE, SpannerWrapper.JOB_RUN_ID,
                   SpannerWrapper.JOB_CONFIG_ID))
-        return self.single_result_query(
+        job_run = self.single_result_query(
             query,
             {"run_id": run_id, "config_id": config_id},
             {
@@ -262,6 +274,10 @@ class SpannerWrapper(object):
                 "config_id": type_pb2.Type(code=type_pb2.STRING)
             }
         )
+        if job_run:
+            job_run[SpannerWrapper.PROGRESS] = json.loads(
+                job_run[SpannerWrapper.PROGRESS])
+            return job_run
 
     @handle_common_gax_errors
     def insert(self, table, columns, values):
