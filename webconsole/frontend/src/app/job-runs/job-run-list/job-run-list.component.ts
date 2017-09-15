@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
-import { JobRun } from './api.resources';
-import { JobsService } from './jobs.service';
+import { JobRun } from '../../api.resources';
+import { JobsService } from '../../jobs.service';
 import { Observable } from 'rxjs/Observable';
 import { DataSource } from '@angular/cdk/collections';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -9,11 +9,11 @@ import 'rxjs/add/observable/of';
 
 @Component({
   selector: 'app-job-configs',
-  templateUrl: './job-runs.component.html',
-  styleUrls: ['./job-runs.component.css']
+  templateUrl: './job-run-list.component.html',
+  styleUrls: ['./job-run-list.component.css']
 })
 
-export class JobRunsComponent implements OnInit {
+export class JobRunListComponent implements OnInit {
   displayedColumns = ['runId', 'configId', 'creationTime', 'status'];
   showLoadingSpinner = false;
   showError = false;

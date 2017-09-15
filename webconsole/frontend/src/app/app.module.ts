@@ -10,14 +10,15 @@ import { AppComponent } from './app.component';
 import { JobsService } from './jobs.service';
 import { AuthInterceptor } from './auth-interceptor';
 import { AuthService } from './auth.service';
+import { AppRoutingModule } from './app-routing.module'
 import { JobConfigsComponent } from './job-configs.component';
-import { JobRunsComponent } from './job-runs.component';
-import { CreateRunComponent } from './create-run.component';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
+
+import { JobRunsModule } from './job-runs/job-runs.module'
 
 @NgModule({
   declarations: [
-    AppComponent, JobConfigsComponent, JobRunsComponent, CreateRunComponent,
+    AppComponent, JobConfigsComponent,
     JobConfigAddDialogComponent
   ],
   entryComponents: [JobConfigAddDialogComponent],
@@ -27,23 +28,8 @@ import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
     HttpClientModule,
     FormsModule,
     AngularMaterialImporterModule,
-    RouterModule.forRoot([
-      {
-        path: 'jobconfigs',
-        component: JobConfigsComponent,
-        canActivate: [AuthService],
-      },
-      {
-        path: 'jobruns',
-        component: JobRunsComponent,
-        canActivate: [AuthService],
-      },
-      {
-        path: 'createrun',
-        component: CreateRunComponent,
-        canActivate: [AuthService],
-      }
-    ])
+    JobRunsModule,
+    AppRoutingModule
   ],
   providers: [
     JobsService,

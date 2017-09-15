@@ -1,8 +1,8 @@
 import { TestBed, async } from '@angular/core/testing';
-import { JobsService } from './jobs.service';
-import { JobRun } from './api.resources';
-import { JobRunsComponent } from './job-runs.component';
-import { AngularMaterialImporterModule } from './angular-material-importer.module';
+import { JobsService } from '../../jobs.service';
+import { JobRun } from '../../api.resources';
+import { JobRunListComponent } from './job-run-list.component';
+import { AngularMaterialImporterModule } from '../../angular-material-importer.module';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/observable/throw';
 import 'rxjs/add/observable/of';
@@ -41,7 +41,7 @@ const FAKE_JOB_RUNS: JobRun[] = [
 let jobsServiceStub: JobsServiceStub;
 const FAKE_HTTP_ERROR = {error: 'FakeErrorTitle', message: 'Fake error message.'};
 
-describe('JobRunsComponent', () => {
+describe('JobRunListComponent', () => {
 
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
@@ -49,7 +49,7 @@ describe('JobRunsComponent', () => {
 
     TestBed.configureTestingModule({
       declarations: [
-        JobRunsComponent
+        JobRunListComponent
       ],
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},
@@ -61,13 +61,13 @@ describe('JobRunsComponent', () => {
   }));
 
   it('should create the job runs component', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     const component = fixture.debugElement.componentInstance;
     expect(component).toBeTruthy();
   }));
 
   it('should initialize the component with the expected display columns', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     const component = fixture.debugElement.componentInstance;
     expect(component.displayedColumns).toContain('runId');
     expect(component.displayedColumns).toContain('configId');
@@ -76,7 +76,7 @@ describe('JobRunsComponent', () => {
   }));
 
   it('should contain an md table', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -87,7 +87,7 @@ describe('JobRunsComponent', () => {
   }));
 
   it('should contain three md rows', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -98,7 +98,7 @@ describe('JobRunsComponent', () => {
   }));
 
   it('should contain the job config id and job id from jobs service', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -119,7 +119,7 @@ describe('JobRunsComponent', () => {
   }));
 
   it('should show a human readable status in the row', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -133,7 +133,7 @@ describe('JobRunsComponent', () => {
   }));
 
   it('should contain a human readable date', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();

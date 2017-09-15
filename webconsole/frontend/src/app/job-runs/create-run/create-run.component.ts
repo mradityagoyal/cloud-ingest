@@ -3,8 +3,8 @@ import { Router } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/operator/finally';
-import { JobConfig, JobRunParams } from './api.resources';
-import { JobsService } from './jobs.service';
+import { JobConfig, JobRunParams } from '../../api.resources';
+import { JobsService } from '../../jobs.service';
 
 @Component({
   selector: 'app-create-config',
