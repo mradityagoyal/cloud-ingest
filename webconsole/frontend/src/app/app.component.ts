@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, ActivatedRoute, Params, NavigationExtras } from '@angular/router';
 import { AuthService } from './auth.service';
+import { MdSnackBar } from '@angular/material';
 
 @Component({
   selector: 'app-root',
@@ -15,7 +16,8 @@ export class AppComponent implements OnInit {
   gcsProjectId: string;
 
   constructor(private authService: AuthService,
-              private router: Router, private route: ActivatedRoute) { }
+              private router: Router, private route: ActivatedRoute,
+              private snackBar: MdSnackBar) { }
 
   ngOnInit() {
     this.route.queryParams.subscribe((params: Params) => {
@@ -34,8 +36,8 @@ export class AppComponent implements OnInit {
       if (this.loggedIn) {
         this.userName = this.authService.getCurrentUser().Name;
       }
-    }).catch((err) => {
-      // TODO(b/64808404): Show the error messages in the web console.
+    }).catch((error) => {
+      this.snackBar.open(`There was an error loading your sign in status: ${error.error}`, 'Dismiss');
     });
   }
 
@@ -43,8 +45,8 @@ export class AppComponent implements OnInit {
     this.authService.signOut().then(() => {
       this.loggedIn = false;
       this.router.navigate(['/'], { queryParamsHandling: 'merge' });
-    }).catch((err) => {
-      // TODO(b/64808404): Show the error messages in the web console.
+    }).catch((error) => {
+      this.snackBar.open(`There was an error signing out of your account: ${error.error}`, 'Dismiss');
     });
   }
 
@@ -52,8 +54,8 @@ export class AppComponent implements OnInit {
     this.authService.signIn().then(() => {
       this.loggedIn = true;
       this.userName = this.authService.getCurrentUser().Name;
-    }).catch((err) => {
-      // TODO(b/64808404): Show the error messages in the web console.
+    }).catch((error) => {
+      this.snackBar.open(`There was an error signing into your account: ${error.error}`, 'Dismiss');
     });
   }
 

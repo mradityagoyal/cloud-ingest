@@ -8,6 +8,7 @@ import { AngularMaterialImporterModule } from './angular-material-importer.modul
 import { AuthService } from './auth.service';
 import { UserProfile } from './auth.resources';
 import { NoopAnimationsModule} from '@angular/platform-browser/animations';
+import { MdSnackBar } from '@angular/material';
 import 'rxjs/add/observable/of';
 
 const FAKE_USER = 'Fake User';
@@ -35,7 +36,12 @@ class MockAuthService extends AuthService {
   }
 }
 
+class MdSnackBarStub {
+  open = jasmine.createSpy('open');
+}
+
 let activatedRouteStub: ActivatedRoute;
+let mdSnackBarStub: MdSnackBarStub;
 
 describe('AppComponent', () => {
   const mockAuthService = new MockAuthService();
@@ -44,6 +50,7 @@ describe('AppComponent', () => {
     mockAuthService.isSignedIn = true;
     activatedRouteStub = new ActivatedRoute();
     activatedRouteStub.queryParams = Observable.of({project: 'fakeProjectId'});
+    mdSnackBarStub = new MdSnackBarStub();
 
     TestBed.configureTestingModule({
       declarations: [
@@ -52,6 +59,7 @@ describe('AppComponent', () => {
       providers: [
         {provide: AuthService, useValue: mockAuthService},
         {provide: ActivatedRoute, useValue: activatedRouteStub},
+        {provide: MdSnackBar, useValue: mdSnackBarStub},
       ],
       imports: [
         RouterTestingModule,
@@ -196,4 +204,41 @@ describe('AppComponent', () => {
     });
   }));
 
+  it('should open a snackbar on sign in failure', async(() => {
+    spyOn(mockAuthService, 'signIn').and.returnValue(Promise.reject({error: 'fakeSignInFailedMessage'}));
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.debugElement.componentInstance;
+    app.signIn();
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      expect(mdSnackBarStub.open).toHaveBeenCalled();
+      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('fakeSignInFailedMessage');
+    });
+  }));
+
+  it('should open a snackbar on sign out failure', async(() => {
+    spyOn(mockAuthService, 'signOut').and.returnValue(Promise.reject({error: 'fakeSignOutFailedMessage'}));
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.debugElement.componentInstance;
+    app.signOut();
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      expect(mdSnackBarStub.open).toHaveBeenCalled();
+      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('fakeSignOutFailedMessage');
+    });
+  }));
+
+  it('should open a snackbar on loadSignInStatus failure when initiating the component', async(() => {
+    spyOn(mockAuthService, 'loadSignInStatus').and.returnValue(Promise.reject({error: 'fakeLoadSignInFailMessage'}));
+    const fixture = TestBed.createComponent(AppComponent);
+    const app = fixture.debugElement.componentInstance;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      expect(mdSnackBarStub.open).toHaveBeenCalled();
+      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('fakeLoadSignInFailMessage');
+    });
+  }));
 });

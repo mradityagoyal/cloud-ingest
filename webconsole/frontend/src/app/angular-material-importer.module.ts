@@ -16,7 +16,8 @@ import { MdIconModule,
         MdInputModule,
         MdCheckboxModule,
         MdTableModule,
-        MdProgressSpinnerModule } from '@angular/material';
+        MdProgressSpinnerModule,
+        MdSnackBarModule } from '@angular/material';
 import { CdkTableModule } from '@angular/cdk/table';
 
 @NgModule({
@@ -45,6 +46,7 @@ import { CdkTableModule } from '@angular/cdk/table';
             MdCheckboxModule,
             MdTableModule,
             MdProgressSpinnerModule,
+            MdSnackBarModule,
             CdkTableModule]
 })
 
