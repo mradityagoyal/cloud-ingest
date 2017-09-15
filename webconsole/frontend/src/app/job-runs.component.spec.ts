@@ -4,6 +4,7 @@ import { JobRun } from './api.resources';
 import { JobRunsComponent } from './job-runs.component';
 import { AngularMaterialImporterModule } from './angular-material-importer.module';
 import { Observable } from 'rxjs/Observable';
+import 'rxjs/add/observable/throw';
 import 'rxjs/add/observable/of';
 
 class JobsServiceStub {
@@ -38,6 +39,7 @@ const FAKE_JOB_RUNS: JobRun[] = [
 ];
 
 let jobsServiceStub: JobsServiceStub;
+const FAKE_HTTP_ERROR = {error: 'FakeErrorTitle', message: 'Fake error message.'};
 
 describe('JobRunsComponent', () => {
 
@@ -141,6 +143,31 @@ describe('JobRunsComponent', () => {
       expect(elements[1].innerText).toMatch(/\b\d{1,2}[/]\d{1,2}[/]\d{4}\b/);
       expect(elements[2].innerText).toMatch(/\b\d{1,2}[/]\d{1,2}[/]\d{4}\b/);
       expect(elements[3].innerText).toMatch(/\b\d{1,2}[/]\d{1,2}[/]\d{4}\b/);
+    });
+  }));
+
+  it('should display an error message div', async(() => {
+    const fixture = TestBed.createComponent(JobRunsComponent);
+    jobsServiceStub.getJobRuns.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-error-message');
+      expect(element).not.toBeNull();
+    });
+  }));
+
+  it('should display the error message in the http error response', async(() => {
+    const fixture = TestBed.createComponent(JobRunsComponent);
+    jobsServiceStub.getJobRuns.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-error-message');
+      expect(element.textContent).toContain('FakeErrorTitle');
+      expect(element.textContent).toContain('Fake error message.');
     });
   }));
 });

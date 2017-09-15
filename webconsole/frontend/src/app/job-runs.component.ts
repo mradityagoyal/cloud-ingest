@@ -4,6 +4,7 @@ import { JobRun } from './api.resources';
 import { JobsService } from './jobs.service';
 import { Observable } from 'rxjs/Observable';
 import { DataSource } from '@angular/cdk/collections';
+import { HttpErrorResponse } from '@angular/common/http';
 import 'rxjs/add/observable/of';
 
 @Component({
@@ -15,16 +16,26 @@ import 'rxjs/add/observable/of';
 export class JobRunsComponent implements OnInit {
   displayedColumns = ['runId', 'configId', 'creationTime', 'status'];
   showLoadingSpinner = false;
+  showError = false;
+  errorTitle: string;
+  errorMessage: string;
   jobRunsDataSource: JobRunsDataSource;
 
   constructor(private readonly jobsService: JobsService) { }
 
   ngOnInit() {
     this.showLoadingSpinner = true;
-    this.jobsService.getJobRuns().subscribe(response => {
-      this.jobRunsDataSource = new JobRunsDataSource(response);
-      this.showLoadingSpinner = false;
-    });
+    this.jobsService.getJobRuns().subscribe(
+      (response: JobRun[]) => {
+        this.jobRunsDataSource = new JobRunsDataSource(response);
+        this.showLoadingSpinner = false;
+      },
+      (error: HttpErrorResponse) => {
+        this.errorTitle = error.error;
+        this.errorMessage = error.message;
+        this.showError = true;
+        this.showLoadingSpinner = false;
+      });
   }
 }
 
