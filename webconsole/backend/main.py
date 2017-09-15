@@ -212,6 +212,17 @@ def infrastructure_status(project_id):
     return jsonify(infra_util.infrastructure_status(_get_credentials(),
                                                     project_id))
 
+@APP.route('/projects/<project_id>/create-infrastructure',
+           methods=['OPTIONS', 'POST'])
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
+def create_infrastructure(project_id):
+    """Creates the ingest infrastructure.
+    """
+    # TODO(b/65754348): Creating the infrastructure API may take the resources
+    # (in the request body) to create.
+    infra_util.create_infrastructure(_get_credentials(), project_id)
+    return jsonify({})
+
 def _get_int_param(get_request, param_name):
     """Returns the int GET parameter named param_name from the given request.
 

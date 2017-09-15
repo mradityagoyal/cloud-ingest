@@ -3,8 +3,11 @@
 
 import unittest
 import json
+from util import dict_values_are_recursively
 from util import json_to_dictionary_in_field
 from spannerwrapper import SpannerWrapper
+
+# pylint: disable=too-many-public-methods,invalid-name
 
 JOB_SPEC_1 = {
     u'gcsDirectory': u'/fake/gcs/directory',
@@ -78,6 +81,72 @@ class TestUtil(unittest.TestCase):
         actual_list = json_to_dictionary_in_field(FAKE_JOB_CONFIG_LIST,
             SpannerWrapper.JOB_SPEC)
         self.assertEqual(actual_list, FAKE_JOB_CONFIG_OBJ_LIST)
+
+    def test_dict_values_are_recursively_true(self):
+        """Tests dict_values_are_recursively method returns true."""
+
+        statuses = {
+            'cloudFunctionsStatus': 'NOT_FOUND',
+            'dcpStatus': 'NOT_FOUND',
+            'pubsubStatus': {
+                'list': 'NOT_FOUND',
+                'listProgress': 'NOT_FOUND',
+                'loadBigQuery': 'NOT_FOUND',
+                'loadBigQueryProgress': 'NOT_FOUND',
+                'uploadGCS': 'NOT_FOUND',
+                'uploadGCSProgress': 'NOT_FOUND'
+            },
+            'spannerStatus': 'NOT_FOUND'
+        }
+        self.assertTrue(dict_values_are_recursively(statuses, 'NOT_FOUND'))
+
+        statuses['pubsubStatus']['loadBigQueryProgress'] = 'RUNNING'
+        self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
+
+        statuses['pubsubStatus']['loadBigQueryProgress'] = 'NOT_FOUND'
+        statuses['dcpStatus'] = 'RUNNING'
+        self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
+
+    def test_dict_values_are_recursively_false(self):
+        """Tests dict_values_are_recursively method returns false."""
+        statuses = {
+            "cloudFunctionsStatus": "RUNNING",
+            "dcpStatus": "UNKNOWN",
+            "pubsubStatus": {
+                "list": "RUNNING",
+                "listProgress": "RUNNING",
+                "loadBigQuery": "RUNNING",
+                "loadBigQueryProgress": "RUNNING",
+                "uploadGCS": "RUNNING",
+                "uploadGCSProgress": "RUNNING"
+            },
+            "spannerStatus": "RUNNING"
+        }
+        self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
+
+    def test_dict_values_are_recursively_one_false(self):
+        """Tests dict_values_are_recursively method returns false when there
+        is exactly one value that does not match.
+        """
+
+        statuses = {
+            'cloudFunctionsStatus': 'RUNNING',
+            'dcpStatus': 'NOT_FOUND',
+            'pubsubStatus': {
+                'list': 'NOT_FOUND',
+                'listProgress': 'NOT_FOUND',
+                'loadBigQuery': 'NOT_FOUND',
+                'loadBigQueryProgress': 'NOT_FOUND',
+                'uploadGCS': 'NOT_FOUND',
+                'uploadGCSProgress': 'NOT_FOUND'
+            },
+            'spannerStatus': 'NOT_FOUND'
+        }
+        self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
+
+        statuses['cloudFunctionsStatus'] = 'NOT_FOUND'
+        statuses['pubsubStatus']['loadBigQuery'] = 'RUNNING'
+        self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
 
 
 if __name__ == '__main__':

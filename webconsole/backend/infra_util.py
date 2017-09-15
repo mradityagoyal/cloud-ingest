@@ -16,12 +16,18 @@
 
 from google.cloud import pubsub
 from google.cloud import spanner
+from google.cloud.exceptions import Conflict
+from os import path
 
 from create_infra import constants
 from create_infra import cloud_functions_builder
 from create_infra import compute_builder
 from create_infra import pubsub_builder
 from create_infra import spanner_builder
+from create_infra.resource_status import ResourceStatus
+from util import dict_values_are_recursively
+
+_CURRENT_DIR = path.dirname(path.realpath(__file__))
 
 # The cloud ingest pre-defined topics and subscriptions.
 _TOPICS_SUBSCRIPTIONS = {
@@ -120,3 +126,65 @@ def infrastructure_status(credentials, project_id):
                                                   project_id=project_id)
     return _infrastructure_status_from_bldrs(
         spanner_bldr, pubsub_bldr, functions_bldr, compute_bldr)
+
+def create_infrastructure(credentials, project_id):
+    """Creates the ingest infrastructure. Makes sure that all the infrastructure
+    components does not exist before the creation.
+
+    Args:
+        credentials: The credentials to use for creating the infrastructure.
+        project_id: The project id.
+
+    Raises:
+        Conflict: If any of the infrastructure components exists.
+    """
+    # Creating the builders.
+    spanner_client = spanner.Client(credentials=credentials, project=project_id)
+    spanner_bldr = spanner_builder.SpannerBuilder(constants.SPANNER_INSTANCE,
+                                                  client=spanner_client)
+
+    pubsub_client = pubsub.Client(credentials=credentials, project=project_id)
+    pubsub_bldr = pubsub_builder.PubSubBuilder(client=pubsub_client)
+
+    functions_bldr = cloud_functions_builder.CloudFunctionsBuilder(
+        credentials=credentials, project_id=project_id)
+
+    compute_bldr = compute_builder.ComputeBuilder(credentials=credentials,
+                                                  project_id=project_id)
+
+    # Checking the infrastructure deployment status before creating it.
+    infra_statuses = _infrastructure_status_from_bldrs(
+        spanner_bldr, pubsub_bldr, functions_bldr, compute_bldr)
+    # Make sure all infrastructure components are not found.
+    if not dict_values_are_recursively(infra_statuses,
+                                       ResourceStatus.NOT_FOUND.name):
+        raise Conflict('All the infrastructure resource (Spanner, Pub/Sub, '
+                       'Cloud Functions, and DCP GCE instance) should not '
+                       'exists before creating an infrastructure')
+
+    # Create the spanner instance/database.
+    spanner_bldr.create_instance()
+    spanner_bldr.create_database(
+        constants.SPANNER_DATABASE,
+        path.join(_CURRENT_DIR, 'create_infra/schema.ddl'))
+
+    # Create the topics and subscriptions.
+    for topic_subscriptions in _TOPICS_SUBSCRIPTIONS.itervalues():
+        pubsub_bldr.create_topic_and_subscriptions(
+            topic_subscriptions[0], topic_subscriptions[1])
+
+    # Create the cloud function.
+    function_dir = path.realpath(path.join(
+        _CURRENT_DIR, '../../cloud-functions/gcs-to-bq-importer'))
+    functions_bldr.create_function_async(
+        constants.LOAD_BQ_CLOUD_FN_NAME, function_dir, constants.LOAD_BQ_TOPIC,
+        constants.LOAD_BQ_CLOUD_FN_ENTRY_POINT,
+        constants.LOAD_BQ_CLOUD_FN_TIMEOUT_SECS)
+
+    # Create the DCP GCE instance.
+    # TODO(b/65753224): Support of not creating the DCP GCE as part of the
+    # create infrastructure. This will enable easily creation of dev
+    # environments.
+    compute_bldr.create_instance_async(
+        constants.DCP_INSTANCE_NAME, constants.DCP_INSTANCE_DOCKER_IMAGE,
+        constants.DCP_INSTANCE_CMD_LINE, [project_id])
