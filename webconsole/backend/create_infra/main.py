@@ -144,7 +144,7 @@ def main():
 
     parser.add_argument('--function-name', '-f', type=str,
                         help='Cloud Function name.',
-                        default=constants.LOAD_BQ_CLOUD_FN)
+                        default=constants.LOAD_BQ_CLOUD_FN_NAME)
 
     cloud_function_dir = os.path.realpath(
         os.path.join(DIR, '../../../cloud-functions/gcs-to-bq-importer'))
@@ -166,7 +166,7 @@ def main():
 
     parser.add_argument('--function-entrypoint', '-e', type=str,
                         help='Cloud Function entry point.',
-                        default='GcsToBq')
+                        default=constants.LOAD_BQ_CLOUD_FN_ENTRY_POINT)
 
     parser.add_argument('--cloud-function-timeout', type=str,
                         help='The Cloud Function execution timeout. It '
@@ -174,7 +174,7 @@ def main():
                              'considered timed out. Must be a duration in '
                              'seconds, followed by an s. The default is 9 '
                              'minutes.',
-                        default='540s')
+                        default=constants.LOAD_BQ_CLOUD_FN_TIMEOUT_SECS)
 
     parser.add_argument('--skip-running-dcp', '-sdcp', action='store_true',
                         help='Skip running the DCP in a new VM.',
@@ -182,15 +182,15 @@ def main():
 
     parser.add_argument('--compute-name', '-c', type=str,
                         help='GCE instance name.',
-                        default=constants.DCP_INSTANCE)
+                        default=constants.DCP_INSTANCE_NAME)
 
     parser.add_argument('--compute-container-image', '-i', type=str,
                         help='Container image deployed to the GCE instance.',
-                        default='gcr.io/mbassiouny-test/cloud-ingest:dcp')
+                        default=constants.DCP_INSTANCE_DOCKER_IMAGE)
 
     parser.add_argument('--compute-cmd', '-l', type=str,
                         help='Command line to run in the container.',
-                        default='/cloud-ingest/dcpmain')
+                        default=constants.DCP_INSTANCE_CMD_LINE)
 
     parser.add_argument('--compute-args', '-a', type=str, nargs='+',
                         help='Command line arguments running in the container.',

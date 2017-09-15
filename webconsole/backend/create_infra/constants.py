@@ -36,8 +36,13 @@ LOAD_BQ_SUBSCRIPTION = LOAD_BQ_TOPIC
 LOAD_BQ_PROGRESS_TOPIC = 'cloud-ingest-loadbigquery-progress'
 LOAD_BQ_PROGRESS_SUBSCRIPTION = LOAD_BQ_PROGRESS_TOPIC
 
-# Cloud ingest infra-structure default cloud function name.
-LOAD_BQ_CLOUD_FN = 'cloud-ingest-gcs_to_bq_importer'
+# Cloud ingest infra-structure default cloud function params.
+LOAD_BQ_CLOUD_FN_NAME = 'cloud-ingest-gcs_to_bq_importer'
+LOAD_BQ_CLOUD_FN_ENTRY_POINT = 'GcsToBq'
+LOAD_BQ_CLOUD_FN_TIMEOUT_SECS = '540s'
 
-# Cloud ingest infra-structure default DCP GCE instance name.
-DCP_INSTANCE = 'cloud-ingest-dcp'
+# Cloud ingest infra-structure default DCP GCE instance params.
+DCP_INSTANCE_NAME = 'cloud-ingest-dcp'
+# TODO(b/63626194): Change with google official container registry.
+DCP_INSTANCE_DOCKER_IMAGE = 'gcr.io/mbassiouny-test/cloud-ingest:dcp'
+DCP_INSTANCE_CMD_LINE = '/cloud-ingest/dcpmain'
