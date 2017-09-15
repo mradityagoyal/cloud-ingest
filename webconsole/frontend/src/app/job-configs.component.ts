@@ -15,7 +15,7 @@ export class JobConfigsComponent implements OnInit {
   jobConfigs: JobConfig[];
   showLoadingSpinner = false;
   errorMessage: string;
-  errorStatusText: string;
+  errorTitle: string;
   displayErrorMessage = false;
 
   constructor(
@@ -35,7 +35,7 @@ export class JobConfigsComponent implements OnInit {
         this.showLoadingSpinner = false;
       },
       (error: HttpErrorResponse) => {
-        this.errorStatusText = error.statusText;
+        this.errorTitle = error.error;
         this.errorMessage = error.message;
         this.displayErrorMessage = true;
         this.showLoadingSpinner = false;

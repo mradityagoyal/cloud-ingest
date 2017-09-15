@@ -33,7 +33,7 @@ const FAKE_JOB_CONFIGS: JobConfig[] = [
   }
 ];
 
-const FAKE_HTTP_ERROR = {message: 'fakeErrorText', statusText: 'fakeStatusText'};
+const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
 
 let jobsServiceStub: JobsServiceStub;
 
@@ -174,8 +174,8 @@ describe('JobConfigsComponent', () => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
       const element = compiled.querySelector('.ingest-error-message');
+      expect(element.innerText).toContain('Fake error message.');
       expect(element.innerText).toContain('fakeErrorText');
-      expect(element.innerText).toContain('fakeStatusText');
     });
   }));
 });
