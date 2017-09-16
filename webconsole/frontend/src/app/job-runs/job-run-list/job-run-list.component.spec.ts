@@ -2,6 +2,7 @@ import { TestBed, async } from '@angular/core/testing';
 import { JobsService } from '../../jobs.service';
 import { JobRun } from '../../api.resources';
 import { JobRunListComponent } from './job-run-list.component';
+import { JobStatusPipe } from '../job-status.pipe';
 import { AngularMaterialImporterModule } from '../../angular-material-importer.module';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/observable/throw';
@@ -49,7 +50,8 @@ describe('JobRunListComponent', () => {
 
     TestBed.configureTestingModule({
       declarations: [
-        JobRunListComponent
+        JobRunListComponent,
+        JobStatusPipe
       ],
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},
@@ -125,8 +127,8 @@ describe('JobRunListComponent', () => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
       const elements = compiled.querySelectorAll('md-row');
-      expect(elements[0].innerText).toContain('Unqueued');
-      expect(elements[1].innerText).toContain('Queued');
+      expect(elements[0].innerText).toContain('Not Started');
+      expect(elements[1].innerText).toContain('In Progress');
       expect(elements[2].innerText).toContain('Failed');
       expect(elements[3].innerText).toContain('Success');
     });

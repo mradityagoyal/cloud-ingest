@@ -8,6 +8,7 @@ import { AngularMaterialImporterModule } from '../angular-material-importer.modu
 import { JobsService } from '../jobs.service';
 import { JobRunListComponent } from './job-run-list/job-run-list.component';
 import { CreateRunComponent } from './create-run/create-run.component';
+import { JobStatusPipe } from './job-status.pipe';
 
 import { JobRunsRoutingModule } from './job-runs-routing.module'
 
@@ -23,7 +24,8 @@ import { JobRunsRoutingModule } from './job-runs-routing.module'
   ],
   declarations: [
     JobRunListComponent,
-    CreateRunComponent
+    CreateRunComponent,
+    JobStatusPipe
   ],
   providers: [ JobsService ]
 })

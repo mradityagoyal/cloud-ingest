@@ -34,15 +34,7 @@
       <ng-container mdColumnDef="status">
         <md-header-cell *mdHeaderCellDef> Status </md-header-cell>
         <md-cell *mdCellDef="let jobRun">
-          <!--
-            TODO(b/64680346): Status name should be read from protocol buffer.
-          -->
-          <ng-container [ngSwitch]="jobRun.Status">
-            <ng-container *ngSwitchCase="0">Unqueued</ng-container>
-            <ng-container *ngSwitchCase="1">Queued</ng-container>
-            <ng-container *ngSwitchCase="2">Failed</ng-container>
-            <ng-container *ngSwitchCase="3">Success</ng-container>
-          </ng-container>
+          {{ jobRun.Status | jobStatus }}
         </md-cell>
       </ng-container>
       <md-header-row *mdHeaderRowDef="displayedColumns"></md-header-row>
