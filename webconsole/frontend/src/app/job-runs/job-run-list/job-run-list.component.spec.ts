@@ -147,7 +147,7 @@ describe('JobRunListComponent', () => {
   }));
 
   it('should display an error message div', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     jobsServiceStub.getJobRuns.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
@@ -159,7 +159,7 @@ describe('JobRunListComponent', () => {
   }));
 
   it('should display the error message in the http error response', async(() => {
-    const fixture = TestBed.createComponent(JobRunsComponent);
+    const fixture = TestBed.createComponent(JobRunListComponent);
     jobsServiceStub.getJobRuns.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
