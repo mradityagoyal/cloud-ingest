@@ -27,6 +27,7 @@ from gaxerrordecorator import handle_common_gax_errors
 
 from create_infra.job_utilities import TASK_STATUS_UNQUEUED
 from create_infra.job_utilities import TASK_TYPE_LIST
+from create_infra.job_utilities import JOB_STATUS_IN_PROGRESS
 
 
 class SpannerWrapper(object):
@@ -155,8 +156,11 @@ class SpannerWrapper(object):
             "tasksCompleted": 0,
             "tasksFailed": 0
         }
-        values = [config_id, run_id, 1, self._get_unix_nano(),
-                  json.dumps(progress)]
+        # The job status is set to in progress because the first list
+        # task is manually inserted. When the logic in the DCP is changed,
+        # new jobs should be inserted with a status of not started.
+        values = [config_id, run_id, JOB_STATUS_IN_PROGRESS,
+                  self._get_unix_nano(), json.dumps(progress)]
 
         self.insert(SpannerWrapper.JOB_RUNS_TABLE,
                     SpannerWrapper.JOB_RUNS_COLUMNS, values)

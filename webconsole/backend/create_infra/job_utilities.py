@@ -26,6 +26,9 @@ TASK_STATUS_SUCCESS = 3
 
 TASK_TYPE_LIST = 1
 
+JOB_STATUS_IN_PROGRESS = 1
+
+
 
 def jobs_have_completed(database):
     """Check whether all jobs in the systems have completed."""
@@ -59,9 +62,9 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
             values=[(config_name, json.dumps(job_spec))])
 
         job_progress = {
-          'totalTasks': 1, # Start with 1 because list task is manually inserted
-          'tasksCompleted': 0,
-          'tasksFailed': 0
+            'totalTasks': 1, # Start with 1 b/c list task is manually inserted
+            'tasksCompleted': 0,
+            'tasksFailed': 0
         }
 
         # Adding a job run.
@@ -69,8 +72,12 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
             table='JobRuns',
             columns=('JobConfigId',
                      'JobRunId',
+                     'Status',
                      'Progress'),
-            values=[(config_name, run_name, json.dumps(job_progress))]
+            values=[(
+                config_name, run_name, JOB_STATUS_IN_PROGRESS,
+                json.dumps(job_progress)
+            )]
         )
 
         # Adding the listing task

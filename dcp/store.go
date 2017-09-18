@@ -208,6 +208,7 @@ func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
 		"JobConfigId",
 		"JobRunId",
 		"Progress",
+		"Status",
 	}
 
 	keys := spanner.KeySets()
@@ -229,6 +230,11 @@ func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
 		if err != nil {
 			return err
 		}
+		var oldStatus int64
+		err = row.ColumnByName("Status", &oldStatus)
+		if err != nil {
+			return err
+		}
 
 		// Update totalTasks and create mutation
 		deltaObj := progressDeltas[fullJobId]
@@ -237,14 +243,31 @@ func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
 		if err != nil {
 			return err
 		}
+
+		jobInsertColumns := []string{
+			"JobConfigId",
+			"JobRunId",
+			"Progress",
+		}
+
+		jobInsertValues := []interface{}{
+			fullJobId.JobConfigId,
+			fullJobId.JobRunId,
+			string(progressBytes),
+		}
+
+		// Check if status changed
+		newStatus := progressObj.GetJobStatus()
+		if newStatus != oldStatus {
+			// Job status has changed, add the update to the mutation params
+			jobInsertColumns = append(jobInsertColumns, "Status")
+			jobInsertValues = append(jobInsertValues, newStatus)
+		}
+
 		return txn.BufferWrite([]*spanner.Mutation{spanner.Update(
 			"JobRuns",
-			jobColumns,
-			[]interface{}{
-				fullJobId.JobConfigId,
-				fullJobId.JobRunId,
-				string(progressBytes),
-			},
+			jobInsertColumns,
+			jobInsertValues,
 		)})
 	})
 }

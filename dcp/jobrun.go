@@ -76,3 +76,18 @@ func (j *JobProgressSpec) ApplyDelta(deltaObj *JobProgressDelta) {
 	j.TasksCompleted += deltaObj.TasksCompleted
 	j.TasksFailed += deltaObj.TasksFailed
 }
+
+// GetJobStatus returns the status of the job with this ProgressSpec
+func (j *JobProgressSpec) GetJobStatus() int64 {
+	var status int64
+	if j.TotalTasks == 0 {
+		status = JobNotStarted
+	} else if j.TotalTasks == j.TasksCompleted {
+		status = JobSuccess
+	} else if j.TotalTasks == (j.TasksCompleted + j.TasksFailed) {
+		status = JobFailed
+	} else {
+		status = JobInProgress
+	}
+	return status
+}

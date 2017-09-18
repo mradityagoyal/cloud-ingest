@@ -6,7 +6,7 @@ CREATE TABLE JobConfigs (
 CREATE TABLE JobRuns (
      JobConfigId STRING(MAX) NOT NULL,
      JobRunId STRING(MAX) NOT NULL,
-     Status INT64,
+     Status INT64 NOT NULL,
      JobCreationTime INT64,
      Progress STRING(MAX) NOT NULL,
    ) PRIMARY KEY(JobConfigId, JobRunId),
