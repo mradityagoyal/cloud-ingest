@@ -25,10 +25,11 @@ from corsdecorator import crossdomain  # To allow requests from the front-end
 from flask import Flask
 from flask import jsonify
 from flask import request
-from google.cloud.exceptions import Forbidden
-from google.cloud.exceptions import Unauthorized
-from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import Conflict
+from google.cloud.exceptions import NotFound
+from google.cloud.exceptions import Forbidden
+from google.cloud.exceptions import PreconditionFailed
+from google.cloud.exceptions import Unauthorized
 from google.oauth2.credentials import Credentials
 
 import infra_util
@@ -285,44 +286,19 @@ def value_error(error):
     return jsonify(response), httplib.BAD_REQUEST
 
 @APP.errorhandler(Conflict)
-def conflict_handler(error):
-    """Handles any uncaught conflict errors."""
-    logging.info('A request resulted in a conflict: %s', str(error))
-    response = {
-        'error': 'Conflict',
-        'message': str(error.message)
-    }
-    return jsonify(response), httplib.CONFLICT
-
-@APP.errorhandler(Unauthorized)
-def unauthorized_handler(error):
-    """Handles any uncaught Unauthorized errors."""
-    logging.info('A unauthorized request was made: %s', str(error))
-    response = {
-        'error': 'Unauthorized',
-        'message': str(error.message)
-    }
-    return jsonify(response), httplib.UNAUTHORIZED
-
 @APP.errorhandler(Forbidden)
-def forbidden_handler(error):
-    """Handles any uncaught Unauthorized errors."""
-    logging.info('A forbidden request was made: %s', str(error))
-    response = {
-        'error': 'Forbidden',
-        'message': str(error.message)
-    }
-    return jsonify(response), httplib.FORBIDDEN
-
 @APP.errorhandler(NotFound)
-def not_found_handler(error):
-    """Handles any uncaught NotFound errors."""
-    logging.info('A request was made for an unknown resource: %s', str(error))
+@APP.errorhandler(PreconditionFailed)
+@APP.errorhandler(Unauthorized)
+def google_exception_handler(error):
+    """Handles any google exception errors."""
+    logging.info('A request resulted in a error code %d with message: %s',
+                 error.code, str(error))
     response = {
-        'error': 'NotFound',
+        'error': httplib.responses[error.code],
         'message': str(error.message)
     }
-    return jsonify(response), httplib.NOT_FOUND
+    return jsonify(response), error.code
 
 @APP.errorhandler(httplib.NOT_FOUND)
 def bad_url(error):
