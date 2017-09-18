@@ -277,6 +277,8 @@ def _get_int_param(get_request, param_name):
                          "Current value: %s" % (param_name, value))
 
 @APP.errorhandler(httplib.INTERNAL_SERVER_ERROR)
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS,
+             methods=['GET', 'OPTIONS', 'POST'])
 def server_error(error):
     """Handles any 500 (Internal Server Error) response.
 
@@ -292,6 +294,8 @@ def server_error(error):
     return jsonify(response), httplib.INTERNAL_SERVER_ERROR
 
 @APP.errorhandler(ValueError)
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS,
+             methods=['GET', 'OPTIONS', 'POST'])
 def value_error(error):
     """Handles any uncaught value errors."""
     logging.info('A bad request was made: %s', str(error))
@@ -306,6 +310,8 @@ def value_error(error):
 @APP.errorhandler(NotFound)
 @APP.errorhandler(PreconditionFailed)
 @APP.errorhandler(Unauthorized)
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS,
+             methods=['GET', 'OPTIONS', 'POST'])
 def google_exception_handler(error):
     """Handles any google exception errors."""
     logging.info('A request resulted in a error code %d with message: %s',
@@ -317,6 +323,8 @@ def google_exception_handler(error):
     return jsonify(response), error.code
 
 @APP.errorhandler(httplib.NOT_FOUND)
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS,
+             methods=['GET', 'OPTIONS', 'POST'])
 def bad_url(error):
     """ Handles 404 Not Found errors caused by a bad request url"""
     # pylint: disable=unused-argument
