@@ -47,6 +47,12 @@ _ALLOWED_HEADERS = ['Content-Type', 'Authorization']
 
 _AUTH_HEADER_REGEX = re.compile(r'^\s*Bearer\s+(?P<access_token>[^\s]*)$')
 
+# TODO(b/65846311): Temporary constants used to create the job run and first
+# list task when a job config is created. Eventually DCP should manage
+# scheduling/creating job runs and first listing tasks.
+_FIRST_JOB_RUN_ID = "first-job-run"
+_LIST_TASK_ID = "list"
+
 def _get_credentials():
     """Gets OAuth2 credentials from request Authorization headers."""
     auth_header = request.headers.get('Authorization')
@@ -90,6 +96,16 @@ def job_configs(project_id):
 
         spanner_wrapper.create_job_config(content['JobConfigId'],
                                           content['JobSpec'])
+
+        # TODO(b/65846311): The web console should not schedule the job runs and
+        # should not create the first task. Remove that after the functionality
+        # is added to the DCP.
+        spanner_wrapper.create_job_run(
+            content['JobConfigId'], _FIRST_JOB_RUN_ID)
+        spanner_wrapper.create_job_run_first_list_task(
+            content['JobConfigId'], _FIRST_JOB_RUN_ID, _LIST_TASK_ID,
+            content['JobSpec'])
+
         created_config = spanner_wrapper.get_job_config(
             content['JobConfigId'])
         return jsonify(created_config), httplib.CREATED

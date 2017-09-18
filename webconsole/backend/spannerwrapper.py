@@ -18,11 +18,15 @@ also writes new JobConfigs and JobRuns. All data passed to and from the
 client is in JSON format and stored in a dictionary.
 """
 import json
+import os
 import time
 import util
 from google.cloud import spanner
 from google.cloud.proto.spanner.v1 import type_pb2
 from gaxerrordecorator import handle_common_gax_errors
+
+from create_infra.job_utilities import TASK_STATUS_UNQUEUED
+from create_infra.job_utilities import TASK_TYPE_LIST
 
 
 class SpannerWrapper(object):
@@ -49,13 +53,13 @@ class SpannerWrapper(object):
 
     TASKS_TABLE = "Tasks"
     TASK_ID = "TaskId"
-    FAILURE_MESSAGE = "FailureMessage"
+    TASK_CREATION_TIME = "CreationTime"
     LAST_MODIFICATION_TIME = "LastModificationTime"
     TASK_SPEC = "TaskSpec"
-    WORKER_ID = "WorkerId"
+    TASK_TYPE = "TaskType"
     TASKS_COLUMNS = [
-        JOB_CONFIG_ID, JOB_RUN_ID, TASK_ID, FAILURE_MESSAGE,
-        LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, WORKER_ID
+        JOB_CONFIG_ID, JOB_RUN_ID, TASK_ID, TASK_CREATION_TIME,
+        LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, TASK_TYPE
     ]
 
     # Used to limit the number of rows to avoid OOM errors
@@ -156,6 +160,48 @@ class SpannerWrapper(object):
 
         self.insert(SpannerWrapper.JOB_RUNS_TABLE,
                     SpannerWrapper.JOB_RUNS_COLUMNS, values)
+
+    def create_job_run_first_list_task(self, config_id, run_id, task_id,
+                                       job_spec):
+        """DO NOT USE, only intended for temporary use by flask app job_configs
+        handler method in main.py. Creates the first listing task for a job run.
+
+        TODO(b/65846311): The web console should not schedule the job runs and
+        should not create the first task. Remove this method after the
+        functionality is added to the DCP.
+        """
+        config_id = unicode(config_id)
+        run_id = unicode(run_id)
+        task_id = unicode(task_id)
+
+        job_spec_dict = json.loads(job_spec)
+
+        list_result_object_name = os.path.join(
+            job_spec_dict['gcsDirectory'],
+            'list-task-output-%s-%s-%s' % (config_id,
+                                           run_id,
+                                           task_id))
+        task_spec = {
+            'src_directory': job_spec_dict['onPremSrcDirectory'],
+            'dst_list_result_bucket': job_spec_dict['gcsBucket'],
+            'dst_list_result_object': list_result_object_name,
+        }
+
+        current_time_nanos = self._get_unix_nano()
+
+        values = [
+            config_id,
+            run_id,
+            task_id,
+            current_time_nanos,
+            current_time_nanos,
+            TASK_STATUS_UNQUEUED,
+            json.dumps(task_spec).encode('utf-8'),
+            TASK_TYPE_LIST,
+        ]
+
+        self.insert(SpannerWrapper.TASKS_TABLE,
+                    SpannerWrapper.TASKS_COLUMNS, values)
 
     def get_job_runs(self, max_num_runs, created_before=None):
         """Retrieves job runs from Cloud Spanner.
