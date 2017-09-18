@@ -105,7 +105,7 @@ def _delete_function_bucket(client, source_archive_url):
     blob = bucket.blob(object_name)
     try:
         blob.delete()
-    except exceptions.NOT_FOUND:
+    except exceptions.NotFound:
         print('Cloud Function source archive URL {} does not exist, '
               'skipping delete.'.format(source_archive_url))
 
