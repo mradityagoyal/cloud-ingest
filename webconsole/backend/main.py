@@ -171,7 +171,8 @@ def job_run(project_id, config_id, run_id):
                         " run_id: %s") % (config_id, run_id))
     return jsonify(result), httplib.OK
 
-@APP.route('/projects/<project_id>/tasks/<config_id>/<run_id>', methods=['GET'])
+@APP.route('/projects/<project_id>/tasks/<config_id>/<run_id>',
+           methods=['OPTIONS', 'GET'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def tasks(project_id, config_id, run_id):
     """Handles GET requests for tasks.
@@ -215,7 +216,8 @@ def tasks(project_id, config_id, run_id):
         task_type=task_type
     ))
 
-@APP.route('/projects/<project_id>/infrastructure-status', methods=['GET'])
+@APP.route('/projects/<project_id>/infrastructure-status',
+           methods=['OPTIONS', 'GET'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def infrastructure_status(project_id):
     """Gets the ingest infrastructure status.
