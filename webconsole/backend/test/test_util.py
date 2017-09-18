@@ -3,9 +3,11 @@
 
 import unittest
 import json
+
+from spannerwrapper import SpannerWrapper
+from util import dict_has_values_recursively
 from util import dict_values_are_recursively
 from util import json_to_dictionary_in_field
-from spannerwrapper import SpannerWrapper
 
 # pylint: disable=too-many-public-methods,invalid-name
 
@@ -147,6 +149,69 @@ class TestUtil(unittest.TestCase):
         statuses['cloudFunctionsStatus'] = 'NOT_FOUND'
         statuses['pubsubStatus']['loadBigQuery'] = 'RUNNING'
         self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
+
+    def test_dict_has_values_recursively_false(self):
+        """Tests dict_has_values_recursively method returns false."""
+
+        statuses = {
+            'cloudFunctionsStatus': 'RUNNING',
+            'dcpStatus': 'UNKNOWN',
+            'pubsubStatus': {
+                'list': 'NOT_FOUND',
+                'listProgress': 'RUNNING',
+                'loadBigQuery': 'UNKNOWN',
+                'loadBigQueryProgress': 'NOT_FOUND',
+                'uploadGCS': 'RUNNING',
+                'uploadGCSProgress': 'UNKNOWN'
+            },
+            'spannerStatus': 'NOT_FOUND'
+        }
+        self.assertFalse(dict_has_values_recursively(
+            statuses, set(['DEPLOYING', 'DELETING'])))
+
+    def test_dict_has_values_recursively_true(self):
+        """Tests dict_has_values_recursively method returns true."""
+
+        statuses = {
+            'cloudFunctionsStatus': 'RUNNING',
+            'dcpStatus': 'DEPLOYING',
+            'pubsubStatus': {
+                'list': 'NOT_FOUND',
+                'listProgress': 'RUNNING',
+                'loadBigQuery': 'DELETING',
+                'loadBigQueryProgress': 'NOT_FOUND',
+                'uploadGCS': 'RUNNING',
+                'uploadGCSProgress': 'UNKNOWN'
+            },
+            'spannerStatus': 'NOT_FOUND'
+        }
+        self.assertTrue(dict_has_values_recursively(
+            statuses, set(['DEPLOYING', 'DELETING'])))
+
+    def test_dict_has_values_recursively_one_true(self):
+        """Tests dict_has_values_recursively method returns true when there is
+        exactly one value that matches."""
+
+        statuses = {
+            'cloudFunctionsStatus': 'RUNNING',
+            'dcpStatus': 'DEPLOYING',
+            'pubsubStatus': {
+                'list': 'NOT_FOUND',
+                'listProgress': 'RUNNING',
+                'loadBigQuery': 'NOT_FOUND',
+                'loadBigQueryProgress': 'NOT_FOUND',
+                'uploadGCS': 'RUNNING',
+                'uploadGCSProgress': 'UNKNOWN'
+            },
+            'spannerStatus': 'NOT_FOUND'
+        }
+        self.assertTrue(dict_has_values_recursively(
+            statuses, set(['DEPLOYING', 'DELETING'])))
+
+        statuses['dcpStatus'] = 'RUNNING'
+        statuses['pubsubStatus']['listProgress'] = 'DELETING'
+        self.assertTrue(dict_has_values_recursively(
+            statuses, set(['DEPLOYING', 'DELETING'])))
 
 
 if __name__ == '__main__':

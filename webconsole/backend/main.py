@@ -223,6 +223,17 @@ def create_infrastructure(project_id):
     infra_util.create_infrastructure(_get_credentials(), project_id)
     return jsonify({})
 
+@APP.route('/projects/<project_id>/tear-down-infrastructure',
+           methods=['OPTIONS', 'POST'])
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
+def tear_infrastructure(project_id):
+    """Tears down the ingest infrastructure.
+    """
+    # TODO(b/65754348): Tearing the infrastructure API may take the resources
+    # (in the request body) to tear down.
+    infra_util.tear_infrastructure(_get_credentials(), project_id)
+    return jsonify({})
+
 def _get_int_param(get_request, param_name):
     """Returns the int GET parameter named param_name from the given request.
 

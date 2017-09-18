@@ -17,6 +17,7 @@
 from google.cloud import pubsub
 from google.cloud import spanner
 from google.cloud.exceptions import Conflict
+from google.cloud.exceptions import PreconditionFailed
 from os import path
 
 from create_infra import constants
@@ -25,6 +26,7 @@ from create_infra import compute_builder
 from create_infra import pubsub_builder
 from create_infra import spanner_builder
 from create_infra.resource_status import ResourceStatus
+from util import dict_has_values_recursively
 from util import dict_values_are_recursively
 
 _CURRENT_DIR = path.dirname(path.realpath(__file__))
@@ -188,3 +190,54 @@ def create_infrastructure(credentials, project_id):
     compute_bldr.create_instance_async(
         constants.DCP_INSTANCE_NAME, constants.DCP_INSTANCE_DOCKER_IMAGE,
         constants.DCP_INSTANCE_CMD_LINE, [project_id])
+
+def tear_infrastructure(credentials, project_id):
+    """Tears the ingest infrastructure. Makes sure that all the infrastructure
+    components are not deploying or deleting before tearing down.
+
+    Args:
+        credentials: The credentials to use for tearing the infrastructure.
+        project_id: The project id.
+
+    Raises:
+        PreconditionFailed: If any of the infrastructure components is deploying
+            or deleting.
+    """
+    # Creating the builders.
+    spanner_client = spanner.Client(credentials=credentials, project=project_id)
+    spanner_bldr = spanner_builder.SpannerBuilder(constants.SPANNER_INSTANCE,
+                                                  client=spanner_client)
+
+    pubsub_client = pubsub.Client(credentials=credentials, project=project_id)
+    pubsub_bldr = pubsub_builder.PubSubBuilder(client=pubsub_client)
+
+    functions_bldr = cloud_functions_builder.CloudFunctionsBuilder(
+        credentials=credentials, project_id=project_id)
+
+    compute_bldr = compute_builder.ComputeBuilder(credentials=credentials,
+                                                  project_id=project_id)
+
+    # Checking the infrastructure deployment status before creating it.
+    infra_statuses = _infrastructure_status_from_bldrs(
+        spanner_bldr, pubsub_bldr, functions_bldr, compute_bldr)
+    # Make sure all infrastructure components are not deploying or deleting.
+    if dict_has_values_recursively(infra_statuses,
+                                   set([ResourceStatus.DEPLOYING.name,
+                                        ResourceStatus.DELETING.name])):
+        raise PreconditionFailed(
+            'All the infrastructure resources (Spanner, Pub/Sub, Cloud '
+            'Functions, and DCP GCE instance) should not be deploying or '
+            'deleting when tearing down infrastructure.')
+
+    # Delete the spanner instance.
+    spanner_bldr.delete_instance()
+
+    # Delete the topics and subscriptions.
+    for topic_subscriptions in _TOPICS_SUBSCRIPTIONS.itervalues():
+        pubsub_bldr.delete_topic_and_subscriptions(topic_subscriptions[0])
+
+    # Delete the cloud function.
+    functions_bldr.delete_function_async(constants.LOAD_BQ_CLOUD_FN_NAME)
+
+    # Delete the DCP GCE instance.
+    compute_bldr.delete_instance_async(constants.DCP_INSTANCE_NAME)
