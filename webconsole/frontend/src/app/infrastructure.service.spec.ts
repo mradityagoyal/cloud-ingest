@@ -136,6 +136,38 @@ describe('InfrastructureService', () => {
     httpMock.verify();
   }));
 
+  it('should post to the create infrastructure url once',
+    inject([HttpClient, HttpTestingController], (http: HttpClient, httpMock: HttpTestingController) => {
+    const infrastructureService = new InfrastructureService(http, activatedRouteStub);
+    let actualResponse: any;
+    infrastructureService.postCreateInfrastructure().subscribe(
+      (response) => {
+        actualResponse = response;
+      },
+      (error) => {
+        // should not be called
+      });
+    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/create-infrastructure`).flush({});
+    expect(actualResponse).toEqual({});
+    httpMock.verify();
+  }));
+
+  it('should post to the tear down infrastructure url once',
+    inject([HttpClient, HttpTestingController], (http: HttpClient, httpMock: HttpTestingController) => {
+    const infrastructureService = new InfrastructureService(http, activatedRouteStub);
+    let actualResponse: any;
+    infrastructureService.postTearDownInfrastructure().subscribe(
+      (response) => {
+        actualResponse = response;
+      },
+      (error) => {
+        // should not be called
+      });
+    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tear-down-infrastructure`).flush({});
+    expect(actualResponse).toEqual({});
+    httpMock.verify();
+  }));
+
   it('isInfrastructureOk should return true', inject([HttpClient, HttpTestingController],
     (http: HttpClient, httpMock: HttpTestingController) => {
     expect(InfrastructureService.isInfrastructureOk(FAKE_INFRA_STATUS_RUNNING)).toEqual(true);

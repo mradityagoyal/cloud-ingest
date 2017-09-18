@@ -5,7 +5,9 @@ import { InfrastructureComponent } from './infrastructure.component';
 import { AngularMaterialImporterModule } from './angular-material-importer.module';
 import { InfrastructureStatusItemComponent } from './infrastructure-status-item.component';
 import { Observable } from 'rxjs/Observable';
+import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { HttpErrorResponse } from '@angular/common/http';
+import { MdSnackBar } from '@angular/material';
 import 'rxjs/add/observable/throw';
 import 'rxjs/add/observable/of';
 import 'rxjs/add/observable/never';
@@ -13,6 +15,12 @@ import 'rxjs/add/observable/never';
 
 class InfrastructureServiceStub {
   public getInfrastructureStatus = jasmine.createSpy('getInfrastructureStatus');
+  public postCreateInfrastructure = jasmine.createSpy('postCreateInfrastructure');
+  public postTearDownInfrastructure = jasmine.createSpy('postTearDownInfrastructure');
+}
+
+class MdSnackBarStub {
+  open = jasmine.createSpy('open');
 }
 
 const FAKE_PUBSUB_STATUS_RUNNING: PubsubStatus = {
@@ -129,13 +137,18 @@ const FAKE_INFRA_STATUS_NOT_DETERMINED: InfrastructureStatus = {
 
 const FAKE_HTTP_ERROR = {error: 'FakeError', message: 'Fake Error Message.'};
 
+let internalObservableCreateSpy: any;
+
 let infrastructureServiceStub: InfrastructureServiceStub;
+let mdSnackBarStub: MdSnackBarStub;
 
 describe('InfrastructureComponent', () => {
 
   beforeEach(async(() => {
     infrastructureServiceStub = new InfrastructureServiceStub();
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
+    internalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
+    mdSnackBarStub = new MdSnackBarStub();
 
     TestBed.configureTestingModule({
       declarations: [
@@ -144,6 +157,7 @@ describe('InfrastructureComponent', () => {
       ],
       providers: [
         {provide: InfrastructureService, useValue: infrastructureServiceStub},
+        {provide: MdSnackBar, useValue: mdSnackBarStub},
       ],
       imports: [
         AngularMaterialImporterModule
@@ -160,8 +174,8 @@ describe('InfrastructureComponent', () => {
   it('should initialize the infrastructure component with the expected initial values', async(() => {
     const fixture = TestBed.createComponent(InfrastructureComponent);
     const component = fixture.debugElement.componentInstance;
-    expect(component.showUpdateInfrastructureError).toEqual(false);
-    expect(component.showUpdateInfrastructureLoading).toEqual(false);
+    expect(component.showLoadInfrastructureError).toEqual(false);
+    expect(component.showInfrastructureStatusLoading).toEqual(false);
     expect(component.showInfrastructureNotFound).toEqual(false);
     expect(component.showInfrastructureStatusOk).toEqual(false);
     expect(component.showInfrastructureDeploying).toEqual(false);
@@ -169,6 +183,8 @@ describe('InfrastructureComponent', () => {
     expect(component.showInfrastructureFailed).toEqual(false);
     expect(component.showInfrastructureUnknown).toEqual(false);
     expect(component.showCouldNotDetermineInfrastructure).toEqual(false);
+    expect(component.createInfrastructureDisabled).toEqual(false);
+    expect(component.tearDownDisabled).toEqual(false);
   }));
 
   it('should show a loading spinner while infrastructure status is loading', async(() => {
@@ -317,6 +333,117 @@ describe('InfrastructureComponent', () => {
       const compiled = fixture.debugElement.nativeElement;
       const element = compiled.querySelector('.ingest-infrastructure-not-determined');
       expect(element).not.toBeNull();
+    });
+  }));
+
+  it('should display the infrastructure not determined div', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_DETERMINED));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-infrastructure-not-determined');
+      expect(element).not.toBeNull();
+    });
+  }));
+
+  it('should display the create infrastructure and tear down infrastructure buttons', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      expect(compiled.querySelector('.ingest-create-infrastructure')).not.toBeNull();
+      expect(compiled.querySelector('.ingest-tear-down-infrastructure')).not.toBeNull();
+    });
+  }));
+
+  it('should call the post create infrastructure method on service', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_FOUND));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-create-infrastructure');
+      element.click();
+      expect(infrastructureServiceStub.postCreateInfrastructure).toHaveBeenCalled();
+    });
+  }));
+
+  it('should call the tear down infrastructure method on service', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-tear-down-infrastructure');
+      element.click();
+      expect(infrastructureServiceStub.postTearDownInfrastructure).toHaveBeenCalled();
+    });
+  }));
+
+  /**
+   * TODO(b/65848519): Instead of spying on IntervalTimer, should use TestScheduler to test
+   *     polling.
+   */
+  it('should get the infrastructure status four times when the infrastructure is deploying', async(() => {
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DEPLOYING));
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    const component = fixture.debugElement.componentInstance;
+    // It should poll the infrastructure three times
+    internalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      // There should have been four calls: one initial getInfrastructureStatus + 3 polling calls
+      expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(4);
+    });
+  }));
+
+  it('should get the infrastructure status four times when the infrastructure is DELETING', async(() => {
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DELETING));
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    const component = fixture.debugElement.componentInstance;
+    // It should poll the infrastructure three times
+    internalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      // There should have been four calls: one initial getInfrastructureStatus + 3 polling calls
+      expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(4);
+    });
+  }));
+
+  it('should get the infrastructure once if the infrastructure is not deploying or deleting', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    const component = fixture.debugElement.componentInstance;
+    // It should poll the infrastructure three times
+    internalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      // There should just be one call, the initial call and no polling calls.
+      expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(1);
+    });
+  }));
+
+  it('should open a snackbar with the error when polling the infrastructure status', async(() => {
+    const infrastructureStatusObservable = Observable.create((observer) => {
+          observer.next(FAKE_INFRA_STATUS_DEPLOYING);
+          observer.error(FAKE_HTTP_ERROR);
+        });
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(infrastructureStatusObservable);
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    internalObservableCreateSpy.and.returnValue(Observable.of(1));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      // There should have been two calls, one get infrastructure and one for polling
+      expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(2);
+      expect(mdSnackBarStub.open).toHaveBeenCalled();
+      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('FakeError');
     });
   }));
 

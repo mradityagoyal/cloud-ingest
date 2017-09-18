@@ -1,12 +1,12 @@
-<ng-container *ngIf="showUpdateInfrastructureLoading; else infrastructureBody">
+<ng-container *ngIf="showInfrastructureStatusLoading; else infrastructureBody">
   <md-spinner></md-spinner>
 </ng-container>
 <ng-template #infrastructureBody>
 
-  <div class="ingest-error-message" *ngIf="showUpdateInfrastructureError; else infrastructureInformation">
+  <div class="ingest-error-message" *ngIf="showLoadInfrastructureError; else infrastructureInformation">
     <h2> There was an error getting the infrastructure status </h2>
-    <strong> {{ updateInfrastructureError }} </strong>
-    <p> {{ updateInfrastructureErrorMessage }} </p>
+    <strong> {{ loadInfrastructureErrorTitle }} </strong>
+    <p> {{ loadInfrastructureErrorMessage }} </p>
   </div>
 
   <ng-template #infrastructureInformation>
@@ -20,11 +20,11 @@
     </md-card>
 
     <md-card class="ingest-infrastructure-deploying" *ngIf="showInfrastructureDeploying">
-      <h2> <md-icon>autorenew</md-icon> Cloud Ingest Infrastructure deployment is in progress... </h2>
+      <h2> <md-spinner class="ingest-inline-icon-spinner"> </md-spinner> Cloud Ingest Infrastructure deployment is in progress... </h2>
     </md-card>
 
     <md-card class="ingest-infrastructure-deleting" *ngIf="showInfrastructureDeleting">
-      <h2> <md-icon>autorenew</md-icon> Cloud Ingest Infrastructure tear down is in progress... </h2>
+      <h2> <md-spinner class="ingest-inline-icon-spinner"> </md-spinner> Cloud Ingest Infrastructure tear down is in progress... </h2>
     </md-card>
 
     <md-card class="ingest-infrastructure-failed" *ngIf="showInfrastructureFailed">
@@ -66,5 +66,7 @@
       <app-infrastructure-status-item [itemName]="'LoadBigQuery topic'" [itemStatus]="infrastructureStatus.pubsubStatus.loadBigQuery"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'LoadBigQuery topic'" [itemStatus]="infrastructureStatus.pubsubStatus.loadBigQueryProgress"> </app-infrastructure-status-item>
     </md-list>
+    <button class="ingest-create-infrastructure" md-raised-button color="primary" (click)="createInfrastructure()" [disabled]="createInfrastructureDisabled">Create infrastructure</button>
+    <button class="ingest-tear-down-infrastructure" md-raised-button color="accent" (click)="tearDownInfrastructure()" [disabled]="tearDownDisabled">Tear down infrastructure</button>
   </ng-template>
 </ng-template>

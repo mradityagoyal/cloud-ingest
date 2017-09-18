@@ -2,17 +2,23 @@ import { Component, OnInit } from '@angular/core';
 import { InfrastructureStatus } from './api.resources';
 import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
 import { HttpErrorResponse } from '@angular/common/http';
+import { MdSnackBar } from '@angular/material';
+import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
+import 'rxjs/add/operator/takeWhile';
+
+const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 10000;
 
 @Component({
   selector: 'app-infrastructure',
   templateUrl: './infrastructure.component.html',
+  styleUrls: ['./infrastructure.component.css'],
 })
 
 export class InfrastructureComponent implements OnInit {
 
   infrastructureStatus: InfrastructureStatus;
-  showUpdateInfrastructureError = false;
-  showUpdateInfrastructureLoading = false;
+  showLoadInfrastructureError = false;
+  showInfrastructureStatusLoading = false;
   showInfrastructureNotFound = false;
   showInfrastructureStatusOk = false;
   showInfrastructureDeploying = false;
@@ -20,33 +26,59 @@ export class InfrastructureComponent implements OnInit {
   showInfrastructureFailed = false;
   showInfrastructureUnknown = false;
   showCouldNotDetermineInfrastructure = false;
-  updateInfrastructureError: string;
-  updateInfrastructureErrorMessage: string;
+  createInfrastructureDisabled = false;
+  tearDownDisabled = false;
+  loadInfrastructureErrorTitle: string;
+  loadInfrastructureErrorMessage: string;
 
-  constructor(private readonly infrastructureService: InfrastructureService) { }
+  constructor(private readonly infrastructureService: InfrastructureService,
+              private readonly snackBar: MdSnackBar) { }
 
   ngOnInit() {
-    // TODO(b/65736612): Set an interval timer to update the infrastructure status.
-    this.updateInfrastructureStatus();
+    this.loadInfrastructureStatus();
+    IntervalObservable.create(UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS)
+      .takeWhile(() => {
+          return this.showInfrastructureDeploying || this.showInfrastructureDeleting;
+        })
+      .subscribe(() => {
+        this.pollInfrastructureStatus();
+      });
   }
 
   /**
-   * Updates the infrastructure status.
+   * Loads the infrastructure status initially.
    */
-  private updateInfrastructureStatus() {
-    this.showUpdateInfrastructureLoading = true;
+  private loadInfrastructureStatus() {
+    this.showInfrastructureStatusLoading = true;
     this.infrastructureService.getInfrastructureStatus().subscribe(
       (response: InfrastructureStatus) => {
         this.infrastructureStatus = response;
         this.updateInfrastructureStatusMessage(response);
-        this.showUpdateInfrastructureError = false;
-        this.showUpdateInfrastructureLoading = false;
+        this.updateCreateTearDownButtons(response);
+        this.showLoadInfrastructureError = false;
+        this.showInfrastructureStatusLoading = false;
       },
       (errorResponse: HttpErrorResponse) => {
-        this.updateInfrastructureError = errorResponse.error;
-        this.updateInfrastructureErrorMessage = errorResponse.message;
-        this.showUpdateInfrastructureError = true;
-        this.showUpdateInfrastructureLoading = false;
+        this.loadInfrastructureErrorTitle = errorResponse.error;
+        this.loadInfrastructureErrorMessage = errorResponse.message;
+        this.showLoadInfrastructureError = true;
+        this.showInfrastructureStatusLoading = false;
+      }
+    );
+  }
+
+  /**
+   * Polls the infrastructure status in intervals.
+   */
+  private pollInfrastructureStatus() {
+    this.infrastructureService.getInfrastructureStatus().subscribe(
+      (response: InfrastructureStatus) => {
+        this.infrastructureStatus = response;
+        this.updateInfrastructureStatusMessage(response);
+        this.updateCreateTearDownButtons(response);
+      },
+      (errorResponse: HttpErrorResponse) => {
+        this.snackBar.open(`There was an error polling the infrastructure status: ${errorResponse.error}`, 'Dismiss');
       }
     );
   }
@@ -72,5 +104,47 @@ export class InfrastructureComponent implements OnInit {
     } else {
       this.showCouldNotDetermineInfrastructure = true;
     }
+  }
+
+  private updateCreateTearDownButtons(response) {
+    if (InfrastructureService.isInfrastructureNotFound(response)) {
+      this.createInfrastructureDisabled = false;
+      this.tearDownDisabled = true;
+    } else {
+      this.tearDownDisabled = false;
+      this.createInfrastructureDisabled = true;
+    }
+  }
+
+  /**
+   * TODO(b/65954031): Revise the mechanism of getting the infrastructure status right after
+   *     requesting the backend to create the infrastructure.
+   */
+  private createInfrastructure() {
+    this.createInfrastructureDisabled = true;
+    this.infrastructureService.postCreateInfrastructure().subscribe(
+      (response: {}) => {
+        this.showInfrastructureDeploying = true;
+        this.pollInfrastructureStatus();
+      },
+      (errorResponse: HttpErrorResponse) => {
+        this.snackBar.open(`There was an error in the create infrastructure request: ${errorResponse.error}`, 'Dismiss');
+        this.pollInfrastructureStatus();
+      }
+    );
+  }
+
+  private tearDownInfrastructure() {
+    this.tearDownDisabled = true;
+    this.infrastructureService.postTearDownInfrastructure().subscribe(
+      (response: {}) => {
+        this.showInfrastructureDeleting = true;
+        this.pollInfrastructureStatus();
+      },
+      (errorResponse: HttpErrorResponse) => {
+        this.snackBar.open(`There was an error in the tear down infrastructure request: ${errorResponse.error}`, 'Dismiss');
+        this.pollInfrastructureStatus();
+      }
+    );
   }
 }

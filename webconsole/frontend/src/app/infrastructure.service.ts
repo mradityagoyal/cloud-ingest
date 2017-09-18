@@ -122,4 +122,19 @@ export class InfrastructureService {
             `${environment.apiUrl}/projects/${projectId}/infrastructure-status`);
     });
   }
+
+  postCreateInfrastructure(): Observable<{}> {
+    return this.projectId.switchMap(projectId => {
+        return this.http.post<{}>(
+            `${environment.apiUrl}/projects/${projectId}/create-infrastructure`, {});
+    });
+  }
+
+  postTearDownInfrastructure(): Observable<{}> {
+  return this.projectId.switchMap(projectId => {
+        return this.http.post<{}>(
+            `${environment.apiUrl}/projects/${projectId}/tear-down-infrastructure`, {});
+    });
+  }
+
 }
