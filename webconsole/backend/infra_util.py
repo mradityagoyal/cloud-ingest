@@ -43,8 +43,8 @@ _TOPICS_SUBSCRIPTIONS = {
                           [constants.UPLOAD_GCS_PROGRESS_SUBSCRIPTION]),
     'loadBigQuery': (constants.LOAD_BQ_TOPIC,
                      [constants.LOAD_BQ_SUBSCRIPTION]),
-    'loadBigQueryProgres': (constants.LOAD_BQ_PROGRESS_TOPIC,
-                            [constants.LOAD_BQ_PROGRESS_SUBSCRIPTION]),
+    'loadBigQueryProgress': (constants.LOAD_BQ_PROGRESS_TOPIC,
+                             [constants.LOAD_BQ_PROGRESS_SUBSCRIPTION]),
 }
 
 # pylint: disable=invalid-name
