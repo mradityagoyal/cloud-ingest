@@ -14,15 +14,18 @@
     <p> {{ errorMessage }} </p>
   </div>
   <ng-template #jobRunListTable>
+    <p id="ingest-job-list-user-info">Click on a row to see more information</p>
     <md-table #table [dataSource]="jobRunsDataSource" class="ingest-job-runs-table">
       <ng-container mdColumnDef="runId">
         <md-header-cell *mdHeaderCellDef> Run Id </md-header-cell>
         <md-cell *mdCellDef="let jobRun"> {{jobRun.JobRunId}} </md-cell>
       </ng-container>
+
       <ng-container mdColumnDef="configId">
         <md-header-cell *mdHeaderCellDef> Job Config Id </md-header-cell>
         <md-cell *mdCellDef="let jobRun"> {{jobRun.JobConfigId}} </md-cell>
       </ng-container>
+
       <ng-container mdColumnDef="creationTime">
         <md-header-cell *mdHeaderCellDef> Creation Time </md-header-cell>
         <!--
@@ -31,14 +34,18 @@
         -->
         <md-cell *mdCellDef="let jobRun"> {{jobRun.JobCreationTime / 1000000 | date:'short'}} </md-cell>
       </ng-container>
+
       <ng-container mdColumnDef="status">
         <md-header-cell *mdHeaderCellDef> Status </md-header-cell>
         <md-cell *mdCellDef="let jobRun">
           {{ jobRun.Status | jobStatus }}
         </md-cell>
       </ng-container>
+
       <md-header-row *mdHeaderRowDef="displayedColumns"></md-header-row>
-      <md-row *mdRowDef="let row; columns: displayedColumns;"></md-row>
+      <md-row *mdRowDef="let row; columns: displayedColumns;"
+              class="ingest-clickable"
+              (click)="handleRowClick(row)"></md-row>
     </md-table>
   </ng-template>
 </ng-template>

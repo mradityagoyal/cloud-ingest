@@ -1,0 +1,80 @@
+<h2>Job Run Details</h2>
+
+<ng-container *ngIf="jobRunLoading; then spinner; else jobrun"></ng-container>
+<ng-template #spinner>
+  <md-spinner></md-spinner>
+</ng-template>
+
+<ng-template #jobrun>
+  <div class="ingest-error-message" *ngIf="showError; else jobRunDetails">
+    <h3> There was an error getting the job run details. </h3>
+    <strong class="ingest-error-title"> {{ errorTitle }} </strong>
+    <p class="ingest-error-details">{{ errorMessage }}</p>
+  </div>
+
+  <ng-template #jobRunDetails>
+    <dl>
+      <dt>Job Config Id</dt>
+      <dd>{{ jobRun.JobConfigId }}</dd>
+      <dt>Job Run Id</dt>
+      <dd>{{ jobRun.JobRunId }}</dd>
+      <dt>Creation Time</dt>
+      <dd>{{ jobRun.JobCreationTime / 1000000 | date:'short' }}</dd>
+      <dt>Status</dt>
+      <dd>{{ jobRun.Status | jobStatus }}</dd>
+    </dl>
+
+    <md-tab-group id="job-progress-tabs">
+      <md-tab label="Overall Progress">
+        <dl>
+          <dt>Total Tasks</dt>
+          <dd>{{ jobRun.Progress.totalTasks }}</dd>
+          <dt>Tasks Completed</dt>
+          <dd>{{ jobRun.Progress.tasksCompleted }}</dd>
+          <dt>Tasks Failed</dt>
+          <dd>{{ jobRun.Progress.tasksFailed }}</dd>
+        </dl>
+      </md-tab>
+
+      <ng-container *ngIf="jobRun.Progress.list">
+        <md-tab label="Listing Progress">
+          <dl>
+            <dt>List Tasks</dt>
+            <dd>{{ jobRun.Progress.list.totalLists }}</dd>
+            <dt>List Tasks Completed</dt>
+            <dd>{{ jobRun.Progress.list.listsCompleted }}</dd>
+            <dt>List Tasks Failed</dt>
+            <dd>{{ jobRun.Progress.list.listsFailed }}</dd>
+          </dl>
+        </md-tab>
+      </ng-container>
+
+      <ng-container *ngIf="jobRun.Progress.uploadGCS">
+        <md-tab label="Upload to GCS Progress">
+          <dl>
+            <dt>Total Files</dt>
+            <dd>{{ jobRun.Progress.uploadGCS.totalFiles }}</dd>
+            <dt>Files Completed</dt>
+            <dd>{{ jobRun.Progress.uploadGCS.filesCompleted }}</dd>
+            <dt>Files Failed</dt>
+            <dd>{{ jobRun.Progress.uploadGCS.filesFailed }}</dd>
+          </dl>
+        </md-tab>
+      </ng-container>
+
+      <ng-container *ngIf="jobRun.Progress.loadBigQuery">
+        <md-tab label="Load into BigQuery Progress">
+          <dl>
+            <dt>Total Objects</dt>
+            <dd>{{ jobRun.Progress.loadBigQuery.totalObjects }}</dd>
+            <dt>Objects Completed</dt>
+            <dd>{{ jobRun.Progress.loadBigQuery.objectsCompleted }}</dd>
+            <dt>Objects Failed</dt>
+            <dd>{{ jobRun.Progress.loadBigQuery.objectsFailed }}</dd>
+          </dl>
+        </md-tab>
+      </ng-container>
+    </md-tab-group>
+  </ng-template>
+</ng-template>
+

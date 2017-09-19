@@ -3,6 +3,7 @@ import { JobsService } from '../../jobs.service';
 import { JobRun } from '../../api.resources';
 import { JobRunListComponent } from './job-run-list.component';
 import { JobStatusPipe } from '../job-status.pipe';
+import { Router } from '@angular/router';
 import { AngularMaterialImporterModule } from '../../angular-material-importer.module';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/observable/throw';
@@ -17,30 +18,53 @@ const FAKE_JOB_RUNS: JobRun[] = [
     JobConfigId: 'fakeJobConfigId1',
     JobRunId: 'fakeJobRunId1',
     JobCreationTime: '1504833274371000000',
-    Status: 0
+    Status: 0,
+    Progress: {
+      totalTasks: 0,
+      tasksCompleted: 0,
+      tasksFailed: 1
+    }
   },
   {
     JobConfigId: 'fakeJobConfigId2',
     JobRunId: 'fakeJobRunId2',
     JobCreationTime: '1504833274371000000',
-    Status: 1
+    Status: 1,
+    Progress: {
+      totalTasks: 5,
+      tasksCompleted: 3,
+      tasksFailed: 0
+    }
   },
   {
     JobConfigId: 'fakeJobConfigId3',
     JobRunId: 'fakeJobRunId3',
     JobCreationTime: '1504833274371000000',
-    Status: 2
+    Status: 2,
+    Progress: {
+      totalTasks: 5,
+      tasksCompleted: 4,
+      tasksFailed: 1
+    }
   },
   {
     JobConfigId: 'fakeJobConfigId4',
     JobRunId: 'fakeJobRunId4',
     JobCreationTime: '1504833274371000000',
-    Status: 3
+    Status: 3,
+    Progress: {
+      totalTasks: 10,
+      tasksCompleted: 10,
+      tasksFailed: 0
+    }
   }
 ];
 
 let jobsServiceStub: JobsServiceStub;
 const FAKE_HTTP_ERROR = {error: 'FakeErrorTitle', message: 'Fake error message.'};
+const mockRouter = {
+  navigate: jasmine.createSpy('navigate')
+};
 
 describe('JobRunListComponent', () => {
 
@@ -54,7 +78,8 @@ describe('JobRunListComponent', () => {
         JobStatusPipe
       ],
       providers: [
-        {provide: JobsService, useValue: jobsServiceStub},
+        { provide: JobsService, useValue: jobsServiceStub },
+        { provide: Router, useValue: mockRouter}
       ],
       imports: [
         AngularMaterialImporterModule
@@ -170,6 +195,24 @@ describe('JobRunListComponent', () => {
       const element = compiled.querySelector('.ingest-error-message');
       expect(element.textContent).toContain('FakeErrorTitle');
       expect(element.textContent).toContain('Fake error message.');
+    });
+  }));
+
+  it('should navigate to Job Details page when row is clicked', async(() => {
+    const fixture = TestBed.createComponent(JobRunListComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const elements = compiled.querySelectorAll('md-row');
+      const firstRow = elements[0];
+      firstRow.click();
+      expect(mockRouter.navigate).toHaveBeenCalledWith(
+        ['/jobruns', FAKE_JOB_RUNS[0].JobConfigId, FAKE_JOB_RUNS[0].JobRunId],
+        {
+          queryParamsHandling: 'merge'
+        }
+      );
     });
   }));
 });

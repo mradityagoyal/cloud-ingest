@@ -1,10 +1,14 @@
 import { Component, OnInit } from '@angular/core';
 import { DatePipe } from '@angular/common';
+import { DataSource } from '@angular/cdk/collections';
+import { Router, NavigationExtras } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Observable } from 'rxjs/Observable';
+
 import { JobRun } from '../../api.resources';
 import { JobsService } from '../../jobs.service';
-import { Observable } from 'rxjs/Observable';
-import { DataSource } from '@angular/cdk/collections';
-import { HttpErrorResponse } from '@angular/common/http';
+import { JobStatusPipe } from '../job-status.pipe';
+
 import 'rxjs/add/observable/of';
 
 @Component({
@@ -21,7 +25,10 @@ export class JobRunListComponent implements OnInit {
   errorMessage: string;
   jobRunsDataSource: JobRunsDataSource;
 
-  constructor(private readonly jobsService: JobsService) { }
+  constructor(
+    private readonly jobsService: JobsService,
+    private readonly router: Router
+  ) { }
 
   ngOnInit() {
     this.showLoadingSpinner = true;
@@ -36,6 +43,14 @@ export class JobRunListComponent implements OnInit {
         this.showError = true;
         this.showLoadingSpinner = false;
       });
+  }
+
+  handleRowClick(row: JobRun) {
+    const navExtras: NavigationExtras = {
+      queryParamsHandling: 'merge'
+    };
+    this.router.navigate(
+      ['/jobruns', row.JobConfigId, row.JobRunId], navExtras);
   }
 }
 

@@ -11,6 +11,7 @@ import { CreateRunComponent } from './create-run/create-run.component';
 import { JobStatusPipe } from './job-status.pipe';
 
 import { JobRunsRoutingModule } from './job-runs-routing.module';
+import { JobRunDetailsComponent } from './job-run-details/job-run-details.component';
 
 
 @NgModule({
@@ -25,7 +26,8 @@ import { JobRunsRoutingModule } from './job-runs-routing.module';
   declarations: [
     JobRunListComponent,
     CreateRunComponent,
-    JobStatusPipe
+    JobStatusPipe,
+    JobRunDetailsComponent
   ],
   providers: [ JobsService ]
 })

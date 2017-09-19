@@ -34,6 +34,14 @@ export class JobsService {
     });
   }
 
+  getJobRun(configId: string, runId: string): Observable<JobRun> {
+    return this.project.switchMap(projectId => {
+        return this.http.get<JobRun>(
+            `${environment.apiUrl}/projects/${projectId}/jobruns/${configId}/${runId}`
+        );
+    });
+  }
+
   postJobConfig(config: JobConfig): Observable<JobConfig> {
     return this.project.switchMap(projectId => {
         return this.http.post<JobConfig>(

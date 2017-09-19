@@ -4,7 +4,10 @@
 module.exports = function (config) {
   config.set({
     basePath: '',
-    files: ['./src/app/fake-gapi.js'],
+    files: [
+      './src/app/fake-gapi.js',
+      './node_modules/@angular/material/prebuilt-themes/indigo-pink.css'
+    ],
     frameworks: ['jasmine', '@angular/cli'],
     plugins: [
       require('karma-jasmine'),
