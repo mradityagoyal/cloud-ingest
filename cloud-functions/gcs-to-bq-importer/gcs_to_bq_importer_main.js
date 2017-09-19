@@ -38,7 +38,7 @@ const PublishErrorMessage = (pub_sub, topic, task_id, err_message) =>
     new Promise((resolve, reject) => {
   var failure = {
     task_id : task_id,
-    status: 'FAILURE',
+    status: 'FAILED',
     failure_message: err_message
   }
   exports.PublishMessage(pub_sub, topic, failure)

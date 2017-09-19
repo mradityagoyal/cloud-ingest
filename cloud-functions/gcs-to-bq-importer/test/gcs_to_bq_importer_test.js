@@ -152,7 +152,7 @@ describe('ImportFileFailure', function() {
       should.exist(res);
       var message = gcs_to_bq.PublishMessage.getCall(0).args[2]
       expect(message.task_id).to.equal(123)
-      expect(message.status).to.equal('FAILURE')
+      expect(message.status).to.equal('FAILED')
       expect(message.failure_message).to.equal('bad robot')
     })
 
