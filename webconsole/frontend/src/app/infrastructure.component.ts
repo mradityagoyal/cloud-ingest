@@ -3,6 +3,7 @@ import { InfrastructureStatus } from './api.resources';
 import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MdSnackBar } from '@angular/material';
+import { ActivatedRoute } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import 'rxjs/add/operator/takeWhile';
 
@@ -30,9 +31,11 @@ export class InfrastructureComponent implements OnInit {
   tearDownDisabled = false;
   loadInfrastructureErrorTitle: string;
   loadInfrastructureErrorMessage: string;
+  private projectId: string;
 
   constructor(private readonly infrastructureService: InfrastructureService,
-              private readonly snackBar: MdSnackBar) { }
+              private readonly snackBar: MdSnackBar,
+              private readonly route: ActivatedRoute) { }
 
   ngOnInit() {
     this.loadInfrastructureStatus();

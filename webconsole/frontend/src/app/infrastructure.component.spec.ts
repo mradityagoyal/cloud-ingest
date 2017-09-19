@@ -7,6 +7,7 @@ import { InfrastructureStatusItemComponent } from './infrastructure-status-item.
 import { Observable } from 'rxjs/Observable';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute } from '@angular/router';
 import { MdSnackBar } from '@angular/material';
 import 'rxjs/add/observable/throw';
 import 'rxjs/add/observable/of';
@@ -17,6 +18,14 @@ class InfrastructureServiceStub {
   public getInfrastructureStatus = jasmine.createSpy('getInfrastructureStatus');
   public postCreateInfrastructure = jasmine.createSpy('postCreateInfrastructure');
   public postTearDownInfrastructure = jasmine.createSpy('postTearDownInfrastructure');
+}
+
+class ActivatedRouteStub {
+  snapshot = {
+    queryParams: {
+      project: 'fakeProjectId'
+    }
+  };
 }
 
 class MdSnackBarStub {
@@ -141,6 +150,7 @@ let internalObservableCreateSpy: any;
 
 let infrastructureServiceStub: InfrastructureServiceStub;
 let mdSnackBarStub: MdSnackBarStub;
+let activatedRouteStub: ActivatedRouteStub;
 
 describe('InfrastructureComponent', () => {
 
@@ -149,6 +159,7 @@ describe('InfrastructureComponent', () => {
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
     internalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
     mdSnackBarStub = new MdSnackBarStub();
+    activatedRouteStub = new ActivatedRouteStub();
 
     TestBed.configureTestingModule({
       declarations: [
@@ -158,6 +169,7 @@ describe('InfrastructureComponent', () => {
       providers: [
         {provide: InfrastructureService, useValue: infrastructureServiceStub},
         {provide: MdSnackBar, useValue: mdSnackBarStub},
+        {provide: ActivatedRoute, useValue: activatedRouteStub}
       ],
       imports: [
         AngularMaterialImporterModule

@@ -12,6 +12,17 @@
   <ng-template #infrastructureInformation>
     <md-card class="ingest-infrastructure-ok" *ngIf="showInfrastructureStatusOk">
       <h2> <md-icon>check</md-icon> Cloud Ingest Infrastructure is running as expected. </h2>
+      Next steps:
+      <ol>
+        <li> Download and extract the gsutil worker: <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.27pre_ing5.tar.gz">tar.gz</a> | <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.27pre_ing5.zip">zip</a> </li>
+        <li> In a shell window navigate to the path where you extracted the gsutil worker. </li>
+        <li> Run <code> ./gsutil config </code> </li>
+        <li> Run <br/> <code> ./gsutil agent listandcopy \ <br/> projects/{{projectId}}/subscriptions/cloud-ingest-list \ <br/> projects/{{projectId}}/topics/cloud-ingest-list-progress \ <br/> projects/{{projectId}}/subscriptions/cloud-ingest-copy \ <br/> projects/{{projectId}}/topics/cloud-ingest-copy-progress
+          </code>
+        </li>
+      </ol>
+      Note: On a windows machine, run <code> python ./gsutil.py </code> instead of <code> ./gsutil</code> for the commands above.
+
     </md-card>
 
     <md-card class="ingest-infrastructure-not-found" *ngIf="showInfrastructureNotFound">
