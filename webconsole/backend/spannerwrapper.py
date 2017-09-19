@@ -139,20 +139,24 @@ class SpannerWrapper(object):
         self.insert(SpannerWrapper.JOB_CONFIGS_TABLE,
                     SpannerWrapper.JOB_CONFIGS_COLUMNS, values)
 
-    def create_job_run(self, config_id, run_id):
+    def create_job_run(self, config_id, run_id, initial_total_tasks=0):
         """Creates a new job run with the given JobRun attributes.
 
         Args:
             config_id: The desired JobConfigId of the new job run
             run_id: The desired JobRunId of the new job run
+            initial_total_tasks: Initial number of total tasks in the job run.
 
         Raises:
             Conflict if the job run already exists
         """
+        # TODO(b/65943019): Remove initial_total_tasks params. This should
+        # be always 0. This param should be removed after the DCP has proper
+        # handling of job scheduling.
         config_id = unicode(config_id)
         run_id = unicode(run_id)
         progress = {
-            "totalTasks": 0,
+            "totalTasks": initial_total_tasks,
             "tasksCompleted": 0,
             "tasksFailed": 0
         }

@@ -97,11 +97,11 @@ def job_configs(project_id):
         spanner_wrapper.create_job_config(content['JobConfigId'],
                                           content['JobSpec'])
 
-        # TODO(b/65846311): The web console should not schedule the job runs and
+        # TODO(b/65943019): The web console should not schedule the job runs and
         # should not create the first task. Remove that after the functionality
         # is added to the DCP.
         spanner_wrapper.create_job_run(
-            content['JobConfigId'], _FIRST_JOB_RUN_ID)
+            content['JobConfigId'], _FIRST_JOB_RUN_ID, initial_total_tasks=1)
         spanner_wrapper.create_job_run_first_list_task(
             content['JobConfigId'], _FIRST_JOB_RUN_ID, _LIST_TASK_ID,
             content['JobSpec'])
