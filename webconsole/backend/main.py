@@ -34,6 +34,7 @@ from google.oauth2.credentials import Credentials
 
 import infra_util
 from spannerwrapper import SpannerWrapper
+from create_infra.constants import DCP_INSTANCE_DOCKER_IMAGE
 
 
 APP = Flask(__name__)
@@ -239,7 +240,10 @@ def create_infrastructure(project_id):
     """
     # TODO(b/65754348): Creating the infrastructure API may take the resources
     # (in the request body) to create.
-    infra_util.create_infrastructure(_get_credentials(), project_id)
+    dcp_docker_image = APP.config.get('DCP_DOCKER_IMAGE',
+                                      DCP_INSTANCE_DOCKER_IMAGE)
+    infra_util.create_infrastructure(
+        _get_credentials(), project_id, dcp_docker_image)
     return jsonify({})
 
 @APP.route('/projects/<project_id>/tear-down-infrastructure',

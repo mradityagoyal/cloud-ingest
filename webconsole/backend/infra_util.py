@@ -129,13 +129,14 @@ def infrastructure_status(credentials, project_id):
     return _infrastructure_status_from_bldrs(
         spanner_bldr, pubsub_bldr, functions_bldr, compute_bldr)
 
-def create_infrastructure(credentials, project_id):
+def create_infrastructure(credentials, project_id, dcp_docker_image):
     """Creates the ingest infrastructure. Makes sure that all the infrastructure
     components does not exist before the creation.
 
     Args:
         credentials: The credentials to use for creating the infrastructure.
         project_id: The project id.
+        dcp_docker_image: The dcp docker image to use.
 
     Raises:
         Conflict: If any of the infrastructure components exists.
@@ -188,7 +189,7 @@ def create_infrastructure(credentials, project_id):
     # create infrastructure. This will enable easily creation of dev
     # environments.
     compute_bldr.create_instance_async(
-        constants.DCP_INSTANCE_NAME, constants.DCP_INSTANCE_DOCKER_IMAGE,
+        constants.DCP_INSTANCE_NAME, dcp_docker_image,
         constants.DCP_INSTANCE_CMD_LINE, [project_id])
 
 def tear_infrastructure(credentials, project_id):
