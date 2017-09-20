@@ -157,6 +157,8 @@ describe('InfrastructureComponent', () => {
   beforeEach(async(() => {
     infrastructureServiceStub = new InfrastructureServiceStub();
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
+    infrastructureServiceStub.postCreateInfrastructure.and.returnValue(Observable.of({}));
+    infrastructureServiceStub.postTearDownInfrastructure.and.returnValue(Observable.of({}));
     internalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
     mdSnackBarStub = new MdSnackBarStub();
     activatedRouteStub = new ActivatedRouteStub();
@@ -456,6 +458,44 @@ describe('InfrastructureComponent', () => {
       expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(2);
       expect(mdSnackBarStub.open).toHaveBeenCalled();
       expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('FakeError');
+    });
+  }));
+
+  it('should show the infrastructure as deploying after clicking on infrastructure create', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_FOUND));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DEPLOYING));
+      const compiled = fixture.debugElement.nativeElement;
+      let element = compiled.querySelector('.ingest-create-infrastructure');
+      element.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        fixture.detectChanges();
+        element = compiled.querySelector('.ingest-infrastructure-deploying');
+        expect(element).not.toBeNull();
+      });
+    });
+  }));
+
+  it('should show the infrastructure as tearing down after clicking on infrastructure tear down', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DELETING));
+      const compiled = fixture.debugElement.nativeElement;
+      let element = compiled.querySelector('.ingest-tear-down-infrastructure');
+      element.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        fixture.detectChanges();
+        element = compiled.querySelector('.ingest-infrastructure-deleting');
+        expect(element).not.toBeNull();
+      });
     });
   }));
 

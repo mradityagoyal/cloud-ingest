@@ -7,7 +7,7 @@ import { ActivatedRoute } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import 'rxjs/add/operator/takeWhile';
 
-const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 10000;
+const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 3000;
 
 @Component({
   selector: 'app-infrastructure',
@@ -87,10 +87,7 @@ export class InfrastructureComponent implements OnInit {
   }
 
   private updateInfrastructureStatusMessage(response) {
-    this.showInfrastructureStatusOk = this.showInfrastructureNotFound =
-    this.showInfrastructureDeploying = this.showInfrastructureDeleting =
-    this.showInfrastructureFailed = this.showInfrastructureUnknown =
-    this.showCouldNotDetermineInfrastructure = false;
+    this.resetMessageVariables();
 
     if (InfrastructureService.isInfrastructureOk(response)) {
       this.showInfrastructureStatusOk = true;
@@ -109,6 +106,23 @@ export class InfrastructureComponent implements OnInit {
     }
   }
 
+  private resetMessageVariables() {
+    this.showInfrastructureStatusOk = this.showInfrastructureNotFound =
+    this.showInfrastructureDeploying = this.showInfrastructureDeleting =
+    this.showInfrastructureFailed = this.showInfrastructureUnknown =
+    this.showCouldNotDetermineInfrastructure = false;
+  }
+
+  private showInfrastructureDeployingMessage() {
+    this.resetMessageVariables();
+    this.showInfrastructureDeploying = true;
+  }
+
+  private showInfrastructureDeletingMessage() {
+    this.resetMessageVariables();
+    this.showInfrastructureDeleting = true;
+  }
+
   private updateCreateTearDownButtons(response) {
     if (InfrastructureService.isInfrastructureNotFound(response)) {
       this.createInfrastructureDisabled = false;
@@ -124,10 +138,10 @@ export class InfrastructureComponent implements OnInit {
    *     requesting the backend to create the infrastructure.
    */
   private createInfrastructure() {
+    this.showInfrastructureDeployingMessage();
     this.createInfrastructureDisabled = true;
     this.infrastructureService.postCreateInfrastructure().subscribe(
       (response: {}) => {
-        this.showInfrastructureDeploying = true;
         this.pollInfrastructureStatus();
       },
       (errorResponse: HttpErrorResponse) => {
@@ -138,10 +152,10 @@ export class InfrastructureComponent implements OnInit {
   }
 
   private tearDownInfrastructure() {
+    this.showInfrastructureDeletingMessage();
     this.tearDownDisabled = true;
     this.infrastructureService.postTearDownInfrastructure().subscribe(
       (response: {}) => {
-        this.showInfrastructureDeleting = true;
         this.pollInfrastructureStatus();
       },
       (errorResponse: HttpErrorResponse) => {
