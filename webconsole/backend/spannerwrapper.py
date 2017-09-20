@@ -379,12 +379,12 @@ class SpannerWrapper(object):
         Returns:
           A list of dictionaries mapping from attribute name to value
         """
-        results = self.database.execute_sql(query, query_params,
-                                            param_types)
         result_list = []
-        for row in results:
-            obj = self.row_to_object(row, results.fields)
-            result_list.append(obj)
+        with self.database.snapshot() as snapshot:
+            results = snapshot.execute_sql(query, query_params, param_types)
+            for row in results:
+                obj = self.row_to_object(row, results.fields)
+                result_list.append(obj)
 
         return result_list
 
@@ -408,11 +408,11 @@ class SpannerWrapper(object):
           A dictionary mapping from attribute name to value, or None if the
           query had no results.
         """
-        results = self.database.execute_sql(query, query_params,
-                                            param_types)
+        with self.database.snapshot() as snapshot:
+            results = snapshot.execute_sql(query, query_params, param_types)
 
-        for row in results:
-            return self.row_to_object(row, results.fields)
+            for row in results:
+                return self.row_to_object(row, results.fields)
 
     @staticmethod
     def row_to_object(result, fields):

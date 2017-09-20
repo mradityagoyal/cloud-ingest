@@ -56,10 +56,14 @@ class TestSpannerWrapper(unittest.TestCase):
     def setUp(self, spanner_mock):
     # pylint: enable=arguments-differ
         logging.disable(logging.CRITICAL) # So tests don't print to console
-        self.database = MagicMock()
+        database = MagicMock()
+        snapshot_obj = MagicMock()
+        self.snapshot = MagicMock()
 
         self.spanner_instance = MagicMock()
-        self.spanner_instance.database.return_value = self.database
+        self.spanner_instance.database.return_value = database
+        database.snapshot.return_value = snapshot_obj
+        snapshot_obj.__enter__.return_value = self.snapshot
 
         self.spanner_client = MagicMock()
         self.spanner_client.instance.return_value = self.spanner_instance
@@ -81,7 +85,7 @@ class TestSpannerWrapper(unittest.TestCase):
                                         [JOB_CONFIG_ID_2, JOB_SPEC_STR_2]]
         result.fields = self.get_fields_list(
             SpannerWrapper.JOB_CONFIGS_COLUMNS)
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_configs()
         expected = [{u'JobConfigId': JOB_CONFIG_ID_1,
@@ -94,7 +98,7 @@ class TestSpannerWrapper(unittest.TestCase):
         """Asserts that an empty list is returned when there are no configs."""
         result = MagicMock()
         result.__iter__.return_value = []
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_configs()
         self.assertEqual(actual, [])
@@ -102,8 +106,8 @@ class TestSpannerWrapper(unittest.TestCase):
     def test_get_job_configs_table(self):
         """Asserts that the get_job_configs query uses the JobConfigs table."""
         self.spanner_wrapper.get_job_configs()
-        self.database.execute_sql.assert_called()
-        query = self.database.execute_sql.call_args[0][0]
+        self.snapshot.execute_sql.assert_called()
+        query = self.snapshot.execute_sql.call_args[0][0]
         self.assertIn(SpannerWrapper.JOB_CONFIGS_TABLE, query)
 
     def test_get_job_config(self):
@@ -115,7 +119,7 @@ class TestSpannerWrapper(unittest.TestCase):
         result.__iter__.return_value = [[config_id, job_spec]]
         result.fields = self.get_fields_list(
             SpannerWrapper.JOB_CONFIGS_COLUMNS)
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_config(config_id)
         expected = self.get_job_config(config_id, job_spec)
@@ -128,7 +132,7 @@ class TestSpannerWrapper(unittest.TestCase):
 
         result = MagicMock()
         result.__iter__.return_value = []
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_config(config_id)
         self.assertIsNone(actual)
@@ -137,11 +141,11 @@ class TestSpannerWrapper(unittest.TestCase):
         """Asserts that the proper JobConfigId is passed to the query."""
         config_id = 'test-config'
         self.spanner_wrapper.get_job_config(config_id)
-        self.database.execute_sql.assert_called()
+        self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "config_id",
             config_id,
-            self.database.execute_sql.call_args
+            self.snapshot.execute_sql.call_args
         )
 
     def test_create_job_config_table(self):
@@ -303,7 +307,7 @@ class TestSpannerWrapper(unittest.TestCase):
             [config_id1, run_id1, status1, job_creation_time1, progress1],
             [config_id2, run_id2, status2, job_creation_time2, progress2]]
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_runs(25)
         expected = [
@@ -321,7 +325,7 @@ class TestSpannerWrapper(unittest.TestCase):
         result = MagicMock()
         result.__iter__.return_value = []
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_runs(25)
         expected = []
@@ -331,8 +335,8 @@ class TestSpannerWrapper(unittest.TestCase):
     def test_get_job_runs_table(self):
         """Asserts that the get_job_runs query uses the JobRuns table."""
         self.spanner_wrapper.get_job_runs(25)
-        self.database.execute_sql.assert_called()
-        query = self.database.execute_sql.call_args[0][0]
+        self.snapshot.execute_sql.assert_called()
+        query = self.snapshot.execute_sql.call_args[0][0]
         self.assertIn(SpannerWrapper.JOB_RUNS_TABLE, query)
 
     def test_get_job_runs_invalid_num(self):
@@ -348,22 +352,22 @@ class TestSpannerWrapper(unittest.TestCase):
         """Asserts that the proper max_num_runs is used in the query."""
         num_runs = 15
         self.spanner_wrapper.get_job_runs(num_runs)
-        self.database.execute_sql.assert_called()
+        self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "num_runs",
             num_runs,
-            self.database.execute_sql.call_args
+            self.snapshot.execute_sql.call_args
         )
 
     def test_get_runs_created_before(self):
         """Asserts that the proper created before is used in the query."""
         created_before = 10
         self.spanner_wrapper.get_job_runs(1, created_before)
-        self.database.execute_sql.assert_called()
+        self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "created_before",
             created_before,
-            self.database.execute_sql.call_args
+            self.snapshot.execute_sql.call_args
         )
 
     def test_get_tasks_for_run(self):
@@ -394,7 +398,7 @@ class TestSpannerWrapper(unittest.TestCase):
             task_spec2, worker_id2
         ]]
         result.fields = self.get_fields_list(SpannerWrapper.TASKS_COLUMNS)
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_tasks_for_run(config_id, run_id, 25)
         expected = [
@@ -410,7 +414,7 @@ class TestSpannerWrapper(unittest.TestCase):
         """Asserts an empty list is returned when there are no tasks."""
         result = MagicMock()
         result.__iter__.return_value = []
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_tasks_for_run('', '', 25)
         expected = []
@@ -420,8 +424,8 @@ class TestSpannerWrapper(unittest.TestCase):
     def test_get_tasks_table(self):
         """Asserts that the get_tasks_for_run query uses the Tasks table."""
         self.spanner_wrapper.get_tasks_for_run('', '', 25)
-        self.database.execute_sql.assert_called()
-        query = self.database.execute_sql.call_args[0][0]
+        self.snapshot.execute_sql.assert_called()
+        query = self.snapshot.execute_sql.call_args[0][0]
         self.assertIn(SpannerWrapper.TASKS_TABLE, query)
 
     def test_get_tasks_invalid_num(self):
@@ -438,33 +442,33 @@ class TestSpannerWrapper(unittest.TestCase):
         """Asserts that the proper max_num_tasks is used in the query."""
         num_tasks = 15
         self.spanner_wrapper.get_tasks_for_run('config-id', 'run-id', num_tasks)
-        self.database.execute_sql.assert_called()
+        self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "num_tasks",
             num_tasks,
-            self.database.execute_sql.call_args
+            self.snapshot.execute_sql.call_args
         )
 
     def test_get_tasks_task_type(self):
         """Asserts that the proper task_type is used in the query."""
         task_type = "list"
         self.spanner_wrapper.get_tasks_for_run('', '', 10, task_type)
-        self.database.execute_sql.assert_called()
+        self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "task_type",
             task_type,
-            self.database.execute_sql.call_args
+            self.snapshot.execute_sql.call_args
         )
 
     def test_get_tasks_last_modified(self):
         """Asserts that the proper last modified time is used in the query."""
         last_modified = 5
         self.spanner_wrapper.get_tasks_for_run('', '', 10, '', last_modified)
-        self.database.execute_sql.assert_called()
+        self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "last_modified",
             last_modified,
-            self.database.execute_sql.call_args
+            self.snapshot.execute_sql.call_args
         )
 
     def test_get_job_run(self):
@@ -480,7 +484,7 @@ class TestSpannerWrapper(unittest.TestCase):
             config_id, run_id, status, job_creation_time, progress
         ]]
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_run(config_id, run_id)
         expected = self.get_job_run(config_id, run_id, status,
@@ -492,7 +496,7 @@ class TestSpannerWrapper(unittest.TestCase):
         """Asserts None is returned when there is no matching job run."""
         result = MagicMock()
         result.__iter__.return_value = []
-        self.database.execute_sql.return_value = result
+        self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_run('', '')
         self.assertIsNone(actual)
@@ -501,22 +505,22 @@ class TestSpannerWrapper(unittest.TestCase):
         """Asserts that the proper JobConfigId is passed to the query."""
         config_id = 'test-config'
         self.spanner_wrapper.get_job_run(config_id, 'run-id')
-        self.database.execute_sql.assert_called()
+        self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "config_id",
             config_id,
-            self.database.execute_sql.call_args
+            self.snapshot.execute_sql.call_args
         )
 
     def test_get_job_run_run_id(self):
         """Asserts that the proper JobRunId is passed to the query."""
         run_id = 'run-id'
         self.spanner_wrapper.get_job_run('config-id', run_id)
-        self.database.execute_sql.assert_called()
+        self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "run_id",
             run_id,
-            self.database.execute_sql.call_args
+            self.snapshot.execute_sql.call_args
         )
 
     def set_up_transaction(self):
