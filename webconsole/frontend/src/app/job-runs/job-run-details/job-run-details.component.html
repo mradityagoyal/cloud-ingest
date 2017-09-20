@@ -1,6 +1,6 @@
 <h2>Job Run Details</h2>
 
-<ng-container *ngIf="jobRunLoading; then spinner; else jobrun"></ng-container>
+<ng-container *ngIf="showLoadingSpinner; then spinner; else jobrun"></ng-container>
 <ng-template #spinner>
   <md-spinner></md-spinner>
 </ng-template>

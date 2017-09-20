@@ -1,9 +1,10 @@
-import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { async, ComponentFixture, TestBed, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
 import { RouterTestingModule } from '@angular/router/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
 import { AngularMaterialImporterModule } from '../../angular-material-importer.module';
 import { JobsService } from '../../jobs.service';
+import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { JobRun } from '../../api.resources';
 import { JobStatusPipe } from '../job-status.pipe';
 import { Observable } from 'rxjs/Observable';
@@ -107,6 +108,7 @@ const BADLY_FORMATED_ERROR = {
 };
 
 let jobsServiceStub: JobsServiceStub;
+let intervalObservableCreateSpy: any;
 
 describe('JobRunDetailsComponent', () => {
   let component: JobRunDetailsComponent;
@@ -115,6 +117,8 @@ describe('JobRunDetailsComponent', () => {
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
     jobsServiceStub.getJobRun.and.returnValue(Observable.of(FAKE_JOB_RUNS[0]));
+    // Disable polling for most tests.
+    intervalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
     TestBed.configureTestingModule({
       declarations: [
         JobRunDetailsComponent,
@@ -415,6 +419,17 @@ describe('JobRunDetailsComponent', () => {
       expect(children[4].innerText).toEqual('Objects Failed');
       expect(children[5].innerText).toEqual('' + bqProgress.objectsFailed);
     });
+  }));
+
+  it('should get the job run every three seconds', fakeAsync((done) => {
+    intervalObservableCreateSpy.and.callThrough(); // enable polling
+    fixture = TestBed.createComponent(JobRunDetailsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    // It should get the job runs four times: one initial loading plus 3 polling calls.
+    tick(9000);
+    expect(jobsServiceStub.getJobRun.calls.count()).toEqual(4);
+    discardPeriodicTasks();
   }));
 
 });
