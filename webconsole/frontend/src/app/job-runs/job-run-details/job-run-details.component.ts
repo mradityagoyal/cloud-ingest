@@ -14,10 +14,11 @@ import 'rxjs/add/operator/switchMap';
 })
 export class JobRunDetailsComponent implements OnInit {
   private jobRun: JobRun;
-  private jobRunLoading: boolean;
   private errorTitle: string;
   private errorMessage: string;
   private showError: boolean;
+
+  jobRunLoading: boolean;
 
   constructor(
     private route: ActivatedRoute,

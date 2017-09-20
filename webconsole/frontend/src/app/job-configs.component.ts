@@ -46,7 +46,7 @@ export class JobConfigsComponent implements OnInit {
     return Object.keys(jsonObject);
   }
 
-  private openAddJobConfigDialog(): void {
+  openAddJobConfigDialog(): void {
     const jobConfigDialogReference = this.dialog.open(JobConfigAddDialogComponent, {
       width: '500px'
     });

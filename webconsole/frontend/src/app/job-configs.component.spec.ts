@@ -5,6 +5,8 @@ import { JobConfigsComponent } from './job-configs.component';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AngularMaterialImporterModule } from './angular-material-importer.module';
 import { Observable } from 'rxjs/Observable';
+import { MdDialog } from '@angular/material';
+import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
 import 'rxjs/add/observable/of';
 import 'rxjs/add/operator/delay';
 import 'rxjs/add/observable/never';
@@ -12,6 +14,10 @@ import 'rxjs/add/observable/throw';
 
 class JobsServiceStub {
   public getJobConfigs = jasmine.createSpy('getJobConfigs');
+}
+
+class MdDialogStub {
+  public open = jasmine.createSpy('open');
 }
 
 const FAKE_JOBSPEC1: any = {'fakeField1': 'fakeValue1', 'fakeField2' : 'fakeValue2'};
@@ -36,11 +42,13 @@ const FAKE_JOB_CONFIGS: JobConfig[] = [
 const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
 
 let jobsServiceStub: JobsServiceStub;
+let mdDialogStub: MdDialogStub;
 
 describe('JobConfigsComponent', () => {
 
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
+    mdDialogStub = new MdDialogStub();
     jobsServiceStub.getJobConfigs.and.returnValue(Observable.of(FAKE_JOB_CONFIGS));
 
     TestBed.configureTestingModule({
@@ -49,6 +57,7 @@ describe('JobConfigsComponent', () => {
       ],
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},
+        {provide: MdDialog, useValue: mdDialogStub}
       ],
       imports: [
         AngularMaterialImporterModule
@@ -149,6 +158,21 @@ describe('JobConfigsComponent', () => {
       const compiled = fixture.debugElement.nativeElement;
       const element = compiled.querySelector('.ingest-add-job-config');
       expect(element).not.toBeNull();
+    });
+  }));
+
+  it('should open an add job config dialog when clicked', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    const component = fixture.debugElement.componentInstance;
+    component.showLoadingSpinner = false;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-add-job-config');
+      element.click();
+      expect(mdDialogStub.open).toHaveBeenCalled();
+      expect(expect(mdDialogStub.open.calls.first().args[0]).toBe(JobConfigAddDialogComponent));
     });
   }));
 
