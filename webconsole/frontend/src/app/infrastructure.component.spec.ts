@@ -544,4 +544,40 @@ describe('InfrastructureComponent', () => {
     discardPeriodicTasks(); // end of fakeAsync test.
   }));
 
+  it('should disable create button when infrastructure is deploying', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DEPLOYING));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const createInfrastructureButton = compiled.querySelector('.ingest-create-infrastructure');
+      expect(createInfrastructureButton.hasAttribute('disabled')).toBe(true);
+    });
+  }));
+
+  it('should disable the create button when infrastructure is tearing down', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DELETING));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const createInfrastructureButton = compiled.querySelector('.ingest-create-infrastructure');
+      expect(createInfrastructureButton.hasAttribute('disabled')).toBe(true);
+    });
+  }));
+
+  it('should disable the tear down button when infrastructure is not found', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_FOUND));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const tearDownInfrastructureButton = compiled.querySelector('.ingest-tear-down-infrastructure');
+      expect(tearDownInfrastructureButton.hasAttribute('disabled')).toBe(true);
+    });
+  }));
+
 });

@@ -128,8 +128,8 @@ export class InfrastructureComponent implements OnInit {
       this.createInfrastructureDisabled = false;
       this.tearDownDisabled = true;
     } else {
-      this.tearDownDisabled = false;
       this.createInfrastructureDisabled = true;
+      this.tearDownDisabled = false;
     }
   }
 
@@ -153,7 +153,6 @@ export class InfrastructureComponent implements OnInit {
 
   private tearDownInfrastructure() {
     this.showInfrastructureDeletingMessage();
-    this.tearDownDisabled = true;
     this.infrastructureService.postTearDownInfrastructure().subscribe(
       (response: {}) => {
         this.pollInfrastructureStatus();
