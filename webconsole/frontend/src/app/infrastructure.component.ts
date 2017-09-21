@@ -35,7 +35,9 @@ export class InfrastructureComponent implements OnInit {
 
   constructor(private readonly infrastructureService: InfrastructureService,
               private readonly snackBar: MdSnackBar,
-              private readonly route: ActivatedRoute) { }
+              private readonly route: ActivatedRoute) {
+    this.projectId = route.snapshot.queryParams.project;
+  }
 
   ngOnInit() {
     this.loadInfrastructureStatus();
