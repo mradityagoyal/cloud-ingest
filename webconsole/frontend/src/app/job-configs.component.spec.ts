@@ -20,6 +20,10 @@ class MdDialogStub {
   public open = jasmine.createSpy('open');
 }
 
+class MdDialogRefStub {
+  public afterClosed = jasmine.createSpy('afterClosed');
+}
+
 const FAKE_JOBSPEC1: any = {'fakeField1': 'fakeValue1', 'fakeField2' : 'fakeValue2'};
 const FAKE_JOBSPEC2: any = {'fakeField3': 'fakeValue3', 'fakeField4' : 'fakeValue4'};
 const FAKE_JOBSPEC3: any = {'fakeField5': 'fakeValue5', 'fakeField6' : 'fakeValue6'};
@@ -39,17 +43,23 @@ const FAKE_JOB_CONFIGS: JobConfig[] = [
   }
 ];
 
+const EMPTY_JOB_CONFIG_ARR: JobConfig[] = [];
+
 const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
 
 let jobsServiceStub: JobsServiceStub;
 let mdDialogStub: MdDialogStub;
+let mdDialogRefStub: MdDialogRefStub;
 
 describe('JobConfigsComponent', () => {
 
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
     mdDialogStub = new MdDialogStub();
+    mdDialogRefStub = new MdDialogRefStub();
     jobsServiceStub.getJobConfigs.and.returnValue(Observable.of(FAKE_JOB_CONFIGS));
+    mdDialogStub.open.and.returnValue(mdDialogRefStub);
+    mdDialogRefStub.afterClosed.and.returnValue(Observable.of(false));
 
     TestBed.configureTestingModule({
       declarations: [
@@ -202,4 +212,16 @@ describe('JobConfigsComponent', () => {
       expect(element.innerText).toContain('fakeErrorText');
     });
   }));
+
+  it('should open the add job config dialog if there are no job configurations', async(() => {
+    jobsServiceStub.getJobConfigs.and.returnValue(Observable.of(EMPTY_JOB_CONFIG_ARR));
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      expect(mdDialogStub.open).toHaveBeenCalled();
+      expect(expect(mdDialogStub.open.calls.first().args[0]).toBe(JobConfigAddDialogComponent));
+    });
+  }));
+
 });

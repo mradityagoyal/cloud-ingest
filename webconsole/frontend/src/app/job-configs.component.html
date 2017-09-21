@@ -18,6 +18,9 @@
     <strong> {{ errorTitle }} </strong>
     <p> {{ errorMessage }} </p>
   </div>
+  <div *ngIf="jobConfigs?.length === 0">
+    <h4> There are no job configurations. Click the 'Add a job configuration' button on the top right corner of the screen.  </h4>
+  </div>
   <div class="ingest-card-container" >
     <md-card class="ingest-job-configs-card" *ngFor="let jobConfig of jobConfigs">
      <md-card-title> {{jobConfig.JobConfigId}} </md-card-title>

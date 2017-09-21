@@ -33,6 +33,9 @@ export class JobConfigsComponent implements OnInit {
       (response) => {
         this.jobConfigs = response;
         this.showLoadingSpinner = false;
+        if (this.jobConfigs.length === 0) {
+          this.openAddJobConfigDialog();
+        }
       },
       (error: HttpErrorResponse) => {
         this.errorTitle = error.error;
