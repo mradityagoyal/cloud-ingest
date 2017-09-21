@@ -12,18 +12,18 @@
   <md-form-field class="ingest-full-width">
     <input id="jobConfigId" name="jobConfigId" mdInput required [(ngModel)]="model.jobConfigId" #jobConfigId="ngModel" placeholder="Config Id" i18n="Label for Job Config Id input">
   </md-form-field>
-  <h4 i18n="Subtitle in a form for the fields of the destination information for Google Cloud Storage"> Destination information at Google Cloud Storage: </h4>
+  <h4 i18n="Subtitle in a form for the fields of the source information for the source file system"> Source information: </h4>
+  <md-form-field class="ingest-full-width">
+      <input id="fileSystemDirectory" name="fileSystemDirectory" mdInput required [(ngModel)]="model.fileSystemDirectory" #fileSystemDirectory="ngModel" placeholder="Full path at source" i18n="Label for the full path at the filesystem.">
+  </md-form-field>
+  <h4 i18n="Subtitle in a form for the fields of the destination information for Google Cloud Storage"> Destination information for Google Cloud Storage: </h4>
   <md-form-field class="ingest-full-width">
       <input id="gcsBucket" name="gcsBucket" mdInput required [(ngModel)]="model.gcsBucket" #gcsBucket="ngModel" placeholder="Google Cloud Storage bucket" i18n="Label for Google Cloud Storage bucket">
   </md-form-field>
   <md-form-field class="ingest-full-width">
       <input id="gcsDirectory" name="gcsDirectory" mdInput required [(ngModel)]="model.gcsDirectory" #gcsDirectory="ngModel" placeholder="Google Cloud Storage directory" i18n="Label for Google Cloud Storage directory">
   </md-form-field>
-  <h4 i18n="Subtitle in a form for the fields of the source information for the on-premises file system"> Source information for the on-premises file system: </h4>
-  <md-form-field class="ingest-full-width">
-      <input id="fileSystemDirectory" name="fileSystemDirectory" mdInput required [(ngModel)]="model.fileSystemDirectory" #fileSystemDirectory="ngModel" placeholder="File system directory" i18n="Label for the directory on the file system">
-  </md-form-field>
-  <h4 i18n=""> Destination information at BigQuery: </h4>
+  <h4 i18n=""> Destination information for BigQuery: </h4>
 
   <md-checkbox class="ingest-full-width" id="bigQueryTransferChecked" name="bigQueryTransferChecked" i18n="Label for checkbox to select the transfer rows to BigQuery option" [(ngModel)]="bigQueryTransferChecked">Transfer rows into BigQuery</md-checkbox>
   <ng-container *ngIf="bigQueryTransferChecked">
