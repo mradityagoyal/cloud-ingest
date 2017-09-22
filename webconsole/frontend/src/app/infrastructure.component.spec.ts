@@ -1,4 +1,4 @@
-import { TestBed, async } from '@angular/core/testing';
+import { TestBed, async, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
 import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
 import { InfrastructureStatus, PubsubStatus} from './api.resources';
 import { InfrastructureComponent } from './infrastructure.component';
@@ -146,7 +146,7 @@ const FAKE_INFRA_STATUS_NOT_DETERMINED: InfrastructureStatus = {
 
 const FAKE_HTTP_ERROR = {error: 'FakeError', message: 'Fake Error Message.'};
 
-let internalObservableCreateSpy: any;
+let intervalObservableCreateSpy: any;
 
 let infrastructureServiceStub: InfrastructureServiceStub;
 let mdSnackBarStub: MdSnackBarStub;
@@ -159,7 +159,8 @@ describe('InfrastructureComponent', () => {
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
     infrastructureServiceStub.postCreateInfrastructure.and.returnValue(Observable.of({}));
     infrastructureServiceStub.postTearDownInfrastructure.and.returnValue(Observable.of({}));
-    internalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
+    // Disable polling for most tests
+    intervalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
     mdSnackBarStub = new MdSnackBarStub();
     activatedRouteStub = new ActivatedRouteStub();
 
@@ -407,7 +408,7 @@ describe('InfrastructureComponent', () => {
     const fixture = TestBed.createComponent(InfrastructureComponent);
     const component = fixture.debugElement.componentInstance;
     // It should poll the infrastructure three times
-    internalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
+    intervalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -421,7 +422,7 @@ describe('InfrastructureComponent', () => {
     const fixture = TestBed.createComponent(InfrastructureComponent);
     const component = fixture.debugElement.componentInstance;
     // It should poll the infrastructure three times
-    internalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
+    intervalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -434,7 +435,7 @@ describe('InfrastructureComponent', () => {
     const fixture = TestBed.createComponent(InfrastructureComponent);
     const component = fixture.debugElement.componentInstance;
     // It should poll the infrastructure three times
-    internalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
+    intervalObservableCreateSpy.and.returnValue(Observable.of(1, 2, 3));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -450,7 +451,7 @@ describe('InfrastructureComponent', () => {
         });
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(infrastructureStatusObservable);
     const fixture = TestBed.createComponent(InfrastructureComponent);
-    internalObservableCreateSpy.and.returnValue(Observable.of(1));
+    intervalObservableCreateSpy.and.returnValue(Observable.of(1));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -497,6 +498,50 @@ describe('InfrastructureComponent', () => {
         expect(element).not.toBeNull();
       });
     });
+  }));
+
+  it('should start and stop polling when the infrastructure is deploying or deleting', fakeAsync(() => {
+    intervalObservableCreateSpy.and.callThrough(); // Enable polling for this test.
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_FOUND));
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+
+    // First load the initial state as 'not found'.
+    tick(500);
+    fixture.detectChanges();
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(1); // initial call
+    const compiled = fixture.debugElement.nativeElement;
+
+    // Then, click on the create infrastructure button. The app should poll the status.
+    infrastructureServiceStub.getInfrastructureStatus.calls.reset();
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DEPLOYING));
+    const createInfrastructureButton = compiled.querySelector('.ingest-create-infrastructure');
+    createInfrastructureButton.click();
+    tick(9000);
+    fixture.detectChanges();
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(4);
+
+    // The app should not poll when it is not deployed.
+    infrastructureServiceStub.getInfrastructureStatus.calls.reset();
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
+    tick(6000);
+    fixture.detectChanges();
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(1);
+
+    // Click on the teardown infrastructure button. The app should poll the status again.
+    infrastructureServiceStub.getInfrastructureStatus.calls.reset();
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DELETING));
+    const tearDownInfrastructureButton = compiled.querySelector('.ingest-tear-down-infrastructure');
+    tearDownInfrastructureButton.click();
+    tick(9000);
+    fixture.detectChanges();
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(4);
+
+    // The app should not poll when the infrastructure status is 'not found' again.
+    infrastructureServiceStub.getInfrastructureStatus.calls.reset();
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_FOUND));
+    tick(6000);
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(1);
+    discardPeriodicTasks(); // end of fakeAsync test.
   }));
 
 });

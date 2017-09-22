@@ -5,7 +5,6 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { MdSnackBar } from '@angular/material';
 import { ActivatedRoute } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
-import 'rxjs/add/operator/takeWhile';
 
 const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 3000;
 
@@ -42,11 +41,10 @@ export class InfrastructureComponent implements OnInit {
   ngOnInit() {
     this.loadInfrastructureStatus();
     IntervalObservable.create(UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS)
-      .takeWhile(() => {
-          return this.showInfrastructureDeploying || this.showInfrastructureDeleting;
-        })
       .subscribe(() => {
-        this.pollInfrastructureStatus();
+        if (this.showInfrastructureDeploying || this.showInfrastructureDeleting) {
+          this.pollInfrastructureStatus();
+        }
       });
   }
 
