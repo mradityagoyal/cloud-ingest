@@ -7,6 +7,7 @@ import { AngularMaterialImporterModule } from './angular-material-importer.modul
 import { Observable } from 'rxjs/Observable';
 import { MdDialog } from '@angular/material';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
+import { RouterTestingModule } from '@angular/router/testing';
 import 'rxjs/add/observable/of';
 import 'rxjs/add/operator/delay';
 import 'rxjs/add/observable/never';
@@ -75,7 +76,8 @@ describe('JobConfigsComponent', () => {
         {provide: MdDialog, useValue: mdDialogStub}
       ],
       imports: [
-        AngularMaterialImporterModule
+        AngularMaterialImporterModule,
+        RouterTestingModule
       ],
     }).compileComponents();
   }));

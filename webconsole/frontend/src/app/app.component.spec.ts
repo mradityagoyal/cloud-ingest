@@ -87,30 +87,17 @@ describe('AppComponent', () => {
     });
   }));
 
-  it('should contain four links and signout', async(() => {
+  it('should contain two links and signout', async(() => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.querySelectorAll('a').length).toBe(4);
+      expect(compiled.querySelectorAll('a').length).toBe(2);
 
       const signOutButton = compiled.querySelector('button');
       expect(signOutButton).not.toBeNull();
       expect(signOutButton.textContent).toContain('Signout');
-    });
-  }));
-
-  it('should contain a Job Runs link', async(() => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#jobrunslink');
-      expect(element).not.toBeNull();
-      expect(element.textContent).toContain('Job Runs');
-      expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));
 
@@ -123,19 +110,6 @@ describe('AppComponent', () => {
       const element = compiled.querySelector('#jobconfigslink');
       expect(element).not.toBeNull();
       expect(element.textContent).toContain('Job Configs');
-      expect(element.getAttribute('queryParamsHandling')).toBe('merge');
-    });
-  }));
-
-  it('should contain a Create Job Run link', async(() => {
-    const fixture = TestBed.createComponent(AppComponent);
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#createjobrunlink');
-      expect(element).not.toBeNull();
-      expect(element.textContent).toContain('Create Job Run');
       expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));

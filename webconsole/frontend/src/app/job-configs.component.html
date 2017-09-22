@@ -32,6 +32,17 @@
       </ng-container>
      </dl>
      </md-card-content>
+     <md-card-actions>
+      <!--
+        TODO(b/65846311): The id of the first job run is only temporarily first-job-run. This
+                          should change to retrieve the correct job run.
+       -->
+      <button md-button routerLink="/jobconfigs/{{jobConfig.JobConfigId}}/first-job-run"
+         queryParamsHandling="merge" class="ingest-job-run-link"
+         i18n="Link to view the job run corresponding to the job configuration">
+            View Job Run
+      </button>
+     </md-card-actions>
     </md-card>
   </div>
 </ng-template>
