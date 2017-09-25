@@ -458,7 +458,7 @@ describe('InfrastructureComponent', () => {
       // There should have been two calls, one get infrastructure and one for polling
       expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(2);
       expect(mdSnackBarStub.open).toHaveBeenCalled();
-      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('FakeError');
+      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('Fake Error Message.');
     });
   }));
 

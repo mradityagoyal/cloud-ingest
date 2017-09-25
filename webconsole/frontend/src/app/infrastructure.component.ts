@@ -62,7 +62,11 @@ export class InfrastructureComponent implements OnInit {
         this.showInfrastructureStatusLoading = false;
       },
       (errorResponse: HttpErrorResponse) => {
-        this.loadInfrastructureErrorTitle = errorResponse.error;
+        if (typeof errorResponse.error === 'string') {
+          this.loadInfrastructureErrorTitle = errorResponse.error;
+        } else {
+          this.loadInfrastructureErrorTitle = errorResponse.statusText;
+        }
         this.loadInfrastructureErrorMessage = errorResponse.message;
         this.showLoadInfrastructureError = true;
         this.showInfrastructureStatusLoading = false;
@@ -81,7 +85,7 @@ export class InfrastructureComponent implements OnInit {
         this.updateCreateTearDownButtons(response);
       },
       (errorResponse: HttpErrorResponse) => {
-        this.snackBar.open(`There was an error polling the infrastructure status: ${errorResponse.error}`, 'Dismiss');
+        this.snackBar.open(`There was an error polling the infrastructure status: ${errorResponse.message}`, 'Dismiss');
       }
     );
   }
@@ -145,7 +149,7 @@ export class InfrastructureComponent implements OnInit {
         this.pollInfrastructureStatus();
       },
       (errorResponse: HttpErrorResponse) => {
-        this.snackBar.open(`There was an error in the create infrastructure request: ${errorResponse.error}`, 'Dismiss');
+        this.snackBar.open(`There was an error in the create infrastructure request: ${errorResponse.message}`, 'Dismiss');
         this.pollInfrastructureStatus();
       }
     );
@@ -158,7 +162,7 @@ export class InfrastructureComponent implements OnInit {
         this.pollInfrastructureStatus();
       },
       (errorResponse: HttpErrorResponse) => {
-        this.snackBar.open(`There was an error in the tear down infrastructure request: ${errorResponse.error}`, 'Dismiss');
+        this.snackBar.open(`There was an error in the tear down infrastructure request: ${errorResponse.message}`, 'Dismiss');
         this.pollInfrastructureStatus();
       }
     );

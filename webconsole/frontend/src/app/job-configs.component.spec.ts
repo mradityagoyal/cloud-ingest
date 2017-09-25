@@ -46,6 +46,11 @@ const FAKE_JOB_CONFIGS: JobConfig[] = [
 const EMPTY_JOB_CONFIG_ARR: JobConfig[] = [];
 
 const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
+const FAKE_HTTP_ERROR2 = {
+  error: { fakeField1: 'Unexpected error format', fakeField2: 'This error is not a string'},
+  statusText: 'fakeStatusText',
+  message: 'Fake error message 2.'
+};
 
 let jobsServiceStub: JobsServiceStub;
 let mdDialogStub: MdDialogStub;
@@ -213,6 +218,20 @@ describe('JobConfigsComponent', () => {
     });
   }));
 
+  it('should display the error title as status text and error message from the response', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    const component = fixture.debugElement.componentInstance;
+    jobsServiceStub.getJobConfigs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR2));
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const element = compiled.querySelector('.ingest-error-message');
+      expect(element.innerText).toContain('Fake error message 2.');
+      expect(element.innerText).toContain('fakeStatusText');
+    });
+  }));
+
   it('should open the add job config dialog if there are no job configurations', async(() => {
     jobsServiceStub.getJobConfigs.and.returnValue(Observable.of(EMPTY_JOB_CONFIG_ARR));
     const fixture = TestBed.createComponent(JobConfigsComponent);
@@ -223,5 +242,4 @@ describe('JobConfigsComponent', () => {
       expect(expect(mdDialogStub.open.calls.first().args[0]).toBe(JobConfigAddDialogComponent));
     });
   }));
-
 });

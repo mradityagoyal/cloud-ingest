@@ -38,7 +38,11 @@ export class JobConfigsComponent implements OnInit {
         }
       },
       (error: HttpErrorResponse) => {
-        this.errorTitle = error.error;
+        if (typeof error.error === 'string') {
+          this.errorTitle = error.error;
+        } else {
+          this.errorTitle = error.statusText;
+        }
         this.errorMessage = error.message;
         this.displayErrorMessage = true;
         this.showLoadingSpinner = false;
