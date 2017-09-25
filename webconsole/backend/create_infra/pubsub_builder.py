@@ -15,31 +15,41 @@
 
 """Google Cloud PubSub admin utilities."""
 
-from google.cloud import exceptions
+# pylint: disable=relative-import
+import google.auth as googleauth
+
 from google.cloud import pubsub
+from google.gax import GaxError
+from google.gax import config
+from grpc import StatusCode
 
 from resource_status import ResourceStatus
 
 class PubSubBuilder(object):
     """Manipulates PubSub topics/subscriptions."""
 
-    def __init__(self, client=None):
-        self.client = client
-        if not self.client:
-            # Use the default client if not specified.
-            self.client = pubsub.Client()
+    def __init__(self, credentials=None, project_id=None):
+        self.project_id = project_id
+        if not self.project_id:
+            _, self.project_id = googleauth.default()
+
+        self.pub_client = pubsub.PublisherClient(credentials=credentials)
+        self.sub_client = pubsub.SubscriberClient(credentials=credentials)
 
     def create_topic(self, topic_name):
         """Creates topic_name topic."""
-        topic = self.client.topic(topic_name)
-        topic.create()
-        return topic
+        full_topic_name = self.pub_client.topic_path(
+            self.project_id, topic_name)
+        self.pub_client.create_topic(full_topic_name)
 
-    @classmethod
-    def create_subscription(cls, topic, sub_name, ack_deadline=15):
+    def create_subscription(self, topic_name, sub_name, ack_deadline=15):
         """Creates sub_name subscription in topic with deadline ack_deadline."""
-        sub = topic.subscription(sub_name, ack_deadline=ack_deadline)
-        sub.create()
+        full_topic_name = self.sub_client.topic_path(
+            self.project_id, topic_name)
+        full_sub_name = self.sub_client.subscription_path(
+            self.project_id, sub_name)
+        self.sub_client.create_subscription(full_sub_name, full_topic_name,
+                                            ack_deadline_seconds=ack_deadline)
 
     def topic_and_subscriptions_exist(self, topic_name, sub_names):
         """Checks the existence of a topic and associated subscriptions.
@@ -54,11 +64,23 @@ class PubSubBuilder(object):
         Returns:
             True if the topic and all the subscriptions exist.
         """
-        topic = self.client.topic(topic_name)
-        if not topic.exists():
+        full_topic_name = self.pub_client.topic_path(
+            self.project_id, topic_name)
+
+        topic_subs_set = set()
+
+        try:
+            for sub in (self.pub_client.
+                        list_topic_subscriptions(full_topic_name)):
+                topic_subs_set.add(sub)
+        except GaxError as err:
+            if config.exc_to_code(err.cause) != StatusCode.NOT_FOUND:
+                raise
             return False
-        for sub_name in sub_names:
-            if not topic.subscription(sub_name).exists():
+        for sub in sub_names:
+            full_sub_name = self.sub_client.subscription_path(
+                self.project_id, sub)
+            if full_sub_name not in topic_subs_set:
                 return False
         return True
 
@@ -78,25 +100,23 @@ class PubSubBuilder(object):
 
     def create_topic_and_subscriptions(self, topic_name, sub_names):
         """Creates topic_name topics and associate sub_names subscriptions."""
-        topic = self.create_topic(topic_name)
+        self.create_topic(topic_name)
         for sub_name in sub_names:
-            self.create_subscription(topic, sub_name)
+            self.create_subscription(topic_name, sub_name)
 
     def delete_topic_and_subscriptions(self, topic_name):
         """Deletes topic_name topic and its subscriptions."""
-        topic = self.client.topic(topic_name)
-        if not topic.exists():
-            print 'Topic {} does not exist, skipping delete.'.format(topic.name)
+        full_topic_name = self.pub_client.topic_path(
+            self.project_id, topic_name)
+        try:
+            for sub in (self.pub_client.
+                        list_topic_subscriptions(full_topic_name)):
+                self.sub_client.delete_subscription(sub)
+
+        except GaxError as err:
+            if config.exc_to_code(err.cause) != StatusCode.NOT_FOUND:
+                raise
+            print 'Topic {} does not exist, skipping delete.'.format(topic_name)
             return
 
-        # Deleting subscriptions associated with the topic
-        subs = topic.list_subscriptions()
-        for sub in subs:
-            try:
-                sub.delete()
-            except exceptions.NotFound:
-                print 'Subscription {} does not exist, skipping delete.'.format(
-                    sub.name)
-
-        # Delete the topic
-        topic.delete()
+        self.pub_client.delete_topic(full_topic_name)

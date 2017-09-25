@@ -118,8 +118,8 @@ def infrastructure_status(credentials, project_id):
     spanner_bldr = spanner_builder.SpannerBuilder(constants.SPANNER_INSTANCE,
                                                   client=spanner_client)
 
-    pubsub_client = pubsub.Client(credentials=credentials, project=project_id)
-    pubsub_bldr = pubsub_builder.PubSubBuilder(client=pubsub_client)
+    pubsub_bldr = pubsub_builder.PubSubBuilder(
+        credentials=credentials, project_id=project_id)
 
     functions_bldr = cloud_functions_builder.CloudFunctionsBuilder(
         credentials=credentials, project_id=project_id)
@@ -146,8 +146,8 @@ def create_infrastructure(credentials, project_id, dcp_docker_image):
     spanner_bldr = spanner_builder.SpannerBuilder(constants.SPANNER_INSTANCE,
                                                   client=spanner_client)
 
-    pubsub_client = pubsub.Client(credentials=credentials, project=project_id)
-    pubsub_bldr = pubsub_builder.PubSubBuilder(client=pubsub_client)
+    pubsub_bldr = pubsub_builder.PubSubBuilder(
+        credentials=credentials, project_id=project_id)
 
     functions_bldr = cloud_functions_builder.CloudFunctionsBuilder(
         credentials=credentials, project_id=project_id)
@@ -209,8 +209,8 @@ def tear_infrastructure(credentials, project_id):
     spanner_bldr = spanner_builder.SpannerBuilder(constants.SPANNER_INSTANCE,
                                                   client=spanner_client)
 
-    pubsub_client = pubsub.Client(credentials=credentials, project=project_id)
-    pubsub_bldr = pubsub_builder.PubSubBuilder(client=pubsub_client)
+    pubsub_bldr = pubsub_builder.PubSubBuilder(
+        credentials=credentials, project_id=project_id)
 
     functions_bldr = cloud_functions_builder.CloudFunctionsBuilder(
         credentials=credentials, project_id=project_id)
