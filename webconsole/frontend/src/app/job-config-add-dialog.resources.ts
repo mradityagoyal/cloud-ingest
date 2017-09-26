@@ -6,7 +6,6 @@ import { JobConfig } from './api.resources';
  export class JobConfigFormModel {
     constructor(
       public jobConfigId: string,
-      public gcsDirectory: string,
       public gcsBucket: string,
       // The directory on the on-premises file system.
       public fileSystemDirectory: string,
@@ -20,13 +19,12 @@ import { JobConfig } from './api.resources';
    toApiJobConfig(): JobConfig {
       // If the required fields are not set, throw an error.
       if (this.jobConfigId == null || this.jobConfigId === '' ||
-          this.gcsDirectory == null || this.gcsDirectory === '' ||
           this.gcsBucket == null || this.gcsBucket === '' ||
           this.fileSystemDirectory == null || this.fileSystemDirectory === '') {
           throw new Error('There are unset required fields.');
       }
-      let jobSpec: string = `{"gcsDirectory": "${this.gcsDirectory}", ` +
-                 `"onPremSrcDirectory": "${this.fileSystemDirectory}",` +
+      let jobSpec: string =
+                `{"onPremSrcDirectory": "${this.fileSystemDirectory}",` +
                  `"gcsBucket": "${this.gcsBucket}"`;
       // If BigQuery information is present, add it to the JobSpec.
       if (this.bigqueryTable != null && this.bigqueryTable !== '' &&

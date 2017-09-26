@@ -28,7 +28,6 @@ const FAKE_JOB_CONFIG: JobConfig = {
 };
 const EMPTY_MODEL = new JobConfigFormModel(
     /** jobConfigId **/ '',
-    /** gcsDirectory **/ '',
     /** gcsBucket **/ '',
     /** fileSystemDirectory **/ '',
     /** bigqueryDataset **/ '',
@@ -42,7 +41,6 @@ describe('JobConfigAddDialogComponent', () => {
     jobsServiceStub.postJobConfig.and.returnValue(Observable.of(FAKE_JOB_CONFIG));
     fakeJobConfigModel = new JobConfigFormModel(
                         /**jobConfigId**/ 'fakeJobConfigId',
-                       /**gcsDirectory**/ 'fake/gcs/directory',
                        /**gcsBucket**/ 'fakeGcsBucket',
                        /**fileSystemDirectory**/
                            'fake/file/system/dir',

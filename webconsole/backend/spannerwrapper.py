@@ -184,11 +184,16 @@ class SpannerWrapper(object):
 
         job_spec_dict = json.loads(job_spec)
 
-        list_result_object_name = os.path.join(
+        if 'gcsDirectory' in job_spec_dict:
+            list_result_object_name = os.path.join(
             job_spec_dict['gcsDirectory'],
             'list-task-output-%s-%s-%s' % (config_id,
                                            run_id,
                                            task_id))
+        else:
+            list_result_object_name = 'list-task-output-%s-%s-%s' % (config_id,
+                                                                     run_id,
+                                                                     task_id)
         task_spec = {
             'src_directory': job_spec_dict['onPremSrcDirectory'],
             'dst_list_result_bucket': job_spec_dict['gcsBucket'],

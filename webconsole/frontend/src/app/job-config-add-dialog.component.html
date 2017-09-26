@@ -20,16 +20,6 @@
   <md-form-field class="ingest-full-width">
       <input id="gcsBucket" name="gcsBucket" mdInput required [(ngModel)]="model.gcsBucket" #gcsBucket="ngModel" placeholder="Google Cloud Storage bucket" i18n="Label for Google Cloud Storage bucket">
   </md-form-field>
-  <md-form-field class="ingest-full-width">
-      <span mdPrefix>
-          {{model.gcsBucket}}
-        <ng-container *ngIf="!model.gcsBucket">
-          &lt;bucket name &gt;
-        </ng-container> /&nbsp;
-      </span>
-      <input id="gcsDirectory" name="gcsDirectory" mdInput [(ngModel)]="model.gcsDirectory" #gcsDirectory="ngModel" placeholder="Google Cloud Storage directory" i18n="Label for Google Cloud Storage directory">
-      <md-icon mdSuffix mdTooltip="Which directory in the bucket should the files go to? If left blank, the files will go to the root of the bucket." [mdTooltipPosition]="'after'">help</md-icon>
-  </md-form-field>
   <h4 i18n=""> Destination information for BigQuery: </h4>
 
   <md-checkbox class="ingest-full-width" id="bigQueryTransferChecked" name="bigQueryTransferChecked" i18n="Label for checkbox to select the transfer rows to BigQuery option" [(ngModel)]="bigQueryTransferChecked">Transfer rows into BigQuery</md-checkbox>

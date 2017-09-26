@@ -6,8 +6,7 @@ let fakeJobConfigModel: JobConfigFormModel;
 
 const FAKE_API_JOB_CONFIG1: JobConfig = {
   JobConfigId : 'fakeJobConfigId',
-  JobSpec: '{"gcsDirectory": "fake/gcs/directory",' +
-            '"onPremSrcDirectory": "fake/file/system/dir",' +
+  JobSpec: '{"onPremSrcDirectory": "fake/file/system/dir",' +
             '"gcsBucket": "fakeGcsBucket",' +
             '"bigqueryDataset": "fakeBigqueryDataset",' +
             '"bigqueryTable": "fakeBigqueryTable"}',
@@ -15,8 +14,7 @@ const FAKE_API_JOB_CONFIG1: JobConfig = {
 
 const FAKE_API_JOB_CONFIG2: JobConfig = {
   JobConfigId : 'fakeJobConfigId',
-  JobSpec: '{"gcsDirectory": "fake/gcs/directory",' +
-            '"onPremSrcDirectory": "fake/file/system/dir",' +
+  JobSpec: '{"onPremSrcDirectory": "fake/file/system/dir",' +
             '"gcsBucket": "fakeGcsBucket"}',
 };
 
@@ -25,7 +23,6 @@ describe('JobConfigFormModel', () => {
   beforeEach(() => {
     fakeJobConfigModel = new JobConfigFormModel(
                               /**jobConfigId**/ 'fakeJobConfigId',
-                             /**gcsDirectory**/ 'fake/gcs/directory',
                              /**gcsBucket**/ 'fakeGcsBucket',
                              /**fileSystemDirectory**/
                                  'fake/file/system/dir',
@@ -81,19 +78,6 @@ describe('JobConfigFormModel', () => {
 
   it('toApiJobConfig should throw error if job config id is an empty string', () => {
     fakeJobConfigModel.jobConfigId = '';
-    expect(fakeJobConfigModel.toApiJobConfig).toThrow();
-  });
-
-  it('toApiJobConfig should throw error if gcsDirectory id is null or undefined', () => {
-    fakeJobConfigModel.gcsDirectory = null;
-    expect(fakeJobConfigModel.toApiJobConfig).toThrow();
-
-    fakeJobConfigModel.gcsDirectory = undefined;
-    expect(fakeJobConfigModel.toApiJobConfig).toThrow();
-  });
-
-  it('toApiJobConfig should throw error if gcsDirectory id is an empty string', () => {
-    fakeJobConfigModel.gcsDirectory = '';
     expect(fakeJobConfigModel.toApiJobConfig).toThrow();
   });
 

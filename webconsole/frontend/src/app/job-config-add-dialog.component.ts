@@ -23,7 +23,6 @@ export class JobConfigAddDialogComponent {
   appError = false; // The application is broken (bug, back-end error, etc.)
   model = new JobConfigFormModel(
     /** jobConfigId **/ '',
-    /** gcsDirectory **/ '',
     /** gcsBucket **/ '',
     /** fileSystemDirectory **/ '',
     /** bigqueryDataset **/ '',
