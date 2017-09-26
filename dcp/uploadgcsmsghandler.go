@@ -25,7 +25,10 @@ type UploadGCSProgressMessageHandler struct {
 }
 
 func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task) error {
-	if task.Status != Success {
+	// Empty BQDataset and BQTable means that there is no load to BQ in this job spec.
+	// TODO(b/66965866): Have a centralized place where we can have a proper handling of
+	// task state transitions.
+	if task.Status != Success || (jobSpec.BQDataset == "" && jobSpec.BQTable == "") {
 		return h.Store.UpdateTasks([]*Task{task})
 	}
 	// TODO(b/63014658): de-normalize the task spec into the progress message,

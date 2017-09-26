@@ -32,7 +32,7 @@ var (
 
 func TestListProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 	store := FakeStore{}
-	handler := UploadGCSProgressMessageHandler{
+	handler := ListProgressMessageHandler{
 		Store: &store,
 	}
 
@@ -60,7 +60,7 @@ func TestListProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 			uploadGCSTask.getTaskFullId(): uploadGCSTask,
 		},
 	}
-	handler := UploadGCSProgressMessageHandler{
+	handler := ListProgressMessageHandler{
 		Store: &store,
 	}
 

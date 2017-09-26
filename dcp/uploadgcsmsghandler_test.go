@@ -27,8 +27,9 @@ func TestUploadGCSProgressMessageHandlerFailedTask(t *testing.T) {
 	handler := UploadGCSProgressMessageHandler{
 		Store: &store,
 	}
+	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
 	task := &Task{Status: Failed, TaskId: "A"}
-	if err := handler.HandleMessage(nil /* jobSpec */, task); err != nil {
+	if err := handler.HandleMessage(jobSpec, task); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
@@ -55,7 +56,8 @@ func TestUploadGCSProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 	}
 
 	task := &Task{Status: Success}
-	err := handler.HandleMessage(nil /* jobSpec */, task)
+	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
+	err := handler.HandleMessage(jobSpec, task)
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errTaskNotFound)
 	}
@@ -82,9 +84,10 @@ func TestUploadGCSProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 		Store: &store,
 	}
 
+	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
 	// Reset the task spec
 	uploadGCSTask.TaskSpec = ""
-	err := handler.HandleMessage(nil /* jobSpec */, uploadGCSTask)
+	err := handler.HandleMessage(jobSpec, uploadGCSTask)
 	if err == nil {
 		t.Errorf("error is nil, expected JSON decode error.")
 	}
@@ -148,5 +151,42 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 	insertedTask.TaskSpec = ""
 	if !reflect.DeepEqual(expectedNewTask, *insertedTask) {
 		t.Errorf("expected task: %v, found: %v.", expectedNewTask, *insertedTask)
+	}
+}
+
+func TestUploadGCSProgressMessageHandlerNoBQTask(t *testing.T) {
+	uploadGCSTask := &Task{
+		JobConfigId: jobConfigId,
+		JobRunId:    jobRunId,
+		TaskType:    uploadGCSTaskType,
+		TaskId:      "A",
+		TaskSpec: `{
+			"task_id": "A",
+			"src_file": "file",
+			"dst_bucket": "bucket",
+			"dst_object": "object"
+		}`,
+		Status: Failed,
+	}
+	store := FakeStore{
+		tasks: map[string]*Task{
+			uploadGCSTask.getTaskFullId(): uploadGCSTask,
+		},
+	}
+	handler := UploadGCSProgressMessageHandler{
+		Store: &store,
+	}
+
+	jobSpec := &JobSpec{}
+	// Turn the task to success
+	uploadGCSTask.Status = Success
+	if err := handler.HandleMessage(jobSpec, uploadGCSTask); err != nil {
+		t.Errorf("expecting success, found error: %v.", err)
+	}
+	if len(store.tasks) != 1 {
+		t.Errorf("expecting 1 tasks in the the store, found %d.", len(store.tasks))
+	}
+	if store.tasks[uploadGCSTask.getTaskFullId()].Status != Success {
+		t.Errorf("task %v status should be updated to success.", uploadGCSTask)
 	}
 }
