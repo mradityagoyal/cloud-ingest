@@ -34,10 +34,10 @@
      </md-card-content>
      <md-card-actions>
       <!--
-        TODO(b/65846311): The id of the first job run is only temporarily first-job-run. This
-                          should change to retrieve the correct job run.
+        TODO(b/65846311): The id of the first job run is only temporarily 'jobrun'. This
+                          should change to retrieve the correct job run id.
        -->
-      <button md-button routerLink="/jobconfigs/{{jobConfig.JobConfigId}}/first-job-run"
+      <button md-button routerLink="/jobconfigs/{{jobConfig.JobConfigId}}/jobrun"
          queryParamsHandling="merge" class="ingest-job-run-link"
          i18n="Link to view the job run corresponding to the job configuration">
             View Job Run
