@@ -51,7 +51,7 @@ _AUTH_HEADER_REGEX = re.compile(r'^\s*Bearer\s+(?P<access_token>[^\s]*)$')
 # TODO(b/65846311): Temporary constants used to create the job run and first
 # list task when a job config is created. Eventually DCP should manage
 # scheduling/creating job runs and first listing tasks.
-_FIRST_JOB_RUN_ID = "first-job-run"
+_FIRST_JOB_RUN_ID = "jobrun"
 _LIST_TASK_ID = "list"
 
 def _get_credentials():

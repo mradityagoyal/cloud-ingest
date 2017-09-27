@@ -13,7 +13,7 @@ handlers:
 # /jobconfigs/:configId/:runId) routes.
 # TODO(b/66955251): Let the web-front end framework handles the bad routes
 # instead of showing ugly App Engine 404 page.
-- url: /(infrastructure|jobconfigs|jobconfigs/.*)
+- url: /|/infrastructure|/jobconfigs|/jobconfigs/.*
   static_files: dist/index.html
   upload: dist/index.html
 

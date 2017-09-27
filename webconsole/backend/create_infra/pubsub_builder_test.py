@@ -94,7 +94,7 @@ class PubsubBuilderTest(unittest.TestCase):
             self.sub_client_mock.create_subscription.mock_calls)
 
     def test_delete_raises_gax(self):
-        """Tests deleting a non-exists pubsub topic."""
+        """Tests deleting raises unknown GAX error."""
         self.pub_client_mock.list_topic_subscriptions.side_effect = GaxError(
             "msg", get_rpc_error_with_status_code(StatusCode.UNAUTHENTICATED))
 

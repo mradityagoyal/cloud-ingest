@@ -50,12 +50,12 @@ _GCE_INSTANCE_STATUS_MAPPING = {
     'PROVISIONING': ResourceStatus.DEPLOYING,
     'STAGING': ResourceStatus.DEPLOYING,
     'RUNNING': ResourceStatus.RUNNING,
-    # Considering halting the VM is an UNKNOWN status.
-    'STOPPING': ResourceStatus.UNKNOWN,
-    'STOPPED': ResourceStatus.UNKNOWN,
-    'SUSPENDING': ResourceStatus.UNKNOWN,
-    'SUSPENDED': ResourceStatus.UNKNOWN,
-    'TERMINATED': ResourceStatus.UNKNOWN,
+    # Considering halting the VM is an DELETING status.
+    'STOPPING': ResourceStatus.DELETING,
+    'STOPPED': ResourceStatus.DELETING,
+    'SUSPENDING': ResourceStatus.DELETING,
+    'SUSPENDED': ResourceStatus.DELETING,
+    'TERMINATED': ResourceStatus.DELETING,
 }
 
 def _wait_operation_to_complete(compute, project_id, zone, operation,
