@@ -1,5 +1,8 @@
-google-cloud-spanner==0.24.1
-google-cloud-pubsub==0.25.0
-google-cloud-storage==1.1.1
-google-api-python-client==1.6.2
+Flask==0.12.2
+gunicorn==19.7.1
+google-cloud-spanner==0.27.0
+google-cloud-pubsub==0.28.3
+google-cloud-storage==1.4.0
+google-api-python-client==1.6.3
+google-auth-httplib2==0.0.2
 
