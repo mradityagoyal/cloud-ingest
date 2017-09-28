@@ -21,7 +21,7 @@ import (
 	"testing"
 )
 
-func TestTaskCompletionMessageJsonToTask(t *testing.T) {
+func TestTaskCompletionMessageJsonToTaskWithLog(t *testing.T) {
 	var tests = map[string]int64{
 		"SUCCESS": Success,
 		"FAILED":  Failed,
@@ -41,7 +41,8 @@ func TestTaskCompletionMessageJsonToTask(t *testing.T) {
 		}
 		msg := []byte(fmt.Sprintf(msgFormat, jsonStatusString))
 
-		task, err := TaskCompletionMessageJsonToTask(msg)
+		taskWithLog, err := TaskCompletionMessageJsonToTaskWithLog(msg)
+		task := taskWithLog.Task
 		if err != nil {
 			t.Errorf("error converting task msg JSON to Task, error: %v.", err)
 		}
@@ -51,7 +52,7 @@ func TestTaskCompletionMessageJsonToTask(t *testing.T) {
 	}
 }
 
-func TestTaskCompletionMessageJsonToTaskFailureMsg(t *testing.T) {
+func TestTaskCompletionMessageJsonToTaskWithLogFailureMsg(t *testing.T) {
 	want := Task{
 		JobConfigId:    jobConfigId,
 		JobRunId:       jobRunId,
@@ -64,7 +65,8 @@ func TestTaskCompletionMessageJsonToTaskFailureMsg(t *testing.T) {
 		"status": "FAILED",
 		"failure_message": "Failure"
 	}`)
-	task, err := TaskCompletionMessageJsonToTask(msg)
+	taskWithLog, err := TaskCompletionMessageJsonToTaskWithLog(msg)
+	task := taskWithLog.Task
 	if err != nil {
 		t.Errorf("error converting task msg JSON to Task, error: %v.", err)
 	}
@@ -73,40 +75,40 @@ func TestTaskCompletionMessageJsonToTaskFailureMsg(t *testing.T) {
 	}
 }
 
-func TestTaskCompletionMessageJsonToTaskFailureMsgFailParse(t *testing.T) {
+func TestTaskCompletionMessageJsonToTaskWithLogFailureMsgFailParse(t *testing.T) {
 	msg := []byte("Invalid JSON.")
-	if _, err := TaskCompletionMessageJsonToTask(msg); err == nil {
+	if _, err := TaskCompletionMessageJsonToTaskWithLog(msg); err == nil {
 		t.Errorf("invalid JSON: %s. Method should not be able to parse", string(msg))
 	}
 }
 
-func TestTaskCompletionMessageJsonToTaskMissingId(t *testing.T) {
+func TestTaskCompletionMessageJsonToTaskWithLogMissingId(t *testing.T) {
 	msg := []byte(`{
 		"status": "FAILED",
 		"failure_message": "Failure"
 	}`)
-	if _, err := TaskCompletionMessageJsonToTask(msg); err == nil {
+	if _, err := TaskCompletionMessageJsonToTaskWithLog(msg); err == nil {
 		t.Errorf(
 			"task id does not exist in the message: %s, expected error.", string(msg))
 	}
 }
 
-func TestTaskCompletionMessageJsonToTaskMissingStatus(t *testing.T) {
+func TestTaskCompletionMessageJsonToTaskWithLogMissingStatus(t *testing.T) {
 	msg := []byte(`{
 		"task_id": "A"
 	}`)
-	if _, err := TaskCompletionMessageJsonToTask(msg); err == nil {
+	if _, err := TaskCompletionMessageJsonToTaskWithLog(msg); err == nil {
 		t.Errorf(
 			"status does not exist in the message: %s, expected error.", string(msg))
 	}
 }
 
-func TestTaskCompletionMessageJsonToTaskIncorrectStatus(t *testing.T) {
+func TestTaskCompletionMessageJsonToTaskWithLogIncorrectStatus(t *testing.T) {
 	msg := []byte(`{
 		"task_id": "A",
 		"status": "Incorrect status"
 	}`)
-	if _, err := TaskCompletionMessageJsonToTask(msg); err == nil {
+	if _, err := TaskCompletionMessageJsonToTaskWithLog(msg); err == nil {
 		t.Errorf(
 			"incorrect status in the message: %s, expected error.", string(msg))
 	}

@@ -24,12 +24,13 @@ type UploadGCSProgressMessageHandler struct {
 	Store Store
 }
 
-func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task) error {
+func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, taskWithLog TaskWithLog) error {
 	// Empty BQDataset and BQTable means that there is no load to BQ in this job spec.
 	// TODO(b/66965866): Have a centralized place where we can have a proper handling of
 	// task state transitions.
+	task := taskWithLog.Task
 	if task.Status != Success || (jobSpec.BQDataset == "" && jobSpec.BQTable == "") {
-		return h.Store.UpdateTasks([]*Task{task})
+		return h.Store.UpdateTasks([]TaskWithLog{taskWithLog})
 	}
 	// TODO(b/63014658): de-normalize the task spec into the progress message,
 	// so you do not have to query the database again.
@@ -63,14 +64,13 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *
 		return err
 	}
 
-	taskMap := make(map[*Task][]*Task)
-	taskMap[task] = []*Task{&Task{
+	taskWithLogMap := make(map[TaskWithLog][]*Task)
+	taskWithLogMap[taskWithLog] = []*Task{&Task{
 		JobConfigId: task.JobConfigId,
 		JobRunId:    task.JobRunId,
 		TaskId:      loadBQTaskId,
 		TaskType:    loadBQTaskType,
 		TaskSpec:    string(loadBigQueryTaskSpecJson),
 	}}
-
-	return h.Store.UpdateAndInsertTasks(taskMap)
+	return h.Store.UpdateAndInsertTasks(taskWithLogMap)
 }

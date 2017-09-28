@@ -27,7 +27,7 @@ func TestHandleMessage(t *testing.T) {
 		Store: &store,
 	}
 	task := &Task{Status: Success}
-	if err := handler.HandleMessage(nil /* jobSpec */, task); err != nil {
+	if err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{task, ""}); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 }

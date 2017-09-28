@@ -58,8 +58,8 @@ type Store interface {
 
 	// UpdateTasks updates the store with the passed tasks. Each passed task must
 	// contain an existing (JobConfigId, JobRunId, TaskId), otherwise, error will
-	// be returned.
-	UpdateTasks(tasks []*Task) error
+	// be returned. A log entry will be created for each updated task.
+	UpdateTasks(tasksWithLogs []TaskWithLog) error
 
 	// UpdateAndInsertTasks takes in a map that maps from task to be updated to
 	// a list of tasks to be inserted if the update task can be updated.
@@ -85,7 +85,11 @@ type Store interface {
 	// (fail -> success), taskB will be used to update the task in the
 	// database with the same full id and the tasks in taskBList (taskC)
 	// will be inserted.
-	UpdateAndInsertTasks(taskMap map[*Task][]*Task) error
+	//
+	// This function also takes in a map of task-to-be-updated to its
+	// corresponding log entry, so a log entry will be created for the updated
+	// task. 'logEntryMap' and 'taskMap' must contain the same number of elements.
+	UpdateAndInsertTasks(taskWithLogMap map[TaskWithLog][]*Task) error
 }
 
 // TODO(b/63749083): Replace empty context (context.Background) when interacting
@@ -356,8 +360,8 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 	return err
 }
 
-func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
-	if len(tasks) == 0 {
+func (s *SpannerStore) UpdateTasks(tasksWithLogs []TaskWithLog) error {
+	if len(tasksWithLogs) == 0 {
 		return nil
 	}
 
@@ -365,10 +369,11 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 		context.Background(),
 		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 			var keys = spanner.KeySets()
-			tasksmap := map[string]*Task{}
+			taskWithLogMap := make(map[string]TaskWithLog)
 
-			for _, task := range tasks {
-				tasksmap[task.getTaskFullId()] = task
+			for _, taskWithLog := range tasksWithLogs {
+				task := taskWithLog.Task
+				taskWithLogMap[task.getTaskFullId()] = taskWithLog
 				keys = spanner.KeySets(
 					keys, spanner.Key{task.JobConfigId, task.JobRunId, task.TaskId})
 			}
@@ -387,8 +392,10 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 				row.ColumnByName("JobRunId", &jobRunId)
 				row.ColumnByName("TaskId", &taskId)
 				row.ColumnByName("Status", &status)
+				taskFullId := getTaskFullId(jobConfigId, jobRunId, taskId)
 
-				task := tasksmap[getTaskFullId(jobConfigId, jobRunId, taskId)]
+				task := taskWithLogMap[taskFullId].Task
+				logEntry := taskWithLogMap[taskFullId].LogEntry
 				validUpdate, oldStatus, err := isValidUpdate(row, task)
 				if err != nil {
 					return err
@@ -402,20 +409,24 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 				addJobProgressDeltaForTaskUpdateToMap(task, oldStatus,
 					progressDeltas)
 
-				return txn.BufferWrite([]*spanner.Mutation{
-					spanner.Update("Tasks", getTaskUpdateColumns(), []interface{}{
-						task.JobConfigId,
-						task.JobRunId,
-						task.TaskId,
-						task.Status,
-						task.FailureMessage,
-						timestamp,
-					}),
-				})
+				mutations := []*spanner.Mutation{spanner.Update("Tasks", getTaskUpdateColumns(), []interface{}{
+					task.JobConfigId,
+					task.JobRunId,
+					task.TaskId,
+					task.Status,
+					task.FailureMessage,
+					timestamp,
+				})}
+
+				// Create the log entry for the updated task.
+				insertLogEntryMutation(&mutations, task, oldStatus, logEntry, timestamp)
+
+				return txn.BufferWrite(mutations)
 			})
 			if err != nil {
 				return err
 			}
+
 			return writeJobProgressObjectUpdatesToBuffer(
 				ctx,
 				txn,
@@ -426,26 +437,30 @@ func (s *SpannerStore) UpdateTasks(tasks []*Task) error {
 }
 
 // removeDuplicatesAndCreateIdMaps removes any duplicate update tasks and
-// creates two maps, one mapping from task full id to update tasks and the
-// other mapping from the update task full id to the list of tasks that should
-// be inserted if the specified update task can be updated.
-func removeDuplicatesAndCreateIdMaps(
-	taskMap map[*Task][]*Task) (map[string]*Task, map[string][]*Task) {
-
+// creates three maps, one mapping from task full id to update tasks, one
+// mapping from the update task full id to the list of tasks that should
+// be inserted if the specified update task can be updated, and the last
+// mapping from the update task full id to the log entry for that task.
+func removeDuplicatesAndCreateIdMaps(taskWithLogMap map[TaskWithLog][]*Task) (map[string]*Task, map[string][]*Task, map[string]string) {
 	updateTasks := make(map[string]*Task)
 	insertTasks := make(map[string][]*Task)
-	for updateTask, _ := range taskMap {
+	logEntries := make(map[string]string)
+	for updateTaskWithLog, _ := range taskWithLogMap {
+		updateTask := updateTaskWithLog.Task
+		logEntry := updateTaskWithLog.LogEntry
+
 		fullId := updateTask.getTaskFullId()
 		otherTask, exists := updateTasks[fullId]
 		if !exists || canChangeTaskStatus(otherTask.Status, updateTask.Status) {
 			// This is the only task so far with this full id or it is
-			// more recent than any other tasks seen so far with the same full id
+			// more recent than any other tasks seen so far with the same full id.
 			updateTasks[fullId] = updateTask
-			insertTasks[fullId] = taskMap[updateTask]
+			insertTasks[fullId] = taskWithLogMap[updateTaskWithLog]
+			logEntries[fullId] = logEntry
 		}
 	}
 
-	return updateTasks, insertTasks
+	return updateTasks, insertTasks, logEntries
 }
 
 // getFullTaskIdFromRow returns the full task id constructed
@@ -499,15 +514,16 @@ func readTasksFromSpanner(ctx context.Context,
 // of tasks to insert and returns a list of mutations that contains both
 // the mutation to update the updateTask and the mutations to insert the
 // insert tasks.
+// TODO(b/67111076): Change these function parameters.
 func getTaskUpdateAndInsertMutations(ctx context.Context,
 	txn *spanner.ReadWriteTransaction, updateTask *Task,
-	insertTasks map[string][]*Task) []*spanner.Mutation {
+	insertTasks map[string][]*Task, logEntries map[string]string, oldStatus int64) []*spanner.Mutation {
 
 	timestamp := time.Now().UnixNano()
 	taskId := updateTask.getTaskFullId()
 	mutations := make([]*spanner.Mutation, len(insertTasks[taskId]))
 
-	// Insert the tasks associated with the update task
+	// Insert the tasks associated with the update task.
 	for i, insertTask := range insertTasks[taskId] {
 		mutations[i] = spanner.Insert("Tasks", getTaskInsertColumns(),
 			[]interface{}{
@@ -522,7 +538,7 @@ func getTaskUpdateAndInsertMutations(ctx context.Context,
 			})
 	}
 
-	// Update the task
+	// Update the task.
 	mutations = append(mutations, spanner.Update("Tasks", getTaskUpdateColumns(),
 		[]interface{}{
 			updateTask.JobConfigId,
@@ -532,6 +548,9 @@ func getTaskUpdateAndInsertMutations(ctx context.Context,
 			updateTask.FailureMessage,
 			timestamp,
 		}))
+
+	// Create the log entry for the updated task.
+	insertLogEntryMutation(&mutations, updateTask, oldStatus, logEntries[taskId], timestamp)
 	return mutations
 }
 
@@ -577,12 +596,11 @@ func addJobProgressDeltaForTaskUpdateToMap(updateTask *Task, oldStatus int64,
 	progressDeltas[fullJobId] = deltaObj
 }
 
-func (s *SpannerStore) UpdateAndInsertTasks(taskMap map[*Task][]*Task) error {
-	if len(taskMap) == 0 {
+func (s *SpannerStore) UpdateAndInsertTasks(taskWithLogMap map[TaskWithLog][]*Task) error {
+	if len(taskWithLogMap) == 0 {
 		return nil
 	}
-
-	updateTasks, insertTasks := removeDuplicatesAndCreateIdMaps(taskMap)
+	updateTasks, insertTasks, logEntries := removeDuplicatesAndCreateIdMaps(taskWithLogMap)
 
 	_, err := s.Client.ReadWriteTransaction(
 		context.Background(),
@@ -617,7 +635,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(taskMap map[*Task][]*Task) error {
 					insertTasks[updateTask.getTaskFullId()], progressDeltas)
 
 				mutations := getTaskUpdateAndInsertMutations(ctx, txn, updateTask,
-					insertTasks)
+					insertTasks, logEntries, oldStatus)
 				return txn.BufferWrite(mutations)
 			})
 			if err != nil {
@@ -639,6 +657,10 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 	tasks, err := s.getUnqueuedTasks(n)
 	if err != nil {
 		return err
+	}
+	tasksWithLogs := []TaskWithLog{}
+	for _, task := range tasks {
+		tasksWithLogs = append(tasksWithLogs, TaskWithLog{task, ""})
 	}
 	var publishResults []*pubsub.PublishResult
 	messagesPublished := true
@@ -675,9 +697,9 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 			break
 		}
 	}
+	// Only update the tasks in the store if new messages published successfully.
 	if messagesPublished {
-		// Only update the tasks in the store if new messages published successfully.
-		return s.UpdateTasks(tasks)
+		return s.UpdateTasks(tasksWithLogs)
 	}
 	return nil
 }

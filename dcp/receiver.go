@@ -36,7 +36,7 @@ import (
 // MessageHandler interface is used to abstract handling of various message
 // types that correspond to various task types.
 type MessageHandler interface {
-	HandleMessage(jobSpec *JobSpec, task *Task) error
+	HandleMessage(jobSpec *JobSpec, taskWithLog TaskWithLog) error
 }
 
 // MessageReceiver receives outstanding messages from a PubSub subscription. For
@@ -72,13 +72,14 @@ func (r *MessageReceiver) ReceiveMessages() error {
 		// redelivered by the PubSub for significant amount of time (1 week).
 		// Non-retriable errors should mark the task failed and ack the message.
 		fmt.Printf("Handling a message: %s.\n", string(decodedMsg))
-		task, err := TaskCompletionMessageJsonToTask(decodedMsg)
+		taskWithLog, err := TaskCompletionMessageJsonToTaskWithLog(decodedMsg)
+		task := taskWithLog.Task
 		if err != nil {
 			fmt.Printf("Error handling the message: %s with error: %v.\n",
 				string(decodedMsg), err)
 			return
 		}
-		// TODO(b/63060838): Do caching for JobSpec, inquiry the database for each
+		// TODO(b/63060838): Do caching for the JobSpec, querying the database for each
 		// task is not efficient.
 		jobSpec, err := r.Store.GetJobSpec(task.JobConfigId)
 		if err != nil {
@@ -86,7 +87,7 @@ func (r *MessageReceiver) ReceiveMessages() error {
 				task.JobConfigId, err)
 			return
 		}
-		if err := r.Handler.HandleMessage(jobSpec, task); err != nil {
+		if err := r.Handler.HandleMessage(jobSpec, *taskWithLog); err != nil {
 			fmt.Printf(
 				"Error handling the message: %s, for with job spec: %v, and task: %v, with error: %v.\n",
 				string(msg.Data), jobSpec, task, err)

@@ -26,4 +26,17 @@ CREATE TABLE Tasks (
     ) PRIMARY KEY(JobConfigId, JobRunId, TaskId),
     INTERLEAVE IN PARENT JobRuns ON DELETE NO ACTION
 
- CREATE INDEX TasksByStatus ON Tasks(Status)
+CREATE INDEX TasksByStatus ON Tasks(Status)
+
+CREATE TABLE LogEntries (
+      JobConfigId STRING(MAX) NOT NULL,
+      JobRunId STRING(MAX) NOT NULL,
+      TaskId STRING(MAX) NOT NULL,
+      LogEntryId INT64 NOT NULL,
+      LogEntryCreationTime INT64 NOT NULL,
+      CurrentStatus INT64 NOT NULL,
+      PreviousStatus INT64 NOT NULL,
+      FailureMessage STRING(MAX),
+      LogEntry STRING(MAX) NOT NULL,
+    ) PRIMARY KEY(JobConfigId, JobRunId, TaskId, LogEntryId),
+    INTERLEAVE IN PARENT Tasks ON DELETE NO ACTION

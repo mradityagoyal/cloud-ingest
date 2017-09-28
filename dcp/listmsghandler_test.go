@@ -37,7 +37,7 @@ func TestListProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 	}
 
 	task := &Task{Status: Success}
-	err := handler.HandleMessage(nil /* jobSpec */, task)
+	err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{task, ""})
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errTaskNotFound)
 	}
@@ -66,7 +66,7 @@ func TestListProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 
 	// Reset the task spec
 	uploadGCSTask.TaskSpec = ""
-	err := handler.HandleMessage(nil /* jobSpec */, uploadGCSTask)
+	err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{uploadGCSTask, ""})
 	if err == nil {
 		t.Errorf("error is nil, expected JSON decode error.")
 	}
@@ -102,7 +102,7 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 		ListingResultReader: mockListReader,
 	}
 
-	err := handler.HandleMessage(nil /* jobSpec */, listTask)
+	err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{listTask, ""})
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	}
@@ -145,7 +145,7 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
-	err := handler.HandleMessage(jobSpec, listTask)
+	err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""})
 	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
@@ -192,7 +192,7 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
-	err := handler.HandleMessage(jobSpec, listTask)
+	err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""})
 	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "task_id_B")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
@@ -240,7 +240,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	jobSpec := &JobSpec{
 		GCSBucket: "bucket2",
 	}
-	if err := handler.HandleMessage(jobSpec, listTask); err != nil {
+	if err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""}); err != nil {
 		t.Errorf("expecting success, found error: %v.", err)
 	}
 	if len(store.tasks) != 3 {

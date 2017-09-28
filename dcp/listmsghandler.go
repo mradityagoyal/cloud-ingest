@@ -31,10 +31,11 @@ type ListProgressMessageHandler struct {
 	ListingResultReader ListingResultReader
 }
 
-func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task) error {
-	if task.Status != Success {
-		return h.Store.UpdateTasks([]*Task{task})
+func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, taskWithLog TaskWithLog) error {
+	if taskWithLog.Task.Status != Success {
+		return h.Store.UpdateTasks([]TaskWithLog{taskWithLog})
 	}
+	task := taskWithLog.Task
 
 	// TODO(b/63014658): denormalize the task spec into the progress message, so
 	// you do not have to query the database to get the task spec.
@@ -90,9 +91,9 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, task *Task)
 		})
 	}
 
-	taskMap := make(map[*Task][]*Task)
-	taskMap[task] = newTasks
-	if err := h.Store.UpdateAndInsertTasks(taskMap); err != nil {
+	taskWithLogMap := make(map[TaskWithLog][]*Task)
+	taskWithLogMap[taskWithLog] = newTasks
+	if err := h.Store.UpdateAndInsertTasks(taskWithLogMap); err != nil {
 		fmt.Printf("Error adding new tasks to store with err: %v.\n", err)
 		return err
 	}

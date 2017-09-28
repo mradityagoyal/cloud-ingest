@@ -24,7 +24,7 @@ removeDuplicatesAndCreateIdMaps Tests
 *******************************************************************************/
 
 func TestRemoveDuplicatesAndCreateIdMapsSingleEntry(t *testing.T) {
-	taskMap := make(map[*Task][]*Task)
+	taskWithLogMap := make(map[TaskWithLog][]*Task)
 	fullJobId := JobRunFullId{
 		JobConfigId: "A",
 		JobRunId:    "B",
@@ -44,9 +44,9 @@ func TestRemoveDuplicatesAndCreateIdMapsSingleEntry(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskId:      "E",
 	}
-	taskMap[updateTask] = []*Task{insertTask1, insertTask2}
+	taskWithLogMap[TaskWithLog{updateTask, ""}] = []*Task{insertTask1, insertTask2}
 
-	updateTasks, insertTasks := removeDuplicatesAndCreateIdMaps(taskMap)
+	updateTasks, insertTasks, logEntries := removeDuplicatesAndCreateIdMaps(taskWithLogMap)
 
 	if len(updateTasks) != 1 {
 		t.Errorf("expected updateTasks to contain 1 task, found %d",
@@ -70,12 +70,17 @@ func TestRemoveDuplicatesAndCreateIdMapsSingleEntry(t *testing.T) {
 			len(insertTasks[updateTask.getTaskFullId()]))
 	}
 
+	if len(logEntries) != 1 {
+		t.Errorf("expected logEntries to contain 1 task, found %d",
+			len(logEntries))
+	}
+
 	assertListContainsSpecificTasks(t, insertTasks[updateTask.getTaskFullId()],
 		*insertTask1, *insertTask2)
 }
 
 func TestRemoveDuplicatesAndCreateIdMapsDuplicateEntries(t *testing.T) {
-	taskMap := make(map[*Task][]*Task)
+	taskWithLogMap := make(map[TaskWithLog][]*Task)
 	fullJobId := JobRunFullId{
 		JobConfigId: "A",
 		JobRunId:    "B",
@@ -102,10 +107,10 @@ func TestRemoveDuplicatesAndCreateIdMapsDuplicateEntries(t *testing.T) {
 		TaskId:      "C",
 		Status:      Failed,
 	}
-	taskMap[updateTaskA] = []*Task{insertTask1, insertTask2}
-	taskMap[updateTaskB] = []*Task{}
+	taskWithLogMap[TaskWithLog{updateTaskA, ""}] = []*Task{insertTask1, insertTask2}
+	taskWithLogMap[TaskWithLog{updateTaskB, ""}] = []*Task{}
 
-	updateTasks, insertTasks := removeDuplicatesAndCreateIdMaps(taskMap)
+	updateTasks, insertTasks, logEntries := removeDuplicatesAndCreateIdMaps(taskWithLogMap)
 
 	if len(updateTasks) != 1 {
 		t.Errorf("expected updateTasks to contain 1 task, found %d",
@@ -135,6 +140,11 @@ func TestRemoveDuplicatesAndCreateIdMapsDuplicateEntries(t *testing.T) {
 		t.Errorf(
 			"expected insertTasks[updateTask.getTaskFullId()] to contain 2 tasks, found %d",
 			len(insertTasks[updateTaskA.getTaskFullId()]))
+	}
+
+	if len(logEntries) != 1 {
+		t.Errorf("expected logEntries to contain 1 task, found %d",
+			len(logEntries))
 	}
 
 	assertListContainsSpecificTasks(t, insertTasks[updateTaskA.getTaskFullId()],

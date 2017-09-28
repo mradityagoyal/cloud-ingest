@@ -78,6 +78,11 @@ type Task struct {
 	FailureMessage       string
 }
 
+type TaskWithLog struct {
+	Task     *Task
+	LogEntry string
+}
+
 // getTaskFullId gets a unique task id  based on task (JobConfigId, JobRunId
 // and TaskId).
 func (t Task) getTaskFullId() string {
@@ -136,7 +141,7 @@ func canChangeTaskStatus(fromStatus int64, toStatus int64) bool {
 	return toStatus > fromStatus
 }
 
-// constructPubSubTaskMsg constructs the pubsub message for the passed task to
+// constructPubSubTaskMsg constructs the Pub/Sub message for the passed task to
 // send to the worker agents.
 func constructPubSubTaskMsg(task *Task) ([]byte, error) {
 	taskMsg := make(map[string]interface{})
@@ -150,7 +155,7 @@ func constructPubSubTaskMsg(task *Task) ([]byte, error) {
 	return json.Marshal(taskMsg)
 }
 
-func TaskCompletionMessageJsonToTask(msg []byte) (*Task, error) {
+func TaskCompletionMessageJsonToTaskWithLog(msg []byte) (*TaskWithLog, error) {
 	taskCompletionMsgMap := make(map[string]interface{})
 	if err := json.Unmarshal(msg, &taskCompletionMsgMap); err != nil {
 		return nil, err
@@ -179,5 +184,11 @@ func TaskCompletionMessageJsonToTask(msg []byte) (*Task, error) {
 			"undefined status from the completion message: %s", string(msg)))
 	}
 
-	return task, nil
+	// TODO(Step 4 in b/65462509) A "log_entry" should be mandatory with the update message.
+	var logEntry string
+	if taskCompletionMsgMap["log_entry"] != nil {
+		logEntry = fmt.Sprint(taskCompletionMsgMap["log_entry"])
+	}
+
+	return &TaskWithLog{task, logEntry}, nil
 }

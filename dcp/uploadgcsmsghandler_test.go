@@ -29,7 +29,7 @@ func TestUploadGCSProgressMessageHandlerFailedTask(t *testing.T) {
 	}
 	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
 	task := &Task{Status: Failed, TaskId: "A"}
-	if err := handler.HandleMessage(jobSpec, task); err != nil {
+	if err := handler.HandleMessage(jobSpec, TaskWithLog{task, ""}); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
@@ -57,7 +57,7 @@ func TestUploadGCSProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 
 	task := &Task{Status: Success}
 	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
-	err := handler.HandleMessage(jobSpec, task)
+	err := handler.HandleMessage(jobSpec, TaskWithLog{task, ""})
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errTaskNotFound)
 	}
@@ -87,7 +87,7 @@ func TestUploadGCSProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
 	// Reset the task spec
 	uploadGCSTask.TaskSpec = ""
-	err := handler.HandleMessage(jobSpec, uploadGCSTask)
+	err := handler.HandleMessage(jobSpec, TaskWithLog{uploadGCSTask, ""})
 	if err == nil {
 		t.Errorf("error is nil, expected JSON decode error.")
 	}
@@ -120,7 +120,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 		BQDataset: "dataset",
 		BQTable:   "table",
 	}
-	if err := handler.HandleMessage(jobSpec, uploadGCSTask); err != nil {
+	if err := handler.HandleMessage(jobSpec, TaskWithLog{uploadGCSTask, ""}); err != nil {
 		t.Errorf("expecting success, found error: %v.", err)
 	}
 
@@ -180,7 +180,7 @@ func TestUploadGCSProgressMessageHandlerNoBQTask(t *testing.T) {
 	jobSpec := &JobSpec{}
 	// Turn the task to success
 	uploadGCSTask.Status = Success
-	if err := handler.HandleMessage(jobSpec, uploadGCSTask); err != nil {
+	if err := handler.HandleMessage(jobSpec, TaskWithLog{uploadGCSTask, ""}); err != nil {
 		t.Errorf("expecting success, found error: %v.", err)
 	}
 	if len(store.tasks) != 1 {
