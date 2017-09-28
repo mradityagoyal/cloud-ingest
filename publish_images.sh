@@ -55,6 +55,8 @@ if [ "$1" = "base" ]; then
   docker tag cloud-ingest:base "gcr.io/$PROJECT_ID/cloud-ingest:base"
   gcloud docker -- push "gcr.io/$PROJECT_ID/cloud-ingest:base"
 else
+  # Get the latest base image.
+  gcloud docker -- pull "gcr.io/$PROJECT_ID/cloud-ingest:base"
   if [ "$1" = "dev" ]; then
     label="$USER"
   else
