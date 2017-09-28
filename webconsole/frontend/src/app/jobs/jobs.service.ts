@@ -2,8 +2,8 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Router, ActivatedRoute, Params } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
-import { JobRun, JobConfig, JobRunParams } from './api.resources';
-import { environment } from './../environments/environment';
+import { JobRun, JobConfig, JobRunParams } from './jobs.resources';
+import { environment } from '../../environments/environment';
 
 import 'rxjs/add/operator/switchMap';
 import 'rxjs/add/operator/map';

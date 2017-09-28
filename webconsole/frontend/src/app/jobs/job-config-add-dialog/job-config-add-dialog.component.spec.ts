@@ -1,12 +1,12 @@
 import { TestBed, async } from '@angular/core/testing';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
-import { JobsService } from './jobs.service';
+import { JobsService } from '../jobs.service';
 import { MdDialogRef } from '@angular/material';
-import { AngularMaterialImporterModule } from './angular-material-importer.module';
+import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { FormsModule } from '@angular/forms';
 import { JobConfigFormModel } from './job-config-add-dialog.resources';
 import { Observable } from 'rxjs/Observable';
-import { JobConfig } from './api.resources';
+import { JobConfig } from '../jobs.resources';
 import 'rxjs/add/observable/of';
 
 class JobsServiceStub {

@@ -1,5 +1,5 @@
 import { TestBed, async } from '@angular/core/testing';
-import { JobConfig } from './api.resources';
+import { JobConfig } from '../jobs.resources';
 import { JobConfigFormModel } from './job-config-add-dialog.resources';
 
 let fakeJobConfigModel: JobConfigFormModel;

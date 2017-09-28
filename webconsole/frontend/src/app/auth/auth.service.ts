@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
 import { CanActivate } from '@angular/router';
 import { UserProfile } from './auth.resources';
-import { environment } from './../environments/environment';
+import { environment } from '../../environments/environment';
 
 /**
   * TODO(b/65052265): Implement type definitions for gapi library. Library documentations:

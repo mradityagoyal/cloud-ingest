@@ -1,9 +1,9 @@
 import { TestBed, async, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
 import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
-import { InfrastructureStatus, PubsubStatus} from './api.resources';
+import { InfrastructureStatus, PubsubStatus} from './infrastructure.resources';
 import { InfrastructureComponent } from './infrastructure.component';
-import { AngularMaterialImporterModule } from './angular-material-importer.module';
-import { InfrastructureStatusItemComponent } from './infrastructure-status-item.component';
+import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
+import { InfrastructureStatusItemComponent } from './infrastructure-status-item/infrastructure-status-item.component';
 import { Observable } from 'rxjs/Observable';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { HttpErrorResponse } from '@angular/common/http';

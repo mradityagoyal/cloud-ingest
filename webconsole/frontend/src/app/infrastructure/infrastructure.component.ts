@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { InfrastructureStatus } from './api.resources';
+import { InfrastructureStatus } from './infrastructure.resources';
 import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
 import { HttpErrorResponse } from '@angular/common/http';
 import { MdSnackBar } from '@angular/material';

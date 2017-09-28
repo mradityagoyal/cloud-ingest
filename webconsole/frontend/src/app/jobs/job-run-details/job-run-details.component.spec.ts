@@ -2,11 +2,11 @@ import { async, ComponentFixture, TestBed, fakeAsync, tick, discardPeriodicTasks
 import { RouterTestingModule } from '@angular/router/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { By } from '@angular/platform-browser';
-import { AngularMaterialImporterModule } from '../../angular-material-importer.module';
-import { JobsService } from '../../jobs.service';
+import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
+import { JobsService } from '../jobs.service';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
-import { JobRun } from '../../api.resources';
-import { JobStatusPipe } from '../job-status.pipe';
+import { JobRun } from '../jobs.resources';
+import { JobStatusPipe } from '../job-status/job-status.pipe';
 import { Observable } from 'rxjs/Observable';
 
 import { JobRunDetailsComponent } from './job-run-details.component';

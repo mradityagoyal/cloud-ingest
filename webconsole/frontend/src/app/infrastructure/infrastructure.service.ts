@@ -2,11 +2,11 @@
  * @fileoverview Contains logic to interact with the infrastructure rest APIs.
  */
 import { Injectable } from '@angular/core';
-import { environment } from './../environments/environment';
+import { environment } from '../../environments/environment';
 import { Observable } from 'rxjs/Observable';
 import { ActivatedRoute } from '@angular/router';
 import { HttpResponse } from '@angular/common/http';
-import { InfrastructureStatus } from './api.resources';
+import { InfrastructureStatus } from './infrastructure.resources';
 import { HttpClient, HttpHeaders } from '@angular/common/http';
 
 /**

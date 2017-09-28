@@ -1,11 +1,11 @@
 import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
 import { TestBed, async, inject } from '@angular/core/testing';
-import { environment } from './../environments/environment';
+import { environment } from '../../environments/environment';
 import { HttpClient } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
-import { InfrastructureStatus, PubsubStatus } from './api.resources';
+import { InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
 import 'rxjs/add/observable/of';
 
 let activatedRouteStub: ActivatedRoute;

@@ -2,9 +2,9 @@ import { Component, OnInit, OnDestroy } from '@angular/core';
 import { Router, ActivatedRoute, ParamMap } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
-import { JobRun } from '../../api.resources';
-import { JobsService } from '../../jobs.service';
-import { JobStatusPipe } from '../job-status.pipe';
+import { JobRun } from '../jobs.resources';
+import { JobsService } from '../jobs.service';
+import { JobStatusPipe } from '../job-status/job-status.pipe';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import 'rxjs/add/operator/takeWhile';
 

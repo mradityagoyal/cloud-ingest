@@ -1,12 +1,12 @@
 import { TestBed, async } from '@angular/core/testing';
-import { JobsService } from './jobs.service';
-import { JobConfig } from './api.resources';
+import { JobsService } from '../jobs.service';
+import { JobConfig } from '../jobs.resources';
 import { JobConfigsComponent } from './job-configs.component';
 import { HttpErrorResponse } from '@angular/common/http';
-import { AngularMaterialImporterModule } from './angular-material-importer.module';
+import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { Observable } from 'rxjs/Observable';
 import { MdDialog } from '@angular/material';
-import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
+import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { RouterTestingModule } from '@angular/router/testing';
 import 'rxjs/add/observable/of';
 import 'rxjs/add/operator/delay';

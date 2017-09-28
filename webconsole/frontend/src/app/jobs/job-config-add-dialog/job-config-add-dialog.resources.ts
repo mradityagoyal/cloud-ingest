@@ -1,4 +1,4 @@
-import { JobConfig } from './api.resources';
+import { JobConfig } from '../jobs.resources';
 
 /**
  * This class contains the job configuration fields as intended for use in the form to add a job configuration.

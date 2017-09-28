@@ -2,8 +2,8 @@ import { Component, Inject } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/operator/finally';
-import { JobConfig } from './api.resources';
-import { JobsService } from './jobs.service';
+import { JobConfig } from '../jobs.resources';
+import { JobsService } from '../jobs.service';
 import { JobConfigFormModel } from './job-config-add-dialog.resources';
 import { MdDialogRef } from '@angular/material';
 

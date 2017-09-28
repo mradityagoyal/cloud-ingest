@@ -1,9 +1,9 @@
 import { Component, OnInit } from '@angular/core';
-import { JobConfig } from './api.resources';
-import { JobsService } from './jobs.service';
+import { JobConfig } from '../jobs.resources';
+import { JobsService } from '../jobs.service';
 import { MdDialog } from '@angular/material';
 import { HttpErrorResponse } from '@angular/common/http';
-import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
+import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 
 @Component({
   selector: 'app-job-configs',
