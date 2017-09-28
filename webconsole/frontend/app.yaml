@@ -8,6 +8,7 @@ handlers:
 - url: /(.+\.(js|map|css))$
   static_files: dist/\1
   upload: dist/(.*)
+  secure: always
 
 # Serve index.html for (/infrastructure, /jobconfigs, and
 # /jobconfigs/:configId/:runId) routes.
@@ -16,6 +17,7 @@ handlers:
 - url: /|/infrastructure|/jobconfigs|/jobconfigs/.*
   static_files: dist/index.html
   upload: dist/index.html
+  secure: always
 
 # Skip files not needed for static serving
 skip_files:
