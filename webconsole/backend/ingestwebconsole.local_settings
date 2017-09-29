@@ -1,0 +1,3 @@
+SPANNER_INSTANCE='cloud-ingest-spanner-instance'
+SPANNER_DATABASE='cloud-ingest-database'
+DCP_DOCKER_IMAGE='gcr.io/mbassiouny-test/cloud-ingest:test'
