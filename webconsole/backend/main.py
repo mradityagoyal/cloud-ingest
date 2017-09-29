@@ -32,9 +32,11 @@ from google.cloud.exceptions import Forbidden
 from google.cloud.exceptions import PreconditionFailed
 from google.cloud.exceptions import ServerError
 from google.cloud.exceptions import Unauthorized
+from google.cloud.exceptions import BadRequest
 from google.oauth2.credentials import Credentials
 
 import infra_util
+import traceback
 from spannerwrapper import SpannerWrapper
 from create_infra.constants import DCP_INSTANCE_DOCKER_IMAGE
 
@@ -65,7 +67,7 @@ def _get_credentials():
                             '<access_token>".'))
     match = _AUTH_HEADER_REGEX.match(auth_header)
     if not match:
-        raise ValueError(
+        raise BadRequest(
             'Invalid Authorization header format, the Authorization header '
             'should be in the format "Bearer <access_token>".')
     access_token = match.group('access_token')
@@ -279,15 +281,15 @@ def _get_int_param(get_request, param_name):
         The value of the parameter, or None if it is not set.
 
     Raises:
-        ValueError with a helpful message if the type of the value
+        BadRequest with a helpful message if the type of the value
         is something other than int.
     """
     try:
         value = get_request.args.get(param_name)
         if value is not None:
             return int(get_request.args.get(param_name))
-    except ValueError:
-        raise ValueError("GET param '%s' must be a valid integer. "
+    except BadRequest:
+        raise BadRequest("GET param '%s' must be a valid integer. "
                          "Current value: %s" % (param_name, value))
 
 @APP.errorhandler(httplib.INTERNAL_SERVER_ERROR)
@@ -302,28 +304,17 @@ def server_error(error):
                   str(error))
     response = {
         'error': 'Internal Server Error',
-        'message': ('An internal server error occurred and '
-                    'the request could not be completed')
+        'message': str(error),
+        'traceback': traceback.format_exc()
     }
     return jsonify(response), httplib.INTERNAL_SERVER_ERROR
-
-@APP.errorhandler(ValueError)
-@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS,
-             methods=['GET', 'OPTIONS', 'POST'])
-def value_error(error):
-    """Handles any uncaught value errors."""
-    logging.info('A bad request was made: %s', str(error))
-    response = {
-        'error': 'Bad Request',
-        'message': str(error)
-    }
-    return jsonify(response), httplib.BAD_REQUEST
 
 @APP.errorhandler(Conflict)
 @APP.errorhandler(Forbidden)
 @APP.errorhandler(NotFound)
 @APP.errorhandler(PreconditionFailed)
 @APP.errorhandler(Unauthorized)
+@APP.errorhandler(BadRequest)
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS,
              methods=['GET', 'OPTIONS', 'POST'])
 def google_exception_handler(error):
@@ -332,7 +323,8 @@ def google_exception_handler(error):
                  error.code, str(error))
     response = {
         'error': httplib.responses[error.code],
-        'message': str(error.message)
+        'message': str(error),
+        'traceback': traceback.format_exc()
     }
     return jsonify(response), error.code
 
