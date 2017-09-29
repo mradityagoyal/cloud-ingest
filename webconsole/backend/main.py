@@ -18,6 +18,7 @@ during the processing of a request will be handled by the error handler
 for Internal Server Errors and a response of 500 Internal Server Error will
 be sent.
 """
+import argparse
 import httplib
 import logging
 import re
@@ -29,6 +30,7 @@ from google.cloud.exceptions import Conflict
 from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import Forbidden
 from google.cloud.exceptions import PreconditionFailed
+from google.cloud.exceptions import ServerError
 from google.cloud.exceptions import Unauthorized
 from google.oauth2.credentials import Credentials
 
@@ -240,8 +242,14 @@ def create_infrastructure(project_id):
     """
     # TODO(b/65754348): Creating the infrastructure API may take the resources
     # (in the request body) to create.
-    dcp_docker_image = APP.config.get('DCP_DOCKER_IMAGE',
-                                      DCP_INSTANCE_DOCKER_IMAGE)
+    dcp_docker_image = (None if APP.config.get('SKIP_RUNNING_DCP', False) else
+                        APP.config['DCP_DOCKER_IMAGE'])
+
+    if not dcp_docker_image and not APP.config['DEBUG']:
+        logging.critical('DCP docker image must be specified in prod '
+                         'environment.')
+        raise ServerError('Internal Server Error')
+
     infra_util.create_infrastructure(
         _get_credentials(), project_id, dcp_docker_image)
     return jsonify({})
@@ -343,6 +351,16 @@ def bad_url(error):
 
 if __name__ == '__main__':
     # Used when running locally
+    parser = argparse.ArgumentParser(
+        description='Cloud ingest local backend server')
+
+    parser.add_argument('--skip-running-dcp', '-sdcp', action='store_true',
+                        help='Skip running the DCP when creating an '
+                             'infra-structure.',
+                        default=False)
+    args = parser.parse_args()
+    APP.config['SKIP_RUNNING_DCP'] = args.skip_running_dcp
+
     APP.run(
         host=APP.config['HOST'],
         port=APP.config['PORT'],

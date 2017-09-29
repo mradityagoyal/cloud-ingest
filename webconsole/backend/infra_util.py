@@ -129,14 +129,15 @@ def infrastructure_status(credentials, project_id):
     return _infrastructure_status_from_bldrs(
         spanner_bldr, pubsub_bldr, functions_bldr, compute_bldr)
 
-def create_infrastructure(credentials, project_id, dcp_docker_image):
+def create_infrastructure(credentials, project_id, dcp_docker_image=None):
     """Creates the ingest infrastructure. Makes sure that all the infrastructure
     components does not exist before the creation.
 
     Args:
         credentials: The credentials to use for creating the infrastructure.
         project_id: The project id.
-        dcp_docker_image: The dcp docker image to use.
+        dcp_docker_image: The dcp docker image to use. The DCP GCE istance won't
+            created if this value is None.
 
     Raises:
         Conflict: If any of the infrastructure components exists.
@@ -188,9 +189,10 @@ def create_infrastructure(credentials, project_id, dcp_docker_image):
     # TODO(b/65753224): Support of not creating the DCP GCE as part of the
     # create infrastructure. This will enable easily creation of dev
     # environments.
-    compute_bldr.create_instance_async(
-        constants.DCP_INSTANCE_NAME, dcp_docker_image,
-        constants.DCP_INSTANCE_CMD_LINE, [project_id])
+    if dcp_docker_image:
+        compute_bldr.create_instance_async(
+            constants.DCP_INSTANCE_NAME, dcp_docker_image,
+            constants.DCP_INSTANCE_CMD_LINE, [project_id])
 
 def tear_infrastructure(credentials, project_id):
     """Tears the ingest infrastructure. Makes sure that all the infrastructure
