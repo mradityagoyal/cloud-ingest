@@ -9,6 +9,7 @@ import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
 import { MdSnackBar } from '@angular/material';
+import { HttpErrorResponseFormatter } from '../util/error.resources';
 import 'rxjs/add/observable/throw';
 import 'rxjs/add/observable/of';
 import 'rxjs/add/observable/never';
@@ -240,17 +241,25 @@ describe('InfrastructureComponent', () => {
     });
   }));
 
-  it('should display the error and error message', async(() => {
+  it('should display the error and error message formatted by HttpErrorFormatter', async(() => {
     const fixture = TestBed.createComponent(InfrastructureComponent);
     const component = fixture.debugElement.componentInstance;
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    spyOn(HttpErrorResponseFormatter, 'getTitle').and.callFake(function(httpError) {
+      expect(httpError).toBe(FAKE_HTTP_ERROR);
+      return 'fakeFormattedTitle';
+    });
+    spyOn(HttpErrorResponseFormatter, 'getMessage').and.callFake(function(httpError) {
+      expect(httpError).toBe(FAKE_HTTP_ERROR);
+      return 'fakeFormattedMessage';
+    });
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
       const element = compiled.querySelector('.ingest-error-message');
-      expect(element.textContent).toContain('FakeError');
-      expect(element.textContent).toContain('Fake Error Message.');
+      expect(element.textContent).toContain('fakeFormattedTitle');
+      expect(element.textContent).toContain('fakeFormattedMessage');
     });
   }));
 
@@ -444,12 +453,17 @@ describe('InfrastructureComponent', () => {
     });
   }));
 
-  it('should open a snackbar with the error when polling the infrastructure status', async(() => {
+  it('should open a snackbar with formatted error title when polling the infrastructure status',
+    async(() => {
     const infrastructureStatusObservable = Observable.create((observer) => {
           observer.next(FAKE_INFRA_STATUS_DEPLOYING);
           observer.error(FAKE_HTTP_ERROR);
         });
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(infrastructureStatusObservable);
+    spyOn(HttpErrorResponseFormatter, 'getTitle').and.callFake(function(httpError) {
+      expect(httpError).toBe(FAKE_HTTP_ERROR);
+      return 'fakeFormattedTitle';
+    });
     const fixture = TestBed.createComponent(InfrastructureComponent);
     intervalObservableCreateSpy.and.returnValue(Observable.of(1));
     fixture.detectChanges();
@@ -458,7 +472,7 @@ describe('InfrastructureComponent', () => {
       // There should have been two calls, one get infrastructure and one for polling
       expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(2);
       expect(mdSnackBarStub.open).toHaveBeenCalled();
-      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('Fake Error Message.');
+      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('fakeFormattedTitle');
     });
   }));
 

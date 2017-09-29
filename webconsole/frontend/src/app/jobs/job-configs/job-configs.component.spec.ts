@@ -8,6 +8,7 @@ import { Observable } from 'rxjs/Observable';
 import { MdDialog } from '@angular/material';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { RouterTestingModule } from '@angular/router/testing';
+import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import 'rxjs/add/observable/of';
 import 'rxjs/add/operator/delay';
 import 'rxjs/add/observable/never';
@@ -47,11 +48,6 @@ const FAKE_JOB_CONFIGS: JobConfig[] = [
 const EMPTY_JOB_CONFIG_ARR: JobConfig[] = [];
 
 const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
-const FAKE_HTTP_ERROR2 = {
-  error: { fakeField1: 'Unexpected error format', fakeField2: 'This error is not a string'},
-  statusText: 'fakeStatusText',
-  message: 'Fake error message 2.'
-};
 
 let jobsServiceStub: JobsServiceStub;
 let mdDialogStub: MdDialogStub;
@@ -206,31 +202,25 @@ describe('JobConfigsComponent', () => {
     });
   }));
 
-  it('should display status text and error message from the response', async(() => {
+it('should retrieve the title and text from the HttpErrorResponseFormatter', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
     jobsServiceStub.getJobConfigs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('.ingest-error-message');
-      expect(element.innerText).toContain('Fake error message.');
-      expect(element.innerText).toContain('fakeErrorText');
+    spyOn(HttpErrorResponseFormatter, 'getTitle').and.callFake(function(httpError) {
+      expect(httpError).toBe(FAKE_HTTP_ERROR);
+      return 'fakeFormattedTitle';
     });
-  }));
-
-  it('should display the error title as status text and error message from the response', async(() => {
-    const fixture = TestBed.createComponent(JobConfigsComponent);
-    const component = fixture.debugElement.componentInstance;
-    jobsServiceStub.getJobConfigs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR2));
+    spyOn(HttpErrorResponseFormatter, 'getMessage').and.callFake(function(httpError) {
+      expect(httpError).toBe(FAKE_HTTP_ERROR);
+      return 'fakeFormattedMessage';
+    });
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
       const element = compiled.querySelector('.ingest-error-message');
-      expect(element.innerText).toContain('Fake error message 2.');
-      expect(element.innerText).toContain('fakeStatusText');
+      expect(element.textContent).toContain('fakeFormattedTitle');
+      expect(element.textContent).toContain('fakeFormattedMessage');
     });
   }));
 

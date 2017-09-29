@@ -6,7 +6,7 @@
   <div class="ingest-error-message" *ngIf="showLoadInfrastructureError; else infrastructureInformation">
     <h2> There was an error getting the infrastructure status </h2>
     <strong> {{ loadInfrastructureErrorTitle }} </strong>
-    <p> {{ loadInfrastructureErrorMessage }} </p>
+    <pre> {{ loadInfrastructureErrorMessage }} </pre>
   </div>
 
   <ng-template #infrastructureInformation>

@@ -16,7 +16,7 @@
   <div class="ingest-error-message" [hidden]="!displayErrorMessage">
     <h3> There was an error getting your job configurations </h3>
     <strong> {{ errorTitle }} </strong>
-    <p> {{ errorMessage }} </p>
+    <pre> {{ errorMessage }} </pre>
   </div>
   <div *ngIf="jobConfigs?.length === 0">
     <h4> There are no job configurations. Click the 'Add a job configuration' button on the top right corner of the screen.  </h4>

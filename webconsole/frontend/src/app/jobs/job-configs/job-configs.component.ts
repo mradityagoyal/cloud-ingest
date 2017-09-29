@@ -4,6 +4,7 @@ import { JobsService } from '../jobs.service';
 import { MdDialog } from '@angular/material';
 import { HttpErrorResponse } from '@angular/common/http';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
+import { HttpErrorResponseFormatter } from '../../util/error.resources';
 
 @Component({
   selector: 'app-job-configs',
@@ -38,12 +39,8 @@ export class JobConfigsComponent implements OnInit {
         }
       },
       (error: HttpErrorResponse) => {
-        if (typeof error.error === 'string') {
-          this.errorTitle = error.error;
-        } else {
-          this.errorTitle = error.statusText;
-        }
-        this.errorMessage = error.message;
+        this.errorTitle = HttpErrorResponseFormatter.getTitle(error);
+        this.errorMessage = HttpErrorResponseFormatter.getMessage(error);
         this.displayErrorMessage = true;
         this.showLoadingSpinner = false;
       });

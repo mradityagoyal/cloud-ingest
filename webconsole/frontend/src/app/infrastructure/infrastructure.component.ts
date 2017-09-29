@@ -5,6 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { MdSnackBar } from '@angular/material';
 import { ActivatedRoute } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
+import { HttpErrorResponseFormatter } from '../util/error.resources';
 
 const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 3000;
 
@@ -62,12 +63,8 @@ export class InfrastructureComponent implements OnInit {
         this.showInfrastructureStatusLoading = false;
       },
       (errorResponse: HttpErrorResponse) => {
-        if (typeof errorResponse.error === 'string') {
-          this.loadInfrastructureErrorTitle = errorResponse.error;
-        } else {
-          this.loadInfrastructureErrorTitle = errorResponse.statusText;
-        }
-        this.loadInfrastructureErrorMessage = errorResponse.message;
+        this.loadInfrastructureErrorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+        this.loadInfrastructureErrorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
         this.showLoadInfrastructureError = true;
         this.showInfrastructureStatusLoading = false;
       }
@@ -85,7 +82,9 @@ export class InfrastructureComponent implements OnInit {
         this.updateCreateTearDownButtons(response);
       },
       (errorResponse: HttpErrorResponse) => {
-        this.snackBar.open(`There was an error polling the infrastructure status: ${errorResponse.message}`, 'Dismiss');
+        const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+        console.error(errorTitle + '\m' + HttpErrorResponseFormatter.getMessage(errorResponse));
+        this.snackBar.open(`There was an error polling the infrastructure status: ${errorTitle}`, 'Dismiss');
       }
     );
   }
@@ -149,7 +148,9 @@ export class InfrastructureComponent implements OnInit {
         this.pollInfrastructureStatus();
       },
       (errorResponse: HttpErrorResponse) => {
-        this.snackBar.open(`There was an error in the create infrastructure request: ${errorResponse.message}`, 'Dismiss');
+        const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+        console.error(errorTitle + '\n' + HttpErrorResponseFormatter.getMessage(errorResponse));
+        this.snackBar.open(`There was an error in the create infrastructure request: ${errorTitle}`, 'Dismiss');
         this.pollInfrastructureStatus();
       }
     );
@@ -162,7 +163,9 @@ export class InfrastructureComponent implements OnInit {
         this.pollInfrastructureStatus();
       },
       (errorResponse: HttpErrorResponse) => {
-        this.snackBar.open(`There was an error in the tear down infrastructure request: ${errorResponse.message}`, 'Dismiss');
+        const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+        console.error(errorTitle + '\n' + HttpErrorResponseFormatter.getMessage(errorResponse));
+        this.snackBar.open(`There was an error in the tear down infrastructure request: ${errorTitle}`, 'Dismiss');
         this.pollInfrastructureStatus();
       }
     );
