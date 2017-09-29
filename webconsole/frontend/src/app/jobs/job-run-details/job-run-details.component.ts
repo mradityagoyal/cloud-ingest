@@ -17,13 +17,14 @@ const UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS = 3000;
 })
 export class JobRunDetailsComponent implements OnInit, OnDestroy {
   private jobRun: JobRun;
-  private showLoadingSpinner: boolean;
   private errorTitle: string;
   private errorMessage: string;
   private showError: boolean;
   private jobConfigId: string;
   private jobRunId: string;
   private alive: boolean; // Used to control when the component should poll the job run info.
+
+  showLoadingSpinner: boolean;
 
   constructor(
     private route: ActivatedRoute,
