@@ -5,7 +5,7 @@ module.exports = function (config) {
   config.set({
     basePath: '',
     files: [
-      './src/app/fake-gapi.js',
+      './src/app/auth/fake-gapi.js',
       './node_modules/@angular/material/prebuilt-themes/indigo-pink.css'
     ],
     frameworks: ['jasmine', '@angular/cli'],
