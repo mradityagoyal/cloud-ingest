@@ -31,26 +31,29 @@ type ListProgressMessageHandler struct {
 	ListingResultReader ListingResultReader
 }
 
-func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, taskWithLog TaskWithLog) error {
+func (h *ListProgressMessageHandler) HandleMessage(
+	jobSpec *JobSpec, taskWithLog TaskWithLog) ([]*Task, error) {
 	if taskWithLog.Task.Status != Success {
-		return h.Store.UpdateTasks([]TaskWithLog{taskWithLog})
+		return []*Task{}, nil
 	}
 	task := taskWithLog.Task
 
 	// TODO(b/63014658): denormalize the task spec into the progress message, so
 	// you do not have to query the database to get the task spec.
+	// TODO(b/67420045): Message handlers should not have the store object.
+	// Manipulating the store should be isolated from handling the message.
 	taskSpec, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
 	if err != nil {
 		fmt.Printf("Error getting task spec of task: %v, with error: %v.\n",
 			task, err)
-		return err
+		return nil, err
 	}
 
 	var listTaskSpec ListTaskSpec
 	if err := json.Unmarshal([]byte(taskSpec), &listTaskSpec); err != nil {
 		fmt.Printf(
 			"Error decoding task spec: %s, with error: %v.\n", taskSpec, err)
-		return err
+		return nil, err
 	}
 
 	filePaths, err := h.ListingResultReader.ReadListResult(
@@ -59,12 +62,13 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, taskWithLog
 		fmt.Printf(
 			"Error reading the list task result, list task spec: %v, with error: %v.\n",
 			listTaskSpec, err)
-		return err
+		return nil, err
 	}
 	taskIdFromFile := <-filePaths
 
 	if taskIdFromFile != task.getTaskFullId() {
-		return errors.New(fmt.Sprintf(noTaskIdInListOutput, task.getTaskFullId(), taskIdFromFile))
+		return nil, errors.New(
+			fmt.Sprintf(noTaskIdInListOutput, task.getTaskFullId(), taskIdFromFile))
 	}
 	var newTasks []*Task
 	for filePath := range filePaths {
@@ -80,7 +84,7 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, taskWithLog
 			fmt.Printf(
 				"Error encoding task spec to JSON string, task spec: %v, err: %v.\n",
 				uploadGCSTaskSpec, err)
-			return err
+			return nil, err
 		}
 		newTasks = append(newTasks, &Task{
 			JobConfigId: task.JobConfigId,
@@ -91,11 +95,5 @@ func (h *ListProgressMessageHandler) HandleMessage(jobSpec *JobSpec, taskWithLog
 		})
 	}
 
-	taskWithLogMap := make(map[TaskWithLog][]*Task)
-	taskWithLogMap[taskWithLog] = newTasks
-	if err := h.Store.UpdateAndInsertTasks(taskWithLogMap); err != nil {
-		fmt.Printf("Error adding new tasks to store with err: %v.\n", err)
-		return err
-	}
-	return nil
+	return newTasks, nil
 }

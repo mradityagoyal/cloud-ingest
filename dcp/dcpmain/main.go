@@ -119,9 +119,7 @@ func main() {
 	loadBigQueryReceiver := dcp.MessageReceiver{
 		Sub:     loadBigQueryProgressSub,
 		Store:   store,
-		Handler: &dcp.LoadBQProgressMessageHandler{
-			Store: store,
-		},
+		Handler: &dcp.LoadBQProgressMessageHandler{},
 	}
 
 	go listingReceiver.ReceiveMessages()

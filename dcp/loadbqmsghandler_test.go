@@ -20,14 +20,13 @@ import (
 )
 
 func TestHandleMessage(t *testing.T) {
-	store := FakeStore{
-		tasks: make(map[string]*Task),
-	}
-	handler := LoadBQProgressMessageHandler{
-		Store: &store,
-	}
+	handler := LoadBQProgressMessageHandler{}
 	task := &Task{Status: Success}
-	if err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{task, ""}); err != nil {
+	newTasks, err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{task, ""})
+	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
+	}
+	if newTasks == nil || len(newTasks) != 0 {
+		t.Errorf("new tasks should be an empty array, new tasks: %v", newTasks)
 	}
 }

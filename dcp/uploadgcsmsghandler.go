@@ -24,28 +24,31 @@ type UploadGCSProgressMessageHandler struct {
 	Store Store
 }
 
-func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, taskWithLog TaskWithLog) error {
+func (h *UploadGCSProgressMessageHandler) HandleMessage(
+	jobSpec *JobSpec, taskWithLog TaskWithLog) ([]*Task, error) {
 	// Empty BQDataset and BQTable means that there is no load to BQ in this job spec.
 	// TODO(b/66965866): Have a centralized place where we can have a proper handling of
 	// task state transitions.
 	task := taskWithLog.Task
 	if task.Status != Success || (jobSpec.BQDataset == "" && jobSpec.BQTable == "") {
-		return h.Store.UpdateTasks([]TaskWithLog{taskWithLog})
+		return []*Task{}, nil
 	}
 	// TODO(b/63014658): de-normalize the task spec into the progress message,
 	// so you do not have to query the database again.
+	// TODO(b/67420045): Message handlers should not have the store object.
+	// Manipulating the store should be isolated from handling the message.
 	taskSpec, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
 	if err != nil {
 		fmt.Printf("Error getting task spec of task: %v, with error: %v.\n",
 			task, err)
-		return err
+		return nil, err
 	}
 
 	var uploadGCSTaskSpec UploadGCSTaskSpec
 	if err := json.Unmarshal([]byte(taskSpec), &uploadGCSTaskSpec); err != nil {
 		fmt.Printf(
 			"Error decoding task spec: %s, with error: %v.\n", taskSpec, err)
-		return err
+		return nil, err
 	}
 
 	loadBQTaskId := GetLoadBQTaskId(uploadGCSTaskSpec.DstObject)
@@ -61,16 +64,14 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(jobSpec *JobSpec, taskWi
 		fmt.Printf(
 			"Error encoding task spec to JSON string, task spec: %v, err: %v.\n",
 			loadBQTaskSpec, err)
-		return err
+		return nil, err
 	}
 
-	taskWithLogMap := make(map[TaskWithLog][]*Task)
-	taskWithLogMap[taskWithLog] = []*Task{&Task{
+	return []*Task{&Task{
 		JobConfigId: task.JobConfigId,
 		JobRunId:    task.JobRunId,
 		TaskId:      loadBQTaskId,
 		TaskType:    loadBQTaskType,
 		TaskSpec:    string(loadBigQueryTaskSpecJson),
-	}}
-	return h.Store.UpdateAndInsertTasks(taskWithLogMap)
+	}}, nil
 }

@@ -37,7 +37,7 @@ func TestListProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 	}
 
 	task := &Task{Status: Success}
-	err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{task, ""})
+	_, err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{task, ""})
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errTaskNotFound)
 	}
@@ -66,7 +66,7 @@ func TestListProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 
 	// Reset the task spec
 	uploadGCSTask.TaskSpec = ""
-	err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{uploadGCSTask, ""})
+	_, err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{uploadGCSTask, ""})
 	if err == nil {
 		t.Errorf("error is nil, expected JSON decode error.")
 	}
@@ -102,7 +102,7 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 		ListingResultReader: mockListReader,
 	}
 
-	err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{listTask, ""})
+	_, err := handler.HandleMessage(nil /* jobSpec */, TaskWithLog{listTask, ""})
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	}
@@ -145,7 +145,7 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
-	err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""})
+	_, err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""})
 	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
@@ -192,7 +192,7 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
-	err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""})
+	_, err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""})
 	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "task_id_B")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
@@ -240,11 +240,12 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	jobSpec := &JobSpec{
 		GCSBucket: "bucket2",
 	}
-	if err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""}); err != nil {
+	newTasks, err := handler.HandleMessage(jobSpec, TaskWithLog{listTask, ""})
+	if err != nil {
 		t.Errorf("expecting success, found error: %v.", err)
 	}
-	if len(store.tasks) != 3 {
-		t.Errorf("expecting 3 tasks in the the store, found %d.", len(store.tasks))
+	if len(newTasks) != 2 {
+		t.Errorf("expecting 2 tasks when handling a list message, found %d.", len(newTasks))
 	}
 
 	for i := 0; i < 2; i++ {
@@ -255,21 +256,28 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 			TaskId:      GetUploadGCSTaskId("dir/file" + strconv.Itoa(i)),
 		}
 		expectedNewTaskSpec := fmt.Sprintf(`{
-			"src_file": "dir/file%d",
-			"dst_bucket": "bucket2",
-			"dst_object": "file%d"
-		}`, i, i)
-		insertedTask, ok := store.tasks[expectedNewTask.getTaskFullId()]
-		if !ok {
-			t.Errorf("task %v should exist in the store", expectedNewTask)
+				"src_file": "dir/file%d",
+				"dst_bucket": "bucket2",
+				"dst_object": "file%d"
+			}`, i, i)
+
+		var newTask *Task
+		for _, t := range newTasks {
+			if expectedNewTask.getTaskFullId() == t.getTaskFullId() {
+				newTask = t
+			}
 		}
-		if !AreEqualJSON(expectedNewTaskSpec, insertedTask.TaskSpec) {
-			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, insertedTask.TaskSpec)
+
+		if newTask == nil {
+			t.Errorf("task %v should exist in the returned new tasks", expectedNewTask)
+		}
+		if !AreEqualJSON(expectedNewTaskSpec, newTask.TaskSpec) {
+			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, newTask.TaskSpec)
 		}
 		// Clear the task spec to compare the remaining of the struct.
-		insertedTask.TaskSpec = ""
-		if !reflect.DeepEqual(expectedNewTask, *insertedTask) {
-			t.Errorf("expected task: %v, found: %v.", expectedNewTask, *insertedTask)
+		newTask.TaskSpec = ""
+		if !reflect.DeepEqual(expectedNewTask, *newTask) {
+			t.Errorf("expected task: %v, found: %v.", expectedNewTask, *newTask)
 		}
 	}
 }

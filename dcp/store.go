@@ -45,6 +45,8 @@ type Store interface {
 	QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic,
 		loadBigQueryTopic *pubsub.Topic) error
 
+	// TODO(b/67453832): Deprecate InsertNewTasks, this method is not used in the
+	// DCP logic. It should be removed after handling large listing tasks.
 	// InsertNewTasks should only be used for tasks that you are certain
 	// do not already exist in the store. Calling this method with tasks already
 	// in the store WILL result in an error being returned. If you are inserting
@@ -52,10 +54,11 @@ type Store interface {
 	// instead.
 	// InsertNewTasks adds the passed tasks to the store. Also updates the
 	// totalTasks field in the relevant job run progress string.
-	// TODO(b/63017414): Optimize insert new tasks and update tasks to be done in
-	// one transaction.
 	InsertNewTasks(tasks []*Task) error
 
+	// TODO(b/67420381): Deprecate UpdateTasks, this is a duplicate logic of
+	// UpdateAndInsertTasks. UpdateAndInsertTasks is more generic and can be used
+	// instead of UpdateTasks.
 	// UpdateTasks updates the store with the passed tasks. Each passed task must
 	// contain an existing (JobConfigId, JobRunId, TaskId), otherwise, error will
 	// be returned. A log entry will be created for each updated task.
