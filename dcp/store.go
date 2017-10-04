@@ -518,17 +518,15 @@ func readTasksFromSpanner(ctx context.Context,
 // of tasks to insert and returns a list of mutations that contains both
 // the mutation to update the updateTask and the mutations to insert the
 // insert tasks.
-// TODO(b/67111076): Change these function parameters.
 func getTaskUpdateAndInsertMutations(ctx context.Context,
 	txn *spanner.ReadWriteTransaction, updateTask *Task,
-	insertTasks map[string][]*Task, logEntries map[string]string, oldStatus int64) []*spanner.Mutation {
+	insertTasks []*Task, logEntry string, oldStatus int64) []*spanner.Mutation {
 
 	timestamp := time.Now().UnixNano()
-	taskId := updateTask.getTaskFullId()
-	mutations := make([]*spanner.Mutation, len(insertTasks[taskId]))
+	mutations := make([]*spanner.Mutation, len(insertTasks))
 
 	// Insert the tasks associated with the update task.
-	for i, insertTask := range insertTasks[taskId] {
+	for i, insertTask := range insertTasks {
 		mutations[i] = spanner.Insert("Tasks", getTaskInsertColumns(),
 			[]interface{}{
 				insertTask.JobConfigId,
@@ -554,7 +552,7 @@ func getTaskUpdateAndInsertMutations(ctx context.Context,
 		}))
 
 	// Create the log entry for the updated task.
-	insertLogEntryMutation(&mutations, updateTask, oldStatus, logEntries[taskId], timestamp)
+	insertLogEntryMutation(&mutations, updateTask, oldStatus, logEntry, timestamp)
 	return mutations
 }
 
@@ -636,10 +634,10 @@ func (s *SpannerStore) UpdateAndInsertTasks(taskWithLogMap map[TaskWithLog][]*Ta
 				addJobProgressDeltaForTaskUpdateToMap(updateTask, oldStatus,
 					progressDeltas)
 				addJobProgressDeltaForTaskInsertsToMap(
-					insertTasks[updateTask.getTaskFullId()], progressDeltas)
+					insertTasks[taskId], progressDeltas)
 
 				mutations := getTaskUpdateAndInsertMutations(ctx, txn, updateTask,
-					insertTasks, logEntries, oldStatus)
+					insertTasks[taskId], logEntries[taskId], oldStatus)
 				return txn.BufferWrite(mutations)
 			})
 			if err != nil {
