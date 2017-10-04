@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Router, ActivatedRoute, Params } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
-import { JobRun, JobConfig, JobRunParams } from './jobs.resources';
+import { JobRun, JobConfig, JobRunParams, Task } from './jobs.resources';
 import { environment } from '../../environments/environment';
 
 import 'rxjs/add/operator/switchMap';
@@ -55,6 +55,21 @@ export class JobsService {
         return this.http.post<JobRun>(
             `${environment.apiUrl}/projects/${projectId}/jobruns`,
             jobParams, POST_HEADERS);
+    });
+  }
+
+  /**
+   * Gets the first 25 tasks of the input status.
+   *
+   * TODO(b/67581174): The job tasks component should paginate to retrieve all of the tasks.
+   */
+  getTasksOfStatus(configId: string, runId: string, status: number): Observable<Task[]> {
+    const params = new HttpParams().set('status', String(status));
+    return this.project.switchMap(projectId => {
+        return this.http.get<Task[]>(
+            `${environment.apiUrl}/projects/${projectId}/tasks/${configId}/${runId}`,
+            {params: params}
+        );
     });
   }
 }

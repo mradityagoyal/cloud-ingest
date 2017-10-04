@@ -1,0 +1,24 @@
+<div class="ingest-task-header">
+
+  <a mat-list-item routerLink="/jobconfigs/{{jobConfigId}}/{{jobRunId}}"
+      queryParamsHandling="merge"
+      class="ingest-job-tasks-back-link">
+    <mat-icon>arrow_back</mat-icon>
+  </a>
+  <span class="ingest-separator"> </span>
+  <h2> Tasks </h2>
+</div>
+<mat-tab-group>
+  <mat-tab label="Failures">
+    <app-tasks-table [status]="TASK_STATUS.FAILED" [jobRunId]="jobRunId" [jobConfigId]="jobConfigId" [showFailureMessage]="true"> </app-tasks-table>
+  </mat-tab>
+  <mat-tab label="Succeeded">
+    <app-tasks-table [status]="TASK_STATUS.SUCCESS" [jobRunId]="jobRunId" [jobConfigId]="jobConfigId"> </app-tasks-table>
+  </mat-tab>
+  <mat-tab label="In Progress">
+    <app-tasks-table [status]="TASK_STATUS.QUEUED" [jobRunId]="jobRunId" [jobConfigId]="jobConfigId"> </app-tasks-table>
+  </mat-tab>
+  <mat-tab label="Pending">
+    <app-tasks-table [status]="TASK_STATUS.UNQUEUED" [jobRunId]="jobRunId" [jobConfigId]="jobConfigId"> </app-tasks-table>
+  </mat-tab>
+</mat-tab-group>

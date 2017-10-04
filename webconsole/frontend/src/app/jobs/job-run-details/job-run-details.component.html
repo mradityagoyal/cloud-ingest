@@ -34,6 +34,10 @@
           <dt>Tasks Failed</dt>
           <dd>{{ jobRun.Progress.tasksFailed }}</dd>
         </dl>
+      <a routerLink="/jobconfigs/{{jobConfigId}}/{{jobRunId}}/tasks"
+         queryParamsHandling="merge">
+         View all tasks
+      </a>
       </mat-tab>
 
       <ng-container *ngIf="jobRun.Progress.list">

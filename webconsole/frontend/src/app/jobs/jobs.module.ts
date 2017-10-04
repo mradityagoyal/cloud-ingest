@@ -11,6 +11,8 @@ import { JobsRoutingModule } from './jobs-routing.module';
 import { JobRunDetailsComponent } from './job-run-details/job-run-details.component';
 import { JobConfigsComponent } from './job-configs/job-configs.component';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog/job-config-add-dialog.component';
+import { JobTasksComponent } from './job-tasks/job-tasks.component';
+import { TasksTableComponent } from './job-tasks/tasks-table/tasks-table.component';
 
 
 @NgModule({
@@ -26,7 +28,9 @@ import { JobConfigAddDialogComponent } from './job-config-add-dialog/job-config-
     JobStatusPipe,
     JobRunDetailsComponent,
     JobConfigsComponent,
-    JobConfigAddDialogComponent
+    JobConfigAddDialogComponent,
+    JobTasksComponent,
+    TasksTableComponent
   ],
   entryComponents: [JobConfigAddDialogComponent],
   providers: [ JobsService ]
