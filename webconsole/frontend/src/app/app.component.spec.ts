@@ -1,13 +1,15 @@
-import { TestBed, async } from '@angular/core/testing';
-import { ActivatedRoute, Params, NavigationExtras } from '@angular/router';
+import { TestBed, async, inject } from '@angular/core/testing';
+import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { ActivatedRoute } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
-import { FormsModule } from '@angular/forms';
+import { ProjectSelectModule } from './project-select/project-select.module';
 import { Observable } from 'rxjs/Observable';
 import { AppComponent } from './app.component';
 import { AngularMaterialImporterModule } from './angular-material-importer/angular-material-importer.module';
 import { AuthService } from './auth/auth.service';
 import { UserProfile } from './auth/auth.resources';
 import { NoopAnimationsModule} from '@angular/platform-browser/animations';
+import { ProjectSelectComponent } from './project-select/project-select.component';
 import { MdSnackBar } from '@angular/material';
 import 'rxjs/add/observable/of';
 
@@ -54,7 +56,8 @@ describe('AppComponent', () => {
 
     TestBed.configureTestingModule({
       declarations: [
-        AppComponent
+        AppComponent,
+        ProjectSelectComponent
       ],
       providers: [
         {provide: AuthService, useValue: mockAuthService},
@@ -64,8 +67,9 @@ describe('AppComponent', () => {
       imports: [
         RouterTestingModule,
         NoopAnimationsModule,
-        FormsModule,
-        AngularMaterialImporterModule
+        ProjectSelectModule,
+        AngularMaterialImporterModule,
+        HttpClientTestingModule
       ],
     }).compileComponents();
   }));
@@ -165,28 +169,14 @@ describe('AppComponent', () => {
     });
   }));
 
-  it('should navigate to the job configs page with project id', async(() => {
-    const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.debugElement.componentInstance;
-    app.gcsProjectId = 'fakeGcsProjectId';
-    const navigateSpy = spyOn((<any>app).router, 'navigate');
-    const fakeNavigationExtras: NavigationExtras = {
-      queryParams: { project: 'fakeGcsProjectId' }
-    };
-
-    app.onProjectSelectSubmit();
-    expect(navigateSpy).toHaveBeenCalledWith(['/jobconfigs'], fakeNavigationExtras);
-  }));
-
-  it('should show a project selection input if no project is selected', async(() => {
+  it('should show a project selection component if no project is selected', async(() => {
     activatedRouteStub.queryParams = Observable.of({project: ''});
     const fixture = TestBed.createComponent(AppComponent);
-    const app = fixture.debugElement.componentInstance;
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const projectInput = compiled.querySelector('#projectId');
+      const projectInput = compiled.querySelector('app-project-select');
       expect(projectInput).not.toBeNull();
     });
   }));

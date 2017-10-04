@@ -58,11 +58,4 @@ export class AppComponent implements OnInit {
       this.snackBar.open(`There was an error signing into your account: ${error.error}`, 'Dismiss');
     });
   }
-
-  onProjectSelectSubmit() {
-    const navigationExtras: NavigationExtras = {
-      queryParams: { project: this.gcsProjectId }
-    };
-    this.router.navigate(['/jobconfigs'], navigationExtras);
-  }
 }
