@@ -58,9 +58,12 @@ class SpannerWrapper(object):
     LAST_MODIFICATION_TIME = "LastModificationTime"
     TASK_SPEC = "TaskSpec"
     TASK_TYPE = "TaskType"
+    FAILURE_MESSAGE = "FailureMessage"
+    WORKER_ID = "WorkerId"
     TASKS_COLUMNS = [
         JOB_CONFIG_ID, JOB_RUN_ID, TASK_ID, TASK_CREATION_TIME,
-        LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, TASK_TYPE
+        LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, TASK_TYPE, WORKER_ID,
+        FAILURE_MESSAGE
     ]
 
     # Used to limit the number of rows to avoid OOM errors

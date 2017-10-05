@@ -38,8 +38,6 @@ from google.oauth2.credentials import Credentials
 import infra_util
 import traceback
 from spannerwrapper import SpannerWrapper
-from create_infra.constants import DCP_INSTANCE_DOCKER_IMAGE
-
 
 APP = Flask(__name__)
 APP.config.from_pyfile('ingestwebconsole.default_settings')
@@ -340,9 +338,10 @@ def bad_url(error):
     }
     return jsonify(response), httplib.NOT_FOUND
 
-
-if __name__ == '__main__':
-    # Used when running locally
+def main():
+    """Executes the main logic when the function is run from the command line.
+    Used when executed on a local workstation.
+    """
     parser = argparse.ArgumentParser(
         description='Cloud ingest local backend server')
 
@@ -357,3 +356,7 @@ if __name__ == '__main__':
         host=APP.config['HOST'],
         port=APP.config['PORT'],
         debug=APP.config['DEBUG'])
+
+
+if __name__ == '__main__':
+    main()
