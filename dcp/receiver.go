@@ -49,9 +49,16 @@ type MessageReceiver struct {
 	Sub     *pubsub.Subscription
 	Store   Store
 	Handler MessageHandler
+
+	batcher taskUpdatesBatcher
 }
 
 func (r *MessageReceiver) ReceiveMessages() error {
+	// Currently, there is a batcher for each message receiver type (list,
+	// uploadGCS, loadBQ). May be we can consider only one batcher for all the
+	// receiver types.
+	r.batcher.initializeAndStart(r.Store, newClockTicker(batchingTimeInterval))
+
 	ctx := context.Background()
 
 	err := r.Sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
@@ -96,19 +103,8 @@ func (r *MessageReceiver) ReceiveMessages() error {
 				string(msg.Data), jobSpec, task, err)
 			return
 		}
-		// Update the task and insert the new tasks.
-		tasksWithLogMap := map[*TaskWithLog][]*Task{
-			taskWithLog: newTasks,
-		}
-		if err := r.Store.UpdateAndInsertTasks(tasksWithLogMap); err != nil {
-			fmt.Printf(
-				"Error handling the message: %s, error on UpdateAndInsertTasks with err: %v.\n",
-				string(msg.Data), err)
-			return
-		}
 
-		fmt.Printf("Acking message: %s.\n", string(decodedMsg))
-		msg.Ack()
+		r.batcher.addTaskUpdate(taskWithLog, newTasks, msg)
 	})
 	if err != nil {
 		fmt.Printf("Error receiving messages for subscription %v, with error: %v.\n",

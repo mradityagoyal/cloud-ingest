@@ -1,0 +1,56 @@
+/*
+Copyright 2017 Google Inc. All Rights Reserved.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
+package dcp
+
+import "time"
+
+// ticker is a wrapper interface around time.Ticker. This is mainly used to be
+// able to mock the ticker in unit tests.
+type ticker interface {
+	// getChannel returns the channel on which the ticks are delivered.
+	getChannel() <-chan time.Time
+}
+
+// clockTicker is a real implementation of ticker using timer.Ticker.
+type clockTicker struct {
+	t *time.Ticker
+}
+
+func (ct clockTicker) getChannel() <-chan time.Time {
+	return ct.t.C
+}
+
+func newClockTicker(d time.Duration) *clockTicker {
+	return &clockTicker{time.NewTicker(d)}
+}
+
+// mockTicker is a fake implementation of ticker.
+type mockTicker struct {
+	c chan time.Time
+}
+
+func (mt mockTicker) getChannel() <-chan time.Time {
+	return (<-chan time.Time)(mt.c)
+}
+
+func newMockTicker() *mockTicker {
+	return &mockTicker{make(chan time.Time)}
+}
+
+// tick simulates a tick.
+func (mt mockTicker) tick() {
+	mt.c <- time.Now()
+}

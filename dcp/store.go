@@ -64,6 +64,9 @@ type Store interface {
 	// be returned. A log entry will be created for each updated task.
 	UpdateTasks(tasksWithLogs []TaskWithLog) error
 
+	// TODO(b/67495138): Avoid primitive types in the spanner store and batcher.
+	// This hurts the code readability. go/tott-494 for more details.
+
 	// UpdateAndInsertTasks takes in a map that maps from task to be updated to
 	// a list of tasks to be inserted if the update task can be updated.
 	// If there are two update tasks (keys in the taskMap) with the same full id
