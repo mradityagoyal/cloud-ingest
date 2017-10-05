@@ -24,7 +24,7 @@ removeDuplicatesAndCreateIdMaps Tests
 *******************************************************************************/
 
 func TestRemoveDuplicatesAndCreateIdMapsSingleEntry(t *testing.T) {
-	taskWithLogMap := make(map[TaskWithLog][]*Task)
+	taskWithLogMap := make(map[*TaskWithLog][]*Task)
 	fullJobId := JobRunFullId{
 		JobConfigId: "A",
 		JobRunId:    "B",
@@ -44,7 +44,7 @@ func TestRemoveDuplicatesAndCreateIdMapsSingleEntry(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskId:      "E",
 	}
-	taskWithLogMap[TaskWithLog{updateTask, ""}] = []*Task{insertTask1, insertTask2}
+	taskWithLogMap[&TaskWithLog{updateTask, ""}] = []*Task{insertTask1, insertTask2}
 
 	updateTasks, insertTasks, logEntries := removeDuplicatesAndCreateIdMaps(taskWithLogMap)
 
@@ -80,7 +80,7 @@ func TestRemoveDuplicatesAndCreateIdMapsSingleEntry(t *testing.T) {
 }
 
 func TestRemoveDuplicatesAndCreateIdMapsDuplicateEntries(t *testing.T) {
-	taskWithLogMap := make(map[TaskWithLog][]*Task)
+	taskWithLogMap := make(map[*TaskWithLog][]*Task)
 	fullJobId := JobRunFullId{
 		JobConfigId: "A",
 		JobRunId:    "B",
@@ -107,8 +107,8 @@ func TestRemoveDuplicatesAndCreateIdMapsDuplicateEntries(t *testing.T) {
 		TaskId:      "C",
 		Status:      Failed,
 	}
-	taskWithLogMap[TaskWithLog{updateTaskA, ""}] = []*Task{insertTask1, insertTask2}
-	taskWithLogMap[TaskWithLog{updateTaskB, ""}] = []*Task{}
+	taskWithLogMap[&TaskWithLog{updateTaskA, ""}] = []*Task{insertTask1, insertTask2}
+	taskWithLogMap[&TaskWithLog{updateTaskB, ""}] = []*Task{}
 
 	updateTasks, insertTasks, logEntries := removeDuplicatesAndCreateIdMaps(taskWithLogMap)
 

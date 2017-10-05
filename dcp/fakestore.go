@@ -22,15 +22,15 @@ import (
 )
 
 var (
-	errTaskNotFound   = errors.New("task not found")
-	errInsertNewTasks = errors.New("inserting new tasks")
+	errTaskNotFound              = errors.New("task not found")
+	errInsertNewTasks            = errors.New("inserting new tasks")
 	errTaskLogEntryCountMismatch = errors.New("task/logEntry count mismatch")
 )
 
 // FakeStore is a fake implementation of Store interface that is used for test
 // purposes.
 type FakeStore struct {
-	tasks map[string]*Task
+	tasks      map[string]*Task
 	logEntries map[string]string
 }
 
@@ -65,7 +65,7 @@ func (s *FakeStore) UpdateTasks(tasksWithLogs []TaskWithLog) error {
 	return nil
 }
 
-func (s *FakeStore) UpdateAndInsertTasks(taskWithLogMap map[TaskWithLog][]*Task) error {
+func (s *FakeStore) UpdateAndInsertTasks(taskWithLogMap map[*TaskWithLog][]*Task) error {
 	for updateTaskWithLog, insertList := range taskWithLogMap {
 		updateTask := updateTaskWithLog.Task
 		s.tasks[updateTask.getTaskFullId()] = updateTask

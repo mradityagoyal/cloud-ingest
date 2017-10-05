@@ -97,8 +97,8 @@ func (r *MessageReceiver) ReceiveMessages() error {
 			return
 		}
 		// Update the task and insert the new tasks.
-		tasksWithLogMap := map[TaskWithLog][]*Task{
-			*taskWithLog: newTasks,
+		tasksWithLogMap := map[*TaskWithLog][]*Task{
+			taskWithLog: newTasks,
 		}
 		if err := r.Store.UpdateAndInsertTasks(tasksWithLogMap); err != nil {
 			fmt.Printf(

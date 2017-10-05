@@ -92,7 +92,7 @@ type Store interface {
 	// This function also takes in a map of task-to-be-updated to its
 	// corresponding log entry, so a log entry will be created for the updated
 	// task. 'logEntryMap' and 'taskMap' must contain the same number of elements.
-	UpdateAndInsertTasks(taskWithLogMap map[TaskWithLog][]*Task) error
+	UpdateAndInsertTasks(taskWithLogMap map[*TaskWithLog][]*Task) error
 }
 
 // TODO(b/63749083): Replace empty context (context.Background) when interacting
@@ -448,7 +448,8 @@ func (s *SpannerStore) UpdateTasks(tasksWithLogs []TaskWithLog) error {
 // mapping from the update task full id to the list of tasks that should
 // be inserted if the specified update task can be updated, and the last
 // mapping from the update task full id to the log entry for that task.
-func removeDuplicatesAndCreateIdMaps(taskWithLogMap map[TaskWithLog][]*Task) (map[string]*Task, map[string][]*Task, map[string]string) {
+func removeDuplicatesAndCreateIdMaps(taskWithLogMap map[*TaskWithLog][]*Task) (
+	map[string]*Task, map[string][]*Task, map[string]string) {
 	updateTasks := make(map[string]*Task)
 	insertTasks := make(map[string][]*Task)
 	logEntries := make(map[string]string)
@@ -601,7 +602,7 @@ func addJobProgressDeltaForTaskUpdateToMap(updateTask *Task, oldStatus int64,
 	progressDeltas[fullJobId] = deltaObj
 }
 
-func (s *SpannerStore) UpdateAndInsertTasks(taskWithLogMap map[TaskWithLog][]*Task) error {
+func (s *SpannerStore) UpdateAndInsertTasks(taskWithLogMap map[*TaskWithLog][]*Task) error {
 	if len(taskWithLogMap) == 0 {
 		return nil
 	}
