@@ -458,10 +458,23 @@ class TestSpannerWrapper(unittest.TestCase):
             self.snapshot.execute_sql.call_args
         )
 
+    def test_get_tasks_task_status(self):
+        """Asserts that the proper task_type is used in the query."""
+        task_status = 2
+        self.spanner_wrapper.get_tasks_for_run('', '', 10,
+            task_status=task_status)
+        self.snapshot.execute_sql.assert_called()
+        self.check_query_param(
+            "task_status",
+            task_status,
+            self.snapshot.execute_sql.call_args
+        )
+
     def test_get_tasks_last_modified(self):
         """Asserts that the proper last modified time is used in the query."""
         last_modified = 5
-        self.spanner_wrapper.get_tasks_for_run('', '', 10, '', last_modified)
+        self.spanner_wrapper.get_tasks_for_run('', '', 10, '',
+            last_modified=last_modified)
         self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "last_modified",

@@ -188,6 +188,7 @@ def tasks(project_id, config_id, run_id):
                             with last modified times before the given time
                             will be returned.
         type- Only tasks with the given type will be returned.
+        status- Only tasks with the given status will be returned.
 
     Args:
         project_id: The id of the project.
@@ -209,6 +210,7 @@ def tasks(project_id, config_id, run_id):
                                      APP.config['SPANNER_DATABASE'])
     last_modified_before = _get_int_param(request, 'lastModifiedBefore')
     task_type = request.args.get('type')
+    task_status = _get_int_param(request, 'status')
     num_tasks = _get_int_param(request, 'pageSize') or _DEFAULT_PAGE_SIZE
 
     return jsonify(spanner_wrapper.get_tasks_for_run(
@@ -216,7 +218,8 @@ def tasks(project_id, config_id, run_id):
         run_id,
         num_tasks,
         last_modified=last_modified_before,
-        task_type=task_type
+        task_type=task_type,
+        task_status=task_status
     ))
 
 @APP.route('/projects/<project_id>/infrastructure-status',

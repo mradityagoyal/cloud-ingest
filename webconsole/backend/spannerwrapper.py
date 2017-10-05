@@ -60,6 +60,13 @@ class SpannerWrapper(object):
     TASK_TYPE = "TaskType"
     FAILURE_MESSAGE = "FailureMessage"
     WORKER_ID = "WorkerId"
+    TASK_STATUS = {
+        0: "UNQUEUED",
+        1: "QUEUED",
+        2: "FAILED",
+        3: "SUCCESS"
+    }
+    TASK_BY_STATUS_INDEX_NAME = "TasksByStatus"
     TASKS_COLUMNS = [
         JOB_CONFIG_ID, JOB_RUN_ID, TASK_ID, TASK_CREATION_TIME,
         LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, TASK_TYPE]
@@ -260,7 +267,7 @@ class SpannerWrapper(object):
 
     # pylint: disable=too-many-arguments
     def get_tasks_for_run(self, config_id, run_id, max_num_tasks,
-                          task_type=None, last_modified=None):
+                          task_type=None, task_status=None, last_modified=None):
         """Retrieves the tasks with the given type for the specified job run.
 
         Retrieves the tasks for the specified job run from Cloud Spanner. If
@@ -277,6 +284,7 @@ class SpannerWrapper(object):
                            less than max_num_tasks will be returned if there
                            are not enough matching tasks.
             task_type: The desired type of the tasks, defaults to None.
+            task_status: The desired status of the tasks, defaults to None.
             last_modified: All returned tasks will have a last_modified time
                          less than the given time
 
@@ -291,6 +299,9 @@ class SpannerWrapper(object):
         if max_num_tasks > SpannerWrapper.ROW_CAP:
             raise ValueError("max_num_tasks must be less than or equal to %d" %
                              SpannerWrapper.ROW_CAP)
+        if (task_status is not None and
+            task_status not in SpannerWrapper.TASK_STATUS):
+            raise ValueError("Task status of id %d is unknown.", task_status)
 
         params = {
             "run_id": run_id,
@@ -302,9 +313,20 @@ class SpannerWrapper(object):
             "config_id": type_pb2.Type(code=type_pb2.STRING),
             "num_tasks": type_pb2.Type(code=type_pb2.INT64)
         }
-        query = ("SELECT * FROM %s WHERE %s = @run_id AND %s = @config_id" %
-                 (SpannerWrapper.TASKS_TABLE, SpannerWrapper.JOB_RUN_ID,
-                  SpannerWrapper.JOB_CONFIG_ID))
+
+        if task_status is None:
+            query = ("SELECT * FROM %s WHERE %s = @run_id AND %s = @config_id" %
+                    (SpannerWrapper.TASKS_TABLE, SpannerWrapper.JOB_RUN_ID,
+                    SpannerWrapper.JOB_CONFIG_ID))
+        else:
+            query = (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @run_id "
+                     "AND %s = @config_id AND %s = @task_status") %
+                     (SpannerWrapper.TASKS_TABLE,
+                     SpannerWrapper.TASK_BY_STATUS_INDEX_NAME,
+                     SpannerWrapper.JOB_RUN_ID, SpannerWrapper.JOB_CONFIG_ID,
+                     SpannerWrapper.STATUS))
+            params["task_status"] = task_status
+            param_types["task_status"] = type_pb2.Type(code=type_pb2.INT64)
 
         if last_modified:
             query += (" AND %s < @last_modified" %
