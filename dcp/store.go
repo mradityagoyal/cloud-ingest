@@ -266,6 +266,10 @@ func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
 			// Job status has changed, add the update to the mutation params
 			jobInsertColumns = append(jobInsertColumns, "Status")
 			jobInsertValues = append(jobInsertValues, newStatus)
+			if IsJobTerminated(newStatus) {
+				jobInsertColumns = append(jobInsertColumns, "JobFinishTime")
+				jobInsertValues = append(jobInsertValues, time.Now().UnixNano())
+			}
 		}
 
 		return txn.BufferWrite([]*spanner.Mutation{spanner.Update(

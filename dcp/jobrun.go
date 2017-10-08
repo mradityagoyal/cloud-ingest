@@ -91,3 +91,8 @@ func (j *JobProgressSpec) GetJobStatus() int64 {
 	}
 	return status
 }
+
+// IsJobTerminated returns whether a job has terminated or not.
+func IsJobTerminated(jobStatus int64) bool {
+	return jobStatus == JobFailed || jobStatus == JobSuccess
+}
