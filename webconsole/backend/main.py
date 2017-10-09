@@ -286,7 +286,7 @@ def _get_int_param(get_request, param_name):
         value = get_request.args.get(param_name)
         if value is not None:
             return int(get_request.args.get(param_name))
-    except BadRequest:
+    except ValueError:
         raise BadRequest("GET param '%s' must be a valid integer. "
                          "Current value: %s" % (param_name, value))
 
