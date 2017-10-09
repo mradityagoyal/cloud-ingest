@@ -62,9 +62,7 @@ class SpannerWrapper(object):
     WORKER_ID = "WorkerId"
     TASKS_COLUMNS = [
         JOB_CONFIG_ID, JOB_RUN_ID, TASK_ID, TASK_CREATION_TIME,
-        LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, TASK_TYPE, WORKER_ID,
-        FAILURE_MESSAGE
-    ]
+        LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, TASK_TYPE]
 
     # Used to limit the number of rows to avoid OOM errors
     # TODO(b/64092801): Replace cap with streaming of large results

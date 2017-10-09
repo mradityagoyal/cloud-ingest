@@ -380,24 +380,20 @@ class TestSpannerWrapper(unittest.TestCase):
         status1 = 3
         task_spec1 = '{\'task_id\': \'list\'}'
         task_type = 1
-        worker_id1 = 'worker1'
-        failure_msg1 = None
 
         task_id2 = 'uploadGCS:file22.txt'
-        failure_msg2 = None
         task_creation_time2 = 30
         last_mod_time2 = 40
         status2 = 1
         task_type2 = 0
         task_spec2 = '{\'task_id\': \'uploadGCS:file22.txt\'}'
-        worker_id2 = 'worker2'
 
         result = MagicMock()
         result.__iter__.return_value = [[
             config_id, run_id, task_id1, task_creation_time, last_mod_time1,
-            status1, task_spec1, task_type, worker_id1, failure_msg1],
+            status1, task_spec1, task_type],
             [config_id, run_id, task_id2, task_creation_time2, last_mod_time2,
-            status2, task_spec2, task_type2, worker_id2, failure_msg2]
+            status2, task_spec2, task_type2]
         ]
         result.fields = self.get_fields_list(SpannerWrapper.TASKS_COLUMNS)
         self.snapshot.execute_sql.return_value = result
@@ -405,11 +401,9 @@ class TestSpannerWrapper(unittest.TestCase):
         actual = self.spanner_wrapper.get_tasks_for_run(config_id, run_id, 25)
         expected = [
             self.get_task(config_id, run_id, task_id1, task_creation_time,
-                last_mod_time1, status1, task_spec1, task_type, worker_id1,
-                failure_msg1),
+                last_mod_time1, status1, task_spec1, task_type),
             self.get_task(config_id, run_id, task_id2, task_creation_time2,
-                last_mod_time2, status2, task_spec2, task_type2, worker_id2,
-                failure_msg2),
+                last_mod_time2, status2, task_spec2, task_type2),
         ]
 
         self.assertEqual(actual, expected)
@@ -572,7 +566,7 @@ class TestSpannerWrapper(unittest.TestCase):
     @staticmethod
     # pylint: disable=too-many-arguments
     def get_task(config_id, run_id, task_id, task_creation_time, last_mod_time,
-                 status, task_spec, task_type, worker_id, failure_msg):
+                 status, task_spec, task_type):
         """Returns a task in dictionary format containing the given values.
 
         Args:
@@ -580,11 +574,9 @@ class TestSpannerWrapper(unittest.TestCase):
           run_id: The job run id of the task
           task_id: The id of the task
           task_creation_time: The creation time
-          failure_msg: The task failure message
           last_mod_time: An int representing the last modification time
           status: An int representing the status of the task
           task_spec: The task spec, a JSON string
-          worker_id: A string containing the worker id
 
         Returns:
           A task in dictionary format with the given values.
@@ -594,12 +586,10 @@ class TestSpannerWrapper(unittest.TestCase):
             SpannerWrapper.JOB_RUN_ID: run_id,
             SpannerWrapper.TASK_ID: task_id,
             SpannerWrapper.TASK_CREATION_TIME: task_creation_time,
-            SpannerWrapper.FAILURE_MESSAGE: failure_msg,
             SpannerWrapper.LAST_MODIFICATION_TIME: last_mod_time,
             SpannerWrapper.STATUS: status,
             SpannerWrapper.TASK_SPEC: task_spec,
             SpannerWrapper.TASK_TYPE: task_type,
-            SpannerWrapper.WORKER_ID: worker_id
         }
 
     @staticmethod
