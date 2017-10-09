@@ -151,7 +151,7 @@ describe('JobRunDetailsComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('md-spinner');
+      const element = compiled.querySelector('mat-spinner');
       expect(element).not.toBeNull();
     });
   }));
@@ -163,7 +163,7 @@ describe('JobRunDetailsComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('md-spinner');
+      const element = compiled.querySelector('mat-spinner');
       expect(element).toBeNull();
     });
   }));

@@ -1,7 +1,7 @@
 import { TestBed, async } from '@angular/core/testing';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
 import { JobsService } from '../jobs.service';
-import { MdDialogRef } from '@angular/material';
+import { MatDialogRef } from '@angular/material';
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { FormsModule } from '@angular/forms';
 import { JobConfigFormModel } from './job-config-add-dialog.resources';
@@ -13,12 +13,12 @@ class JobsServiceStub {
   public postJobConfig = jasmine.createSpy('postJobConfig');
 }
 
-class MdDialogRefStub {
+class MatDialogRefStub {
   public close = jasmine.createSpy('close');
 }
 
 let jobsServiceStub: JobsServiceStub;
-let mdDialogRefStub: MdDialogRefStub;
+let mdDialogRefStub: MatDialogRefStub;
 let fakeJobConfigModel: JobConfigFormModel;
 
 
@@ -37,7 +37,7 @@ describe('JobConfigAddDialogComponent', () => {
 
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
-    mdDialogRefStub = new MdDialogRefStub();
+    mdDialogRefStub = new MatDialogRefStub();
     jobsServiceStub.postJobConfig.and.returnValue(Observable.of(FAKE_JOB_CONFIG));
     fakeJobConfigModel = new JobConfigFormModel(
                         /**jobConfigId**/ 'fakeJobConfigId',
@@ -52,7 +52,7 @@ describe('JobConfigAddDialogComponent', () => {
       ],
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},
-        {provide: MdDialogRef, useValue: mdDialogRefStub},
+        {provide: MatDialogRef, useValue: mdDialogRefStub},
       ],
       imports: [
         FormsModule,

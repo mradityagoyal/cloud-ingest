@@ -2,7 +2,7 @@ import { Component, OnInit } from '@angular/core';
 import { InfrastructureStatus } from './infrastructure.resources';
 import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
 import { HttpErrorResponse } from '@angular/common/http';
-import { MdSnackBar } from '@angular/material';
+import { MatSnackBar } from '@angular/material';
 import { ActivatedRoute } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { HttpErrorResponseFormatter } from '../util/error.resources';
@@ -34,7 +34,7 @@ export class InfrastructureComponent implements OnInit {
   private projectId: string;
 
   constructor(private readonly infrastructureService: InfrastructureService,
-              private readonly snackBar: MdSnackBar,
+              private readonly snackBar: MatSnackBar,
               private readonly route: ActivatedRoute) {
     this.projectId = route.snapshot.queryParams.project;
   }

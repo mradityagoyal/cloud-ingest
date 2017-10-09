@@ -2,7 +2,7 @@
 
 <ng-container *ngIf="showLoadingSpinner; then spinner; else jobrun"></ng-container>
 <ng-template #spinner>
-  <md-spinner></md-spinner>
+  <mat-spinner></mat-spinner>
 </ng-template>
 
 <ng-template #jobrun>
@@ -24,8 +24,8 @@
       <dd>{{ jobRun.Status | jobStatus }}</dd>
     </dl>
 
-    <md-tab-group id="job-progress-tabs">
-      <md-tab label="Overall Progress">
+    <mat-tab-group id="job-progress-tabs">
+      <mat-tab label="Overall Progress">
         <dl>
           <dt>Total Tasks</dt>
           <dd>{{ jobRun.Progress.totalTasks }}</dd>
@@ -34,10 +34,10 @@
           <dt>Tasks Failed</dt>
           <dd>{{ jobRun.Progress.tasksFailed }}</dd>
         </dl>
-      </md-tab>
+      </mat-tab>
 
       <ng-container *ngIf="jobRun.Progress.list">
-        <md-tab label="Listing Progress">
+        <mat-tab label="Listing Progress">
           <dl>
             <dt>List Tasks</dt>
             <dd>{{ jobRun.Progress.list.totalLists }}</dd>
@@ -46,11 +46,11 @@
             <dt>List Tasks Failed</dt>
             <dd>{{ jobRun.Progress.list.listsFailed }}</dd>
           </dl>
-        </md-tab>
+        </mat-tab>
       </ng-container>
 
       <ng-container *ngIf="jobRun.Progress.uploadGCS">
-        <md-tab label="Upload to GCS Progress">
+        <mat-tab label="Upload to GCS Progress">
           <dl>
             <dt>Total Files</dt>
             <dd>{{ jobRun.Progress.uploadGCS.totalFiles }}</dd>
@@ -59,11 +59,11 @@
             <dt>Files Failed</dt>
             <dd>{{ jobRun.Progress.uploadGCS.filesFailed }}</dd>
           </dl>
-        </md-tab>
+        </mat-tab>
       </ng-container>
 
       <ng-container *ngIf="jobRun.Progress.loadBigQuery">
-        <md-tab label="Load into BigQuery Progress">
+        <mat-tab label="Load into BigQuery Progress">
           <dl>
             <dt>Total Objects</dt>
             <dd>{{ jobRun.Progress.loadBigQuery.totalObjects }}</dd>
@@ -72,9 +72,9 @@
             <dt>Objects Failed</dt>
             <dd>{{ jobRun.Progress.loadBigQuery.objectsFailed }}</dd>
           </dl>
-        </md-tab>
+        </mat-tab>
       </ng-container>
-    </md-tab-group>
+    </mat-tab-group>
   </ng-template>
 </ng-template>
 

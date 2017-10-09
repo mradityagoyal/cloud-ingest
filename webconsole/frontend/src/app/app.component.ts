@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { Router, ActivatedRoute, Params, NavigationExtras } from '@angular/router';
 import { AuthService } from './auth/auth.service';
-import { MdSnackBar } from '@angular/material';
+import { MatSnackBar } from '@angular/material';
 
 @Component({
   selector: 'app-root',
@@ -17,7 +17,7 @@ export class AppComponent implements OnInit {
 
   constructor(private authService: AuthService,
               private router: Router, private route: ActivatedRoute,
-              private snackBar: MdSnackBar) { }
+              private snackBar: MatSnackBar) { }
 
   ngOnInit() {
     this.route.queryParams.subscribe((params: Params) => {

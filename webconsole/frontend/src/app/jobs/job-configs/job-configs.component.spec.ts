@@ -5,7 +5,7 @@ import { JobConfigsComponent } from './job-configs.component';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { Observable } from 'rxjs/Observable';
-import { MdDialog } from '@angular/material';
+import { MatDialog } from '@angular/material';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { RouterTestingModule } from '@angular/router/testing';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
@@ -18,11 +18,11 @@ class JobsServiceStub {
   public getJobConfigs = jasmine.createSpy('getJobConfigs');
 }
 
-class MdDialogStub {
+class MatDialogStub {
   public open = jasmine.createSpy('open');
 }
 
-class MdDialogRefStub {
+class MatDialogRefStub {
   public afterClosed = jasmine.createSpy('afterClosed');
 }
 
@@ -50,15 +50,15 @@ const EMPTY_JOB_CONFIG_ARR: JobConfig[] = [];
 const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
 
 let jobsServiceStub: JobsServiceStub;
-let mdDialogStub: MdDialogStub;
-let mdDialogRefStub: MdDialogRefStub;
+let mdDialogStub: MatDialogStub;
+let mdDialogRefStub: MatDialogRefStub;
 
 describe('JobConfigsComponent', () => {
 
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
-    mdDialogStub = new MdDialogStub();
-    mdDialogRefStub = new MdDialogRefStub();
+    mdDialogStub = new MatDialogStub();
+    mdDialogRefStub = new MatDialogRefStub();
     jobsServiceStub.getJobConfigs.and.returnValue(Observable.of(FAKE_JOB_CONFIGS));
     mdDialogStub.open.and.returnValue(mdDialogRefStub);
     mdDialogRefStub.afterClosed.and.returnValue(Observable.of(false));
@@ -69,7 +69,7 @@ describe('JobConfigsComponent', () => {
       ],
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},
-        {provide: MdDialog, useValue: mdDialogStub}
+        {provide: MatDialog, useValue: mdDialogStub}
       ],
       imports: [
         AngularMaterialImporterModule,
@@ -105,7 +105,7 @@ describe('JobConfigsComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('md-spinner');
+      const element = compiled.querySelector('mat-spinner');
       expect(element).not.toBeNull();
     });
   }));
@@ -118,7 +118,7 @@ describe('JobConfigsComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('md-spinner');
+      const element = compiled.querySelector('mat-spinner');
       expect(element).toBeNull();
     });
   }));
@@ -129,7 +129,7 @@ describe('JobConfigsComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const elements = compiled.querySelectorAll('md-card');
+      const elements = compiled.querySelectorAll('mat-card');
       expect(elements.length).toBe(3);
     });
   }));
@@ -140,7 +140,7 @@ describe('JobConfigsComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const elements = compiled.querySelectorAll('md-card');
+      const elements = compiled.querySelectorAll('mat-card');
       expect(elements[0].innerText).toContain('fakeJobConfigId1');
       expect(elements[0].innerText).toContain('fakeField1');
       expect(elements[0].innerText).toContain('fakeValue1');

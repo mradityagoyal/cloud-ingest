@@ -8,7 +8,7 @@ import { Observable } from 'rxjs/Observable';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute } from '@angular/router';
-import { MdSnackBar } from '@angular/material';
+import { MatSnackBar } from '@angular/material';
 import { HttpErrorResponseFormatter } from '../util/error.resources';
 import 'rxjs/add/observable/throw';
 import 'rxjs/add/observable/of';
@@ -29,7 +29,7 @@ class ActivatedRouteStub {
   };
 }
 
-class MdSnackBarStub {
+class MatSnackBarStub {
   open = jasmine.createSpy('open');
 }
 
@@ -150,7 +150,7 @@ const FAKE_HTTP_ERROR = {error: 'FakeError', message: 'Fake Error Message.'};
 let intervalObservableCreateSpy: any;
 
 let infrastructureServiceStub: InfrastructureServiceStub;
-let mdSnackBarStub: MdSnackBarStub;
+let matSnackBarStub: MatSnackBarStub;
 let activatedRouteStub: ActivatedRouteStub;
 
 describe('InfrastructureComponent', () => {
@@ -162,7 +162,7 @@ describe('InfrastructureComponent', () => {
     infrastructureServiceStub.postTearDownInfrastructure.and.returnValue(Observable.of({}));
     // Disable polling for most tests
     intervalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
-    mdSnackBarStub = new MdSnackBarStub();
+    matSnackBarStub = new MatSnackBarStub();
     activatedRouteStub = new ActivatedRouteStub();
 
     TestBed.configureTestingModule({
@@ -172,7 +172,7 @@ describe('InfrastructureComponent', () => {
       ],
       providers: [
         {provide: InfrastructureService, useValue: infrastructureServiceStub},
-        {provide: MdSnackBar, useValue: mdSnackBarStub},
+        {provide: MatSnackBar, useValue: matSnackBarStub},
         {provide: ActivatedRoute, useValue: activatedRouteStub}
       ],
       imports: [
@@ -211,19 +211,19 @@ describe('InfrastructureComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('md-spinner');
+      const element = compiled.querySelector('mat-spinner');
       expect(element).not.toBeNull();
     });
   }));
 
-  it('should contain an md-list', async(() => {
+  it('should contain an mat-list', async(() => {
     const fixture = TestBed.createComponent(InfrastructureComponent);
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('md-list');
+      const element = compiled.querySelector('mat-list');
       expect(element).not.toBeNull();
     });
   }));
@@ -471,8 +471,8 @@ describe('InfrastructureComponent', () => {
       fixture.detectChanges();
       // There should have been two calls, one get infrastructure and one for polling
       expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(2);
-      expect(mdSnackBarStub.open).toHaveBeenCalled();
-      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('fakeFormattedTitle');
+      expect(matSnackBarStub.open).toHaveBeenCalled();
+      expect(matSnackBarStub.open.calls.first().args[0]).toMatch('fakeFormattedTitle');
     });
   }));
 

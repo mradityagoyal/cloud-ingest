@@ -1,14 +1,14 @@
-<md-list-item>
-  <md-icon md-list-icon>
+<mat-list-item>
+  <mat-icon mat-list-icon>
     <ng-container [ngSwitch]="itemStatus">
-      <md-icon md-list-icon *ngSwitchCase="INFRA_STATUS.RUNNING">check_circle</md-icon>
-      <md-icon md-list-icon *ngSwitchCase="INFRA_STATUS.NOT_FOUND">warning</md-icon>
-      <md-icon md-list-icon *ngSwitchCase="INFRA_STATUS.FAILED">error</md-icon>
-      <md-icon md-list-icon *ngSwitchCase="INFRA_STATUS.UNKNOWN">help</md-icon>
-      <md-spinner md-list-icon *ngSwitchCase="INFRA_STATUS.DEPLOYING"></md-spinner>
-      <md-spinner [color]="'accent'" md-list-icon *ngSwitchCase="INFRA_STATUS.DELETING"></md-spinner>
+      <mat-icon mat-list-icon *ngSwitchCase="INFRA_STATUS.RUNNING">check_circle</mat-icon>
+      <mat-icon mat-list-icon *ngSwitchCase="INFRA_STATUS.NOT_FOUND">warning</mat-icon>
+      <mat-icon mat-list-icon *ngSwitchCase="INFRA_STATUS.FAILED">error</mat-icon>
+      <mat-icon mat-list-icon *ngSwitchCase="INFRA_STATUS.UNKNOWN">help</mat-icon>
+      <mat-spinner mat-list-icon *ngSwitchCase="INFRA_STATUS.DEPLOYING"></mat-spinner>
+      <mat-spinner [color]="'accent'" mat-list-icon *ngSwitchCase="INFRA_STATUS.DELETING"></mat-spinner>
     </ng-container>
-  </md-icon>
+  </mat-icon>
   <h3 mdLine> {{ itemName }} </h3>
   <p class="item-status" mdLine>
     <ng-container [ngSwitch]="itemStatus">
@@ -20,4 +20,4 @@
       <ng-container *ngSwitchCase="INFRA_STATUS.DELETING">Deleting...</ng-container>
     </ng-container>
   </p>
-</md-list-item>
+</mat-list-item>

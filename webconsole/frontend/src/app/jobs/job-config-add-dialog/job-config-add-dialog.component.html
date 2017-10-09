@@ -9,30 +9,30 @@
   There was an error in the application. Please try again later and <a href="https://github.com/GoogleCloudPlatform/cloud-ingest/issues" target="_blank"> contact site owners </a> if the problem persists.
 </div>
 <form (ngSubmit)="onSubmit()" #jobConfigAddDialogForm="ngForm">
-  <md-form-field class="ingest-full-width">
-    <input id="jobConfigId" name="jobConfigId" mdInput required [(ngModel)]="model.jobConfigId" #jobConfigId="ngModel" placeholder="Config Id" i18n="Label for Job Config Id input">
-  </md-form-field>
+  <mat-form-field class="ingest-full-width">
+    <input id="jobConfigId" name="jobConfigId" matInput required [(ngModel)]="model.jobConfigId" #jobConfigId="ngModel" placeholder="Config Id" i18n="Label for Job Config Id input">
+  </mat-form-field>
   <h4 i18n="Subtitle in a form for the fields of the source information for the source file system"> Source information: </h4>
-  <md-form-field class="ingest-full-width">
-      <input id="fileSystemDirectory" name="fileSystemDirectory" mdInput required [(ngModel)]="model.fileSystemDirectory" #fileSystemDirectory="ngModel" placeholder="Full path at source" i18n="Label for the full path at the filesystem.">
-  </md-form-field>
+  <mat-form-field class="ingest-full-width">
+      <input id="fileSystemDirectory" name="fileSystemDirectory" matInput required [(ngModel)]="model.fileSystemDirectory" #fileSystemDirectory="ngModel" placeholder="Full path at source" i18n="Label for the full path at the filesystem.">
+  </mat-form-field>
   <h4 i18n="Subtitle in a form for the fields of the destination information for Google Cloud Storage"> Destination information for Google Cloud Storage: </h4>
-  <md-form-field class="ingest-full-width">
-      <input id="gcsBucket" name="gcsBucket" mdInput required [(ngModel)]="model.gcsBucket" #gcsBucket="ngModel" placeholder="Google Cloud Storage bucket" i18n="Label for Google Cloud Storage bucket">
-  </md-form-field>
+  <mat-form-field class="ingest-full-width">
+      <input id="gcsBucket" name="gcsBucket" matInput required [(ngModel)]="model.gcsBucket" #gcsBucket="ngModel" placeholder="Google Cloud Storage bucket" i18n="Label for Google Cloud Storage bucket">
+  </mat-form-field>
   <h4 i18n=""> Destination information for BigQuery: </h4>
 
-  <md-checkbox class="ingest-full-width" id="bigQueryTransferChecked" name="bigQueryTransferChecked" i18n="Label for checkbox to select the transfer rows to BigQuery option" [(ngModel)]="bigQueryTransferChecked">Transfer rows into BigQuery</md-checkbox>
+  <mat-checkbox class="ingest-full-width" id="bigQueryTransferChecked" name="bigQueryTransferChecked" i18n="Label for checkbox to select the transfer rows to BigQuery option" [(ngModel)]="bigQueryTransferChecked">Transfer rows into BigQuery</mat-checkbox>
   <ng-container *ngIf="bigQueryTransferChecked">
-    <md-form-field class="ingest-full-width">
-      <input id="bigqueryDataset" name="bigqueryDataset" mdInput required [(ngModel)]="model.bigqueryDataset" #bigqueryDataset="ngModel" placeholder="BigQuery dataset" i18n="Label for input of a BigQuery dataset">
-    </md-form-field>
-    <md-form-field class="ingest-full-width">
-      <input id="bigqueryTable" name="bigqueryTable" mdInput required [(ngModel)]="model.bigqueryTable" #bigqueryTable="ngModel" placeholder="BigQuery table" i18n="Label for input of a BigQuery table">
-    </md-form-field>
+    <mat-form-field class="ingest-full-width">
+      <input id="bigqueryDataset" name="bigqueryDataset" matInput required [(ngModel)]="model.bigqueryDataset" #bigqueryDataset="ngModel" placeholder="BigQuery dataset" i18n="Label for input of a BigQuery dataset">
+    </mat-form-field>
+    <mat-form-field class="ingest-full-width">
+      <input id="bigqueryTable" name="bigqueryTable" matInput required [(ngModel)]="model.bigqueryTable" #bigqueryTable="ngModel" placeholder="BigQuery table" i18n="Label for input of a BigQuery table">
+    </mat-form-field>
   </ng-container>
 
-  <button md-raised-button class="ingest-job-config-add-submit" type="submit" [disabled]="!jobConfigAddDialogForm.form.valid ||
+  <button mat-raised-button class="ingest-job-config-add-submit" type="submit" [disabled]="!jobConfigAddDialogForm.form.valid ||
       submittingForm" i18n="Label for submit button">
     Submit Job Configuration
   </button>

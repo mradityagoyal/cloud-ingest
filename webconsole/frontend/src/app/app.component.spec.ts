@@ -10,7 +10,7 @@ import { AuthService } from './auth/auth.service';
 import { UserProfile } from './auth/auth.resources';
 import { NoopAnimationsModule} from '@angular/platform-browser/animations';
 import { ProjectSelectComponent } from './project-select/project-select.component';
-import { MdSnackBar } from '@angular/material';
+import { MatSnackBar } from '@angular/material';
 import 'rxjs/add/observable/of';
 
 const FAKE_USER = 'Fake User';
@@ -38,12 +38,12 @@ class MockAuthService extends AuthService {
   }
 }
 
-class MdSnackBarStub {
+class MatSnackBarStub {
   open = jasmine.createSpy('open');
 }
 
 let activatedRouteStub: ActivatedRoute;
-let mdSnackBarStub: MdSnackBarStub;
+let matSnackBarStub: MatSnackBarStub;
 
 describe('AppComponent', () => {
   const mockAuthService = new MockAuthService();
@@ -52,7 +52,7 @@ describe('AppComponent', () => {
     mockAuthService.isSignedIn = true;
     activatedRouteStub = new ActivatedRoute();
     activatedRouteStub.queryParams = Observable.of({project: 'fakeProjectId'});
-    mdSnackBarStub = new MdSnackBarStub();
+    matSnackBarStub = new MatSnackBarStub();
 
     TestBed.configureTestingModule({
       declarations: [
@@ -62,7 +62,7 @@ describe('AppComponent', () => {
       providers: [
         {provide: AuthService, useValue: mockAuthService},
         {provide: ActivatedRoute, useValue: activatedRouteStub},
-        {provide: MdSnackBar, useValue: mdSnackBarStub},
+        {provide: MatSnackBar, useValue: matSnackBarStub},
       ],
       imports: [
         RouterTestingModule,
@@ -152,7 +152,7 @@ describe('AppComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('md-toolbar');
+      const element = compiled.querySelector('mat-toolbar');
       expect(element).not.toBeNull();
     });
   }));
@@ -164,7 +164,7 @@ describe('AppComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('md-sidenav');
+      const element = compiled.querySelector('mat-sidenav');
       expect(element).not.toBeNull();
     });
   }));
@@ -189,8 +189,8 @@ describe('AppComponent', () => {
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
-      expect(mdSnackBarStub.open).toHaveBeenCalled();
-      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('fakeSignInFailedMessage');
+      expect(matSnackBarStub.open).toHaveBeenCalled();
+      expect(matSnackBarStub.open.calls.first().args[0]).toMatch('fakeSignInFailedMessage');
     });
   }));
 
@@ -202,8 +202,8 @@ describe('AppComponent', () => {
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
-      expect(mdSnackBarStub.open).toHaveBeenCalled();
-      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('fakeSignOutFailedMessage');
+      expect(matSnackBarStub.open).toHaveBeenCalled();
+      expect(matSnackBarStub.open.calls.first().args[0]).toMatch('fakeSignOutFailedMessage');
     });
   }));
 
@@ -214,8 +214,8 @@ describe('AppComponent', () => {
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
-      expect(mdSnackBarStub.open).toHaveBeenCalled();
-      expect(mdSnackBarStub.open.calls.first().args[0]).toMatch('fakeLoadSignInFailMessage');
+      expect(matSnackBarStub.open).toHaveBeenCalled();
+      expect(matSnackBarStub.open.calls.first().args[0]).toMatch('fakeLoadSignInFailMessage');
     });
   }));
 });

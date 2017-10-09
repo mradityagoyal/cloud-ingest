@@ -1,7 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { JobConfig } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
-import { MdDialog } from '@angular/material';
+import { MatDialog } from '@angular/material';
 import { HttpErrorResponse } from '@angular/common/http';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
@@ -21,7 +21,7 @@ export class JobConfigsComponent implements OnInit {
 
   constructor(
       private readonly jobsService: JobsService,
-      public dialog: MdDialog
+      public dialog: MatDialog
   ) { }
 
   ngOnInit() {

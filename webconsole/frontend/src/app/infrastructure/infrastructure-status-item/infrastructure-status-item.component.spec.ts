@@ -22,7 +22,7 @@ describe('InfrastructureStatusItemComponent', () => {
     expect(component).toBeTruthy();
   }));
 
-  it('should contain an md-list-item', async(() => {
+  it('should contain an mat-list-item', async(() => {
     const fixture = TestBed.createComponent(InfrastructureStatusItemComponent);
     const component = fixture.debugElement.componentInstance;
     component.itemName = 'Fake Name Title';
@@ -31,11 +31,11 @@ describe('InfrastructureStatusItemComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.querySelector('md-list-item')).not.toBeNull();
+      expect(compiled.querySelector('mat-list-item')).not.toBeNull();
     });
   }));
 
-  it('should contain an md-icon', async(() => {
+  it('should contain an mat-icon', async(() => {
     const fixture = TestBed.createComponent(InfrastructureStatusItemComponent);
     const component = fixture.debugElement.componentInstance;
     component.itemName = 'Fake Name Title';
@@ -44,7 +44,7 @@ describe('InfrastructureStatusItemComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.querySelector('md-icon')).not.toBeNull();
+      expect(compiled.querySelector('mat-icon')).not.toBeNull();
     });
   }));
 

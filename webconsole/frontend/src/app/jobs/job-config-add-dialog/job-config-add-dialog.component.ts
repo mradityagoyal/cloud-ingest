@@ -5,7 +5,7 @@ import 'rxjs/add/operator/finally';
 import { JobConfig } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 import { JobConfigFormModel } from './job-config-add-dialog.resources';
-import { MdDialogRef } from '@angular/material';
+import { MatDialogRef } from '@angular/material';
 
 @Component({
   selector: 'app-job-config-add-dialog',
@@ -29,7 +29,7 @@ export class JobConfigAddDialogComponent {
     /** bigqueryTable **/ '');
 
   constructor(private readonly jobsService: JobsService,
-              private readonly dialogRef: MdDialogRef<JobConfigAddDialogComponent>) { }
+              private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>) { }
 
   onSubmit() {
     this.submittingForm = true;

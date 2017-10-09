@@ -1,5 +1,5 @@
 <ng-container *ngIf="showInfrastructureStatusLoading; else infrastructureBody">
-  <md-spinner></md-spinner>
+  <mat-spinner></mat-spinner>
 </ng-container>
 <ng-template #infrastructureBody>
 
@@ -10,8 +10,8 @@
   </div>
 
   <ng-template #infrastructureInformation>
-    <md-card class="ingest-infrastructure-ok" *ngIf="showInfrastructureStatusOk">
-      <h2> <md-icon>check</md-icon> Cloud Ingest Infrastructure is running as expected. </h2>
+    <mat-card class="ingest-infrastructure-ok" *ngIf="showInfrastructureStatusOk">
+      <h2> <mat-icon>check</mat-icon> Cloud Ingest Infrastructure is running as expected. </h2>
       Next steps:
       <ol>
         <li> Download and extract the gsutil worker: <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.27pre_ing5.tar.gz">tar.gz</a> | <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.27pre_ing5.zip">zip</a> </li>
@@ -23,61 +23,61 @@
       </ol>
       Note: On a windows machine, run <code> python ./gsutil.py </code> instead of <code> ./gsutil</code> for the commands above.
 
-    </md-card>
+    </mat-card>
 
-    <md-card class="ingest-infrastructure-not-found" *ngIf="showInfrastructureNotFound">
-      <h2> <md-icon>error</md-icon> Cloud Ingest Infrastructure was not found. Please deploy to use cloud ingest. </h2>
+    <mat-card class="ingest-infrastructure-not-found" *ngIf="showInfrastructureNotFound">
+      <h2> <mat-icon>error</mat-icon> Cloud Ingest Infrastructure was not found. Please deploy to use cloud ingest. </h2>
       <!-- TODO(b/65736645): Add a button to deploy the infrastructure. -->
-    </md-card>
+    </mat-card>
 
-    <md-card class="ingest-infrastructure-deploying" *ngIf="showInfrastructureDeploying">
-      <h2> <md-spinner class="ingest-inline-icon-spinner"> </md-spinner> Cloud Ingest Infrastructure deployment is in progress... </h2>
-    </md-card>
+    <mat-card class="ingest-infrastructure-deploying" *ngIf="showInfrastructureDeploying">
+      <h2> <mat-spinner class="ingest-inline-icon-spinner"> </mat-spinner> Cloud Ingest Infrastructure deployment is in progress... </h2>
+    </mat-card>
 
-    <md-card class="ingest-infrastructure-deleting" *ngIf="showInfrastructureDeleting">
-      <h2> <md-spinner class="ingest-inline-icon-spinner"> </md-spinner> Cloud Ingest Infrastructure tear down is in progress... </h2>
-    </md-card>
+    <mat-card class="ingest-infrastructure-deleting" *ngIf="showInfrastructureDeleting">
+      <h2> <mat-spinner class="ingest-inline-icon-spinner"> </mat-spinner> Cloud Ingest Infrastructure tear down is in progress... </h2>
+    </mat-card>
 
-    <md-card class="ingest-infrastructure-failed" *ngIf="showInfrastructureFailed">
-      <h2> <md-icon>error</md-icon> Something went wrong in the Cloud Ingest Infrastructure.</h2>
+    <mat-card class="ingest-infrastructure-failed" *ngIf="showInfrastructureFailed">
+      <h2> <mat-icon>error</mat-icon> Something went wrong in the Cloud Ingest Infrastructure.</h2>
       <p> Please tear down and deploy again. </p>
       <!-- TODO(b/65736645): Add a button to tear down the infrastructure. -->
-    </md-card>
+    </mat-card>
 
-    <md-card class="ingest-infrastructure-unknown" *ngIf="showInfrastructureUnknown">
-      <h2> <md-icon>error</md-icon>  The status of at least one of the items could not be retrieved.</h2>
+    <mat-card class="ingest-infrastructure-unknown" *ngIf="showInfrastructureUnknown">
+      <h2> <mat-icon>error</mat-icon>  The status of at least one of the items could not be retrieved.</h2>
       <p> Please reload the page to retrieve the status again. If the problem persists, please
         <a href="https://github.com/GoogleCloudPlatform/cloud-ingest/issues">
           create an issue on the project's github page.
         </a>
       </p>
       <!-- TODO(b/65736645): Add a button to tear down the infrastructure. -->
-    </md-card>
+    </mat-card>
 
-    <md-card class="ingest-infrastructure-not-determined" *ngIf="showCouldNotDetermineInfrastructure">
-      <h2> <md-icon>error</md-icon>  Could not determine the status of the cloud ingest infrastructure.</h2>
+    <mat-card class="ingest-infrastructure-not-determined" *ngIf="showCouldNotDetermineInfrastructure">
+      <h2> <mat-icon>error</mat-icon>  Could not determine the status of the cloud ingest infrastructure.</h2>
       <p> Please
         <a href="https://github.com/GoogleCloudPlatform/cloud-ingest/issues">
           create an issue on the project's github page.
         </a>
       </p>
       <!-- TODO(b/65736645): Add a button to tear down the infrastructure. -->
-    </md-card>
+    </mat-card>
 
-    <md-list>
+    <mat-list>
       <app-infrastructure-status-item [itemName]="'Cloud Spanner'" [itemStatus]="infrastructureStatus.spannerStatus"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'Data Control Plane'" [itemStatus]="infrastructureStatus.dcpStatus"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'Cloud Functions'" [itemStatus]="infrastructureStatus.cloudFunctionsStatus"> </app-infrastructure-status-item>
-      <md-divider></md-divider>
-      <md-list-item> Pub Sub </md-list-item>
+      <mat-divider></mat-divider>
+      <mat-list-item> Pub Sub </mat-list-item>
       <app-infrastructure-status-item [itemName]="'List topic'" [itemStatus]="infrastructureStatus.pubsubStatus.list"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'List Progress topic'" [itemStatus]="infrastructureStatus.pubsubStatus.listProgress"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'UploadGCS topic'" [itemStatus]="infrastructureStatus.pubsubStatus.uploadGCS"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'UploadGCSProgress topic'" [itemStatus]="infrastructureStatus.pubsubStatus.uploadGCSProgress"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'LoadBigQuery topic'" [itemStatus]="infrastructureStatus.pubsubStatus.loadBigQuery"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'LoadBigQuery topic'" [itemStatus]="infrastructureStatus.pubsubStatus.loadBigQueryProgress"> </app-infrastructure-status-item>
-    </md-list>
-    <button class="ingest-create-infrastructure" md-raised-button color="primary" (click)="createInfrastructure()" [disabled]="createInfrastructureDisabled">Create infrastructure</button>
-    <button class="ingest-tear-down-infrastructure" md-raised-button color="accent" (click)="tearDownInfrastructure()" [disabled]="tearDownDisabled">Tear down infrastructure</button>
+    </mat-list>
+    <button class="ingest-create-infrastructure" mat-raised-button color="primary" (click)="createInfrastructure()" [disabled]="createInfrastructureDisabled">Create infrastructure</button>
+    <button class="ingest-tear-down-infrastructure" mat-raised-button color="accent" (click)="tearDownInfrastructure()" [disabled]="tearDownDisabled">Tear down infrastructure</button>
   </ng-template>
 </ng-template>
