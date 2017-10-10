@@ -18,6 +18,7 @@ package dcp
 import (
 	"encoding/json"
 	"fmt"
+	"log"
 	"reflect"
 	"time"
 )
@@ -64,7 +65,7 @@ func RetryWithExponentialBackoff(sleepTime time.Duration,
 	failures := 0
 	for err := function(); err != nil; {
 		failures++
-		fmt.Printf("Error occurred in %s: %v.\n", functionName, err)
+		log.Printf("Error occurred in %s: %v.", functionName, err)
 
 		if maxFails > 0 && failures >= maxFails {
 			// Has failed maxFails times in a row, return with error
@@ -72,7 +73,7 @@ func RetryWithExponentialBackoff(sleepTime time.Duration,
 				functionName, maxFails)
 		}
 
-		fmt.Printf("Retrying in %v.\n", sleepTime)
+		log.Printf("Retrying in %v.", sleepTime)
 		time.Sleep(sleepTime)
 
 		if sleepTime > maxSleepTime/2 {

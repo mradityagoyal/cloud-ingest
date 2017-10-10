@@ -25,7 +25,7 @@ package dcp
 
 import (
 	"encoding/base64"
-	"fmt"
+	"log"
 	"strings"
 
 	"golang.org/x/net/context"
@@ -73,17 +73,17 @@ func (r *MessageReceiver) ReceiveMessages() error {
 		// Decode the base64 encoded message in the Pubsub queue.
 		decodedMsg, err := base64.StdEncoding.DecodeString(msgData)
 		if err != nil {
-			fmt.Printf("Error Decoding msg: %v, with error: %v.\n", msgData, err)
+			log.Printf("Error Decoding msg: %v, with error: %v.", msgData, err)
 			return
 		}
 
 		// TODO(b/63058868): Failed to handle a PubSub message will be keep
 		// redelivered by the PubSub for significant amount of time (1 week).
 		// Non-retriable errors should mark the task failed and ack the message.
-		fmt.Printf("Handling a message: %s.\n", string(decodedMsg))
+		log.Printf("Handling a message: %s.", string(decodedMsg))
 		taskWithLog, err := TaskCompletionMessageJsonToTaskWithLog(decodedMsg)
 		if err != nil {
-			fmt.Printf("Error handling the message: %s with error: %v.\n",
+			log.Printf("Error handling the message: %s with error: %v.",
 				string(decodedMsg), err)
 			return
 		}
@@ -92,14 +92,14 @@ func (r *MessageReceiver) ReceiveMessages() error {
 		// task is not efficient.
 		jobSpec, err := r.Store.GetJobSpec(task.JobConfigId)
 		if err != nil {
-			fmt.Printf("Error in getting JobSpec of JobConfig: %d, with error: %v.\n",
+			log.Printf("Error in getting JobSpec of JobConfig: %d, with error: %v.",
 				task.JobConfigId, err)
 			return
 		}
 		newTasks, err := r.Handler.HandleMessage(jobSpec, *taskWithLog)
 		if err != nil {
-			fmt.Printf(
-				"Error handling the message: %s, for with job spec: %v, and task: %v, with error: %v.\n",
+			log.Printf(
+				"Error handling the message: %s, for with job spec: %v, and task: %v, with error: %v.",
 				string(msg.Data), jobSpec, task, err)
 			return
 		}
@@ -107,7 +107,7 @@ func (r *MessageReceiver) ReceiveMessages() error {
 		r.batcher.addTaskUpdate(taskWithLog, newTasks, msg)
 	})
 	if err != nil {
-		fmt.Printf("Error receiving messages for subscription %v, with error: %v.\n",
+		log.Printf("Error receiving messages for subscription %v, with error: %v.",
 			r.Sub, err)
 	}
 	return err

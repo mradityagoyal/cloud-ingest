@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"golang.org/x/net/context"
@@ -411,7 +412,7 @@ func (s *SpannerStore) UpdateTasks(tasksWithLogs []TaskWithLog) error {
 					return err
 				}
 				if !validUpdate {
-					fmt.Printf("Ignore updating task %s from status %d to status %d.\n",
+					log.Printf("Ignore updating task %s from status %d to status %d.",
 						taskId, oldStatus, task.Status)
 					return nil
 				}
@@ -633,7 +634,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(taskWithLogMap map[*TaskWithLog][]*T
 					return err
 				}
 				if !validUpdate {
-					fmt.Printf("Ignore updating task %s from status %d to status %d.\n",
+					log.Printf("Ignore updating task %s from status %d to status %d.",
 						taskId, oldStatus, updateTask.Status)
 					return nil
 				}
@@ -691,7 +692,7 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 		// the messages and the timeout to publish any set of messages.
 		taskMsgJSON, err := constructPubSubTaskMsg(task)
 		if err != nil {
-			fmt.Printf("Unable to form task msg from task: %v with error: %v.\n",
+			log.Printf("Unable to form task msg from task: %v with error: %v.",
 				task, err)
 			return err
 		}

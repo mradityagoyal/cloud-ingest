@@ -17,7 +17,7 @@ package dcp
 
 import (
 	"encoding/json"
-	"fmt"
+	"log"
 )
 
 type UploadGCSProgressMessageHandler struct {
@@ -39,15 +39,15 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(
 	// Manipulating the store should be isolated from handling the message.
 	taskSpec, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
 	if err != nil {
-		fmt.Printf("Error getting task spec of task: %v, with error: %v.\n",
+		log.Printf("Error getting task spec of task: %v, with error: %v.",
 			task, err)
 		return nil, err
 	}
 
 	var uploadGCSTaskSpec UploadGCSTaskSpec
 	if err := json.Unmarshal([]byte(taskSpec), &uploadGCSTaskSpec); err != nil {
-		fmt.Printf(
-			"Error decoding task spec: %s, with error: %v.\n", taskSpec, err)
+		log.Printf(
+			"Error decoding task spec: %s, with error: %v.", taskSpec, err)
 		return nil, err
 	}
 
@@ -61,8 +61,8 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(
 
 	loadBigQueryTaskSpecJson, err := json.Marshal(loadBQTaskSpec)
 	if err != nil {
-		fmt.Printf(
-			"Error encoding task spec to JSON string, task spec: %v, err: %v.\n",
+		log.Printf(
+			"Error encoding task spec to JSON string, task spec: %v, err: %v.",
 			loadBQTaskSpec, err)
 		return nil, err
 	}

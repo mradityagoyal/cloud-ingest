@@ -17,6 +17,7 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"time"
 
@@ -138,7 +139,7 @@ func main() {
 			GetQueueTasksClosure(store, 100, listTopic, copyTopic, loadBQTopic),
 		)
 		if err != nil {
-			fmt.Printf("%v\n", err)
+			log.Printf("Error in queueing tasks: %v.", err)
 			os.Exit(1)
 		}
 		time.Sleep(queueTasksSleepTime)

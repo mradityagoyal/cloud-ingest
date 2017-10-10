@@ -16,7 +16,6 @@ limitations under the License.
 package dcp
 
 import (
-	"fmt"
 	"log"
 	"sync"
 	"time"
@@ -72,7 +71,7 @@ func (b *taskUpdatesBatcher) commitUpdates() {
 	// other receivers will be blocked for Spanner transaction or Pub/Sub server
 	// calls to complete.
 	if err := b.store.UpdateAndInsertTasks(b.pendingTasksToStore); err != nil {
-		fmt.Printf("Errors on the update %v\n", err)
+		log.Printf("Error on UpdateAndInsertTasks: %v.", err)
 		return
 	}
 

@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"path/filepath"
 )
 
@@ -44,23 +45,23 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	// Manipulating the store should be isolated from handling the message.
 	taskSpec, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
 	if err != nil {
-		fmt.Printf("Error getting task spec of task: %v, with error: %v.\n",
+		log.Printf("Error getting task spec of task: %v, with error: %v.",
 			task, err)
 		return nil, err
 	}
 
 	var listTaskSpec ListTaskSpec
 	if err := json.Unmarshal([]byte(taskSpec), &listTaskSpec); err != nil {
-		fmt.Printf(
-			"Error decoding task spec: %s, with error: %v.\n", taskSpec, err)
+		log.Printf(
+			"Error decoding task spec: %s, with error: %v.", taskSpec, err)
 		return nil, err
 	}
 
 	filePaths, err := h.ListingResultReader.ReadListResult(
 		listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
 	if err != nil {
-		fmt.Printf(
-			"Error reading the list task result, list task spec: %v, with error: %v.\n",
+		log.Printf(
+			"Error reading the list task result, list task spec: %v, with error: %v.",
 			listTaskSpec, err)
 		return nil, err
 	}
@@ -81,8 +82,8 @@ func (h *ListProgressMessageHandler) HandleMessage(
 		}
 		uploadGCSTaskSpecJson, err := json.Marshal(uploadGCSTaskSpec)
 		if err != nil {
-			fmt.Printf(
-				"Error encoding task spec to JSON string, task spec: %v, err: %v.\n",
+			log.Printf(
+				"Error encoding task spec to JSON string, task spec: %v, err: %v.",
 				uploadGCSTaskSpec, err)
 			return nil, err
 		}
