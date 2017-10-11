@@ -1,0 +1,55 @@
+syntax = "proto3";
+
+// Message to wrap the task failure type. This is needed to create a scope that does
+// not conflict with other enums in this file.
+message TaskFailureType {
+  // Specifies the classes of failures that a task can have.
+  enum Type {
+    // Not used.
+    UNUSED = 0;
+    // The failure type is not known / unrecognized.
+    UNKNOWN = 1;
+    // The file was modified at source while being uploaded.
+    FILE_MODIFIED_FAILURE = 2;
+    // File MD5 hash does not match GCS MD5 hash.
+    MD5_MISMATCH_FAILURE = 3;
+    // GCS upload failed due to a precondition failure.
+    PRECONDITION_FAILURE = 4;
+    // Agent asked to upload a file that does not exist.
+    FILE_NOT_FOUND_FAILURE = 5;
+    // Agent does not have permissions for requested action.
+    PERMISSION_FAILURE = 6;
+  }
+}
+
+// Message to wrap the task status. This is needed to create a scope that does
+// not conflict with other enums in this file.
+message TaskStatus {
+  // Specifies the current status of the cloud ingest task.
+  enum Type {
+    // The task is unqueued waiting to be queued by the dcp.
+    UNQUEUED = 0;
+    // The task is in process.
+    QUEUED = 1;
+    // The task was completed but failed.
+    FAILED = 2;
+    // The task was completed and succeeded.
+    SUCCESS = 3;
+  }
+}
+
+// Message to wrap the task type. This is needed to create a scope that does
+// not conflict with other enums in this file.
+message TaskType {
+  // Specifies the task operation that a task performs.
+  enum Type {
+    // Unknown task type.
+    UNKNOWN = 0;
+    // List task. A task that lists the files on the on-premises directory.
+    LIST = 1;
+    // Upload to GCS task. Upload a file from the on-premises directory to GCS.
+    UPLOAD_GCS = 2;
+    // Load to big query task. Loads a gcs object to bigquery.
+    LOAD_BQ = 3;
+  }
+}

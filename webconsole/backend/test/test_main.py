@@ -19,6 +19,7 @@ Includes unit tests for the flask routes on main.py.
 import unittest
 import main
 from mock import patch
+from mock import MagicMock
 import json
 from google.cloud.exceptions import Conflict
 from google.cloud.exceptions import NotFound
@@ -26,6 +27,17 @@ from google.cloud.exceptions import Forbidden
 from google.cloud.exceptions import PreconditionFailed
 from google.cloud.exceptions import Unauthorized
 from google.cloud.exceptions import BadRequest
+from test.testutils import get_task
+from proto import tasks_pb2
+
+FAKE_TASK = get_task("fake_config_id",
+                     "fake_run_id",
+                     "fake_task_id",
+                     task_creation_time=0,
+                     last_mod_time=1,
+                     status=tasks_pb2.TaskStatus.QUEUED,
+                     task_spec="fake_task_spec",
+                     task_type=tasks_pb2.TaskType.LIST)
 
 class TestMain(unittest.TestCase):
     """Tests for main.py
@@ -61,6 +73,45 @@ class TestMain(unittest.TestCase):
               response_json['traceback'])
             self.assertTrue(exception_list[i].__name__ in
               response_json['traceback'])
+
+    @patch.object(main, '_get_credentials')
+    @patch.object(main, 'SpannerWrapper')
+    def test_get_failure_type(self, spanner_wrapper_mock,
+        dummy_get_credentials):
+        """ Tests that getting tasks with failure type passes the correct
+            parameters to spannerwrapper.
+        """
+        spanner_wrapper_mock_inst = MagicMock()
+        spanner_wrapper_mock.return_value = spanner_wrapper_mock_inst
+        spanner_wrapper_mock_inst.get_tasks_of_failure_type.return_value = \
+            FAKE_TASK
+        response = self.app.get(
+            '/projects/fakeProjectId/tasks/fakeConfigId/fakeRunId/failuretype/'
+            + str(tasks_pb2.TaskFailureType.UNKNOWN))
+        response_json = json.loads(response.data)
+        spanner_wrapper_mock_inst.get_tasks_of_failure_type.assert_called_with(
+            'fakeConfigId', 'fakeRunId', main.DEFAULT_PAGE_SIZE,
+            tasks_pb2.TaskFailureType.UNKNOWN)
+        self.assertEqual(response_json, FAKE_TASK)
+
+    @patch.object(main, '_get_credentials')
+    @patch.object(main, 'SpannerWrapper')
+    def test_get_tasks_of_status(self, spanner_wrapper_mock,
+        dummy_get_credentials):
+        """ Tests that getting tasks with status passes correct parameters to
+            spannerwrapper.
+        """
+        spanner_wrapper_mock_inst = MagicMock()
+        spanner_wrapper_mock.return_value = spanner_wrapper_mock_inst
+        spanner_wrapper_mock_inst.get_tasks_of_status.return_value = FAKE_TASK
+        response = self.app.get(
+            '/projects/fakeProjectId/tasks/fakeConfigId/fakeRunId/status/'
+            + str(tasks_pb2.TaskStatus.QUEUED))
+        response_json = json.loads(response.data)
+        spanner_wrapper_mock_inst.get_tasks_of_status.assert_called_with(
+            'fakeConfigId', 'fakeRunId', main.DEFAULT_PAGE_SIZE,
+            tasks_pb2.TaskStatus.QUEUED)
+        self.assertEqual(response_json, FAKE_TASK)
 
 if __name__ == '__main__':
     unittest.main()

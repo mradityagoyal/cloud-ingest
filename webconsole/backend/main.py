@@ -43,7 +43,7 @@ APP = Flask(__name__)
 APP.config.from_pyfile('ingestwebconsole.default_settings')
 APP.config.from_envvar('INGEST_CONFIG_PATH')
 
-_DEFAULT_PAGE_SIZE = 25
+DEFAULT_PAGE_SIZE = 25
 
 # Allowed headers in cross-site http requests.
 _ALLOWED_HEADERS = ['Content-Type', 'Authorization']
@@ -113,7 +113,6 @@ def job_configs(project_id):
             content['JobConfigId'])
         return jsonify(created_config), httplib.CREATED
 
-
 @APP.route('/projects/<project_id>/jobruns', methods=['GET', 'OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def job_runs(project_id):
@@ -124,7 +123,7 @@ def job_runs(project_id):
                                      APP.config['SPANNER_DATABASE'])
     if request.method == 'GET':
         created_before = _get_int_param(request, 'createdBefore')
-        num_runs = _get_int_param(request, 'pageSize') or _DEFAULT_PAGE_SIZE
+        num_runs = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
 
         return jsonify(spanner_wrapper.get_job_runs(
             num_runs,
@@ -179,25 +178,21 @@ def job_run(project_id, config_id, run_id):
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def tasks(project_id, config_id, run_id):
     """Handles GET requests for tasks.
-
     This route has several optional query parameters.
-        pageSize- The number of tasks to return. Default is _DEFAULT_PAGE_SIZE.
+        pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
                   Values less than 1 and greater than 10,000 result in a
                   response of 400 BAD_REQUEST.
         lastModifiedBefore- The unix epoch time used to filter tasks. Only tasks
                             with last modified times before the given time
                             will be returned.
         type- Only tasks with the given type will be returned.
-        status- Only tasks with the given status will be returned.
-
     Args:
         project_id: The id of the project.
         config_id: The id of the job config for the desired tasks
         run_id: The id of the job run for the desired tasks
-
     Returns:
         On success-
-            200, A JSON list of pageSize (defaults to _DEFAULT_PAGE_SIZE)
+            200, A JSON list of pageSize (defaults to DEFAULT_PAGE_SIZE)
                  matching tasks
         On failure-
             400, Bad request due to invalid values for query params
@@ -210,16 +205,86 @@ def tasks(project_id, config_id, run_id):
                                      APP.config['SPANNER_DATABASE'])
     last_modified_before = _get_int_param(request, 'lastModifiedBefore')
     task_type = request.args.get('type')
-    task_status = _get_int_param(request, 'status')
-    num_tasks = _get_int_param(request, 'pageSize') or _DEFAULT_PAGE_SIZE
+    num_tasks = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
 
     return jsonify(spanner_wrapper.get_tasks_for_run(
         config_id,
         run_id,
         num_tasks,
         last_modified=last_modified_before,
-        task_type=task_type,
-        task_status=task_status
+        task_type=task_type
+    ))
+
+@APP.route(
+'/projects/<project_id>/tasks/<config_id>/<run_id>/status/<task_status>',
+methods=['OPTIONS', 'GET'])
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
+def get_tasks_of_status(project_id, config_id, run_id, task_status):
+    """Handles GET requests for tasks of a specified status.
+    This route has one query parameter:
+        pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
+    Args:
+        project_id: The id of the project.
+        config_id: The id of the job config for the desired tasks
+        run_id: The id of the job run for the desired tasks
+        task_status: The task status code for the tasks.
+    Returns:
+        On success-
+            200, A JSON list of pageSize (defaults to DEFAULT_PAGE_SIZE)
+                 matching tasks
+        On failure-
+            400, Bad request due to invalid values for query params
+            500, Any uncaught exception is raised during the processing of
+                 the request
+    """
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
+    num_tasks = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
+    task_status_int = int(task_status)
+
+    return jsonify(spanner_wrapper.get_tasks_of_status(
+        config_id,
+        run_id,
+        num_tasks,
+        task_status_int
+    ))
+
+@APP.route(
+'/projects/<project_id>/tasks/<config_id>/<run_id>/failuretype/<failure_type>',
+methods=['OPTIONS', 'GET'])
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
+def get_tasks_of_failure_type(project_id, config_id, run_id, failure_type):
+    """Handles GET requests for tasks of a specified status.
+    This route has one query parameter:
+        pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
+    Args:
+        project_id: The id of the project.
+        config_id: The id of the job config for the desired tasks
+        run_id: The id of the job run for the desired tasks
+        failure_type: The failure type code of the tasks
+    Returns:
+        On success-
+            200, A JSON list of pageSize (defaults to DEFAULT_PAGE_SIZE)
+                 matching tasks
+        On failure-
+            400, Bad request due to invalid values for query params
+            500, Any uncaught exception is raised during the processing of
+                 the request
+    """
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
+    num_tasks = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
+    failure_type_int = int(failure_type)
+
+    return jsonify(spanner_wrapper.get_tasks_of_failure_type(
+        config_id,
+        run_id,
+        num_tasks,
+        failure_type_int
     ))
 
 @APP.route('/projects/<project_id>/infrastructure-status',

@@ -32,9 +32,12 @@ from google.cloud.exceptions import Conflict
 from mock import MagicMock
 from mock import patch
 from grpc import StatusCode
-
+from test.testutils import get_task
 
 from spannerwrapper import SpannerWrapper
+from proto import tasks_pb2
+
+from google.cloud.exceptions import BadRequest
 
 JOB_CONFIG_ID_1 = u'test-config1'
 JOB_CONFIG_ID_2 = u'test-config2'
@@ -415,9 +418,9 @@ class TestSpannerWrapper(unittest.TestCase):
 
         actual = self.spanner_wrapper.get_tasks_for_run(config_id, run_id, 25)
         expected = [
-            self.get_task(config_id, run_id, task_id1, task_creation_time,
+            get_task(config_id, run_id, task_id1, task_creation_time,
                 last_mod_time1, status1, task_spec1, task_type),
-            self.get_task(config_id, run_id, task_id2, task_creation_time2,
+            get_task(config_id, run_id, task_id2, task_creation_time2,
                 last_mod_time2, status2, task_spec2, task_type2),
         ]
 
@@ -443,12 +446,12 @@ class TestSpannerWrapper(unittest.TestCase):
 
     def test_get_tasks_invalid_num(self):
         """Asserts that an exception is raised when max_num_tasks <= 0."""
-        self.assertRaises(ValueError, self.spanner_wrapper.get_tasks_for_run,
+        self.assertRaises(BadRequest, self.spanner_wrapper.get_tasks_for_run,
                           'config', 'run', 0)
 
     def test_get_tasks_above_cap(self):
         """Asserts an exception is raised when max_num_tasks > ROW_CAP."""
-        self.assertRaises(ValueError, self.spanner_wrapper.get_tasks_for_run,
+        self.assertRaises(BadRequest, self.spanner_wrapper.get_tasks_for_run,
                           'config', 'run', SpannerWrapper.ROW_CAP + 1)
 
     def test_get_tasks_correct_num(self):
@@ -464,7 +467,7 @@ class TestSpannerWrapper(unittest.TestCase):
 
     def test_get_tasks_task_type(self):
         """Asserts that the proper task_type is used in the query."""
-        task_type = "list"
+        task_type = tasks_pb2.TaskType.LIST
         self.spanner_wrapper.get_tasks_for_run('', '', 10, task_type)
         self.snapshot.execute_sql.assert_called()
         self.check_query_param(
@@ -473,23 +476,34 @@ class TestSpannerWrapper(unittest.TestCase):
             self.snapshot.execute_sql.call_args
         )
 
-    def test_get_tasks_task_status(self):
-        """Asserts that the proper task_type is used in the query."""
-        task_status = 2
-        self.spanner_wrapper.get_tasks_for_run('', '', 10,
-            task_status=task_status)
+    def test_get_tasks_of_status(self):
+        """Asserts that the proper task status is used in the query"""
+        task_status = tasks_pb2.TaskStatus.QUEUED
+        self.spanner_wrapper.get_tasks_of_status(
+            'fake_config_id', 'fake_run_id', 25, task_status)
         self.snapshot.execute_sql.assert_called()
         self.check_query_param(
-            "task_status",
+            'task_status',
             task_status,
-            self.snapshot.execute_sql.call_args
-        )
+            self.snapshot.execute_sql.call_args)
+
+    def test_get_tasks_of_failure_type(self):
+        """Asserts that the proper failure type is used in the query"""
+        task_failure_type = tasks_pb2.TaskFailureType.UNKNOWN
+        # Get 25 tasks as it is the default number of tasks.
+        self.spanner_wrapper.get_tasks_of_failure_type(
+            'fake_config_id', 'fake_run_id', 25, task_failure_type)
+        self.snapshot.execute_sql.assert_called()
+        self.check_query_param(
+            'failure_type',
+            task_failure_type,
+            self.snapshot.execute_sql.call_args)
 
     def test_get_tasks_last_modified(self):
         """Asserts that the proper last modified time is used in the query."""
         last_modified = 5
-        self.spanner_wrapper.get_tasks_for_run('', '', 10, '',
-            last_modified=last_modified)
+        self.spanner_wrapper.get_tasks_for_run('', '', 10,
+            tasks_pb2.TaskType.LIST, last_modified=last_modified)
         self.snapshot.execute_sql.assert_called()
         self.check_query_param(
             "last_modified",
@@ -590,35 +604,6 @@ class TestSpannerWrapper(unittest.TestCase):
         query_params = call_args[0][1]
         self.assertIn(param_name, query_params)
         self.assertEqual(query_params[param_name], expected_value)
-
-    @staticmethod
-    # pylint: disable=too-many-arguments
-    def get_task(config_id, run_id, task_id, task_creation_time, last_mod_time,
-                 status, task_spec, task_type):
-        """Returns a task in dictionary format containing the given values.
-
-        Args:
-          config_id: The job config id of the task
-          run_id: The job run id of the task
-          task_id: The id of the task
-          task_creation_time: The creation time
-          last_mod_time: An int representing the last modification time
-          status: An int representing the status of the task
-          task_spec: The task spec, a JSON string
-
-        Returns:
-          A task in dictionary format with the given values.
-        """
-        return {
-            SpannerWrapper.JOB_CONFIG_ID: config_id,
-            SpannerWrapper.JOB_RUN_ID: run_id,
-            SpannerWrapper.TASK_ID: task_id,
-            SpannerWrapper.TASK_CREATION_TIME: task_creation_time,
-            SpannerWrapper.LAST_MODIFICATION_TIME: last_mod_time,
-            SpannerWrapper.STATUS: status,
-            SpannerWrapper.TASK_SPEC: task_spec,
-            SpannerWrapper.TASK_TYPE: task_type,
-        }
 
     @staticmethod
     def get_job_config(config_id, job_spec):
