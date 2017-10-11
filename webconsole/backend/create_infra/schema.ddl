@@ -23,11 +23,15 @@ CREATE TABLE Tasks (
       CreationTime INT64 NOT NULL,
       WorkerId STRING(MAX),
       LastModificationTime INT64 NOT NULL,
+      FailureType INT64,
       FailureMessage STRING(MAX),
     ) PRIMARY KEY(JobConfigId, JobRunId, TaskId),
     INTERLEAVE IN PARENT JobRuns ON DELETE NO ACTION
 
 CREATE INDEX TasksByStatus ON Tasks(Status)
+
+CREATE NULL_FILTERED INDEX TasksByJobConfigIdJobRunIdFailureType
+      ON Tasks(JobConfigId, JobRunId, FailureType), INTERLEAVE IN JobRuns
 
 CREATE TABLE LogEntries (
       JobConfigId STRING(MAX) NOT NULL,
