@@ -49,6 +49,7 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
     """Creates a new transfer job into the spanner database."""
     with database.batch() as batch:
         # Adding job config.
+        timestamp = int(time.time() * 1e9)
         job_spec = {
             'onPremSrcDirectory': src_dir,
             'gcsBucket': dst_gcs_bucket,
@@ -72,10 +73,11 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
             table='JobRuns',
             columns=('JobConfigId',
                      'JobRunId',
+                     'JobCreationTime',
                      'Status',
                      'Progress'),
             values=[(
-                config_name, run_name, JOB_STATUS_IN_PROGRESS,
+                config_name, run_name, timestamp, JOB_STATUS_IN_PROGRESS,
                 json.dumps(job_progress)
             )]
         )
@@ -91,8 +93,6 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
             'dst_list_result_object': list_result_object_name,
             'src_directory': src_dir
         }
-
-        timestamp = int(time.time() * 1e9)
 
         batch.insert(
             table='Tasks',
