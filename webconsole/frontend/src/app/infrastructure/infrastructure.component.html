@@ -31,11 +31,11 @@
     </mat-card>
 
     <mat-card class="ingest-infrastructure-deploying" *ngIf="showInfrastructureDeploying">
-      <h2> <mat-spinner class="ingest-inline-icon-spinner"> </mat-spinner> Cloud Ingest Infrastructure deployment is in progress... </h2>
+      <h2> <mat-spinner [diameter]="24" [strokeWidth]="3" class="ingest-inline-spinner"> </mat-spinner> Cloud Ingest Infrastructure deployment is in progress... </h2>
     </mat-card>
 
     <mat-card class="ingest-infrastructure-deleting" *ngIf="showInfrastructureDeleting">
-      <h2> <mat-spinner class="ingest-inline-icon-spinner"> </mat-spinner> Cloud Ingest Infrastructure tear down is in progress... </h2>
+      <h2> <mat-spinner [diameter]="24" [strokeWidth]="3" class="ingest-inline-spinner"> </mat-spinner> Cloud Ingest Infrastructure tear down is in progress... </h2>
     </mat-card>
 
     <mat-card class="ingest-infrastructure-failed" *ngIf="showInfrastructureFailed">
@@ -69,7 +69,7 @@
       <app-infrastructure-status-item [itemName]="'Data Control Plane'" [itemStatus]="infrastructureStatus.dcpStatus"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'Cloud Functions'" [itemStatus]="infrastructureStatus.cloudFunctionsStatus"> </app-infrastructure-status-item>
       <mat-divider></mat-divider>
-      <mat-list-item> Pub Sub </mat-list-item>
+      <h3 matSubheader>Pub/Sub</h3>
       <app-infrastructure-status-item [itemName]="'List topic'" [itemStatus]="infrastructureStatus.pubsubStatus.list"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'List Progress topic'" [itemStatus]="infrastructureStatus.pubsubStatus.listProgress"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'UploadGCS topic'" [itemStatus]="infrastructureStatus.pubsubStatus.uploadGCS"> </app-infrastructure-status-item>

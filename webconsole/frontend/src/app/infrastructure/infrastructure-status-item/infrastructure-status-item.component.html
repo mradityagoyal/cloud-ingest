@@ -1,16 +1,12 @@
 <mat-list-item>
-  <mat-icon mat-list-icon>
-    <ng-container [ngSwitch]="itemStatus">
-      <mat-icon mat-list-icon *ngSwitchCase="INFRA_STATUS.RUNNING">check_circle</mat-icon>
-      <mat-icon mat-list-icon *ngSwitchCase="INFRA_STATUS.NOT_FOUND">warning</mat-icon>
-      <mat-icon mat-list-icon *ngSwitchCase="INFRA_STATUS.FAILED">error</mat-icon>
-      <mat-icon mat-list-icon *ngSwitchCase="INFRA_STATUS.UNKNOWN">help</mat-icon>
-      <mat-spinner mat-list-icon *ngSwitchCase="INFRA_STATUS.DEPLOYING"></mat-spinner>
-      <mat-spinner [color]="'accent'" mat-list-icon *ngSwitchCase="INFRA_STATUS.DELETING"></mat-spinner>
-    </ng-container>
-  </mat-icon>
-  <h3 mdLine> {{ itemName }} </h3>
-  <p class="item-status" mdLine>
+  <mat-icon matListIcon *ngIf="itemStatus === INFRA_STATUS.RUNNING">check_circle</mat-icon>
+  <mat-icon matListIcon *ngIf="itemStatus === INFRA_STATUS.NOT_FOUND">warning</mat-icon>
+  <mat-icon matListIcon *ngIf="itemStatus === INFRA_STATUS.FAILED">error</mat-icon>
+  <mat-icon matListIcon *ngIf="itemStatus === INFRA_STATUS.UNKNOWN">help</mat-icon>
+  <mat-spinner matListIcon [diameter]="24" [strokeWidth]="3" *ngIf="itemStatus === INFRA_STATUS.DEPLOYING"></mat-spinner>
+  <mat-spinner matListIcon [diameter]="24" [strokeWidth]="3" [color]="'accent'" *ngIf="itemStatus === INFRA_STATUS.DELETING"></mat-spinner>
+  <strong matLine> {{ itemName }} </strong>
+  <p class="item-status" matLine>
     <ng-container [ngSwitch]="itemStatus">
       <ng-container *ngSwitchCase="INFRA_STATUS.RUNNING">Ok</ng-container>
       <ng-container *ngSwitchCase="INFRA_STATUS.NOT_FOUND">Not deployed</ng-container>
