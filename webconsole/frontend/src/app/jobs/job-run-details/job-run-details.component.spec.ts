@@ -21,10 +21,22 @@ const FAKE_JOB_RUNS: JobRun[] = [
     JobRunId: 'fakeJobRunId1',
     JobCreationTime: '1504833274371000000',
     Status: 0,
-    Progress: {
+    Counters: {
       totalTasks: 0,
       tasksCompleted: 0,
-      tasksFailed: 0
+      tasksFailed: 0,
+
+      totalTasksList: 0,
+      tasksCompletedList: 0,
+      tasksFailedList: 0,
+
+      totalTasksCopy: 0,
+      tasksCompletedCopy: 0,
+      tasksFailedCopy: 0,
+
+      totalTasksLoad: 0,
+      tasksCompletedLoad: 0,
+      tasksFailedLoad: 0
     }
   },
   {
@@ -32,15 +44,22 @@ const FAKE_JOB_RUNS: JobRun[] = [
     JobRunId: 'fakeJobRunId2',
     JobCreationTime: '1504833274371000000',
     Status: 1,
-    Progress: {
+    Counters: {
       totalTasks: 1,
       tasksCompleted: 0,
       tasksFailed: 0,
-      list: {
-        totalLists: 1,
-        listsCompleted: 0,
-        listsFailed: 0
-      }
+
+      totalTasksList: 1,
+      tasksCompletedList: 0,
+      tasksFailedList: 0,
+
+      totalTasksCopy: 0,
+      tasksCompletedCopy: 0,
+      tasksFailedCopy: 0,
+
+      totalTasksLoad: 0,
+      tasksCompletedLoad: 0,
+      tasksFailedLoad: 0
     }
   },
   {
@@ -48,46 +67,45 @@ const FAKE_JOB_RUNS: JobRun[] = [
     JobRunId: 'fakeJobRunId3',
     JobCreationTime: '1504833274371000000',
     Status: 2,
-    Progress: {
+    Counters: {
       totalTasks: 5,
       tasksCompleted: 4,
       tasksFailed: 1,
-      list: {
-        totalLists: 1,
-        listsCompleted: 1,
-        listsFailed: 0
-      },
-      uploadGCS: {
-        totalFiles: 4,
-        filesCompleted: 3,
-        filesFailed: 1
-      }
-    },
+
+      totalTasksList: 1,
+      tasksCompletedList: 1,
+      tasksFailedList: 0,
+
+      totalTasksCopy: 4,
+      tasksCompletedCopy: 3,
+      tasksFailedCopy: 1,
+
+      totalTasksLoad: 0,
+      tasksCompletedLoad: 0,
+      tasksFailedLoad: 0
+    }
   },
   {
     JobConfigId: 'fakeJobConfigId4',
     JobRunId: 'fakeJobRunId4',
     JobCreationTime: '1504833274371000000',
     Status: 3,
-    Progress: {
+    Counters: {
       totalTasks: 9,
       tasksCompleted: 9,
       tasksFailed: 0,
-      list: {
-        totalLists: 1,
-        listsCompleted: 1,
-        listsFailed: 0
-      },
-      uploadGCS: {
-        totalFiles: 4,
-        filesCompleted: 4,
-        filesFailed: 0
-      },
-      loadBigQuery: {
-        totalObjects: 4,
-        objectsCompleted: 4,
-        objectsFailed: 0
-      }
+
+      totalTasksList: 1,
+      tasksCompletedList: 1,
+      tasksFailedList: 0,
+
+      totalTasksCopy: 4,
+      tasksCompletedCopy: 4,
+      tasksFailedCopy: 0,
+
+      totalTasksLoad: 4,
+      tasksCompletedLoad: 4,
+      tasksFailedLoad: 0
     }
   }
 ];
@@ -318,11 +336,11 @@ describe('JobRunDetailsComponent', () => {
       const children = infoList.children;
       expect(children.length).toEqual(6);
       expect(children[0].innerText).toEqual('Total Tasks');
-      expect(children[1].innerText).toEqual('' + jobRun.Progress.totalTasks);
+      expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasks));
       expect(children[2].innerText).toEqual('Tasks Completed');
-      expect(children[3].innerText).toEqual('' + jobRun.Progress.tasksCompleted);
+      expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompleted));
       expect(children[4].innerText).toEqual('Tasks Failed');
-      expect(children[5].innerText).toEqual('' + jobRun.Progress.tasksFailed);
+      expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailed));
     });
   }));
 
@@ -349,17 +367,16 @@ describe('JobRunDetailsComponent', () => {
       const children = infoList.children;
       expect(children.length).toEqual(6);
       expect(children[0].innerText).toEqual('List Tasks');
-      expect(children[1].innerText).toEqual('' + jobRun.Progress.list.totalLists);
+      expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasksList));
       expect(children[2].innerText).toEqual('List Tasks Completed');
-      expect(children[3].innerText).toEqual('' + jobRun.Progress.list.listsCompleted);
+      expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompletedList));
       expect(children[4].innerText).toEqual('List Tasks Failed');
-      expect(children[5].innerText).toEqual('' + jobRun.Progress.list.listsFailed);
+      expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailedList));
     });
   }));
 
   it('should show progress information in the upload gcs progress tab', async(() => {
     const jobRun = FAKE_JOB_RUNS[2];
-    const gcsProgress = jobRun.Progress.uploadGCS;
     jobsServiceStub.getJobRun.and.returnValue(Observable.of(jobRun));
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
@@ -381,17 +398,16 @@ describe('JobRunDetailsComponent', () => {
       const children = infoList.children;
       expect(children.length).toEqual(6);
       expect(children[0].innerText).toEqual('Total Files');
-      expect(children[1].innerText).toEqual('' + gcsProgress.totalFiles);
+      expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasksCopy));
       expect(children[2].innerText).toEqual('Files Completed');
-      expect(children[3].innerText).toEqual('' + gcsProgress.filesCompleted);
+      expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompletedCopy));
       expect(children[4].innerText).toEqual('Files Failed');
-      expect(children[5].innerText).toEqual('' + gcsProgress.filesFailed);
+      expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailedCopy));
     });
   }));
 
   it('should show progress information in the load into BQ progress tab', async(() => {
     const jobRun = FAKE_JOB_RUNS[3];
-    const bqProgress = jobRun.Progress.loadBigQuery;
     jobsServiceStub.getJobRun.and.returnValue(Observable.of(jobRun));
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
@@ -413,11 +429,11 @@ describe('JobRunDetailsComponent', () => {
       const children = infoList.children;
       expect(children.length).toEqual(6);
       expect(children[0].innerText).toEqual('Total Objects');
-      expect(children[1].innerText).toEqual('' + bqProgress.totalObjects);
+      expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasksLoad));
       expect(children[2].innerText).toEqual('Objects Completed');
-      expect(children[3].innerText).toEqual('' + bqProgress.objectsCompleted);
+      expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompletedLoad));
       expect(children[4].innerText).toEqual('Objects Failed');
-      expect(children[5].innerText).toEqual('' + bqProgress.objectsFailed);
+      expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailedLoad));
     });
   }));
 

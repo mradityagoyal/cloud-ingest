@@ -20,6 +20,7 @@ type LoadBQProgressMessageHandler struct {
 
 func (h *LoadBQProgressMessageHandler) HandleMessage(
 	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
+	taskUpdate.Task.TaskType = loadBQTaskType  // Set the type first.
 	// TODO(mbassiouny): Add the next transition task after loading to BQ when
 	// it's defined.
 	return nil

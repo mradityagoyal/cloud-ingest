@@ -28,11 +28,11 @@
       <mat-tab label="Overall Progress">
         <dl>
           <dt>Total Tasks</dt>
-          <dd>{{ jobRun.Progress.totalTasks }}</dd>
+          <dd>{{ jobRun.Counters.totalTasks }}</dd>
           <dt>Tasks Completed</dt>
-          <dd>{{ jobRun.Progress.tasksCompleted }}</dd>
+          <dd>{{ jobRun.Counters.tasksCompleted }}</dd>
           <dt>Tasks Failed</dt>
-          <dd>{{ jobRun.Progress.tasksFailed }}</dd>
+          <dd>{{ jobRun.Counters.tasksFailed }}</dd>
         </dl>
       <a routerLink="/jobconfigs/{{jobConfigId}}/{{jobRunId}}/tasks"
          queryParamsHandling="merge">
@@ -40,41 +40,41 @@
       </a>
       </mat-tab>
 
-      <ng-container *ngIf="jobRun.Progress.list">
+      <ng-container *ngIf="jobRun.Counters.totalTasksList > 0">
         <mat-tab label="Listing Progress">
           <dl>
             <dt>List Tasks</dt>
-            <dd>{{ jobRun.Progress.list.totalLists }}</dd>
+            <dd>{{ jobRun.Counters.totalTasksList }}</dd>
             <dt>List Tasks Completed</dt>
-            <dd>{{ jobRun.Progress.list.listsCompleted }}</dd>
+            <dd>{{ jobRun.Counters.tasksCompletedList }}</dd>
             <dt>List Tasks Failed</dt>
-            <dd>{{ jobRun.Progress.list.listsFailed }}</dd>
+            <dd>{{ jobRun.Counters.tasksFailedList }}</dd>
           </dl>
         </mat-tab>
       </ng-container>
 
-      <ng-container *ngIf="jobRun.Progress.uploadGCS">
+      <ng-container *ngIf="jobRun.Counters.totalTasksCopy > 0">
         <mat-tab label="Upload to GCS Progress">
           <dl>
             <dt>Total Files</dt>
-            <dd>{{ jobRun.Progress.uploadGCS.totalFiles }}</dd>
+            <dd>{{ jobRun.Counters.totalTasksCopy }}</dd>
             <dt>Files Completed</dt>
-            <dd>{{ jobRun.Progress.uploadGCS.filesCompleted }}</dd>
+            <dd>{{ jobRun.Counters.tasksCompletedCopy }}</dd>
             <dt>Files Failed</dt>
-            <dd>{{ jobRun.Progress.uploadGCS.filesFailed }}</dd>
+            <dd>{{ jobRun.Counters.tasksFailedCopy }}</dd>
           </dl>
         </mat-tab>
       </ng-container>
 
-      <ng-container *ngIf="jobRun.Progress.loadBigQuery">
+      <ng-container *ngIf="jobRun.Counters.totalTasksLoad > 0">
         <mat-tab label="Load into BigQuery Progress">
           <dl>
             <dt>Total Objects</dt>
-            <dd>{{ jobRun.Progress.loadBigQuery.totalObjects }}</dd>
+            <dd>{{ jobRun.Counters.totalTasksLoad }}</dd>
             <dt>Objects Completed</dt>
-            <dd>{{ jobRun.Progress.loadBigQuery.objectsCompleted }}</dd>
+            <dd>{{ jobRun.Counters.tasksCompletedLoad }}</dd>
             <dt>Objects Failed</dt>
-            <dd>{{ jobRun.Progress.loadBigQuery.objectsFailed }}</dd>
+            <dd>{{ jobRun.Counters.tasksFailedLoad }}</dd>
           </dl>
         </mat-tab>
       </ng-container>

@@ -1,5 +1,4 @@
-/*
-Copyright 2017 Google Inc. All Rights Reserved.
+/* Copyright 2017 Google Inc. All Rights Reserved.
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
@@ -15,46 +14,36 @@ limitations under the License.
 
 package dcp
 
+import (
+	"encoding/json"
+	"errors"
+	"fmt"
+)
+
 const (
 	JobNotStarted int64 = 0
 	JobInProgress int64 = 1
 	JobFailed     int64 = 2
 	JobSuccess    int64 = 3
+
+	// Keys for the job run counters.
+	KeyTotalTasks     string = "totalTasks"
+	KeyTasksCompleted string = "tasksCompleted"
+	KeyTasksFailed    string = "tasksFailed"
+	KeyTasksQueued    string = "tasksQueued"
+
+	KeySuffixList    string = "List"
+	KeySuffixCopy string = "Copy"
+	KeySuffixLoad  string = "Load"
 )
 
-type ListTaskProgressSpec struct {
-	Status int `json:"status"`
+// The counter field is encoded directly into the JSON, not the entire struct.
+type JobCounters struct {
+	counter map[string]int64
 }
 
-type UploadGCSTaskProgressSpec struct {
-	Status         int64 `json:"status"`
-	TotalFiles     int64 `json:"totalFiles"`
-	FilesCompleted int64 `json:"filesCompleted"`
-	FilesFailed    int64 `json:"filesFailed"`
-}
-
-type LoadBQTaskProgressSpec struct {
-	Status           int64 `json:"status"`
-	TotalObjects     int64 `json:"totalObjects"`
-	ObjectsCompleted int64 `json:"objectsCompleted"`
-	ObjectsFailed    int64 `json:"objectsFailed"`
-}
-
-type JobProgressSpec struct {
-	TotalTasks     int64 `json:"totalTasks"`
-	TasksCompleted int64 `json:"tasksCompleted"`
-	TasksFailed    int64 `json:"tasksFailed"`
-	// Store the progress of each task type as a pointer so it's
-	// omitted when empty
-	ListProgress      *ListTaskProgressSpec      `json:"list,omitempty"`
-	UploadGCSProgress *UploadGCSTaskProgressSpec `json:"uploadGCS,omitempty"`
-	LoadBQProgress    *LoadBQTaskProgressSpec    `json:"loadBigQuery,omitempty"`
-}
-
-type JobProgressDelta struct {
-	NewTasks       int64
-	TasksCompleted int64
-	TasksFailed    int64
+type JobCountersCollection struct {
+	deltas map[JobRunFullId]*JobCounters
 }
 
 type JobRun struct {
@@ -62,7 +51,7 @@ type JobRun struct {
 	JobRunId        string
 	JobCreationTime int64
 	Status          int64
-	Progress        string
+	Counters        string
 }
 
 type JobRunFullId struct {
@@ -70,21 +59,31 @@ type JobRunFullId struct {
 	JobRunId    string
 }
 
-// ApplyDelta applies the changes in the given deltaObj to this
-func (j *JobProgressSpec) ApplyDelta(deltaObj *JobProgressDelta) {
-	j.TotalTasks += deltaObj.NewTasks
-	j.TasksCompleted += deltaObj.TasksCompleted
-	j.TasksFailed += deltaObj.TasksFailed
+func (j *JobCounters) Marshal() ([]byte, error) {
+	return json.Marshal(j.counter)
 }
 
-// GetJobStatus returns the status of the job with this ProgressSpec
-func (j *JobProgressSpec) GetJobStatus() int64 {
+func (j *JobCounters) Unmarshal(countersString string) error {
+	j.counter = make(map[string]int64)
+	err := json.Unmarshal([]byte(countersString), &(j.counter))
+	return err
+}
+
+// ApplyDelta applies the changes in the given deltaObj to this.
+func (j *JobCounters) ApplyDelta(deltaObj *JobCounters) {
+	for key, value := range deltaObj.counter {
+		j.counter[key] += value
+	}
+}
+
+// GetJobStatus returns the status of the job with this JobCounterSpec.
+func (j *JobCounters) GetJobStatus() int64 {
 	var status int64
-	if j.TotalTasks == 0 {
+	if j.counter[KeyTotalTasks] == 0 {
 		status = JobNotStarted
-	} else if j.TotalTasks == j.TasksCompleted {
+	} else if j.counter[KeyTotalTasks] == j.counter[KeyTasksCompleted] {
 		status = JobSuccess
-	} else if j.TotalTasks == (j.TasksCompleted + j.TasksFailed) {
+	} else if j.counter[KeyTotalTasks] == (j.counter[KeyTasksCompleted] + j.counter[KeyTasksFailed]) {
 		status = JobFailed
 	} else {
 		status = JobInProgress
@@ -92,7 +91,95 @@ func (j *JobProgressSpec) GetJobStatus() int64 {
 	return status
 }
 
+// updateForTaskUpdate updates a JobCountersCollection's counters for the given
+// TaskUpdate and oldStatus. A TaskUpdate can include an updated task, a set of newly
+// created tasks, or both. These "delta" counters are eventually applied to a JobRun's
+// JobCounterSpec, which keeps a running tally of the counters for the job run.
+func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus int64) error {
+	// Initialize the deltas map if necessary.
+	if j.deltas == nil {
+		j.deltas = make(map[JobRunFullId]*JobCounters)
+	}
+
+	// Update an existing task (if applicable).
+	if tu.Task != nil && tu.Task.Status != oldStatus {
+		task := tu.Task
+		if task.Status == oldStatus {
+			return errors.New(fmt.Sprintf(
+				"TaskUpdate task status should not equal its previous status: %v",
+				task.Status))
+		}
+		fullJobId := task.getJobRunFullId()
+		deltaObj, exists := j.deltas[fullJobId]
+		if !exists {
+			deltaObj = new(JobCounters)
+			deltaObj.counter = make(map[string]int64)
+			j.deltas[fullJobId] = deltaObj
+		}
+		suffix, err := CounterSuffix(task)
+		if err != nil {
+			return err
+		}
+		// Decrement the old status' counters.
+		if oldStatus == Failed {
+			deltaObj.counter[KeyTasksFailed] -= 1
+			deltaObj.counter[KeyTasksFailed+suffix] -= 1
+		} else if oldStatus == Queued {
+			deltaObj.counter[KeyTasksQueued] -= 1
+			deltaObj.counter[KeyTasksQueued+suffix] -= 1
+		}
+		// Increment the new status' counters.
+		if task.Status == Success {
+			deltaObj.counter[KeyTasksCompleted] += 1
+			deltaObj.counter[KeyTasksCompleted+suffix] += 1
+		} else if task.Status == Failed {
+			deltaObj.counter[KeyTasksFailed] += 1
+			deltaObj.counter[KeyTasksFailed+suffix] += 1
+		} else if task.Status == Queued {
+			deltaObj.counter[KeyTasksQueued] += 1
+			deltaObj.counter[KeyTasksQueued+suffix] += 1
+		} else {
+			return errors.New(fmt.Sprintf(
+				"Found unexpected task Status in updateForTaskUpdate: %v",
+				task.Status))
+		}
+	}
+
+	// Add stats for newly created tasks.
+	for _, task := range tu.NewTasks {
+		suffix, err := CounterSuffix(task)
+		if err != nil {
+			return err
+		}
+		fullJobId := task.getJobRunFullId()
+		deltaObj, exists := j.deltas[fullJobId]
+		if !exists {
+			deltaObj = new(JobCounters)
+			deltaObj.counter = make(map[string]int64)
+			j.deltas[fullJobId] = deltaObj
+		}
+		deltaObj.counter[KeyTotalTasks] += 1
+		deltaObj.counter[KeyTotalTasks+suffix] += 1
+	}
+
+	return nil
+}
+
 // IsJobTerminated returns whether a job has terminated or not.
 func IsJobTerminated(jobStatus int64) bool {
 	return jobStatus == JobFailed || jobStatus == JobSuccess
+}
+
+func CounterSuffix(task *Task) (string, error) {
+	switch task.TaskType {
+	case listTaskType:
+		return KeySuffixList, nil
+	case uploadGCSTaskType:
+		return KeySuffixCopy, nil
+	case loadBQTaskType:
+		return KeySuffixLoad, nil
+	default:
+		return "", errors.New(fmt.Sprintf(
+			"Found unexpected TaskType updateForTaskUpdate: %v. task:%v", task.TaskType, task))
+	}
 }

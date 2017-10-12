@@ -232,10 +232,25 @@ class TestSpannerWrapper(unittest.TestCase):
         config_id = 'config-id'
         run_id = 'run-id'
         start_time = SpannerWrapper._get_unix_nano()
-        progress = {
-            "totalTasks": 0,
-            "tasksCompleted": 0,
-            "tasksFailed": 0
+        counters = {
+            'totalTasks': 0,
+            'tasksCompleted': 0,
+            'tasksFailed': 0,
+
+            # List task stats.
+            'totalTasksList': 0,
+            'tasksCompletedList': 0,
+            'tasksFailedList': 0,
+
+            # Copy task stats.
+            'totalTasksCopy': 0,
+            'tasksCompletedCopy': 0,
+            'tasksFailedCopy': 0,
+
+            # Load task stats.
+            'totalTasksLoad': 0,
+            'tasksCompletedLoad': 0,
+            'tasksFailedLoad': 0
         }
         transaction = self.set_up_transaction()
 
@@ -258,8 +273,8 @@ class TestSpannerWrapper(unittest.TestCase):
             elif column == SpannerWrapper.JOB_CREATION_TIME:
                 # Test that the time inserted was the correct time
                 self.assertEqual(values[i], start_time)
-            elif column == SpannerWrapper.PROGRESS:
-                self.assertEqual(json.loads(values[i]), progress)
+            elif column == SpannerWrapper.COUNTERS:
+                self.assertEqual(json.loads(values[i]), counters)
             else:
                 self.fail("Tried to insert a value into a column that " +
                           "doesn't exist in %s. Column: %s" % (
@@ -293,27 +308,27 @@ class TestSpannerWrapper(unittest.TestCase):
         run_id1 = 'test-run1'
         status1 = 1
         job_creation_time1 = 1501287255
-        progress1 = "{}"
+        counters1 = "{}"
 
         config_id2 = 'test-config2'
         run_id2 = 'test-run2'
         status2 = 1
         job_creation_time2 = 1501287287
-        progress2 = "{}"
+        counters2 = "{}"
 
         result = MagicMock()
         result.__iter__.return_value = [
-            [config_id1, run_id1, status1, job_creation_time1, progress1],
-            [config_id2, run_id2, status2, job_creation_time2, progress2]]
+            [config_id1, run_id1, status1, job_creation_time1, counters1],
+            [config_id2, run_id2, status2, job_creation_time2, counters2]]
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
         self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_runs(25)
         expected = [
             self.get_job_run(
-                config_id1, run_id1, status1, job_creation_time1, progress1),
+                config_id1, run_id1, status1, job_creation_time1, counters1),
             self.get_job_run(
-                config_id2, run_id2, status2, job_creation_time2, progress2)
+                config_id2, run_id2, status2, job_creation_time2, counters2)
         ]
 
         self.assertEqual(actual, expected)
@@ -488,18 +503,18 @@ class TestSpannerWrapper(unittest.TestCase):
         run_id = 'test-run'
         status = 1
         job_creation_time = 1501284844
-        progress = "{}"
+        counters = "{}"
 
         result = MagicMock()
         result.__iter__.return_value = [[
-            config_id, run_id, status, job_creation_time, progress
+            config_id, run_id, status, job_creation_time, counters
         ]]
         result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
         self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_run(config_id, run_id)
         expected = self.get_job_run(config_id, run_id, status,
-                                    job_creation_time, progress)
+                                    job_creation_time, counters)
 
         self.assertEqual(actual, expected)
 
@@ -622,7 +637,7 @@ class TestSpannerWrapper(unittest.TestCase):
         }
 
     @staticmethod
-    def get_job_run(config_id, run_id, status, job_creation_time, progress):
+    def get_job_run(config_id, run_id, status, job_creation_time, counters):
         """Returns a job run in dictionary format containing the given values.
 
         Args:
@@ -630,7 +645,7 @@ class TestSpannerWrapper(unittest.TestCase):
           run_id: The job run id
           status: An int representing the status of the job
           job_creation_time: An int representing the job_creation_time
-          progress: A string holding the JSON job progress obj
+          counters: A string holding the JSON job counters obj
 
         Returns:
           A job run in dictionary format containing the given values.
@@ -640,7 +655,7 @@ class TestSpannerWrapper(unittest.TestCase):
             SpannerWrapper.JOB_RUN_ID: run_id,
             SpannerWrapper.STATUS: status,
             SpannerWrapper.JOB_CREATION_TIME: job_creation_time,
-            SpannerWrapper.PROGRESS: json.loads(progress)
+            SpannerWrapper.COUNTERS: json.loads(counters)
         }
 
     @staticmethod

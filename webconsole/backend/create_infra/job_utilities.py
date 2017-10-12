@@ -62,10 +62,26 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
             columns=('JobConfigId', 'JobSpec'),
             values=[(config_name, json.dumps(job_spec))])
 
-        job_progress = {
-            'totalTasks': 1, # Start with 1 b/c list task is manually inserted
+        job_counters = {
+            # Overall job run stats.
+            'totalTasks': 1,  # Start at 1 b/c list task is manually inserted
             'tasksCompleted': 0,
-            'tasksFailed': 0
+            'tasksFailed': 0,
+
+            # List task stats.
+            'totalTasksList': 1,
+            'tasksCompletedList': 0,
+            'tasksFailedList': 0,
+
+            # Copy task stats.
+            'totalTasksCopy': 0,
+            'tasksCompletedCopy': 0,
+            'tasksFailedCopy': 0,
+
+            # Load task stats.
+            'totalTasksLoad': 0,
+            'tasksCompletedLoad': 0,
+            'tasksFailedLoad': 0
         }
 
         # Adding a job run.
@@ -75,10 +91,10 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
                      'JobRunId',
                      'JobCreationTime',
                      'Status',
-                     'Progress'),
+                     'Counters'),
             values=[(
                 config_name, run_name, timestamp, JOB_STATUS_IN_PROGRESS,
-                json.dumps(job_progress)
+                json.dumps(job_counters)
             )]
         )
 

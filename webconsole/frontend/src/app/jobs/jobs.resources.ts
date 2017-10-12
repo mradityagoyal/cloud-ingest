@@ -8,7 +8,7 @@ export interface JobRun {
   JobRunId: string;
   JobCreationTime: string;
   Status: number;
-  Progress: Progress;
+  Counters: Counters;
 }
 
 export interface JobRunParams {
@@ -16,31 +16,22 @@ export interface JobRunParams {
   JobRunId: string;
 }
 
-export interface Progress {
+export interface Counters {
   totalTasks: number;
   tasksCompleted: number;
   tasksFailed: number;
-  list?: ListProgress;
-  uploadGCS?: UploadGCSProgress;
-  loadBigQuery?: LoadBigQueryProgress;
-}
 
-export interface ListProgress {
-  totalLists: number;
-  listsCompleted: number;
-  listsFailed: number;
-}
+  totalTasksList: number;
+  tasksCompletedList: number;
+  tasksFailedList: number;
 
-export interface UploadGCSProgress {
-  totalFiles: number;
-  filesCompleted: number;
-  filesFailed: number;
-}
+  totalTasksCopy: number;
+  tasksCompletedCopy: number;
+  tasksFailedCopy: number;
 
-export interface LoadBigQueryProgress {
-  totalObjects: number;
-  objectsCompleted: number;
-  objectsFailed: number;
+  totalTasksLoad: number;
+  tasksCompletedLoad: number;
+  tasksFailedLoad: number;
 }
 
 export interface Task {

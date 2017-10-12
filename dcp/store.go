@@ -54,7 +54,7 @@ type Store interface {
 	// tasks as a result of receiving a PubSub message, use UpdateAndInsertTasks
 	// instead.
 	// InsertNewTasks adds the passed tasks to the store. Also updates the
-	// totalTasks field in the relevant job run progress string.
+	// totalTasks field in the relevant job run counters string.
 	InsertNewTasks(tasks []*Task) error
 
 	// UpdateAndInsertTasks updates and insert news tasks provided in the passed
@@ -141,19 +141,19 @@ func (s *SpannerStore) GetTaskSpec(
 	return taskSpec, nil
 }
 
-// getProgressObjFromRow returns a JobProgressSpec created from the progress
+// getCountersObjFromRow returns a JobCounters created from the counters
 // string stored in the given row
-func getProgressObjFromRow(row *spanner.Row) (*JobProgressSpec, error) {
-	var progressString string
-	if err := row.ColumnByName("Progress", &progressString); err != nil {
+func getCountersObjFromRow(row *spanner.Row) (*JobCounters, error) {
+	var countersString string
+	if err := row.ColumnByName("Counters", &countersString); err != nil {
 		return nil, err
 	}
 
-	progress := new(JobProgressSpec)
-	if err := json.Unmarshal([]byte(progressString), progress); err != nil {
+	counters := new(JobCounters)
+	if err := counters.Unmarshal(countersString); err != nil {
 		return nil, err
 	}
-	return progress, nil
+	return counters, nil
 }
 
 // getFullIdFromJobRow returns a JobFullRunId created from the given row.
@@ -168,36 +168,36 @@ func getFullIdFromJobRow(row *spanner.Row) (JobRunFullId, error) {
 	return fullId, nil
 }
 
-// writeJobProgressObjectUpdatesToBuffer uses the deltas stored in the given
+// writeJobCountersObjectUpdatesToBuffer uses the deltas stored in the given
 // map to create and add Spanner mutations that save the modified
-// JobProgressSpecs to the buffer of writes to be executed when the transaction
+// JobCountersSpecs to the buffer of writes to be executed when the transaction
 // is committed (uses BufferWrite).
 // In order to create the update mutations, the method batch reads the existing
-// job progress objects from Spanner.
-func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
+// job counters objects from Spanner.
+func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
 	txn *spanner.ReadWriteTransaction,
-	progressDeltas map[JobRunFullId]*JobProgressDelta) error {
+	counters JobCountersCollection) error {
 
-	// Batch read the job progress strings to be updated
+	// Batch read the job counters strings to be updated
 	jobColumns := []string{
 		"JobConfigId",
 		"JobRunId",
-		"Progress",
+		"Counters",
 		"Status",
 	}
 
 	keys := spanner.KeySets()
-	for fullRunId, _ := range progressDeltas {
+	for fullRunId, _ := range counters.deltas {
 		keys = spanner.KeySets(
 			keys, spanner.Key{fullRunId.JobConfigId, fullRunId.JobRunId})
 	}
 	iter := txn.Read(ctx, "JobRuns", keys, jobColumns)
 
-	// Create update mutations for each job progress string
+	// Create update mutations for each job counters string
 	// and write them to the transaction write buffer using
 	// BufferWrite
 	return iter.Do(func(row *spanner.Row) error {
-		progressObj, err := getProgressObjFromRow(row)
+		countersObj, err := getCountersObjFromRow(row)
 		if err != nil {
 			return err
 		}
@@ -211,10 +211,10 @@ func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
 			return err
 		}
 
-		// Update totalTasks and create mutation
-		deltaObj := progressDeltas[fullJobId]
-		progressObj.ApplyDelta(deltaObj)
-		progressBytes, err := json.Marshal(progressObj)
+		// Update totalTasks and create mutation.
+		deltaObj := counters.deltas[fullJobId]
+		countersObj.ApplyDelta(deltaObj)
+		countersBytes, err := countersObj.Marshal()
 		if err != nil {
 			return err
 		}
@@ -222,19 +222,19 @@ func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
 		jobInsertColumns := []string{
 			"JobConfigId",
 			"JobRunId",
-			"Progress",
+			"Counters",
 		}
 
 		jobInsertValues := []interface{}{
 			fullJobId.JobConfigId,
 			fullJobId.JobRunId,
-			string(progressBytes),
+			string(countersBytes),
 		}
 
-		// Check if status changed
-		newStatus := progressObj.GetJobStatus()
+		// Check if status changed.
+		newStatus := countersObj.GetJobStatus()
 		if newStatus != oldStatus {
-			// Job status has changed, add the update to the mutation params
+			// Job status has changed, add the update to the mutation params.
 			jobInsertColumns = append(jobInsertColumns, "Status")
 			jobInsertValues = append(jobInsertValues, newStatus)
 			if IsJobTerminated(newStatus) {
@@ -251,24 +251,9 @@ func writeJobProgressObjectUpdatesToBuffer(ctx context.Context,
 	})
 }
 
-// addJobProgressDeltaForTaskInsertsToMap takes in a list of tasks and
-// determines all the necessary modifications to the relevant job progress
-// objects, storing these modifications as deltas in the given map from
-// JobRunFullId to progressDelta.
-func addJobProgressDeltaForTaskInsertsToMap(tasks []*Task,
-	progressDeltas map[JobRunFullId]*JobProgressDelta) {
-
-	for _, task := range tasks {
-		fullJobId := task.getJobRunFullId()
-		deltaObj, exists := progressDeltas[fullJobId]
-		if !exists {
-			deltaObj = new(JobProgressDelta)
-			progressDeltas[fullJobId] = deltaObj
-		}
-		deltaObj.NewTasks += 1
-	}
-}
-
+// TODO(akaiser): Deprecate this function in favor of using UpdateAndInsertTasks with
+// a TaskUpdate with a nil updated-task.
+//
 // CAUTION: Call only with tasks that do not already exist in the store.
 // Calling this method with tasks that already exist will result in an error
 // being returned. If inserting tasks as a result of receiving a PubSub message,
@@ -279,10 +264,13 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 		return nil
 	}
 
-	progressDeltas := make(map[JobRunFullId]*JobProgressDelta)
-	addJobProgressDeltaForTaskInsertsToMap(tasks, progressDeltas)
+	var counters JobCountersCollection
+	err := counters.updateForTaskUpdate(&TaskUpdate{nil, "", tasks}, 0)
+	if err != nil {
+		return err
+	}
 
-	_, err := s.Client.ReadWriteTransaction(
+	_, err = s.Client.ReadWriteTransaction(
 		context.Background(),
 		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 			// Insert the new tasks
@@ -324,12 +312,12 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 				return err
 			}
 
-			// Create and store the job progress update mutations in the
-			// transaction write buffer
-			return writeJobProgressObjectUpdatesToBuffer(
+			// Create and store the job counters update mutations in the
+			// transaction write buffer.
+			return writeJobCountersObjectUpdatesToBuffer(
 				ctx,
 				txn,
-				progressDeltas,
+				counters,
 			)
 		})
 	return err
@@ -443,32 +431,6 @@ func isValidUpdate(row *spanner.Row,
 	return canChangeTaskStatus(status, updateTask.Status), status, nil
 }
 
-// addJobProgressDeltaForTaskUpdateToMap takes in a task being updated and
-// determines all the necessary modifications to the relevant job progress
-// object, storing these modifications as deltas in the given map from
-// JobRunFullId to progressDelta.
-func addJobProgressDeltaForTaskUpdateToMap(updateTask *Task, oldStatus int64,
-	progressDeltas map[JobRunFullId]*JobProgressDelta) {
-	fullJobId := updateTask.getJobRunFullId()
-	deltaObj, exists := progressDeltas[fullJobId]
-	if !exists {
-		deltaObj = new(JobProgressDelta)
-	}
-	if updateTask.Status == Success {
-		deltaObj.TasksCompleted += 1
-		if oldStatus == Failed {
-			deltaObj.TasksFailed -= 1
-		}
-	} else if updateTask.Status == Failed {
-		deltaObj.TasksFailed += 1
-	} else {
-		// No updates to progress obj, return to avoid
-		// inserting deltaObj into progressDeltas
-		return
-	}
-	progressDeltas[fullJobId] = deltaObj
-}
-
 func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 	if tasks.Size() == 0 {
 		return nil
@@ -478,8 +440,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 		context.Background(),
 		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 			iter := readTasksFromSpanner(ctx, txn, tasks)
-
-			progressDeltas := make(map[JobRunFullId]*JobProgressDelta)
+			var counters JobCountersCollection
 
 			// Iterate over all of the tasks to be updated, checking if they
 			// can be updated. If they can be updated, update the task and insert
@@ -501,10 +462,10 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 					return nil
 				}
 
-				addJobProgressDeltaForTaskUpdateToMap(taskUpdate.Task, oldStatus,
-					progressDeltas)
-				addJobProgressDeltaForTaskInsertsToMap(
-					taskUpdate.NewTasks, progressDeltas)
+				err = counters.updateForTaskUpdate(taskUpdate, oldStatus)
+				if err != nil {
+					return err
+				}
 
 				mutations := getTaskUpdateAndInsertMutations(ctx, txn, taskUpdate.Task,
 					taskUpdate.NewTasks, taskUpdate.LogEntry, oldStatus)
@@ -514,10 +475,10 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 				return err
 			}
 
-			return writeJobProgressObjectUpdatesToBuffer(
+			return writeJobCountersObjectUpdatesToBuffer(
 				ctx,
 				txn,
-				progressDeltas,
+				counters,
 			)
 
 		})

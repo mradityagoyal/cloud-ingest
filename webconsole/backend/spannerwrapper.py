@@ -48,9 +48,9 @@ class SpannerWrapper(object):
     JOB_RUN_ID = "JobRunId"
     JOB_CREATION_TIME = "JobCreationTime"
     STATUS = "Status"
-    PROGRESS = "Progress"
+    COUNTERS = "Counters"
     JOB_RUNS_COLUMNS = [JOB_CONFIG_ID, JOB_RUN_ID, STATUS, JOB_CREATION_TIME,
-                        PROGRESS]
+                        COUNTERS]
 
     TASKS_TABLE = "Tasks"
     TASK_ID = "TaskId"
@@ -163,16 +163,32 @@ class SpannerWrapper(object):
         # handling of job scheduling.
         config_id = unicode(config_id)
         run_id = unicode(run_id)
-        progress = {
-            "totalTasks": initial_total_tasks,
-            "tasksCompleted": 0,
-            "tasksFailed": 0
+        counters = {
+            # Overall job run stats.
+            'totalTasks': initial_total_tasks,
+            'tasksCompleted': 0,
+            'tasksFailed': 0,
+
+            # List task stats.
+            'totalTasksList': initial_total_tasks,
+            'tasksCompletedList': 0,
+            'tasksFailedList': 0,
+
+            # Copy task stats.
+            'totalTasksCopy': 0,
+            'tasksCompletedCopy': 0,
+            'tasksFailedCopy': 0,
+
+            # Load task stats.
+            'totalTasksLoad': 0,
+            'tasksCompletedLoad': 0,
+            'tasksFailedLoad': 0
         }
-        # The job status is set to in progress because the first list
+        # The job status is set to in counters because the first list
         # task is manually inserted. When the logic in the DCP is changed,
         # new jobs should be inserted with a status of not started.
         values = [config_id, run_id, JOB_STATUS_IN_PROGRESS,
-                  self._get_unix_nano(), json.dumps(progress)]
+                  self._get_unix_nano(), json.dumps(counters)]
 
         self.insert(SpannerWrapper.JOB_RUNS_TABLE,
                     SpannerWrapper.JOB_RUNS_COLUMNS, values)
@@ -263,7 +279,7 @@ class SpannerWrapper(object):
             SpannerWrapper.JOB_CREATION_TIME)
         job_runs = self.list_query(query, params, param_types)
         return util.json_to_dictionary_in_field(job_runs,
-                                                SpannerWrapper.PROGRESS)
+                                                SpannerWrapper.COUNTERS)
 
     # pylint: disable=too-many-arguments
     def get_tasks_for_run(self, config_id, run_id, max_num_tasks,
@@ -366,8 +382,8 @@ class SpannerWrapper(object):
             }
         )
         if job_run:
-            job_run[SpannerWrapper.PROGRESS] = json.loads(
-                job_run[SpannerWrapper.PROGRESS])
+            job_run[SpannerWrapper.COUNTERS] = json.loads(
+                job_run[SpannerWrapper.COUNTERS])
             return job_run
 
     @handle_common_gax_errors

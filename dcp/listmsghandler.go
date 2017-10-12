@@ -34,6 +34,7 @@ type ListProgressMessageHandler struct {
 
 func (h *ListProgressMessageHandler) HandleMessage(
 	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
+	taskUpdate.Task.TaskType = listTaskType  // Set the type first.
 	if taskUpdate.Task.Status != Success {
 		return nil
 	}
