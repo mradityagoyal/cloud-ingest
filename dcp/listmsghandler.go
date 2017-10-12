@@ -33,11 +33,11 @@ type ListProgressMessageHandler struct {
 }
 
 func (h *ListProgressMessageHandler) HandleMessage(
-	jobSpec *JobSpec, taskWithLog TaskWithLog) ([]*Task, error) {
-	if taskWithLog.Task.Status != Success {
-		return []*Task{}, nil
+	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
+	if taskUpdate.Task.Status != Success {
+		return nil
 	}
-	task := taskWithLog.Task
+	task := taskUpdate.Task
 
 	// TODO(b/63014658): denormalize the task spec into the progress message, so
 	// you do not have to query the database to get the task spec.
@@ -47,14 +47,14 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	if err != nil {
 		log.Printf("Error getting task spec of task: %v, with error: %v.",
 			task, err)
-		return nil, err
+		return err
 	}
 
 	var listTaskSpec ListTaskSpec
 	if err := json.Unmarshal([]byte(taskSpec), &listTaskSpec); err != nil {
 		log.Printf(
 			"Error decoding task spec: %s, with error: %v.", taskSpec, err)
-		return nil, err
+		return err
 	}
 
 	filePaths, err := h.ListingResultReader.ReadListResult(
@@ -63,12 +63,12 @@ func (h *ListProgressMessageHandler) HandleMessage(
 		log.Printf(
 			"Error reading the list task result, list task spec: %v, with error: %v.",
 			listTaskSpec, err)
-		return nil, err
+		return err
 	}
 	taskIdFromFile := <-filePaths
 
 	if taskIdFromFile != task.getTaskFullId() {
-		return nil, errors.New(
+		return errors.New(
 			fmt.Sprintf(noTaskIdInListOutput, task.getTaskFullId(), taskIdFromFile))
 	}
 	var newTasks []*Task
@@ -85,7 +85,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 			log.Printf(
 				"Error encoding task spec to JSON string, task spec: %v, err: %v.",
 				uploadGCSTaskSpec, err)
-			return nil, err
+			return err
 		}
 		newTasks = append(newTasks, &Task{
 			JobConfigId: task.JobConfigId,
@@ -95,6 +95,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 			TaskSpec:    string(uploadGCSTaskSpecJson),
 		})
 	}
+	taskUpdate.NewTasks = newTasks
 
-	return newTasks, nil
+	return nil
 }

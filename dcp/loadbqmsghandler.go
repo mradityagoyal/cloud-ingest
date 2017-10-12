@@ -19,8 +19,8 @@ type LoadBQProgressMessageHandler struct {
 }
 
 func (h *LoadBQProgressMessageHandler) HandleMessage(
-	jobSpec *JobSpec, taskWithLog TaskWithLog) ([]*Task, error) {
+	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
 	// TODO(mbassiouny): Add the next transition task after loading to BQ when
 	// it's defined.
-	return []*Task{}, nil
+	return nil
 }

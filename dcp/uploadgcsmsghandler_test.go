@@ -28,16 +28,18 @@ func TestUploadGCSProgressMessageHandlerFailedTask(t *testing.T) {
 		Store: &store,
 	}
 	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
-	task := &Task{Status: Failed, TaskId: "A"}
+	taskUpdate := &TaskUpdate{
+		Task: &Task{Status: Failed, TaskId: "A"},
+	}
 
-	newTasks, err := handler.HandleMessage(jobSpec, TaskWithLog{task, ""})
+	err := handler.HandleMessage(jobSpec, taskUpdate)
 
 	if err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 
-	if newTasks == nil || len(newTasks) != 0 {
-		t.Errorf("new tasks should be an empty array, new tasks: %v", newTasks)
+	if taskUpdate.NewTasks != nil && len(taskUpdate.NewTasks) != 0 {
+		t.Errorf("new tasks should be an empty array, new tasks: %v", taskUpdate.NewTasks)
 	}
 }
 
@@ -49,9 +51,11 @@ func TestUploadGCSProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 		Store: &store,
 	}
 
-	task := &Task{Status: Success}
+	taskUpdate := &TaskUpdate{
+		Task: &Task{Status: Success},
+	}
 	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
-	_, err := handler.HandleMessage(jobSpec, TaskWithLog{task, ""})
+	err := handler.HandleMessage(jobSpec, taskUpdate)
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errTaskNotFound)
 	}
@@ -79,9 +83,10 @@ func TestUploadGCSProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
 	}
 
 	jobSpec := &JobSpec{BQDataset: "dummy", BQTable: "dummy"}
-	// Reset the task spec
-	uploadGCSTask.TaskSpec = ""
-	_, err := handler.HandleMessage(jobSpec, TaskWithLog{uploadGCSTask, ""})
+	taskUpdate := &TaskUpdate{
+		Task: uploadGCSTask,
+	}
+	err := handler.HandleMessage(jobSpec, taskUpdate)
 	if err == nil {
 		t.Errorf("error is nil, expected JSON decode error.")
 	}
@@ -114,10 +119,14 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 		BQDataset: "dataset",
 		BQTable:   "table",
 	}
-	newTasks, err := handler.HandleMessage(jobSpec, TaskWithLog{uploadGCSTask, ""})
+	taskUpdate := &TaskUpdate{
+		Task: uploadGCSTask,
+	}
+	err := handler.HandleMessage(jobSpec, taskUpdate)
 	if err != nil {
 		t.Errorf("expecting success, found error: %v.", err)
 	}
+	newTasks := taskUpdate.NewTasks
 
 	if len(newTasks) != 1 {
 		t.Errorf("expecting 1 task when handling an upload GCS message, found %d.",
@@ -174,7 +183,11 @@ func TestUploadGCSProgressMessageHandlerNoBQTask(t *testing.T) {
 	jobSpec := &JobSpec{}
 	// Turn the task to success
 	uploadGCSTask.Status = Success
-	newTasks, err := handler.HandleMessage(jobSpec, TaskWithLog{uploadGCSTask, ""})
+
+	taskUpdate := &TaskUpdate{
+		Task: uploadGCSTask,
+	}
+	err := handler.HandleMessage(jobSpec, taskUpdate)
 
 	if err != nil {
 		t.Errorf("expecting success, found error: %v.", err)
@@ -184,7 +197,7 @@ func TestUploadGCSProgressMessageHandlerNoBQTask(t *testing.T) {
 		t.Errorf("expecting 1 tasks in the the store, found %d.", len(store.tasks))
 	}
 
-	if newTasks == nil || len(newTasks) != 0 {
-		t.Errorf("new tasks should be an empty array, new tasks: %v", newTasks)
+	if taskUpdate.NewTasks != nil && len(taskUpdate.NewTasks) != 0 {
+		t.Errorf("new tasks should be an empty array, new tasks: %v", taskUpdate.NewTasks)
 	}
 }

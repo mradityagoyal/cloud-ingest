@@ -25,13 +25,13 @@ type UploadGCSProgressMessageHandler struct {
 }
 
 func (h *UploadGCSProgressMessageHandler) HandleMessage(
-	jobSpec *JobSpec, taskWithLog TaskWithLog) ([]*Task, error) {
+	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
 	// Empty BQDataset and BQTable means that there is no load to BQ in this job spec.
 	// TODO(b/66965866): Have a centralized place where we can have a proper handling of
 	// task state transitions.
-	task := taskWithLog.Task
+	task := taskUpdate.Task
 	if task.Status != Success || (jobSpec.BQDataset == "" && jobSpec.BQTable == "") {
-		return []*Task{}, nil
+		return nil
 	}
 	// TODO(b/63014658): de-normalize the task spec into the progress message,
 	// so you do not have to query the database again.
@@ -41,14 +41,14 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(
 	if err != nil {
 		log.Printf("Error getting task spec of task: %v, with error: %v.",
 			task, err)
-		return nil, err
+		return err
 	}
 
 	var uploadGCSTaskSpec UploadGCSTaskSpec
 	if err := json.Unmarshal([]byte(taskSpec), &uploadGCSTaskSpec); err != nil {
 		log.Printf(
 			"Error decoding task spec: %s, with error: %v.", taskSpec, err)
-		return nil, err
+		return err
 	}
 
 	loadBQTaskId := GetLoadBQTaskId(uploadGCSTaskSpec.DstObject)
@@ -64,14 +64,15 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(
 		log.Printf(
 			"Error encoding task spec to JSON string, task spec: %v, err: %v.",
 			loadBQTaskSpec, err)
-		return nil, err
+		return err
 	}
 
-	return []*Task{&Task{
+	taskUpdate.NewTasks = []*Task{&Task{
 		JobConfigId: task.JobConfigId,
 		JobRunId:    task.JobRunId,
 		TaskId:      loadBQTaskId,
 		TaskType:    loadBQTaskType,
 		TaskSpec:    string(loadBigQueryTaskSpecJson),
-	}}, nil
+	}}
+	return nil
 }

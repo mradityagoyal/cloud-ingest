@@ -39,17 +39,15 @@ type taskUpdatesBatcher struct {
 	ackMessage          func(msg *pubsub.Message)
 }
 
-// TODO(b/67495138): Avoid primitive types in the spanner store and batcher.
-// This hurts the code readability. go/tott-494 for more details.
-// addTaskUpdate adds a new task update to the batch. It takes the taskWithLog
-// to be updated, the newTasks that is associated with this task update, and the
-// Pub/Sub message to ack when the update is committed.
+// addTaskUpdate adds a new task update to the batch. It takes a TaskUpdate
+// to be updated, and the Pub/Sub message to ack when the update is committed.
 func (b *taskUpdatesBatcher) addTaskUpdate(
-	taskWithLog *TaskWithLog, newTasks []*Task, msg *pubsub.Message) {
+	taskUpdate *TaskUpdate, msg *pubsub.Message) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	taskWithLog := &TaskWithLog{taskUpdate.Task, taskUpdate.LogEntry}
 	b.pendingTasksToStore[taskWithLog] = append(
-		b.pendingTasksToStore[taskWithLog], newTasks...)
+		b.pendingTasksToStore[taskWithLog], taskUpdate.NewTasks...)
 	b.pendingMsgsToAck = append(b.pendingMsgsToAck, msg)
 }
 

@@ -51,7 +51,6 @@ func TestBatcherWithOneUpdate(t *testing.T) {
 
 	updatedTask := *task
 	updatedTask.Status = Success
-	taskWithLog := &TaskWithLog{&updatedTask, ""}
 
 	task1 := &Task{
 		JobConfigId: "dummy-config",
@@ -65,7 +64,10 @@ func TestBatcherWithOneUpdate(t *testing.T) {
 		TaskId:      "new-task-2",
 	}
 
-	newTasks := []*Task{task1, task2}
+	taskUpdate := &TaskUpdate{
+		Task:     &updatedTask,
+		NewTasks: []*Task{task1, task2},
+	}
 
 	msg := &pubsub.Message{ID: "dummy-msg"}
 
@@ -73,7 +75,7 @@ func TestBatcherWithOneUpdate(t *testing.T) {
 	batcher.initializeAndStart(store, mockTicker)
 	// Override Pub/Sub Ack function with a mock one.
 	batcher.ackMessage = ackMessageFnMock
-	batcher.addTaskUpdate(taskWithLog, newTasks, msg)
+	batcher.addTaskUpdate(taskUpdate, msg)
 
 	mockTicker.tick()
 	if len(store.tasks) != 3 {
@@ -126,7 +128,6 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 				TaskId:      "dummy-task-" + strconv.Itoa(count),
 				Status:      Success,
 			}
-			taskWithLog := &TaskWithLog{updatedTask, ""}
 
 			newTasks := []*Task{}
 			// Half of the tasks generate new tasks.
@@ -138,8 +139,12 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 					Status:      Unqueued,
 				})
 			}
+			taskUpdate := &TaskUpdate{
+				Task:     updatedTask,
+				NewTasks: newTasks,
+			}
 			msg := &pubsub.Message{ID: "dummy-msg-" + strconv.Itoa(count)}
-			batcher.addTaskUpdate(taskWithLog, newTasks, msg)
+			batcher.addTaskUpdate(taskUpdate, msg)
 		}(i)
 	}
 	wg.Wait()
