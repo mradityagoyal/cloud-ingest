@@ -28,7 +28,7 @@ CREATE TABLE Tasks (
     ) PRIMARY KEY(JobConfigId, JobRunId, TaskId),
     INTERLEAVE IN PARENT JobRuns ON DELETE NO ACTION
 
-CREATE INDEX TasksByStatus ON Tasks(Status)
+CREATE INDEX TasksByStatus ON Tasks(Status, JobConfigId, JobRunId)
 
 CREATE NULL_FILTERED INDEX TasksByJobConfigIdJobRunIdFailureType
       ON Tasks(JobConfigId, JobRunId, FailureType), INTERLEAVE IN JobRuns
