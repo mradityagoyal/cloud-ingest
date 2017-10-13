@@ -21,6 +21,150 @@ import (
 	"testing"
 )
 
+/*******************************************************************************
+TaskUpdateCollection Tests
+*******************************************************************************/
+
+func TestAddTaskUpdateEmptyCollection(t *testing.T) {
+	tc := &TaskUpdateCollection{}
+
+	expectedUpdate := &TaskUpdate{
+		Task: &Task{
+			JobConfigId: "dummy-config",
+			JobRunId:    "dummy-run",
+			TaskId:      "dummy-task",
+		},
+	}
+	tc.AddTaskUpdate(expectedUpdate)
+	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.getTaskFullId())
+	if retUpdate != expectedUpdate {
+		t.Errorf("task mismatch, expected: %v, returned: %v", expectedUpdate, retUpdate)
+	}
+	if tc.Size() != 1 {
+		t.Errorf("expected 1 task update in the colleection, found %v", tc.Size())
+	}
+}
+
+func TestAddTaskUpdateIgnoreTask(t *testing.T) {
+	tc := &TaskUpdateCollection{}
+
+	expectedUpdate := &TaskUpdate{
+		Task: &Task{
+			JobConfigId: "dummy-config",
+			JobRunId:    "dummy-run",
+			TaskId:      "dummy-task",
+			Status:      Success,
+		},
+	}
+	tc.AddTaskUpdate(expectedUpdate)
+
+	newTask := *expectedUpdate.Task
+	duplicateUpdate := &TaskUpdate{
+		Task: &newTask,
+	}
+	tc.AddTaskUpdate(duplicateUpdate)
+
+	newTask = *expectedUpdate.Task
+	newTask.Status = Failed
+	duplicateUpdate = &TaskUpdate{
+		Task: &newTask,
+	}
+	tc.AddTaskUpdate(duplicateUpdate)
+
+	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.getTaskFullId())
+	if tc.Size() != 1 {
+		t.Errorf("expected 1 task update in the collection, found %v", tc.Size())
+	}
+	if retUpdate != expectedUpdate {
+		t.Errorf("task mismatch, expected: %v, returned: %v", expectedUpdate, retUpdate)
+	}
+}
+
+func TestAddTaskUpdateOverrideTask(t *testing.T) {
+	tc := &TaskUpdateCollection{}
+
+	taskUpdate := &TaskUpdate{
+		Task: &Task{
+			JobConfigId: "dummy-config",
+			JobRunId:    "dummy-run",
+			TaskId:      "dummy-task",
+			Status:      Failed,
+		},
+	}
+	tc.AddTaskUpdate(taskUpdate)
+
+	newTask := *taskUpdate.Task
+	newTask.Status = Success
+	expectedUpdate := &TaskUpdate{
+		Task: &newTask,
+	}
+	tc.AddTaskUpdate(expectedUpdate)
+
+	retUpdate := tc.GetTaskUpdate(taskUpdate.Task.getTaskFullId())
+	if tc.Size() != 1 {
+		t.Errorf("expected 1 task update in the colleection, found %v", tc.Size())
+	}
+	if retUpdate != expectedUpdate {
+		t.Errorf("task mismatch, expected: %v, returned: %v", expectedUpdate, retUpdate)
+	}
+}
+
+func TestGetTaskUpdatesEmptyCollection(t *testing.T) {
+	tc := &TaskUpdateCollection{}
+	count := 0
+	for range tc.GetTaskUpdates() {
+		count++
+	}
+	if count != 0 {
+		t.Errorf("expected 0 updates, found", count)
+	}
+}
+
+func TestGetTaskUpdates(t *testing.T) {
+	tc := &TaskUpdateCollection{}
+
+	taskUpdate1 := &TaskUpdate{
+		Task: &Task{
+			JobConfigId: "dummy-config",
+			JobRunId:    "dummy-run",
+			TaskId:      "dummy-task-1",
+		},
+	}
+
+	taskUpdate2 := &TaskUpdate{
+		Task: &Task{
+			JobConfigId: "dummy-config",
+			JobRunId:    "dummy-run",
+			TaskId:      "dummy-task-2",
+		},
+	}
+
+	tc.AddTaskUpdate(taskUpdate1)
+	tc.AddTaskUpdate(taskUpdate2)
+
+	count := 0
+	for range tc.GetTaskUpdates() {
+		count++
+	}
+	if count != 2 {
+		t.Errorf("expected 2 updates, found", count)
+	}
+
+	taskUpdates := tc.GetTaskUpdates()
+	retTask1 := <-taskUpdates
+	retTask2 := <-taskUpdates
+	if retTask1 == retTask2 ||
+		(retTask1 != taskUpdate1 && retTask1 != taskUpdate2) ||
+		(retTask2 != taskUpdate1 && retTask2 != taskUpdate2) {
+		t.Errorf("expected 2 task updates (%v, %v), but found (%v, %v)",
+			taskUpdate1, taskUpdate2, retTask1, retTask2)
+	}
+}
+
+/*******************************************************************************
+Task Methods Tests
+*******************************************************************************/
+
 func TestTaskCompletionMessageJsonToTaskUpdate(t *testing.T) {
 	var tests = map[string]int64{
 		"SUCCESS": Success,

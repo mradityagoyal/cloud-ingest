@@ -58,18 +58,10 @@ func (s *FakeStore) InsertNewTasks(tasks []*Task) error {
 	return nil
 }
 
-func (s *FakeStore) UpdateTasks(tasksWithLogs []TaskWithLog) error {
-	for _, taskWithLog := range tasksWithLogs {
-		s.tasks[taskWithLog.Task.getTaskFullId()] = taskWithLog.Task
-	}
-	return nil
-}
-
-func (s *FakeStore) UpdateAndInsertTasks(taskWithLogMap map[*TaskWithLog][]*Task) error {
-	for updateTaskWithLog, insertList := range taskWithLogMap {
-		updateTask := updateTaskWithLog.Task
-		s.tasks[updateTask.getTaskFullId()] = updateTask
-		for _, task := range insertList {
+func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) error {
+	for taskUpdate := range taskUpdates.GetTaskUpdates() {
+		s.tasks[taskUpdate.Task.getTaskFullId()] = taskUpdate.Task
+		for _, task := range taskUpdate.NewTasks {
 			s.tasks[task.getTaskFullId()] = task
 		}
 	}

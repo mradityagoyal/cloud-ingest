@@ -32,7 +32,7 @@ const (
 type taskUpdatesBatcher struct {
 	started             bool
 	store               Store
-	pendingTasksToStore map[*TaskWithLog][]*Task
+	pendingTasksToStore *TaskUpdateCollection
 	pendingMsgsToAck    []*pubsub.Message
 	mu                  sync.Mutex
 	ticker              ticker
@@ -45,9 +45,7 @@ func (b *taskUpdatesBatcher) addTaskUpdate(
 	taskUpdate *TaskUpdate, msg *pubsub.Message) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
-	taskWithLog := &TaskWithLog{taskUpdate.Task, taskUpdate.LogEntry}
-	b.pendingTasksToStore[taskWithLog] = append(
-		b.pendingTasksToStore[taskWithLog], taskUpdate.NewTasks...)
+	b.pendingTasksToStore.AddTaskUpdate(taskUpdate)
 	b.pendingMsgsToAck = append(b.pendingMsgsToAck, msg)
 }
 
@@ -81,7 +79,7 @@ func (b *taskUpdatesBatcher) commitUpdates() {
 	}
 
 	// Reset the pending tasks to commit and pending messages to ack.
-	b.pendingTasksToStore = make(map[*TaskWithLog][]*Task)
+	b.pendingTasksToStore.Clear()
 	b.pendingMsgsToAck = b.pendingMsgsToAck[:0]
 }
 
@@ -100,7 +98,7 @@ func (b *taskUpdatesBatcher) initializeAndStart(s Store, t ticker) {
 
 	b.store = s
 	b.ticker = t
-	b.pendingTasksToStore = make(map[*TaskWithLog][]*Task)
+	b.pendingTasksToStore = &TaskUpdateCollection{}
 	b.pendingMsgsToAck = []*pubsub.Message{}
 	b.ackMessage = func(msg *pubsub.Message) {
 		msg.Ack()
