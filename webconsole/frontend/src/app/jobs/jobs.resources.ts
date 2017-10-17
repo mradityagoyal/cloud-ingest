@@ -1,3 +1,5 @@
+import { TaskFailureType } from '../proto/tasks.js';
+
 export interface JobConfig {
   JobConfigId: string;
   JobSpec: string;
@@ -44,6 +46,7 @@ export interface Task {
   TaskId: string;
   TaskSpec: string;
   TaskType: number;
+  FailureType?: TaskFailureType.Type;
   Status: number;
   CreationTime: number;
   WorkerId: string;
@@ -61,8 +64,18 @@ export const TASK_STATUS = {
 /**
  * Maps task type integers to string representations.
  */
-export const TASK_TYPE = {
+export const TASK_TYPE_TO_STRING_MAP = {
   1: 'List task',
   2: 'GCS Upload',
   3: 'Load to BigQuery',
+};
+
+export const FAILURE_TYPE_TO_STRING_MAP = {
+  0: 'Unknown failure',
+  1: 'Unexpected failure',
+  2: 'File Modified failure',
+  3: 'MD5 mismatch failure',
+  4: 'Precondition failure',
+  5: 'File not found failure',
+  6: 'Permission failure'
 };

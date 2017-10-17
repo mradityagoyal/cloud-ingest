@@ -19,7 +19,8 @@ import { MatIconModule,
         MatProgressSpinnerModule,
         MatTabsModule,
         MatSnackBarModule,
-        MatAutocompleteModule } from '@angular/material';
+        MatAutocompleteModule,
+        MatExpansionModule } from '@angular/material';
 
 import { CdkTableModule } from '@angular/cdk/table';
 
@@ -38,7 +39,8 @@ import { CdkTableModule } from '@angular/cdk/table';
             MatProgressSpinnerModule,
             CdkTableModule,
             MatTabsModule,
-            MatAutocompleteModule],
+            MatAutocompleteModule,
+            MatExpansionModule],
   exports: [MatIconModule,
             MatSidenavModule,
             MatListModule,
@@ -54,7 +56,8 @@ import { CdkTableModule } from '@angular/cdk/table';
             MatTabsModule,
             MatSnackBarModule,
             CdkTableModule,
-            MatAutocompleteModule]
+            MatAutocompleteModule,
+            MatExpansionModule]
 })
 
 export class AngularMaterialImporterModule { }

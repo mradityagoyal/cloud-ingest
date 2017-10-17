@@ -4,6 +4,7 @@ import { Router, ActivatedRoute, Params } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
 import { JobRun, JobConfig, JobRunParams, Task } from './jobs.resources';
 import { environment } from '../../environments/environment';
+import { TaskFailureType } from '../proto/tasks.js';
 
 import 'rxjs/add/operator/switchMap';
 import 'rxjs/add/operator/map';
@@ -64,11 +65,20 @@ export class JobsService {
    * TODO(b/67581174): The job tasks component should paginate to retrieve all of the tasks.
    */
   getTasksOfStatus(configId: string, runId: string, status: number): Observable<Task[]> {
-    const params = new HttpParams().set('status', String(status));
     return this.project.switchMap(projectId => {
         return this.http.get<Task[]>(
-            `${environment.apiUrl}/projects/${projectId}/tasks/${configId}/${runId}`,
-            {params: params}
+            `${environment.apiUrl}/projects/${projectId}/tasks/${configId}/${runId}/status/${status}`
+        );
+    });
+  }
+
+  getTasksOfFailureType(
+    configId: string,
+    runId: string,
+    failureType: TaskFailureType.Type): Observable<Task[]> {
+    return this.project.switchMap(projectId => {
+        return this.http.get<Task[]>(
+            `${environment.apiUrl}/projects/${projectId}/tasks/${configId}/${runId}/failuretype/${failureType}`
         );
     });
   }

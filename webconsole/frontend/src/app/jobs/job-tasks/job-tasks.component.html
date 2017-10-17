@@ -10,7 +10,19 @@
 </div>
 <mat-tab-group>
   <mat-tab label="Failures">
-    <app-tasks-table [status]="TASK_STATUS.FAILED" [jobRunId]="jobRunId" [jobConfigId]="jobConfigId" [showFailureMessage]="true"> </app-tasks-table>
+    <div *ngIf="showNoFailures" class="ingest-no-failures">
+      No failed tasks.
+    </div>
+    <div *ngFor="let failureType of taskFailureTypes">
+      <app-failures-table
+      [failureType]="TaskFailureType.Type[failureType]"
+      [jobRunId]="jobRunId" [jobConfigId]="jobConfigId"
+      [failureTypeName]="FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type[failureType]]"
+      (onLoadFinished)="onFailureTypeLoadFinished($event)"
+      (onNoTasks)="onNoTasksForFailureType($event)">
+    </app-failures-table>
+    </div>
+    <mat-spinner *ngIf="showFailuresLoading"></mat-spinner>
   </mat-tab>
   <mat-tab label="Succeeded">
     <app-tasks-table [status]="TASK_STATUS.SUCCESS" [jobRunId]="jobRunId" [jobConfigId]="jobConfigId"> </app-tasks-table>

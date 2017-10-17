@@ -21,7 +21,7 @@
 
         <ng-container matColumnDef="taskType">
           <mat-header-cell *matHeaderCellDef> Type </mat-header-cell>
-          <mat-cell *matCellDef="let task"> {{ TASK_TYPE[task.TaskType] }} </mat-cell>
+          <mat-cell *matCellDef="let task"> {{ TASK_TYPE_TO_STRING_MAP[task.TaskType] }} </mat-cell>
         </ng-container>
 
         <ng-container matColumnDef="creationTime">

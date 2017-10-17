@@ -13,6 +13,7 @@ import { JobConfigsComponent } from './job-configs/job-configs.component';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog/job-config-add-dialog.component';
 import { JobTasksComponent } from './job-tasks/job-tasks.component';
 import { TasksTableComponent } from './job-tasks/tasks-table/tasks-table.component';
+import { FailuresTableComponent } from './job-tasks/failures-table/failures-table.component';
 
 
 @NgModule({
@@ -30,7 +31,8 @@ import { TasksTableComponent } from './job-tasks/tasks-table/tasks-table.compone
     JobConfigsComponent,
     JobConfigAddDialogComponent,
     JobTasksComponent,
-    TasksTableComponent
+    TasksTableComponent,
+    FailuresTableComponent
   ],
   entryComponents: [JobConfigAddDialogComponent],
   providers: [ JobsService ]

@@ -1,3 +1,4 @@
+import { FAKE_TASKS } from './jobs.test-util';
 import { JobsService } from './jobs.service';
 import { TestBed, async, inject } from '@angular/core/testing';
 import { environment } from '../../environments/environment';
@@ -6,38 +7,13 @@ import { HttpClientTestingModule, HttpTestingController } from '@angular/common/
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
 import { Task, TASK_STATUS } from './jobs.resources';
+import { TaskFailureType } from '../proto/tasks.js';
 import 'rxjs/add/observable/of';
 
 let activatedRouteStub: ActivatedRoute;
 
 const FAKE_JOBCONFIG1 = 'fakeJobConfigId1';
 const FAKE_JOBRUN1 = 'fakeJobRunId1';
-const FAKE_TASKS1: Task[] = [
-  {
-    JobConfigId: 'fakeJobConfigId1',
-    JobRunId: 'fakeJobRunId1',
-    TaskId: 'fakeTaskId1',
-    TaskSpec: '{ fakeField: "fakeTaskSpec1" }',
-    TaskType: 1,
-    Status: TASK_STATUS.SUCCESS,
-    CreationTime: 1,
-    WorkerId: 'fakeWorkerId1',
-    LastModificationTime: 1,
-    FailureMessage: 'Fake failure message 1'
-  },
-  {
-    JobConfigId: 'fakeJobConfigId1',
-    JobRunId: 'fakeJobRunId1',
-    TaskId: 'fakeTaskId3',
-    TaskSpec: '{ fakeField: "fakeTaskSpec2" }',
-    TaskType: 2,
-    Status: TASK_STATUS.SUCCESS,
-    CreationTime: 2,
-    WorkerId: 'fakeWorkerId2',
-    LastModificationTime: 2,
-    FailureMessage: 'Fake failure message 2'
-  }
-];
 
 describe('JobsService', () => {
   beforeEach(() => {
@@ -64,9 +40,9 @@ describe('JobsService', () => {
       (error) => {
         // should not be called
       });
-    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/fakeJobRunId1?status=${TASK_STATUS.SUCCESS}`)
-        .flush(FAKE_TASKS1);
-    expect(actualTasks).toEqual(FAKE_TASKS1);
+    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/fakeJobRunId1/status/${TASK_STATUS.SUCCESS}`)
+        .flush(FAKE_TASKS);
+    expect(actualTasks).toEqual(FAKE_TASKS);
     httpMock.verify();
   }));
 

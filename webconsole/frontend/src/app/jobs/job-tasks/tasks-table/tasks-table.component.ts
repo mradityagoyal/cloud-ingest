@@ -1,11 +1,12 @@
-import { Component, Input, OnInit } from '@angular/core';
-import { DataSource } from '@angular/cdk/collections';
-import { JobsService } from '../../jobs.service';
-import { Task, TASK_TYPE } from '../../jobs.resources';
-import { Observable } from 'rxjs/Observable';
-import { HttpErrorResponse } from '@angular/common/http';
-import { HttpErrorResponseFormatter } from '../../../util/error.resources';
 import 'rxjs/add/observable/of';
+
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, Input, OnInit } from '@angular/core';
+
+import { HttpErrorResponseFormatter } from '../../../util/error.resources';
+import { Task, TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
+import { JobsService } from '../../jobs.service';
+import { SimpleDataSource } from '../job-tasks.resources';
 
 @Component({
   selector: 'app-tasks-table',
@@ -21,7 +22,7 @@ export class TasksTableComponent implements OnInit {
   @Input() public jobConfigId: string;
   @Input() public showFailureMessage: boolean;
 
-  TASK_TYPE = TASK_TYPE;
+  TASK_TYPE_TO_STRING_MAP = TASK_TYPE_TO_STRING_MAP;
 
   tasks: Task[];
   showTasksLoading = true;
@@ -62,23 +63,4 @@ export class TasksTableComponent implements OnInit {
   }
 }
 
-/**
- * A simple data source that will just return the tasks passed into the constructor.
- *
- * TODO(b/67581174): The webconsole should paginate the tasks and this data source should return
- * the next page.
- */
-class SimpleDataSource extends DataSource<Task> {
-  tasks: Task[];
 
-  constructor(tasks: Task[]) {
-    super();
-    this.tasks = tasks;
-  }
-
-  connect(): Observable<Task[]> {
-    return Observable.of(this.tasks);
-  }
-
-  disconnect() {}
-}
