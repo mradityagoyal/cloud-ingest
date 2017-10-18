@@ -99,13 +99,15 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Can not create storage client, error: %v.\n", err)
 		os.Exit(1)
 	}
+	gcsClient := dcp.NewGCSClient(storageClient)
 
 	listingReceiver := dcp.MessageReceiver{
 		Sub:   listProgressSub,
 		Store: store,
 		Handler: &dcp.ListProgressMessageHandler{
 			Store:               store,
-			ListingResultReader: &dcp.GCSListingResultReader{storageClient},
+			ListingResultReader: dcp.NewGCSListingResultReader(gcsClient),
+			ObjectMetadataReader: dcp.NewGCSObjectMetadataReader(gcsClient),
 		},
 	}
 

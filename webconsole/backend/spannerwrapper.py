@@ -222,6 +222,7 @@ class SpannerWrapper(object):
             'src_directory': job_spec_dict['onPremSrcDirectory'],
             'dst_list_result_bucket': job_spec_dict['gcsBucket'],
             'dst_list_result_object': list_result_object_name,
+            'expected_generation_num': 0,
         }
 
         current_time_nanos = self._get_unix_nano()

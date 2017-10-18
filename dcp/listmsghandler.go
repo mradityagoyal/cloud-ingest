@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"cloud.google.com/go/storage"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -28,8 +29,20 @@ const (
 )
 
 type ListProgressMessageHandler struct {
-	Store               Store
-	ListingResultReader ListingResultReader
+	Store                Store
+	ListingResultReader  ListingResultReader
+	ObjectMetadataReader ObjectMetadataReader
+}
+
+func (h *ListProgressMessageHandler) retrieveGenerationNumber(bucketName string, objectName string) (int64, error) {
+	metadata, err := h.ObjectMetadataReader.GetMetadata(bucketName, objectName)
+	if err == nil {
+		return metadata.GenerationNumber, nil
+	} else if err == storage.ErrObjectNotExist {
+		return 0, nil
+	} else {
+		return 0, err
+	}
 }
 
 func (h *ListProgressMessageHandler) HandleMessage(
@@ -76,10 +89,20 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	for filePath := range filePaths {
 		uploadGCSTaskId := GetUploadGCSTaskId(filePath)
 		dstObject, _ := filepath.Rel(listTaskSpec.SrcDirectory, filePath)
+
+		generationNumber, err := h.retrieveGenerationNumber(jobSpec.GCSBucket, dstObject)
+		if err != nil {
+			log.Printf(
+				"Error reading file metadata for %s:%s, err: %v.",
+				jobSpec.GCSBucket, filePath, err)
+			return err
+		}
+
 		uploadGCSTaskSpec := UploadGCSTaskSpec{
-			SrcFile:   filePath,
-			DstBucket: jobSpec.GCSBucket,
-			DstObject: dstObject,
+			SrcFile:               filePath,
+			DstBucket:             jobSpec.GCSBucket,
+			DstObject:             dstObject,
+			ExpectedGenerationNum: generationNumber,
 		}
 		uploadGCSTaskSpecJson, err := json.Marshal(uploadGCSTaskSpec)
 		if err != nil {

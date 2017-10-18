@@ -48,15 +48,17 @@ type JobSpec struct {
 }
 
 type ListTaskSpec struct {
-	DstListResultBucket string `json:"dst_list_result_bucket"`
-	DstListResultObject string `json:"dst_list_result_object"`
-	SrcDirectory        string `json:"src_directory"`
+	DstListResultBucket   string `json:"dst_list_result_bucket"`
+	DstListResultObject   string `json:"dst_list_result_object"`
+	SrcDirectory          string `json:"src_directory"`
+	ExpectedGenerationNum int64  `json:"expected_generation_num"`
 }
 
 type UploadGCSTaskSpec struct {
-	SrcFile   string `json:"src_file"`
-	DstBucket string `json:"dst_bucket"`
-	DstObject string `json:"dst_object"`
+	SrcFile               string `json:"src_file"`
+	DstBucket             string `json:"dst_bucket"`
+	DstObject             string `json:"dst_object"`
+	ExpectedGenerationNum int64  `json:"expected_generation_num"`
 }
 
 type LoadBQTaskSpec struct {

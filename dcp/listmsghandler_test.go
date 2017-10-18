@@ -22,6 +22,7 @@ import (
 	"strconv"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/golang/mock/gomock"
 )
 
@@ -91,7 +92,8 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 			"task_id": "A",
 			"dst_list_result_bucket": "bucket",
 			"dst_list_result_object": "object",
-			"src_directory": "dir"
+			"src_directory": "dir",
+			"expected_generation_num": 0
 		}`,
 		Status: Success,
 	}
@@ -133,7 +135,8 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
-			"src_directory": "dir"
+			"src_directory": "dir",
+			"expected_generation_num": 0
 		}`,
 		Status: Success,
 	}
@@ -183,7 +186,8 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
-			"src_directory": "dir"
+			"src_directory": "dir",
+			"expected_generation_num": 0
 		}`,
 		Status: Success,
 	}
@@ -214,9 +218,74 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 	}
 }
 
+func TestListProgressMessageHandlerMetadataError(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	// Setup ListingResultReader
+	mockListReader := NewMockListingResultReader(mockCtrl)
+	c := make(chan string)
+	go func() {
+		defer close(c)
+		c <- "job_config_id_A:job_run_id_A:task_id_A"
+		c <- "dir/file0"
+	}()
+	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
+
+	// Setup Store
+	listTask := &Task{
+		JobConfigId: jobConfigId,
+		JobRunId:    jobRunId,
+		TaskId:      "task_id_A",
+		TaskType:    listTaskType,
+		TaskSpec: `{
+			"dst_list_result_bucket": "bucket1",
+			"dst_list_result_object": "object",
+			"src_directory": "dir",
+			"expected_generation_num": 0
+		}`,
+		Status: Success,
+	}
+	store := FakeStore{
+		tasks: map[string]*Task{
+			listTask.getTaskFullId(): listTask,
+		},
+	}
+
+	// Setup ObjectMetadataReader - file0 doesn't exist, file1 is at generation 1.
+	expectedError := "Some transient gcs metadata error"
+	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), gomock.Any()).
+		Return(nil, errors.New(expectedError))
+
+	handler := ListProgressMessageHandler{
+		Store:                &store,
+		ListingResultReader:  mockListReader,
+		ObjectMetadataReader: mockObjectMetadataReader,
+	}
+
+	jobSpec := &JobSpec{
+		GCSBucket: "bucket2",
+	}
+
+	taskUpdate := &TaskUpdate{
+		Task: listTask,
+	}
+
+	err := handler.HandleMessage(jobSpec, taskUpdate)
+	if err == nil {
+		t.Errorf("expected error: %v.", expectedError)
+	} else if err.Error() != expectedError {
+		t.Errorf("expected error: %v, found: %v.", expectedError, err)
+	}
+}
+
 func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
+
+	// Setup ListingResultReader
 	mockListReader := NewMockListingResultReader(mockCtrl)
 	c := make(chan string)
 	go func() {
@@ -227,6 +296,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	}()
 	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
 
+	// Setup Store
 	listTask := &Task{
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
@@ -235,7 +305,8 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
-			"src_directory": "dir"
+			"src_directory": "dir",
+			"expected_generation_num": 0
 		}`,
 		Status: Success,
 	}
@@ -244,9 +315,20 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 			listTask.getTaskFullId(): listTask,
 		},
 	}
+
+	// Setup ObjectMetadataReader - file0 doesn't exist, file1 is at generation 1.
+	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), "file0").
+		Return(nil, storage.ErrObjectNotExist)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), "file1").
+		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
+
 	handler := ListProgressMessageHandler{
-		Store:               &store,
-		ListingResultReader: mockListReader,
+		Store:                &store,
+		ListingResultReader:  mockListReader,
+		ObjectMetadataReader: mockObjectMetadataReader,
 	}
 
 	jobSpec := &JobSpec{
@@ -276,8 +358,9 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		expectedNewTaskSpec := fmt.Sprintf(`{
 				"src_file": "dir/file%d",
 				"dst_bucket": "bucket2",
-				"dst_object": "file%d"
-			}`, i, i)
+				"dst_object": "file%d",
+			  "expected_generation_num": %d
+			}`, i, i, i)
 
 		var newTask *Task
 		for _, t := range taskUpdate.NewTasks {

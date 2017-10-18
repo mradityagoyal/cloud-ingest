@@ -17,10 +17,6 @@ package dcp
 
 import (
 	"bufio"
-
-	"golang.org/x/net/context"
-
-	"cloud.google.com/go/storage"
 )
 
 // ListResultReader is the interface that reads the listing task results from a
@@ -33,14 +29,17 @@ type ListingResultReader interface {
 }
 
 type GCSListingResultReader struct {
-	Client *storage.Client
+	gcs GCS
 }
 
-// TODO(b/63014139): Add unit testing for this method.
+func NewGCSListingResultReader(gcs GCS) *GCSListingResultReader {
+	return &GCSListingResultReader{gcs}
+}
+
 func (r *GCSListingResultReader) ReadListResult(bucketName string, objectName string) (chan string, error) {
 	c := make(chan string)
 
-	sr, err := r.Client.Bucket(bucketName).Object(objectName).NewReader(context.Background())
+	sr, err := r.gcs.NewReader(bucketName, objectName)
 	if err != nil {
 		return nil, err
 	}
