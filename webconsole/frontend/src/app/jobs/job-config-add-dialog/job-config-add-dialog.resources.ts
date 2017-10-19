@@ -23,6 +23,7 @@ import { JobConfig } from '../jobs.resources';
           this.fileSystemDirectory == null || this.fileSystemDirectory === '') {
           throw new Error('There are unset required fields.');
       }
+      this.trimWhiteSpaces();
       let jobSpec: string =
                 `{"onPremSrcDirectory": "${this.fileSystemDirectory}",` +
                  `"gcsBucket": "${this.gcsBucket}"`;
@@ -38,5 +39,14 @@ import { JobConfig } from '../jobs.resources';
         JobConfigId: this.jobConfigId,
         JobSpec: jobSpec,
       };
+    }
+
+    private trimWhiteSpaces() {
+      for (const property of ['jobConfigId', 'gcsBucket', 'fileSystemDirectory',
+        'bigqueryDataset', 'bigqueryTable']) {
+          if (this[property] != null) {
+            this[property] = this[property].trim();
+          }
+      }
     }
  }

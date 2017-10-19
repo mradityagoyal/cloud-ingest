@@ -10,12 +10,35 @@
 </div>
 <form (ngSubmit)="onSubmit()" #jobConfigAddDialogForm="ngForm">
   <mat-form-field class="ingest-full-width">
-    <input id="jobConfigId" name="jobConfigId" matInput required [(ngModel)]="model.jobConfigId" #jobConfigId="ngModel" placeholder="Config Id" i18n="Label for Job Config Id input">
+    <input id="jobConfigId"
+           name="jobConfigId"
+           matInput
+           required
+           [(ngModel)]="model.jobConfigId"
+           pattern="[0-9a-zA-Z_-]*"
+           #jobConfigId="ngModel"
+           placeholder="Config Id"
+           i18n="Label for Job Config Id input">
   </mat-form-field>
+  <span *ngIf="jobConfigId.invalid && (jobConfigId.dirty || jobConfigId.touched)" class="ingest-alert">
+    A job configuration id can contain lowercase alphanumeric characters, hyphens, and underscores.
+  </span>
   <h4 i18n="Subtitle in a form for the fields of the source information for the source file system"> Source information: </h4>
   <mat-form-field class="ingest-full-width">
-      <input id="fileSystemDirectory" name="fileSystemDirectory" matInput required [(ngModel)]="model.fileSystemDirectory" #fileSystemDirectory="ngModel" placeholder="Full path at source" i18n="Label for the full path at the filesystem.">
+      <!-- File system directory pattern matches windows and unix file paths. -->
+      <input id="fileSystemDirectory"
+             name="fileSystemDirectory"
+             matInput
+             required
+             [(ngModel)]="model.fileSystemDirectory"
+             pattern="(^[a-zA-Z]:\\[\\\S|*\S]?.*$)|(^(/[^/ ]*)+/?$)"
+             #fileSystemDirectory="ngModel"
+             placeholder="Full path at source"
+             i18n="Label for the full path at the filesystem.">
   </mat-form-field>
+  <span *ngIf="fileSystemDirectory.invalid && (fileSystemDirectory.dirty || fileSystemDirectory.touched)" class="ingest-alert">
+    The source path must be a valid absolute unix or windows path.
+  </span>
   <h4 i18n="Subtitle in a form for the fields of the destination information for Google Cloud Storage"> Destination information for Google Cloud Storage: </h4>
   <mat-form-field class="ingest-full-width">
       <input id="gcsBucket" name="gcsBucket" matInput required [(ngModel)]="model.gcsBucket" #gcsBucket="ngModel" placeholder="Google Cloud Storage bucket" i18n="Label for Google Cloud Storage bucket">

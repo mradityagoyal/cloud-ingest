@@ -107,4 +107,20 @@ describe('JobConfigFormModel', () => {
     expect(fakeJobConfigModel.toApiJobConfig).toThrow();
   });
 
+  it('toApiJobConfig should trim off the whitespace from the fields', () => {
+    fakeJobConfigModel.jobConfigId = '  fakeconfig  ';
+    fakeJobConfigModel.gcsBucket = '    fakebucket  ';
+    fakeJobConfigModel.fileSystemDirectory = ' /fake/file/system  ';
+    fakeJobConfigModel.bigqueryDataset = '   fakedataset   ';
+    fakeJobConfigModel.bigqueryTable = '   faketable  ';
+
+    const result: JobConfig = fakeJobConfigModel.toApiJobConfig();
+    const jobSpec = JSON.parse(result.JobSpec);
+
+    expect(result.JobConfigId).toEqual('fakeconfig');
+    expect(jobSpec.gcsBucket).toBe('fakebucket');
+    expect(jobSpec.onPremSrcDirectory).toBe('/fake/file/system');
+    expect(jobSpec.bigqueryTable).toBe('faketable');
+    expect(jobSpec.bigqueryDataset).toBe('fakedataset');
+  });
 });
