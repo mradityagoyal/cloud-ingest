@@ -46,7 +46,7 @@ export class JobConfigsComponent implements OnInit {
       });
   }
 
-  private getKeys(jsonObject: Object): String[] {
+  getKeys(jsonObject: Object): String[] {
     return Object.keys(jsonObject);
   }
 

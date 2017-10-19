@@ -31,7 +31,7 @@ export class InfrastructureComponent implements OnInit {
   tearDownDisabled = false;
   loadInfrastructureErrorTitle: string;
   loadInfrastructureErrorMessage: string;
-  private projectId: string;
+  projectId: string;
 
   constructor(private readonly infrastructureService: InfrastructureService,
               private readonly snackBar: MatSnackBar,
@@ -140,7 +140,7 @@ export class InfrastructureComponent implements OnInit {
    * TODO(b/65954031): Revise the mechanism of getting the infrastructure status right after
    *     requesting the backend to create the infrastructure.
    */
-  private createInfrastructure() {
+  createInfrastructure() {
     this.showInfrastructureDeployingMessage();
     this.createInfrastructureDisabled = true;
     this.infrastructureService.postCreateInfrastructure().subscribe(
@@ -156,7 +156,7 @@ export class InfrastructureComponent implements OnInit {
     );
   }
 
-  private tearDownInfrastructure() {
+  tearDownInfrastructure() {
     this.showInfrastructureDeletingMessage();
     this.infrastructureService.postTearDownInfrastructure().subscribe(
       (response: {}) => {
