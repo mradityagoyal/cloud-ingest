@@ -104,11 +104,6 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 	// Update an existing task (if applicable).
 	if tu.Task != nil && tu.Task.Status != oldStatus {
 		task := tu.Task
-		if task.Status == oldStatus {
-			return errors.New(fmt.Sprintf(
-				"TaskUpdate task status should not equal its previous status: %v",
-				task.Status))
-		}
 		fullJobId := task.getJobRunFullId()
 		deltaObj, exists := j.deltas[fullJobId]
 		if !exists {
