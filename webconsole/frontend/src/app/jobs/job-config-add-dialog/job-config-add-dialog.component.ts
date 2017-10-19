@@ -1,11 +1,12 @@
-import { Component, Inject } from '@angular/core';
-import { HttpErrorResponse } from '@angular/common/http';
-import { Observable } from 'rxjs/Observable';
+import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import 'rxjs/add/operator/finally';
-import { JobConfig } from '../jobs.resources';
+
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component } from '@angular/core';
+import { MatDialogRef, MatSnackBar } from '@angular/material';
+
 import { JobsService } from '../jobs.service';
 import { JobConfigFormModel } from './job-config-add-dialog.resources';
-import { MatDialogRef } from '@angular/material';
 
 @Component({
   selector: 'app-job-config-add-dialog',
@@ -29,7 +30,8 @@ export class JobConfigAddDialogComponent {
     /** bigqueryTable **/ '');
 
   constructor(private readonly jobsService: JobsService,
-              private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>) { }
+              private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>,
+              private readonly snackBar: MatSnackBar) { }
 
   onSubmit() {
     this.submittingForm = true;
@@ -44,19 +46,10 @@ export class JobConfigAddDialogComponent {
         (response) => {
           this.dialogRef.close(/**configSuccessfullyPosted**/ true);
         },
-        (err: HttpErrorResponse) => {
-          if (err.error instanceof Error) {
-            // Client-side or network error occurred
-            console.log('An error occurred: ', err.error.message);
-            this.appError = true;
-          } else if (err.status === 400) {
-            this.formError = true;
-          } else {
-            // Back-end returned an unsuccessful response code.
-            console.log(`Back-end returned code ${err.status}, ` +
-                         `body was: ${JSON.stringify(err.error)}`);
-            this.appError = true;
-          }
+        (errorResponse: HttpErrorResponse) => {
+          const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+          console.error(errorTitle + '\n' + HttpErrorResponseFormatter.getMessage(errorResponse));
+          this.snackBar.open(`There submitting your job configuration: ${errorTitle}`, 'Dismiss');
         }
       );
   }
