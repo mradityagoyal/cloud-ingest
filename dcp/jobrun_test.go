@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"encoding/json"
 	"testing"
 )
 
@@ -139,7 +140,7 @@ func TestUpdateForTaskUpdateOneInsertSingleJob(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskType:    listTaskType,
 	}
-	tu := &TaskUpdate{nil, "", []*Task{task}}
+	tu := &TaskUpdate{nil, nil, []*Task{task}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -179,7 +180,7 @@ func TestUpdateForTaskUpdateMultipleInsertsSingleJob(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskType:    loadBQTaskType,
 	}
-	tu := &TaskUpdate{nil, "", []*Task{task1, task2, task3}}
+	tu := &TaskUpdate{nil, nil, []*Task{task1, task2, task3}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -233,7 +234,7 @@ func TestUpdateForTaskUpdateMultipleInsertsMultipleJobs(t *testing.T) {
 		JobRunId:    id2.JobRunId,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{nil, "", []*Task{task1, task2, task3, task4, task5}}
+	tu := &TaskUpdate{nil, nil, []*Task{task1, task2, task3, task4, task5}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -285,7 +286,7 @@ func TestUpdateForTaskUpdateQueuedToSuccess(t *testing.T) {
 		Status:      Success,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, "", []*Task{}}
+	tu := &TaskUpdate{task, nil, []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -319,7 +320,7 @@ func TestUpdateForTaskUpdateQueuedToSuccessDeltaObjAlreadyExists(t *testing.T) {
 		Status:      Success,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, "", []*Task{}}
+	tu := &TaskUpdate{task, nil, []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -353,7 +354,7 @@ func TestUpdateForTaskUpdateFailedToSuccess(t *testing.T) {
 		Status:      Success,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, "", []*Task{}}
+	tu := &TaskUpdate{task, nil, []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -387,7 +388,7 @@ func TestUpdateForTaskUpdateUnqueuedToSuccess(t *testing.T) {
 		Status:      Success,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, "", []*Task{}}
+	tu := &TaskUpdate{task, nil, []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -421,7 +422,7 @@ func TestUpdateForTaskUpdateUnqueuedToFailed(t *testing.T) {
 		Status:      Failed,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, "", []*Task{}}
+	tu := &TaskUpdate{task, nil, []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -455,7 +456,7 @@ func TestUpdateForTaskUpdateUnqueuedToQueued(t *testing.T) {
 		Status:      Queued,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, "", []*Task{}}
+	tu := &TaskUpdate{task, nil, []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -492,7 +493,12 @@ func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{updatedListTask, "", []*Task{newCopyTask1, newCopyTask2}}
+	logEntryData := make(map[string]interface{})
+	logEntryData["files_found"] = json.Number("2")
+	logEntryData["bytes_found"] = json.Number("12345678")
+	logEntryData["file_stat_errors"] = json.Number("1")
+	logEntry := NewLogEntry(logEntryData)
+	tu := &TaskUpdate{updatedListTask, logEntry, []*Task{newCopyTask1, newCopyTask2}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -523,6 +529,19 @@ func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
 		t.Errorf("expected delta.counter[KeyTasksQueued + KeySuffixList] to be -1, found %d",
 		delta.counter[KeyTasksQueued + KeySuffixList])
 	}
+	// Expect the listing counters to exist.
+	if delta.counter[KeyListFilesFound] != 2 {
+		t.Errorf("expected delta.counter[KeyListFilesFound] to be 12345, found %d",
+		delta.counter[KeyListFilesFound])
+	}
+	if delta.counter[KeyListBytesFound] != 12345678 {
+		t.Errorf("expected delta.counter[KeyListBytesFound] to be 12345, found %d",
+		delta.counter[KeyListBytesFound])
+	}
+	if delta.counter[KeyListFileStatErrors] != 1 {
+		t.Errorf("expected delta.counter[KeyListFileStatErrors] to be 12345, found %d",
+		delta.counter[KeyListFileStatErrors])
+	}
 	// Expect two new copy tasks.
 	if delta.counter[KeyTotalTasks] != 2 {
 		t.Errorf("expected delta.counter[KeyTotalTasks] to be 2, found %d",
@@ -550,7 +569,10 @@ func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskType:    loadBQTaskType,
 	}
-	tu := &TaskUpdate{updatedCopyTask, "", []*Task{newLoadTask}}
+	logEntryData := make(map[string]interface{})
+	logEntryData["src_bytes"] = json.Number("12345")
+	logEntry := NewLogEntry(logEntryData)
+	tu := &TaskUpdate{updatedCopyTask, logEntry, []*Task{newLoadTask}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -580,6 +602,11 @@ func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
 	if delta.counter[KeyTasksFailed + KeySuffixCopy] != -1 {
 		t.Errorf("expected delta.counter[KeyTasksFailed + KeySuffixCopy] to be -1, found %d",
 		delta.counter[KeyTasksFailed + KeySuffixCopy])
+	}
+	// Expect the bytes copied counter to exist.
+	if delta.counter[KeyBytesCopied] != 12345 {
+		t.Errorf("expected delta.counter[KeyBytesCopied] to be 12345, found %d",
+		delta.counter[KeyBytesCopied])
 	}
 	// Expect two new copy tasks.
 	if delta.counter[KeyTotalTasks] != 1 {

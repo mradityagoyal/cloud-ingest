@@ -265,7 +265,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 	}
 
 	var counters JobCountersCollection
-	err := counters.updateForTaskUpdate(&TaskUpdate{nil, "", tasks}, 0)
+	err := counters.updateForTaskUpdate(&TaskUpdate{nil, nil, tasks}, 0)
 	if err != nil {
 		return err
 	}
@@ -378,10 +378,11 @@ func readTasksFromSpanner(ctx context.Context,
 // the mutation to update the updateTask and the mutations to insert the
 // insert tasks.
 func getTaskUpdateAndInsertMutations(ctx context.Context,
-	txn *spanner.ReadWriteTransaction, updateTask *Task,
-	insertTasks []*Task, logEntry string, oldStatus int64) []*spanner.Mutation {
+	txn *spanner.ReadWriteTransaction, updateTask *TaskUpdate,
+	oldStatus int64) []*spanner.Mutation {
 
 	timestamp := time.Now().UnixNano()
+	insertTasks := updateTask.NewTasks
 	mutations := make([]*spanner.Mutation, len(insertTasks))
 
 	// Insert the tasks associated with the update task.
@@ -400,18 +401,19 @@ func getTaskUpdateAndInsertMutations(ctx context.Context,
 	}
 
 	// Update the task.
+	task := updateTask.Task
 	mutations = append(mutations, spanner.Update("Tasks", getTaskUpdateColumns(),
 		[]interface{}{
-			updateTask.JobConfigId,
-			updateTask.JobRunId,
-			updateTask.TaskId,
-			updateTask.Status,
-			updateTask.FailureMessage,
+			task.JobConfigId,
+			task.JobRunId,
+			task.TaskId,
+			task.Status,
+			task.FailureMessage,
 			timestamp,
 		}))
 
 	// Create the log entry for the updated task.
-	insertLogEntryMutation(&mutations, updateTask, oldStatus, logEntry, timestamp)
+	insertLogEntryMutation(&mutations, task, oldStatus, updateTask.LogEntry, timestamp)
 	return mutations
 }
 
@@ -467,8 +469,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 					return err
 				}
 
-				mutations := getTaskUpdateAndInsertMutations(ctx, txn, taskUpdate.Task,
-					taskUpdate.NewTasks, taskUpdate.LogEntry, oldStatus)
+				mutations := getTaskUpdateAndInsertMutations(ctx, txn, taskUpdate, oldStatus)
 				return txn.BufferWrite(mutations)
 			})
 			if err != nil {
@@ -495,7 +496,7 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 	for _, task := range tasks {
 		taskUpdates.AddTaskUpdate(&TaskUpdate{
 			Task:     task,
-			LogEntry: "",
+			LogEntry: nil,
 			NewTasks: []*Task{},
 		})
 	}

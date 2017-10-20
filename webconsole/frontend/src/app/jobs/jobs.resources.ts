@@ -32,6 +32,10 @@ export interface Counters {
   totalTasksLoad: number;
   tasksCompletedLoad: number;
   tasksFailedLoad: number;
+
+  listFilesFound: number;
+  listBytesFound: number;
+  bytesCopied: number;
 }
 
 export interface Task {

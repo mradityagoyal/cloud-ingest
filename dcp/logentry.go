@@ -15,11 +15,34 @@ limitations under the License.
 package dcp
 
 import (
+	"encoding/json"
 	"fmt"
 	"hash/fnv"
 
 	"cloud.google.com/go/spanner"
 )
+
+type LogEntry struct {
+	data map[string]interface{}
+}
+
+func NewLogEntry(data map[string]interface{}) *LogEntry {
+	logEntry := new(LogEntry)
+	logEntry.data = data
+	return logEntry
+}
+
+func (le LogEntry) val(key string) int64 {
+	value, err := le.data[key].(json.Number).Int64()
+	if err != nil {
+		return int64(0)
+	}
+	return value
+}
+
+func (le LogEntry) String() string {
+	return fmt.Sprint(le.data)
+}
 
 // Returns an array of LogEntries table columns.
 func getLogEntryInsertColumns() []string {
@@ -37,9 +60,10 @@ func getLogEntryInsertColumns() []string {
 }
 
 // Adds a mutation to 'mutations' which inserts a LogEntry for the given task.
-func insertLogEntryMutation(mutations *[]*spanner.Mutation, task *Task, previousStatus int64, logEntry string, timestamp int64) {
+func insertLogEntryMutation(mutations *[]*spanner.Mutation, task *Task, previousStatus int64, logEntry *LogEntry, timestamp int64) {
+	logEntryString := fmt.Sprint(logEntry)
 	h := fnv.New64a()
-	h.Write([]byte(logEntry))
+	h.Write([]byte(logEntryString))
 	h.Write([]byte(fmt.Sprintln(timestamp)))
 	logEntryId := int64(h.Sum64())
 
@@ -53,6 +77,6 @@ func insertLogEntryMutation(mutations *[]*spanner.Mutation, task *Task, previous
 			task.Status,
 			previousStatus,
 			task.FailureMessage,
-			logEntry,
+			logEntryString,
 		}))
 }

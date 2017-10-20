@@ -17,8 +17,8 @@ class JobsServiceStub {
 
 const FAKE_JOB_RUNS: JobRun[] = [
   {
-    JobConfigId: 'fakeJobConfigId1',
-    JobRunId: 'fakeJobRunId1',
+    JobConfigId: 'fakeJobConfigId0',
+    JobRunId: 'fakeJobRunId0',
     JobCreationTime: '1504833274371000000',
     Status: 0,
     Counters: {
@@ -36,12 +36,16 @@ const FAKE_JOB_RUNS: JobRun[] = [
 
       totalTasksLoad: 0,
       tasksCompletedLoad: 0,
-      tasksFailedLoad: 0
+      tasksFailedLoad: 0,
+
+      listFilesFound: 0,
+      listBytesFound: 0,
+      bytesCopied: 0
     }
   },
   {
-    JobConfigId: 'fakeJobConfigId2',
-    JobRunId: 'fakeJobRunId2',
+    JobConfigId: 'fakeJobConfigId1',
+    JobRunId: 'fakeJobRunId1',
     JobCreationTime: '1504833274371000000',
     Status: 1,
     Counters: {
@@ -59,12 +63,16 @@ const FAKE_JOB_RUNS: JobRun[] = [
 
       totalTasksLoad: 0,
       tasksCompletedLoad: 0,
-      tasksFailedLoad: 0
+      tasksFailedLoad: 0,
+
+      listFilesFound: 0,
+      listBytesFound: 0,
+      bytesCopied: 0
     }
   },
   {
-    JobConfigId: 'fakeJobConfigId3',
-    JobRunId: 'fakeJobRunId3',
+    JobConfigId: 'fakeJobConfigId2',
+    JobRunId: 'fakeJobRunId2',
     JobCreationTime: '1504833274371000000',
     Status: 2,
     Counters: {
@@ -82,12 +90,16 @@ const FAKE_JOB_RUNS: JobRun[] = [
 
       totalTasksLoad: 0,
       tasksCompletedLoad: 0,
-      tasksFailedLoad: 0
+      tasksFailedLoad: 0,
+
+      listFilesFound: 4,
+      listBytesFound: 11223344,
+      bytesCopied: 11220000
     }
   },
   {
-    JobConfigId: 'fakeJobConfigId4',
-    JobRunId: 'fakeJobRunId4',
+    JobConfigId: 'fakeJobConfigId3',
+    JobRunId: 'fakeJobRunId3',
     JobCreationTime: '1504833274371000000',
     Status: 3,
     Counters: {
@@ -105,7 +117,11 @@ const FAKE_JOB_RUNS: JobRun[] = [
 
       totalTasksLoad: 4,
       tasksCompletedLoad: 4,
-      tasksFailedLoad: 0
+      tasksFailedLoad: 0,
+
+      listFilesFound: 4,
+      listBytesFound: 11223344,
+      bytesCopied: 11223344
     }
   }
 ];
@@ -365,13 +381,17 @@ describe('JobRunDetailsComponent', () => {
       const infoList = tabContents[1].querySelector('dl');
       expect(infoList).not.toBeNull();
       const children = infoList.children;
-      expect(children.length).toEqual(6);
+      expect(children.length).toEqual(10);
       expect(children[0].innerText).toEqual('List Tasks');
       expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasksList));
       expect(children[2].innerText).toEqual('List Tasks Completed');
       expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompletedList));
       expect(children[4].innerText).toEqual('List Tasks Failed');
       expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailedList));
+      expect(children[6].innerText).toEqual('Files Found');
+      expect(children[7].innerText).toEqual(String(jobRun.Counters.listFilesFound));
+      expect(children[8].innerText).toEqual('Bytes Found');
+      expect(children[9].innerText).toEqual(String(jobRun.Counters.listBytesFound));
     });
   }));
 
@@ -396,13 +416,15 @@ describe('JobRunDetailsComponent', () => {
       const infoList = tabContents[2].querySelector('dl');
       expect(infoList).not.toBeNull();
       const children = infoList.children;
-      expect(children.length).toEqual(6);
+      expect(children.length).toEqual(8);
       expect(children[0].innerText).toEqual('Total Files');
       expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasksCopy));
       expect(children[2].innerText).toEqual('Files Completed');
       expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompletedCopy));
       expect(children[4].innerText).toEqual('Files Failed');
       expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailedCopy));
+      expect(children[6].innerText).toEqual('Bytes Copied');
+      expect(children[7].innerText).toEqual(String(jobRun.Counters.bytesCopied));
     });
   }));
 

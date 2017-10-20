@@ -26,15 +26,21 @@ const (
 	JobFailed     int64 = 2
 	JobSuccess    int64 = 3
 
-	// Keys for the job run counters.
+	// Keys for the task status counters.
 	KeyTotalTasks     string = "totalTasks"
 	KeyTasksCompleted string = "tasksCompleted"
 	KeyTasksFailed    string = "tasksFailed"
 	KeyTasksQueued    string = "tasksQueued"
 
-	KeySuffixList    string = "List"
+	KeySuffixList string = "List"
 	KeySuffixCopy string = "Copy"
-	KeySuffixLoad  string = "Load"
+	KeySuffixLoad string = "Load"
+
+	// Keys for the log entry counters.
+	KeyListFilesFound     string = "listFilesFound"
+	KeyListBytesFound     string = "listBytesFound"
+	KeyListFileStatErrors string = "listFileStatErrors"
+	KeyBytesCopied        string = "bytesCopied"
 )
 
 // The counter field is encoded directly into the JSON, not the entire struct.
@@ -127,6 +133,19 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 		if task.Status == Success {
 			deltaObj.counter[KeyTasksCompleted] += 1
 			deltaObj.counter[KeyTasksCompleted+suffix] += 1
+			if tu.LogEntry == nil {
+				return errors.New(fmt.Sprintf(
+					"Missing LogEntry for TaskUpdate: %v", tu))
+			}
+			le := tu.LogEntry
+			switch task.TaskType {
+			case listTaskType:
+				deltaObj.counter[KeyListFilesFound] += le.val("files_found")
+				deltaObj.counter[KeyListBytesFound] += le.val("bytes_found")
+				deltaObj.counter[KeyListFileStatErrors] += le.val("file_stat_errors")
+			case uploadGCSTaskType:
+				deltaObj.counter[KeyBytesCopied] += le.val("src_bytes")
+			}
 		} else if task.Status == Failed {
 			deltaObj.counter[KeyTasksFailed] += 1
 			deltaObj.counter[KeyTasksFailed+suffix] += 1

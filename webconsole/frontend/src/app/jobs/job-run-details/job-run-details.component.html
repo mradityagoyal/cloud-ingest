@@ -49,6 +49,10 @@
             <dd>{{ jobRun.Counters.tasksCompletedList }}</dd>
             <dt>List Tasks Failed</dt>
             <dd>{{ jobRun.Counters.tasksFailedList }}</dd>
+            <dt>Files Found</dt>
+            <dd>{{ jobRun.Counters.listFilesFound }}</dd>
+            <dt>Bytes Found</dt>
+            <dd>{{ jobRun.Counters.listBytesFound }}</dd>
           </dl>
         </mat-tab>
       </ng-container>
@@ -62,6 +66,8 @@
             <dd>{{ jobRun.Counters.tasksCompletedCopy }}</dd>
             <dt>Files Failed</dt>
             <dd>{{ jobRun.Counters.tasksFailedCopy }}</dd>
+            <dt>Bytes Copied</dt>
+            <dd>{{ jobRun.Counters.bytesCopied }}</dd>
           </dl>
         </mat-tab>
       </ng-container>
