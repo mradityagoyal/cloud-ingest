@@ -47,7 +47,7 @@ func (h *ListProgressMessageHandler) retrieveGenerationNumber(bucketName string,
 
 func (h *ListProgressMessageHandler) HandleMessage(
 	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
-	taskUpdate.Task.TaskType = listTaskType  // Set the type first.
+	taskUpdate.Task.TaskType = listTaskType // Set the type first.
 	if taskUpdate.Task.Status != Success {
 		return nil
 	}

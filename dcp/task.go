@@ -237,14 +237,16 @@ func canChangeTaskStatus(fromStatus int64, toStatus int64) bool {
 // constructPubSubTaskMsg constructs the Pub/Sub message for the passed task to
 // send to the worker agents.
 func constructPubSubTaskMsg(task *Task) ([]byte, error) {
-	taskMsg := make(map[string]interface{})
-	if err := json.Unmarshal([]byte(task.TaskSpec), &taskMsg); err != nil {
+	taskParams := make(map[string]interface{})
+	if err := json.Unmarshal([]byte(task.TaskSpec), &taskParams); err != nil {
 		return nil, errors.New(fmt.Sprintf(
 			"error decoding JSON task spec string %s for task %v.",
 			task.TaskSpec, task))
 	}
 
+	taskMsg := make(map[string]interface{})
 	taskMsg["task_id"] = task.getTaskFullId()
+	taskMsg["task_params"] = taskParams
 	return json.Marshal(taskMsg)
 }
 

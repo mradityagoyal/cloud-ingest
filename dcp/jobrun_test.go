@@ -515,41 +515,41 @@ func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
 	// Expect one completed list task.
 	if delta.counter[KeyTasksCompleted] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted] to be 1, found %d",
-		delta.counter[KeyTasksCompleted])
+			delta.counter[KeyTasksCompleted])
 	}
-	if delta.counter[KeyTasksCompleted + KeySuffixList] != 1 {
+	if delta.counter[KeyTasksCompleted+KeySuffixList] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted + KeySuffixList] to be 1, found %d",
-		delta.counter[KeyTasksCompleted + KeySuffixList])
+			delta.counter[KeyTasksCompleted+KeySuffixList])
 	}
 	if delta.counter[KeyTasksQueued] != -1 {
 		t.Errorf("expected delta.counter[KeyTasksQueued] to be -1, found %d",
-		delta.counter[KeyTasksQueued])
+			delta.counter[KeyTasksQueued])
 	}
-	if delta.counter[KeyTasksQueued + KeySuffixList] != -1 {
+	if delta.counter[KeyTasksQueued+KeySuffixList] != -1 {
 		t.Errorf("expected delta.counter[KeyTasksQueued + KeySuffixList] to be -1, found %d",
-		delta.counter[KeyTasksQueued + KeySuffixList])
+			delta.counter[KeyTasksQueued+KeySuffixList])
 	}
 	// Expect the listing counters to exist.
 	if delta.counter[KeyListFilesFound] != 2 {
 		t.Errorf("expected delta.counter[KeyListFilesFound] to be 12345, found %d",
-		delta.counter[KeyListFilesFound])
+			delta.counter[KeyListFilesFound])
 	}
 	if delta.counter[KeyListBytesFound] != 12345678 {
 		t.Errorf("expected delta.counter[KeyListBytesFound] to be 12345, found %d",
-		delta.counter[KeyListBytesFound])
+			delta.counter[KeyListBytesFound])
 	}
 	if delta.counter[KeyListFileStatErrors] != 1 {
 		t.Errorf("expected delta.counter[KeyListFileStatErrors] to be 12345, found %d",
-		delta.counter[KeyListFileStatErrors])
+			delta.counter[KeyListFileStatErrors])
 	}
 	// Expect two new copy tasks.
 	if delta.counter[KeyTotalTasks] != 2 {
 		t.Errorf("expected delta.counter[KeyTotalTasks] to be 2, found %d",
-		delta.counter[KeyTotalTasks])
+			delta.counter[KeyTotalTasks])
 	}
-	if delta.counter[KeyTotalTasks + KeySuffixCopy] != 2 {
+	if delta.counter[KeyTotalTasks+KeySuffixCopy] != 2 {
 		t.Errorf("expected delta.counter[KeyTotalTasks + KeySuffixCopy] to be 2, found %d",
-		delta.counter[KeyTotalTasks + KeySuffixCopy])
+			delta.counter[KeyTotalTasks+KeySuffixCopy])
 	}
 }
 
@@ -589,32 +589,32 @@ func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
 	// Expect one completed copy task.
 	if delta.counter[KeyTasksCompleted] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted] to be 1, found %d",
-		delta.counter[KeyTasksCompleted])
+			delta.counter[KeyTasksCompleted])
 	}
-	if delta.counter[KeyTasksCompleted + KeySuffixCopy] != 1 {
+	if delta.counter[KeyTasksCompleted+KeySuffixCopy] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted + KeySuffixCopy] to be 1, found %d",
-		delta.counter[KeyTasksCompleted + KeySuffixCopy])
+			delta.counter[KeyTasksCompleted+KeySuffixCopy])
 	}
 	if delta.counter[KeyTasksFailed] != -1 {
 		t.Errorf("expected delta.counter[KeyTasksFailed] to be -1, found %d",
-		delta.counter[KeyTasksFailed])
+			delta.counter[KeyTasksFailed])
 	}
-	if delta.counter[KeyTasksFailed + KeySuffixCopy] != -1 {
+	if delta.counter[KeyTasksFailed+KeySuffixCopy] != -1 {
 		t.Errorf("expected delta.counter[KeyTasksFailed + KeySuffixCopy] to be -1, found %d",
-		delta.counter[KeyTasksFailed + KeySuffixCopy])
+			delta.counter[KeyTasksFailed+KeySuffixCopy])
 	}
 	// Expect the bytes copied counter to exist.
 	if delta.counter[KeyBytesCopied] != 12345 {
 		t.Errorf("expected delta.counter[KeyBytesCopied] to be 12345, found %d",
-		delta.counter[KeyBytesCopied])
+			delta.counter[KeyBytesCopied])
 	}
 	// Expect two new copy tasks.
 	if delta.counter[KeyTotalTasks] != 1 {
 		t.Errorf("expected delta.counter[KeyTotalTasks] to be 1, found %d",
-		delta.counter[KeyTotalTasks])
+			delta.counter[KeyTotalTasks])
 	}
-	if delta.counter[KeyTotalTasks + KeySuffixLoad] != 1 {
+	if delta.counter[KeyTotalTasks+KeySuffixLoad] != 1 {
 		t.Errorf("expected delta.counter[KeyTotalTasks + KeySuffixLoad] to be 1, found %d",
-		delta.counter[KeyTotalTasks + KeySuffixLoad])
+			delta.counter[KeyTotalTasks+KeySuffixLoad])
 	}
 }

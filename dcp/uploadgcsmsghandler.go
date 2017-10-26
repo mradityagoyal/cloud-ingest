@@ -26,7 +26,7 @@ type UploadGCSProgressMessageHandler struct {
 
 func (h *UploadGCSProgressMessageHandler) HandleMessage(
 	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
-	taskUpdate.Task.TaskType = uploadGCSTaskType  // Set the type first.
+	taskUpdate.Task.TaskType = uploadGCSTaskType // Set the type first.
 	// Empty BQDataset and BQTable means that there is no load to BQ in this job spec.
 	// TODO(b/66965866): Have a centralized place where we can have a proper handling of
 	// task state transitions.

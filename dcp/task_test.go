@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"testing"
@@ -255,5 +256,56 @@ func TestTaskCompletionMessageJsonToTaskUpdateIncorrectStatus(t *testing.T) {
 	if _, err := TaskCompletionMessageJsonToTaskUpdate(msg); err == nil {
 		t.Errorf(
 			"incorrect status in the message: %s, expected error.", string(msg))
+	}
+}
+
+func TestConstructPubSubTaskMsgSuccess(t *testing.T) {
+	task := &Task{
+		JobConfigId: "job_config",
+		JobRunId:    "job_run",
+		TaskId:      "task_id",
+		TaskSpec:    "{\"foo\": \"bar\", \"nest1\": {\"nest2\": \"nested_val\"}}",
+	}
+
+	want := map[string]interface{}{
+		"task_id": "job_config:job_run:task_id",
+		"task_params": map[string]interface{}{
+			"foo": "bar",
+			"nest1": map[string]interface{}{
+				"nest2": "nested_val",
+			},
+		},
+	}
+
+	// Construct the message
+	msg, err := constructPubSubTaskMsg(task)
+	if err != nil {
+		t.Errorf("Wanted no error, but got %v", err)
+	}
+
+	// Unmarshall it into an arbitrary map and compare
+	result := make(map[string]interface{})
+	err = json.Unmarshal(msg, &result)
+	if err != nil {
+		t.Errorf("Wanted no error while unmarshalling expected result, but got %v", err)
+	}
+
+	if !reflect.DeepEqual(want, result) {
+		t.Errorf("Wanted %v but got %v", want, result)
+	}
+}
+
+func TestConstructPubSubTaskMsgFailure(t *testing.T) {
+	task := &Task{
+		JobConfigId: "job_config",
+		JobRunId:    "job_run",
+		TaskId:      "task_id",
+		TaskSpec:    "{\"foo\": \"barBROOOOOOKEN!",
+	}
+
+	// Construct the message
+	_, err := constructPubSubTaskMsg(task)
+	if err == nil {
+		t.Error("Expecting error, got no error.")
 	}
 }
