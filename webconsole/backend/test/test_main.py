@@ -113,5 +113,35 @@ class TestMain(unittest.TestCase):
             tasks_pb2.TaskStatus.QUEUED)
         self.assertEqual(response_json, FAKE_TASK)
 
+    @patch.object(main, '_get_credentials')
+    @patch.object(main, 'logging')
+    def test_error_logs(self, _logging_mock, _get_credentials_mock):
+        """Tests that the common errors are logged."""
+        def raise_exception_with_message(exception_class, message):
+            """Raises the input exception class with input message."""
+            raise exception_class(message)
+        exception_list = [RuntimeError, BadRequest, Conflict, NotFound,
+            Forbidden, PreconditionFailed, Unauthorized]
+        for i in range(0, len(exception_list)):
+            def side_effect_function():
+                """Side effect function for the mock used below."""
+                raise_exception_with_message(exception_list[i], 'fake message')
+            _get_credentials_mock.side_effect = side_effect_function
+            self.app.post(('/projects/fakeprojectid/jobconfigs'
+                           '?fakeparam=fakevalue'),
+                           data=json.dumps(dict(
+                           fake_field1='fake_content1',
+                           fake_field2='fake_content2')),
+                           content_type='application/json')
+            last_call = _logging_mock.error.call_args_list[-1][0]
+            logged_string = last_call[0] % last_call[1:]
+            self.assertTrue('fake message' in logged_string)
+            self.assertTrue('/projects/fakeprojectid/jobconfigs'
+                in logged_string)
+            self.assertTrue('"fakeparam": "fakevalue"' in logged_string)
+            self.assertTrue('"fake_field1": "fake_content1"' in logged_string)
+            self.assertTrue(exception_list[i].__name__ in logged_string)
+            self.assertTrue('Traceback')
+
 if __name__ == '__main__':
     unittest.main()

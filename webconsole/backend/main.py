@@ -22,6 +22,7 @@ import argparse
 import httplib
 import logging
 import re
+import json
 from corsdecorator import crossdomain  # To allow requests from the front-end
 from flask import Flask
 from flask import jsonify
@@ -366,12 +367,19 @@ def server_error(error):
 
     This function will be passed any uncaught exceptions in addition to
     explicit 500 errors. This handler is not used in debug mode."""
-    logging.error('A request could not be completed due to an error: %s',
-                  str(error))
+    traceback_string = traceback.format_exc()
+    logging.error(('A request could not be completed due to an error: %s.\n'
+                   'Request path: %s\n'
+                   'Request args: %s\n'
+                   'Request json: %s\n'
+                   '%s'),
+                   str(error), str(request.path),
+                   json.dumps(request.args),
+                   json.dumps(request.json), traceback_string)
     response = {
         'error': 'Internal Server Error',
         'message': str(error),
-        'traceback': traceback.format_exc()
+        'traceback': traceback_string
     }
     return jsonify(response), httplib.INTERNAL_SERVER_ERROR
 
@@ -385,12 +393,19 @@ def server_error(error):
              methods=['GET', 'OPTIONS', 'POST'])
 def google_exception_handler(error):
     """Handles any google exception errors."""
-    logging.info('A request resulted in a error code %d with message: %s',
-                 error.code, str(error))
+    traceback_string = traceback.format_exc()
+    logging.error(('A request resulted in a error code %d with message: %s.\n'
+                   'Request path: %s\n'
+                   'Request args: %s\n'
+                   'Request json: %s\n'
+                   ' %s'),
+                   error.code, str(error), str(request.path),
+                   json.dumps(request.args), json.dumps(request.json),
+                   traceback_string)
     response = {
         'error': httplib.responses[error.code],
         'message': str(error),
-        'traceback': traceback.format_exc()
+        'traceback': traceback_string
     }
     return jsonify(response), error.code
 
