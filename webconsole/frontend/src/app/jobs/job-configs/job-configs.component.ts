@@ -1,5 +1,5 @@
 import { Component, OnInit } from '@angular/core';
-import { JobConfig } from '../jobs.resources';
+import { JobConfigRequest } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 import { MatDialog } from '@angular/material';
 import { HttpErrorResponse } from '@angular/common/http';
@@ -13,7 +13,7 @@ import { HttpErrorResponseFormatter } from '../../util/error.resources';
 })
 
 export class JobConfigsComponent implements OnInit {
-  jobConfigs: JobConfig[];
+  jobConfigs: JobConfigRequest[];
   showLoadingSpinner = false;
   errorMessage: string;
   errorTitle: string;

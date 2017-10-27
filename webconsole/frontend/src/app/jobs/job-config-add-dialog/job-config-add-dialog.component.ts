@@ -1,12 +1,12 @@
-import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import 'rxjs/add/operator/finally';
 
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component } from '@angular/core';
 import { MatDialogRef, MatSnackBar } from '@angular/material';
 
+import { HttpErrorResponseFormatter } from '../../util/error.resources';
+import { JobConfigRequest } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
-import { JobConfigFormModel } from './job-config-add-dialog.resources';
 
 @Component({
   selector: 'app-job-config-add-dialog',
@@ -20,14 +20,12 @@ import { JobConfigFormModel } from './job-config-add-dialog.resources';
 export class JobConfigAddDialogComponent {
   submittingForm = false;
   bigQueryTransferChecked = false;
-  formError = false; // The user submitted bad data
-  appError = false; // The application is broken (bug, back-end error, etc.)
-  model = new JobConfigFormModel(
-    /** jobConfigId **/ '',
-    /** gcsBucket **/ '',
-    /** fileSystemDirectory **/ '',
-    /** bigqueryDataset **/ '',
-    /** bigqueryTable **/ '');
+  model = new JobConfigRequest(
+        /** jobConfigId **/ '',
+        /** gcsBucket **/ '',
+        /** fileSystemDirectory **/ '',
+        /** bigQueryDataset **/'',
+        /** bigqueryTable **/ '');
 
   constructor(private readonly jobsService: JobsService,
               private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>,
@@ -36,11 +34,7 @@ export class JobConfigAddDialogComponent {
   onSubmit() {
     this.submittingForm = true;
 
-    // Reset previously set error flags
-    this.formError = false;
-    this.appError = false;
-
-    this.jobsService.postJobConfig(this.model.toApiJobConfig()).finally(() => {
+    this.jobsService.postJobConfig(this.model).finally(() => {
         this.submittingForm = false;
       }).subscribe(
         (response) => {

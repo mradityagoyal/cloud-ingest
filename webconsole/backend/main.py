@@ -74,6 +74,44 @@ def _get_credentials():
     credentials = Credentials(access_token)
     return credentials
 
+def _get_post_job_configs_job_spec(content):
+    """Makes a jobspec json out of the input request content."""
+    if 'bigqueryTable' in content and 'bigqueryDataset' in content:
+        return json.dumps({
+            'onPremSrcDirectory' : content['fileSystemDirectory'].strip(),
+            'gcsBucket' : content['gcsBucket'].strip(),
+            'bigqueryTable' : content['bigqueryTable'].strip(),
+            'bigqueryDataset' : content['bigqueryDataset'].strip()})
+    else:
+        return json.dumps({
+            'onPremSrcDirectory' : content['fileSystemDirectory'].strip(),
+            'gcsBucket' : content['gcsBucket'].strip()})
+
+
+def _get_post_job_configs_error(content):
+    """Checks that the input content has the required fields.
+
+       Returns:
+           An error response dictionary if there is an error with the input
+           content; or None if there is no error.
+    """
+    fields = ('jobConfigId', 'gcsBucket', 'fileSystemDirectory')
+    response = None
+    for field in fields:
+        if field not in content:
+            response = {
+                'error' : 'Missing required field',
+                'message' : ('Missing at least one of the required fields: '
+                             ','.join(fields))
+            }
+    if (('bigqueryTable' in content or 'bigqueryDataset' in content) and
+        (not ('bigqueryTable' in content and 'bigqueryDataset' in content))):
+        response = {
+            'error' : 'Full Bigquery info must be specified',
+            'message' : ('If bigqueryTable or bigqueryDataset are specified '
+                         'both must be specified.')
+        }
+    return response
 
 @APP.route('/projects/<project_id>/jobconfigs',
            methods=['GET', 'OPTIONS', 'POST'])
@@ -89,29 +127,23 @@ def job_configs(project_id):
         return response
     elif request.method == 'POST':
         content = request.json
-        if 'JobConfigId' not in content or 'JobSpec' not in content:
-            response = {
-                'error':
-                'missing required property',
-                'message': ('Missing at least one of the required properties: '
-                            '[\'JobConfigId\', \'JobSpec\']')
-            }
-            return jsonify(response), httplib.BAD_REQUEST
-
-        spanner_wrapper.create_job_config(content['JobConfigId'],
-                                          content['JobSpec'])
+        error = _get_post_job_configs_error(content)
+        if error:
+            return jsonify(error), httplib.BAD_REQUEST
+        job_spec = _get_post_job_configs_job_spec(content)
+        spanner_wrapper.create_job_config(content['jobConfigId'], job_spec)
 
         # TODO(b/65943019): The web console should not schedule the job runs and
         # should not create the first task. Remove that after the functionality
         # is added to the DCP.
         spanner_wrapper.create_job_run(
-            content['JobConfigId'], _FIRST_JOB_RUN_ID, initial_total_tasks=1)
+            content['jobConfigId'], _FIRST_JOB_RUN_ID, initial_total_tasks=1)
         spanner_wrapper.create_job_run_first_list_task(
-            content['JobConfigId'], _FIRST_JOB_RUN_ID, _LIST_TASK_ID,
-            content['JobSpec'])
+            content['jobConfigId'], _FIRST_JOB_RUN_ID, _LIST_TASK_ID,
+            job_spec)
 
         created_config = spanner_wrapper.get_job_config(
-            content['JobConfigId'])
+            content['jobConfigId'])
         return jsonify(created_config), httplib.CREATED
 
 @APP.route('/projects/<project_id>/jobruns', methods=['GET', 'OPTIONS', 'POST'])

@@ -1,6 +1,16 @@
 import { TaskFailureType } from '../proto/tasks.js';
 
-export interface JobConfig {
+export class JobConfigRequest {
+  constructor(
+    jobConfigId: string,
+    gcsBucket: string,
+    fileSystemDirectory: string,
+    bigqueryDataset: string,
+    bigqueryTable: string
+  ) { }
+}
+
+export interface JobConfigResponse {
   JobConfigId: string;
   JobSpec: string;
 }

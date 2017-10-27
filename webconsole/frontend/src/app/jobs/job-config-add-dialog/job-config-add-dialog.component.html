@@ -1,13 +1,5 @@
 <h3 i18n="Title for job config creation dialog">Create a new job configuration</h3>
-<div [hidden]="!formError"
-     i18n="Error message for invalid values in job config creation">
-  There was an error due to invalid values. Try again and make sure the
-  config id is unique.
-</div>
 
-<div [hidden]="!appError" i18n="Error message for unexpected application errors">
-  There was an error in the application. Please try again later and <a href="https://github.com/GoogleCloudPlatform/cloud-ingest/issues" target="_blank"> contact site owners </a> if the problem persists.
-</div>
 <form (ngSubmit)="onSubmit()" #jobConfigAddDialogForm="ngForm">
   <mat-form-field class="ingest-full-width">
     <input id="jobConfigId"
@@ -44,7 +36,6 @@
       <input id="gcsBucket" name="gcsBucket" matInput required [(ngModel)]="model.gcsBucket" #gcsBucket="ngModel" placeholder="Google Cloud Storage bucket" i18n="Label for Google Cloud Storage bucket">
   </mat-form-field>
   <h4 i18n=""> Destination information for BigQuery: </h4>
-
   <mat-checkbox class="ingest-full-width" id="bigQueryTransferChecked" name="bigQueryTransferChecked" i18n="Label for checkbox to select the transfer rows to BigQuery option" [(ngModel)]="bigQueryTransferChecked">Transfer rows into BigQuery</mat-checkbox>
   <ng-container *ngIf="bigQueryTransferChecked">
     <mat-form-field class="ingest-full-width">

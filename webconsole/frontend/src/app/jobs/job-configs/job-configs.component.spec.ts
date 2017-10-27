@@ -1,6 +1,6 @@
 import { TestBed, async } from '@angular/core/testing';
 import { JobsService } from '../jobs.service';
-import { JobConfig } from '../jobs.resources';
+import { JobConfigRequest } from '../jobs.resources';
 import { JobConfigsComponent } from './job-configs.component';
 import { HttpErrorResponse } from '@angular/common/http';
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
@@ -30,7 +30,7 @@ const FAKE_JOBSPEC1: any = {'fakeField1': 'fakeValue1', 'fakeField2' : 'fakeValu
 const FAKE_JOBSPEC2: any = {'fakeField3': 'fakeValue3', 'fakeField4' : 'fakeValue4'};
 const FAKE_JOBSPEC3: any = {'fakeField5': 'fakeValue5', 'fakeField6' : 'fakeValue6'};
 
-const FAKE_JOB_CONFIGS: JobConfig[] = [
+const FAKE_JOB_CONFIGS: JobConfigRequest[] = [
   {
     JobConfigId: 'fakeJobConfigId1',
     JobSpec: FAKE_JOBSPEC1
@@ -45,7 +45,7 @@ const FAKE_JOB_CONFIGS: JobConfig[] = [
   }
 ];
 
-const EMPTY_JOB_CONFIG_ARR: JobConfig[] = [];
+const EMPTY_JOB_CONFIG_ARR: JobConfigRequest[] = [];
 
 const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
 

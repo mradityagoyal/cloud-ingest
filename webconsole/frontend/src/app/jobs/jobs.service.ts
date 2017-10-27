@@ -1,13 +1,14 @@
+import 'rxjs/add/operator/map';
+import 'rxjs/add/operator/switchMap';
+
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
-import { Router, ActivatedRoute, Params } from '@angular/router';
+import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
-import { JobRun, JobConfig, JobRunParams, Task } from './jobs.resources';
+
 import { environment } from '../../environments/environment';
 import { TaskFailureType } from '../proto/tasks.js';
-
-import 'rxjs/add/operator/switchMap';
-import 'rxjs/add/operator/map';
+import { JobConfigRequest, JobConfigResponse, JobRun, JobRunParams, Task } from './jobs.resources';
 
 const POST_HEADERS = {
     headers: new HttpHeaders().set('Content-Type', 'application/json')
@@ -21,9 +22,9 @@ export class JobsService {
     this.project = route.queryParams.map(p => p.project);
   }
 
-  getJobConfigs(): Observable<JobConfig[]> {
+  getJobConfigs(): Observable<JobConfigResponse[]> {
     return this.project.switchMap(projectId => {
-        return this.http.get<JobConfig[]>(
+        return this.http.get<JobConfigResponse[]>(
             `${environment.apiUrl}/projects/${projectId}/jobconfigs`);
     });
   }
@@ -43,9 +44,9 @@ export class JobsService {
     });
   }
 
-  postJobConfig(config: JobConfig): Observable<JobConfig> {
+  postJobConfig(config: JobConfigRequest): Observable<JobConfigResponse> {
     return this.project.switchMap(projectId => {
-        return this.http.post<JobConfig>(
+        return this.http.post<JobConfigResponse>(
             `${environment.apiUrl}/projects/${projectId}/jobconfigs`,
             config, POST_HEADERS);
     });

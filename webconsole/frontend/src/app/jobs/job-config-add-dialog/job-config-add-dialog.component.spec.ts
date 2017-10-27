@@ -6,10 +6,9 @@ import { MatDialogRef, MatSnackBar } from '@angular/material';
 import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
-import { JobConfig } from '../jobs.resources';
+import { JobConfigRequest } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
-import { JobConfigFormModel } from './job-config-add-dialog.resources';
 
 class JobsServiceStub {
   public postJobConfig = jasmine.createSpy('postJobConfig');
@@ -26,20 +25,15 @@ class MatSnackBarStub {
 let jobsServiceStub: JobsServiceStub;
 let matDialogRefStub: MatDialogRefStub;
 let matSnackbarStub: MatSnackBarStub;
-let fakeJobConfigModel: JobConfigFormModel;
+
+let fakeJobConfigModel: JobConfigRequest;
 
 const FAKE_HTTP_ERROR = {error : {error: 'FakeError', message: 'Fake Error Message.'}};
 
-const FAKE_JOB_CONFIG: JobConfig = {
-  JobConfigId : 'fake-config-2',
-  JobSpec : '{ "on_prem" : "fake_spec", "gcs_dest" : "fake_spec"}',
-};
-const EMPTY_MODEL = new JobConfigFormModel(
-    /** jobConfigId **/ '',
-    /** gcsBucket **/ '',
-    /** fileSystemDirectory **/ '',
-    /** bigqueryDataset **/ '',
-    /** bigqueryTable **/ '');
+const FAKE_JOB_CONFIG: JobConfigRequest = new JobConfigRequest(
+  'fakeConfigId', 'fakeBucket', 'fakeFileSystemDir', 'fakeBigqueryDataset', 'fakeBigqueryTable');
+
+const EMPTY_MODEL: JobConfigRequest = new JobConfigRequest('', '', '', '', '');
 
 describe('JobConfigAddDialogComponent', () => {
 
@@ -48,13 +42,7 @@ describe('JobConfigAddDialogComponent', () => {
     matDialogRefStub = new MatDialogRefStub();
     matSnackbarStub = new MatSnackBarStub();
     jobsServiceStub.postJobConfig.and.returnValue(Observable.of(FAKE_JOB_CONFIG));
-    fakeJobConfigModel = new JobConfigFormModel(
-                        /**jobConfigId**/ 'fakeJobConfigId',
-                       /**gcsBucket**/ 'fakeGcsBucket',
-                       /**fileSystemDirectory**/
-                           'fake/file/system/dir',
-                       /**bigqueryDataset**/ 'fakeBigqueryDataset',
-                       /**bigqueryTable**/ 'fakeBigqueryTable');
+    fakeJobConfigModel = FAKE_JOB_CONFIG;
     TestBed.configureTestingModule({
       declarations: [
         JobConfigAddDialogComponent
@@ -81,9 +69,6 @@ describe('JobConfigAddDialogComponent', () => {
     const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
     const component = fixture.debugElement.componentInstance;
     expect(component.submittingForm).toBe(false);
-    expect(component.bigQueryTransferChecked).toBe(false);
-    expect(component.formError).toBe(false);
-    expect(component.appError).toBe(false);
     expect(component.model).toEqual(EMPTY_MODEL);
   }));
 
@@ -93,7 +78,7 @@ describe('JobConfigAddDialogComponent', () => {
     component.model = fakeJobConfigModel;
     component.onSubmit();
     expect(jobsServiceStub.postJobConfig.calls.count()).toEqual(1);
-    expect(jobsServiceStub.postJobConfig.calls.first().args[0]).toEqual(fakeJobConfigModel.toApiJobConfig());
+    expect(jobsServiceStub.postJobConfig.calls.first().args[0]).toEqual(fakeJobConfigModel);
   }));
 
   it('onSubmit should close the dialog with "true" argument', async(() => {

@@ -39,6 +39,35 @@ FAKE_TASK = get_task("fake_config_id",
                      task_spec="fake_task_spec",
                      task_type=tasks_pb2.TaskType.LIST)
 
+FAKE_JOB_SPEC = json.dumps({
+    'onPremSrcDirectory' : 'fakeFileSystemDir',
+    'gcsBucket' : 'fakeGcsBucket',
+    'bigqueryDataset' : 'fakeBigqueryDataset',
+    'bigqueryTable' : 'fakeBigqueryTable'})
+
+FAKE_JOB_CONFIG_REQUEST = json.dumps({
+    'jobConfigId' : 'fakeConfigId',
+    'gcsBucket' : 'fakeGcsBucket',
+    'fileSystemDirectory' : 'fakeFileSystemDir',
+    'bigqueryDataset' : 'fakeBigqueryDataset',
+    'bigqueryTable' : 'fakeBigqueryTable'})
+
+FAKE_ERROR_JOB_CONFIG_REQUEST1 = json.dumps({
+    'jobConfigId' : 'fakeConfigId',
+    'gcsBucket' : 'fakeGcsBucket',
+    'fileSystemDirectory' : 'fakeFileSystemDir',
+    'bigqueryDataset' : 'fakeBigqueryDataset'})
+
+FAKE_ERROR_JOB_CONFIG_REQUEST2 = json.dumps({
+    'jobConfigId' : 'fakeConfigId',
+    'gcsBucket' : 'fakeGcsBucket',
+    'fileSystemDirectory' : 'fakeFileSystemDir',
+    'bigqueryTable' : 'fakeBigqueryTable'})
+
+FAKE_JOB_CONFIG_RESPONSE = {
+    'JobConfigId' : 'fakeConfigId',
+    'JobSpec' : 'FAKE_JOB_SPEC'}
+
 class TestMain(unittest.TestCase):
     """Tests for main.py
 
@@ -112,6 +141,44 @@ class TestMain(unittest.TestCase):
             'fakeConfigId', 'fakeRunId', main.DEFAULT_PAGE_SIZE,
             tasks_pb2.TaskStatus.QUEUED)
         self.assertEqual(response_json, FAKE_TASK)
+
+    @patch.object(main, '_get_credentials')
+    @patch.object(main, 'SpannerWrapper')
+    def test_post_job_config(self, spanner_wrapper_mock,
+        dummy_get_credentials):
+        """ Tests that posting a job configuration passes correct parameters to
+            spannerwrapper.
+        """
+        spanner_wrapper_mock_inst = MagicMock(spec=('create_job_config',
+            'get_job_config', 'create_job_run',
+            'create_job_run_first_list_task'))
+        spanner_wrapper_mock.return_value = spanner_wrapper_mock_inst
+        spanner_wrapper_mock_inst.get_job_config.return_value = \
+            FAKE_JOB_CONFIG_RESPONSE
+        response = self.app.post('/projects/fakeProjectId/jobconfigs',
+                           data=FAKE_JOB_CONFIG_REQUEST,
+                           content_type='application/json')
+        response_json = json.loads(response.data)
+
+        spanner_wrapper_mock_inst.create_job_config.assert_called_with(
+            'fakeConfigId', FAKE_JOB_SPEC)
+        self.assertEqual(response_json, FAKE_JOB_CONFIG_RESPONSE)
+
+    @patch.object(main, '_get_credentials')
+    @patch.object(main, 'SpannerWrapper')
+    def test_post_job_config_bq_error(self, dummy_spanner_wrapper_mock,
+        dummy_get_credentials):
+        """ Tests that posting a job config returns an error when only bq table
+            is specified.
+        """
+        response1 = self.app.post('/projects/fakeProjectId/jobconfigs',
+                           data=FAKE_ERROR_JOB_CONFIG_REQUEST1,
+                           content_type='application/json')
+        response2 = self.app.post('/projects/fakeProjectId/jobconfigs',
+                           data=FAKE_ERROR_JOB_CONFIG_REQUEST2,
+                           content_type='application/json')
+        self.assertEqual(response1.status_code, 400)
+        self.assertEqual(response2.status_code, 400)
 
     @patch.object(main, '_get_credentials')
     @patch.object(main, 'logging')
