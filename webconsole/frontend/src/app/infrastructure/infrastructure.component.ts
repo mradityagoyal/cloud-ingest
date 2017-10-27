@@ -157,6 +157,10 @@ export class InfrastructureComponent implements OnInit {
   }
 
   tearDownInfrastructure() {
+    if (!confirm('Are you sure you want to tear down the ' +
+    'infrastructure? This will remove any existing jobs.')) {
+      return;
+    }
     this.showInfrastructureDeletingMessage();
     this.infrastructureService.postTearDownInfrastructure().subscribe(
       (response: {}) => {

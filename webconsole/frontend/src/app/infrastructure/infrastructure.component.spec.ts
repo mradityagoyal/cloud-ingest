@@ -148,6 +148,7 @@ const FAKE_INFRA_STATUS_NOT_DETERMINED: InfrastructureStatus = {
 const FAKE_HTTP_ERROR = {error: 'FakeError', message: 'Fake Error Message.'};
 
 let intervalObservableCreateSpy: any;
+let windowConfirmSpy: any;
 
 let infrastructureServiceStub: InfrastructureServiceStub;
 let matSnackBarStub: MatSnackBarStub;
@@ -162,6 +163,8 @@ describe('InfrastructureComponent', () => {
     infrastructureServiceStub.postTearDownInfrastructure.and.returnValue(Observable.of({}));
     // Disable polling for most tests
     intervalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
+
+    windowConfirmSpy = spyOn(window, 'confirm').and.returnValue(true);
     matSnackBarStub = new MatSnackBarStub();
     activatedRouteStub = new ActivatedRouteStub();
 
@@ -591,6 +594,24 @@ describe('InfrastructureComponent', () => {
       const compiled = fixture.debugElement.nativeElement;
       const tearDownInfrastructureButton = compiled.querySelector('.ingest-tear-down-infrastructure');
       expect(tearDownInfrastructureButton.hasAttribute('disabled')).toBe(true);
+    });
+  }));
+
+  it('should not tear down the infrastructure when the user does not confirm', async(() => {
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    windowConfirmSpy.and.returnValue(false);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const tearDownInfrastructureButton = compiled.querySelector('.ingest-tear-down-infrastructure');
+      tearDownInfrastructureButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        // Should not show as deleting.
+        const element = compiled.querySelector('.ingest-infrastructure-deleting');
+        expect(element).toBeNull();
+      });
     });
   }));
 
