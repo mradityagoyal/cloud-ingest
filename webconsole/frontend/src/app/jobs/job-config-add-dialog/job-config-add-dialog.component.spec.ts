@@ -2,7 +2,8 @@ import 'rxjs/add/observable/of';
 
 import { async, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
-import { MatDialogRef, MatSnackBar } from '@angular/material';
+import { MatDialogRef } from '@angular/material';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
@@ -18,13 +19,8 @@ class MatDialogRefStub {
   public close = jasmine.createSpy('close');
 }
 
-class MatSnackBarStub {
-  public open = jasmine.createSpy('open');
-}
-
 let jobsServiceStub: JobsServiceStub;
 let matDialogRefStub: MatDialogRefStub;
-let matSnackbarStub: MatSnackBarStub;
 
 let fakeJobConfigModel: JobConfigRequest;
 
@@ -40,7 +36,6 @@ describe('JobConfigAddDialogComponent', () => {
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
     matDialogRefStub = new MatDialogRefStub();
-    matSnackbarStub = new MatSnackBarStub();
     jobsServiceStub.postJobConfig.and.returnValue(Observable.of(FAKE_JOB_CONFIG));
     fakeJobConfigModel = FAKE_JOB_CONFIG;
     TestBed.configureTestingModule({
@@ -50,10 +45,10 @@ describe('JobConfigAddDialogComponent', () => {
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},
         {provide: MatDialogRef, useValue: matDialogRefStub},
-        {provide: MatSnackBar, useValue: matSnackbarStub},
       ],
       imports: [
         FormsModule,
+        BrowserAnimationsModule,
         AngularMaterialImporterModule
       ],
     }).compileComponents();
@@ -90,13 +85,19 @@ describe('JobConfigAddDialogComponent', () => {
     expect(matDialogRefStub.close.calls.first().args[0]).toEqual(true);
   }));
 
-  it('onSubmit should open a snackbar on error', async(() => {
+  it('should show error on submit error', async(() => {
     jobsServiceStub.postJobConfig.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
     const component = fixture.debugElement.componentInstance;
     component.model = fakeJobConfigModel;
+
     component.onSubmit();
-    expect(matSnackbarStub.open.calls.count()).toEqual(1);
-    expect(matSnackbarStub.open.calls.first().args[0]).toContain('FakeError');
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      expect(compiled.textContent).toContain('FakeError');
+    });
   }));
+
 });

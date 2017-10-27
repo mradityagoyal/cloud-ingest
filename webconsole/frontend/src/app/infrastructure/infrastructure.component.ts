@@ -1,11 +1,14 @@
-import { Component, OnInit } from '@angular/core';
-import { InfrastructureStatus } from './infrastructure.resources';
-import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
 import { HttpErrorResponse } from '@angular/common/http';
-import { MatSnackBar } from '@angular/material';
+import { Component, OnInit } from '@angular/core';
+import { MatDialog, MatSnackBar } from '@angular/material';
 import { ActivatedRoute } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
+
+import { ErrorDialogComponent } from '../util/error-dialog/error-dialog.component';
+import { ErrorDialogContent } from '../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../util/error.resources';
+import { InfrastructureStatus } from './infrastructure.resources';
+import { InfrastructureService } from './infrastructure.service';
 
 const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 3000;
 
@@ -35,7 +38,8 @@ export class InfrastructureComponent implements OnInit {
 
   constructor(private readonly infrastructureService: InfrastructureService,
               private readonly snackBar: MatSnackBar,
-              private readonly route: ActivatedRoute) {
+              private readonly route: ActivatedRoute,
+              private readonly dialog: MatDialog) {
     this.projectId = route.snapshot.queryParams.project;
   }
 
@@ -84,7 +88,8 @@ export class InfrastructureComponent implements OnInit {
       (errorResponse: HttpErrorResponse) => {
         const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
         console.error(errorTitle + '\m' + HttpErrorResponseFormatter.getMessage(errorResponse));
-        this.snackBar.open(`There was an error polling the infrastructure status: ${errorTitle}`, 'Dismiss');
+        this.snackBar.open(`There was an error polling the infrastructure status` +
+          `(open browser console for details): ${errorTitle}`, 'Dismiss');
       }
     );
   }
@@ -149,8 +154,14 @@ export class InfrastructureComponent implements OnInit {
       },
       (errorResponse: HttpErrorResponse) => {
         const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
-        console.error(errorTitle + '\n' + HttpErrorResponseFormatter.getMessage(errorResponse));
-        this.snackBar.open(`There was an error in the create infrastructure request: ${errorTitle}`, 'Dismiss');
+        const errorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
+        const errorContent: ErrorDialogContent = {
+          errorTitle: errorTitle,
+          errorMessage: errorMessage
+        };
+        this.dialog.open(ErrorDialogComponent, {
+          data: errorContent
+        });
         this.pollInfrastructureStatus();
       }
     );
@@ -168,8 +179,14 @@ export class InfrastructureComponent implements OnInit {
       },
       (errorResponse: HttpErrorResponse) => {
         const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
-        console.error(errorTitle + '\n' + HttpErrorResponseFormatter.getMessage(errorResponse));
-        this.snackBar.open(`There was an error in the tear down infrastructure request: ${errorTitle}`, 'Dismiss');
+        const errorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
+        const errorContent: ErrorDialogContent = {
+          errorTitle: errorTitle,
+          errorMessage: errorMessage
+        };
+        this.dialog.open(ErrorDialogComponent, {
+          data: errorContent
+        });
         this.pollInfrastructureStatus();
       }
     );

@@ -1,5 +1,9 @@
 <h3 i18n="Title for job config creation dialog">Create a new job configuration</h3>
 
+<div class="ingest-alert" *ngIf="showError">
+  There was an error submitting your configuration: {{ errorTitle }}. Open the browser console for details (Ctrl + Shift + J in Google Chrome).
+</div>
+
 <form (ngSubmit)="onSubmit()" #jobConfigAddDialogForm="ngForm">
   <mat-form-field class="ingest-full-width">
     <input id="jobConfigId"

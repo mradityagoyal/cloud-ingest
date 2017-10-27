@@ -2,7 +2,7 @@ import 'rxjs/add/operator/finally';
 
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component } from '@angular/core';
-import { MatDialogRef, MatSnackBar } from '@angular/material';
+import { MatDialogRef } from '@angular/material';
 
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigRequest } from '../jobs.resources';
@@ -26,10 +26,11 @@ export class JobConfigAddDialogComponent {
         /** fileSystemDirectory **/ '',
         /** bigQueryDataset **/'',
         /** bigqueryTable **/ '');
+  showError = false;
+  errorTitle: string;
 
   constructor(private readonly jobsService: JobsService,
-              private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>,
-              private readonly snackBar: MatSnackBar) { }
+              private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>) { }
 
   onSubmit() {
     this.submittingForm = true;
@@ -41,9 +42,9 @@ export class JobConfigAddDialogComponent {
           this.dialogRef.close(/**configSuccessfullyPosted**/ true);
         },
         (errorResponse: HttpErrorResponse) => {
-          const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
-          console.error(errorTitle + '\n' + HttpErrorResponseFormatter.getMessage(errorResponse));
-          this.snackBar.open(`There submitting your job configuration: ${errorTitle}`, 'Dismiss');
+          this.showError = true;
+          this.errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+          console.error(`${this.errorTitle} \n` + HttpErrorResponseFormatter.getMessage(errorResponse));
         }
       );
   }

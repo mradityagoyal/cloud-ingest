@@ -1,3 +1,4 @@
+import { ErrorDialogModule } from '../util/error-dialog/error-dialog.module';
 import { NgModule } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
@@ -17,7 +18,8 @@ import { InfrastructureService } from './infrastructure.service';
     BrowserModule,
     BrowserAnimationsModule,
     AngularMaterialImporterModule,
-    InfrastructureRoutingModule
+    InfrastructureRoutingModule,
+    ErrorDialogModule
   ],
   declarations: [
     InfrastructureStatusItemComponent,

@@ -1,18 +1,22 @@
-import { TestBed, async, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
-import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
-import { InfrastructureStatus, PubsubStatus} from './infrastructure.resources';
-import { InfrastructureComponent } from './infrastructure.component';
-import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
-import { InfrastructureStatusItemComponent } from './infrastructure-status-item/infrastructure-status-item.component';
+import { ErrorDialogComponent } from '../util/error-dialog/error-dialog.component';
+import 'rxjs/add/observable/never';
+import 'rxjs/add/observable/of';
+import 'rxjs/add/observable/throw';
+
+import { async, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { MatSnackBar, MatDialog } from '@angular/material';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
-import { HttpErrorResponse } from '@angular/common/http';
-import { ActivatedRoute } from '@angular/router';
-import { MatSnackBar } from '@angular/material';
+
+import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
+import { ErrorDialogModule } from '../util/error-dialog/error-dialog.module';
 import { HttpErrorResponseFormatter } from '../util/error.resources';
-import 'rxjs/add/observable/throw';
-import 'rxjs/add/observable/of';
-import 'rxjs/add/observable/never';
+import { InfrastructureStatusItemComponent } from './infrastructure-status-item/infrastructure-status-item.component';
+import { InfrastructureComponent } from './infrastructure.component';
+import { InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
+import { INFRA_STATUS, InfrastructureService } from './infrastructure.service';
 
 
 class InfrastructureServiceStub {
@@ -30,6 +34,10 @@ class ActivatedRouteStub {
 }
 
 class MatSnackBarStub {
+  open = jasmine.createSpy('open');
+}
+
+class MatDialogStub {
   open = jasmine.createSpy('open');
 }
 
@@ -145,7 +153,7 @@ const FAKE_INFRA_STATUS_NOT_DETERMINED: InfrastructureStatus = {
   cloudFunctionsStatus: INFRA_STATUS.DELETING
 };
 
-const FAKE_HTTP_ERROR = {error: 'FakeError', message: 'Fake Error Message.'};
+const FAKE_HTTP_ERROR = { error: {error: 'FakeError', message: 'Fake Error Message.'}};
 
 let intervalObservableCreateSpy: any;
 let windowConfirmSpy: any;
@@ -153,6 +161,7 @@ let windowConfirmSpy: any;
 let infrastructureServiceStub: InfrastructureServiceStub;
 let matSnackBarStub: MatSnackBarStub;
 let activatedRouteStub: ActivatedRouteStub;
+let matDialogStub: MatDialogStub;
 
 describe('InfrastructureComponent', () => {
 
@@ -167,6 +176,7 @@ describe('InfrastructureComponent', () => {
     windowConfirmSpy = spyOn(window, 'confirm').and.returnValue(true);
     matSnackBarStub = new MatSnackBarStub();
     activatedRouteStub = new ActivatedRouteStub();
+    matDialogStub = new MatDialogStub();
 
     TestBed.configureTestingModule({
       declarations: [
@@ -176,7 +186,8 @@ describe('InfrastructureComponent', () => {
       providers: [
         {provide: InfrastructureService, useValue: infrastructureServiceStub},
         {provide: MatSnackBar, useValue: matSnackBarStub},
-        {provide: ActivatedRoute, useValue: activatedRouteStub}
+        {provide: ActivatedRoute, useValue: activatedRouteStub},
+        {provide: MatDialog, useValue: matDialogStub}
       ],
       imports: [
         AngularMaterialImporterModule
@@ -614,5 +625,47 @@ describe('InfrastructureComponent', () => {
       });
     });
   }));
+
+  it('should display a dialog with the error when teardown infrastructure gives error', async(() => {
+    infrastructureServiceStub.postTearDownInfrastructure.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const tearDownInfrastructureButton = compiled.querySelector('.ingest-tear-down-infrastructure');
+      tearDownInfrastructureButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        fixture.detectChanges();
+        expect(matDialogStub.open).toHaveBeenCalled();
+        expect(matDialogStub.open.calls.mostRecent().args[0]).toBe(ErrorDialogComponent);
+        expect(matDialogStub.open.calls.mostRecent().args[1].data.errorTitle).toBe('FakeError');
+        expect(matDialogStub.open.calls.mostRecent().args[1].data.errorMessage).toBe('Fake Error Message.');
+      });
+    });
+  }));
+
+  it('should display a dialog with the error when create infrastructure gives error', async(() => {
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_FOUND));
+    infrastructureServiceStub.postCreateInfrastructure.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      const createInfrastructureButton = compiled.querySelector('.ingest-create-infrastructure');
+      createInfrastructureButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        fixture.detectChanges();
+        expect(matDialogStub.open).toHaveBeenCalled();
+        expect(matDialogStub.open.calls.mostRecent().args[0]).toBe(ErrorDialogComponent);
+        expect(matDialogStub.open.calls.mostRecent().args[1].data.errorTitle).toBe('FakeError');
+        expect(matDialogStub.open.calls.mostRecent().args[1].data.errorMessage).toBe('Fake Error Message.');
+      });
+    });
+  }));
+
 
 });
