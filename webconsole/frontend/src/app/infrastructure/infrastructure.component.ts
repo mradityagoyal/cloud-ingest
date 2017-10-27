@@ -7,7 +7,7 @@ import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { ErrorDialogComponent } from '../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../util/error.resources';
-import { InfrastructureStatus } from './infrastructure.resources';
+import { INFRA_STATUS, InfrastructureStatus } from './infrastructure.resources';
 import { InfrastructureService } from './infrastructure.service';
 
 const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 3000;
@@ -35,6 +35,8 @@ export class InfrastructureComponent implements OnInit {
   loadInfrastructureErrorTitle: string;
   loadInfrastructureErrorMessage: string;
   projectId: string;
+  overallInfrastructureStatus: string;
+  overallPubSubStatus: string;
 
   constructor(private readonly infrastructureService: InfrastructureService,
               private readonly snackBar: MatSnackBar,
@@ -54,6 +56,18 @@ export class InfrastructureComponent implements OnInit {
   }
 
   /**
+   * Updates the overall pubsub status variable with a new response.
+   *
+   * @param response The infrastructure status response
+   */
+  private updateOverallPubSubStatus(response: InfrastructureStatus) {
+    const statusList = [response.pubsubStatus.list, response.pubsubStatus.listProgress,
+      response.pubsubStatus.uploadGCS, response.pubsubStatus.uploadGCSProgress,
+      response.pubsubStatus.loadBigQuery, response.pubsubStatus.loadBigQueryProgress];
+    this.overallPubSubStatus = InfrastructureService.getOverallStatus(statusList);
+  }
+
+  /**
    * Loads the infrastructure status initially.
    */
   private loadInfrastructureStatus() {
@@ -61,8 +75,7 @@ export class InfrastructureComponent implements OnInit {
     this.infrastructureService.getInfrastructureStatus().subscribe(
       (response: InfrastructureStatus) => {
         this.infrastructureStatus = response;
-        this.updateInfrastructureStatusMessage(response);
-        this.updateCreateTearDownButtons(response);
+        this.updateInfrastructureStatusVariables(response);
         this.showLoadInfrastructureError = false;
         this.showInfrastructureStatusLoading = false;
       },
@@ -82,8 +95,7 @@ export class InfrastructureComponent implements OnInit {
     this.infrastructureService.getInfrastructureStatus().subscribe(
       (response: InfrastructureStatus) => {
         this.infrastructureStatus = response;
-        this.updateInfrastructureStatusMessage(response);
-        this.updateCreateTearDownButtons(response);
+        this.updateInfrastructureStatusVariables(response);
       },
       (errorResponse: HttpErrorResponse) => {
         const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
@@ -93,24 +105,41 @@ export class InfrastructureComponent implements OnInit {
       }
     );
   }
-
-  private updateInfrastructureStatusMessage(response) {
+  /**
+   * Updates all of the related variables after getting a new infrastructure status.
+   *
+   * @param response A get infrastructure response.
+   */
+  private updateInfrastructureStatusVariables(response: InfrastructureStatus) {
     this.resetMessageVariables();
+    this.updateOverallPubSubStatus(response);
+    const statusList = [this.infrastructureStatus.spannerStatus, this.infrastructureStatus.dcpStatus,
+      this.infrastructureStatus.cloudFunctionsStatus, this.overallPubSubStatus];
+    this.overallInfrastructureStatus = InfrastructureService.getOverallStatus(statusList);
+    this.updateCreateTearDownButtons();
 
-    if (InfrastructureService.isInfrastructureOk(response)) {
-      this.showInfrastructureStatusOk = true;
-    } else if (InfrastructureService.isInfrastructureNotFound(response)) {
-      this.showInfrastructureNotFound = true;
-    } else if (InfrastructureService.isInfrastructureDeploying(response)) {
-      this.showInfrastructureDeploying = true;
-    } else if (InfrastructureService.isInfrastructureDeleting(response)) {
-      this.showInfrastructureDeleting = true;
-    } else if (InfrastructureService.isInfrastructureFailed(response)) {
-      this.showInfrastructureFailed = true;
-    } else if (InfrastructureService.isInfrastructureUnknown(response)) {
-      this.showInfrastructureUnknown = true;
-    } else {
-      this.showCouldNotDetermineInfrastructure = true;
+    switch (this.overallInfrastructureStatus) {
+      case INFRA_STATUS.RUNNING:
+        this.showInfrastructureStatusOk = true;
+        break;
+      case INFRA_STATUS.NOT_FOUND:
+        this.showInfrastructureNotFound = true;
+        break;
+      case INFRA_STATUS.DEPLOYING:
+        this.showInfrastructureDeploying = true;
+        break;
+      case INFRA_STATUS.DELETING:
+        this.showInfrastructureDeleting = true;
+        break;
+      case INFRA_STATUS.FAILED:
+        this.showInfrastructureFailed = true;
+        break;
+      case INFRA_STATUS.UNKNOWN:
+        this.showInfrastructureUnknown = true;
+        break;
+      default:
+        this.showCouldNotDetermineInfrastructure = true;
+        break;
     }
   }
 
@@ -131,8 +160,12 @@ export class InfrastructureComponent implements OnInit {
     this.showInfrastructureDeleting = true;
   }
 
-  private updateCreateTearDownButtons(response) {
-    if (InfrastructureService.isInfrastructureNotFound(response)) {
+  /**
+   * Updates the "disabled" state of the create and tear down buttons. Should be called updating
+   * the overall infrastructure status.
+   */
+  private updateCreateTearDownButtons() {
+    if (this.overallInfrastructureStatus === INFRA_STATUS.NOT_FOUND) {
       this.createInfrastructureDisabled = false;
       this.tearDownDisabled = true;
     } else {

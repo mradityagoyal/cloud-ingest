@@ -1,12 +1,14 @@
-import { InfrastructureService, INFRA_STATUS } from './infrastructure.service';
-import { TestBed, async, inject } from '@angular/core/testing';
-import { environment } from '../../environments/environment';
+import 'rxjs/add/observable/of';
+
 import { HttpClient } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { inject, TestBed } from '@angular/core/testing';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
-import { InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
-import 'rxjs/add/observable/of';
+
+import { environment } from '../../environments/environment';
+import { INFRA_STATUS, InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
+import { InfrastructureService } from './infrastructure.service';
 
 let activatedRouteStub: ActivatedRoute;
 
@@ -166,88 +168,6 @@ describe('InfrastructureService', () => {
     httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tear-down-infrastructure`).flush({});
     expect(actualResponse).toEqual({});
     httpMock.verify();
-  }));
-
-  it('isInfrastructureOk should return true', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureOk(FAKE_INFRA_STATUS_RUNNING)).toEqual(true);
-  }));
-
-  it('isInfrastructureOk should return false', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureOk(FAKE_INFRA_STATUS_NOT_FOUND)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureOk(FAKE_INFRA_STATUS_UNKNOWN)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureOk(FAKE_INFRA_STATUS_FAILED)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureOk(FAKE_INFRA_STATUS_DEPLOYING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureOk(FAKE_INFRA_STATUS_DELETING)).toEqual(false);
-  }));
-
-  it('isInfrastructureNotFound should return true ', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureNotFound(FAKE_INFRA_STATUS_NOT_FOUND)).toEqual(true);
-  }));
-
-  it('isInfrastructureNotFound should return false ', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureNotFound(FAKE_INFRA_STATUS_RUNNING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureNotFound(FAKE_INFRA_STATUS_UNKNOWN)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureNotFound(FAKE_INFRA_STATUS_FAILED)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureNotFound(FAKE_INFRA_STATUS_DEPLOYING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureNotFound(FAKE_INFRA_STATUS_DELETING)).toEqual(false);
-  }));
-
-  it('isInfrastructureDeploying should return true ', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureDeploying(FAKE_INFRA_STATUS_DEPLOYING)).toEqual(true);
-  }));
-
-  it('isInfrastructureDeploying should return false ', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureDeploying(FAKE_INFRA_STATUS_RUNNING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureDeploying(FAKE_INFRA_STATUS_UNKNOWN)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureDeploying(FAKE_INFRA_STATUS_FAILED)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureDeploying(FAKE_INFRA_STATUS_NOT_FOUND)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureDeploying(FAKE_INFRA_STATUS_DELETING)).toEqual(false);
-  }));
-
-  it('isInfrastructureDeleting should return true ', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureDeleting(FAKE_INFRA_STATUS_DELETING)).toEqual(true);
-  }));
-
-  it('isInfrastructureDeleting should return false ', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureDeleting(FAKE_INFRA_STATUS_RUNNING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureDeleting(FAKE_INFRA_STATUS_UNKNOWN)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureDeleting(FAKE_INFRA_STATUS_FAILED)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureDeleting(FAKE_INFRA_STATUS_NOT_FOUND)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureDeleting(FAKE_INFRA_STATUS_DEPLOYING)).toEqual(false);
-  }));
-
-  it('isInfrastructureFailed should return true', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureFailed(FAKE_INFRA_STATUS_FAILED)).toEqual(true);
-  }));
-
-  it('isInfrastructureFailed should return false', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureFailed(FAKE_INFRA_STATUS_NOT_FOUND)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureFailed(FAKE_INFRA_STATUS_RUNNING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureFailed(FAKE_INFRA_STATUS_DEPLOYING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureFailed(FAKE_INFRA_STATUS_DELETING)).toEqual(false);
-  }));
-
-  it('isInfrastructureUnknown should return true', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureUnknown(FAKE_INFRA_STATUS_UNKNOWN)).toEqual(true);
-  }));
-
-  it('isInfrastructureUnknown should return false', inject([HttpClient, HttpTestingController],
-    (http: HttpClient, httpMock: HttpTestingController) => {
-    expect(InfrastructureService.isInfrastructureUnknown(FAKE_INFRA_STATUS_NOT_FOUND)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureUnknown(FAKE_INFRA_STATUS_RUNNING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureUnknown(FAKE_INFRA_STATUS_DEPLOYING)).toEqual(false);
-    expect(InfrastructureService.isInfrastructureUnknown(FAKE_INFRA_STATUS_DELETING)).toEqual(false);
   }));
 
 });

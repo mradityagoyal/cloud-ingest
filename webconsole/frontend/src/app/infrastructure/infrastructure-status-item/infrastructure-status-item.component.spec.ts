@@ -1,7 +1,8 @@
-import { TestBed, async } from '@angular/core/testing';
-import { InfrastructureStatusItemComponent } from './infrastructure-status-item.component';
+import { async, TestBed } from '@angular/core/testing';
+
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
-import { INFRA_STATUS } from '../infrastructure.service';
+import { INFRA_STATUS } from '../infrastructure.resources';
+import { InfrastructureStatusItemComponent } from './infrastructure-status-item.component';
 
 describe('InfrastructureStatusItemComponent', () => {
 

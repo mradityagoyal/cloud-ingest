@@ -13,3 +13,12 @@ export interface PubsubStatus {
   loadBigQuery: string;
   loadBigQueryProgress: string;
 }
+
+export const INFRA_STATUS = {
+  RUNNING : 'RUNNING',
+  NOT_FOUND: 'NOT_FOUND',
+  DEPLOYING: 'DEPLOYING',
+  DELETING: 'DELETING',
+  FAILED: 'FAILED',
+  UNKNOWN: 'UNKNOWN'
+};

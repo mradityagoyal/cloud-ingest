@@ -1,22 +1,20 @@
-import { ErrorDialogComponent } from '../util/error-dialog/error-dialog.component';
 import 'rxjs/add/observable/never';
 import 'rxjs/add/observable/of';
 import 'rxjs/add/observable/throw';
 
 import { async, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
-import { MatSnackBar, MatDialog } from '@angular/material';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { MatDialog, MatSnackBar } from '@angular/material';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 
 import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
-import { ErrorDialogModule } from '../util/error-dialog/error-dialog.module';
+import { ErrorDialogComponent } from '../util/error-dialog/error-dialog.component';
 import { HttpErrorResponseFormatter } from '../util/error.resources';
 import { InfrastructureStatusItemComponent } from './infrastructure-status-item/infrastructure-status-item.component';
 import { InfrastructureComponent } from './infrastructure.component';
-import { InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
-import { INFRA_STATUS, InfrastructureService } from './infrastructure.service';
+import { INFRA_STATUS, InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
+import { InfrastructureService } from './infrastructure.service';
 
 
 class InfrastructureServiceStub {

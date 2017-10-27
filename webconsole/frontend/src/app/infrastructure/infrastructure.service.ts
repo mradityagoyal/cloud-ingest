@@ -1,62 +1,31 @@
 /**
  * @fileoverview Contains logic to interact with the infrastructure rest APIs.
  */
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { environment } from '../../environments/environment';
-import { Observable } from 'rxjs/Observable';
 import { ActivatedRoute } from '@angular/router';
-import { HttpResponse } from '@angular/common/http';
-import { InfrastructureStatus } from './infrastructure.resources';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { Observable } from 'rxjs/Observable';
 
-/**
- * Returns true if all of the fields on the infrastructure status are in the statusList.
- */
-function hasAllFieldsInStatusList(infraStructureStatus: InfrastructureStatus, statusList: string[]): boolean {
-  let key: string;
-  for (key of ['spannerStatus', 'dcpStatus', 'cloudFunctionsStatus']) {
-    /**
-     * Accessing properties by square bracket notation potentially violates the style guide. But,
-     * this is more readable than accessing each property individually with the dot notation.
-     */
-    if (!statusList.includes(infraStructureStatus[key])) {
-      return false;
-    }
-  }
-  for (key of ['list', 'listProgress', 'uploadGCS', 'uploadGCSProgress', 'loadBigQuery', 'loadBigQueryProgress']) {
-    if (!statusList.includes(infraStructureStatus.pubsubStatus[key])) {
-      return false;
-    }
-  }
-  return true;
-}
+import { environment } from '../../environments/environment';
+import { INFRA_STATUS, InfrastructureStatus } from './infrastructure.resources';
 
-/**
- * Checks if at least one field in the infrastructure status is of the input status.
- */
-function hasAtLeastOneOfStatus(infraStructureStatus: InfrastructureStatus, status: string): boolean {
-  let key: string;
-  for (key of ['spannerStatus', 'dcpStatus', 'cloudFunctionsStatus']) {
-    if (infraStructureStatus[key] === status) {
-      return true;
-    }
-  }
-  for (key of ['list', 'listProgress', 'uploadGCS', 'uploadGCSProgress', 'loadBigQuery', 'loadBigQueryProgress']) {
-    if (infraStructureStatus.pubsubStatus[key] === status) {
+function hasAtLeastOneOfStatus(infraStatusList: string[], status: string): boolean {
+  for (const value of infraStatusList) {
+    if (value === status) {
       return true;
     }
   }
   return false;
 }
 
-export const INFRA_STATUS = {
-  RUNNING : 'RUNNING',
-  NOT_FOUND: 'NOT_FOUND',
-  DEPLOYING: 'DEPLOYING',
-  DELETING: 'DELETING',
-  FAILED: 'FAILED',
-  UNKNOWN: 'UNKNOWN'
-};
+function hasAllFieldsInStatusList(infraStatusList: string[], statusList: string[]): boolean {
+  for (const value of infraStatusList) {
+    if (!statusList.includes(value)) {
+      return false;
+    }
+  }
+  return true;
+}
 
 @Injectable()
 export class InfrastructureService {
@@ -68,49 +37,27 @@ export class InfrastructureService {
   }
 
   /**
-   * Checks if everything in the infrastructure is of status RUNNING.
+   * Infers the overall status from a list of status.
+   *
+   * @param statusList The list of infrastructure status to infer the overall status from.
    */
-  static isInfrastructureOk(infraStructureStatus: InfrastructureStatus): boolean {
-    return hasAllFieldsInStatusList(infraStructureStatus, [INFRA_STATUS.RUNNING]);
-  }
-
-  /**
-   * Checks if everything in the infrastructure is of status NOT_FOUND.
-   */
-  static isInfrastructureNotFound(infraStructureStatus: InfrastructureStatus): boolean {
-    return hasAllFieldsInStatusList(infraStructureStatus, [INFRA_STATUS.NOT_FOUND]);
-  }
-
-  /**
-   * Returns true if everything in the infrastructure is either DEPLOYING or NOT_FOUND and there
-   * is at least one field that is DEPLOYING. Else, returns false.
-   */
-  static isInfrastructureDeploying(infraStructureStatus: InfrastructureStatus): boolean {
-    return hasAllFieldsInStatusList(infraStructureStatus, [INFRA_STATUS.DEPLOYING, INFRA_STATUS.NOT_FOUND, INFRA_STATUS.RUNNING]) &&
-        hasAtLeastOneOfStatus(infraStructureStatus, INFRA_STATUS.DEPLOYING);
-  }
-
-  /**
-   * Returns true if everything in the infrastructure is either DELETING or RUNNING and there is
-   * at least one field that is DELETING.
-   */
-  static isInfrastructureDeleting(infraStructureStatus: InfrastructureStatus): boolean {
-    return hasAllFieldsInStatusList(infraStructureStatus, [INFRA_STATUS.DELETING, INFRA_STATUS.RUNNING, INFRA_STATUS.NOT_FOUND]) &&
-        hasAtLeastOneOfStatus(infraStructureStatus, INFRA_STATUS.DELETING);
-  }
-
-  /**
-   * Returns true if at least one of the infrastructure status is FAILED.
-   */
-  static isInfrastructureFailed(infrastructureStatus: InfrastructureStatus): boolean {
-    return hasAtLeastOneOfStatus(infrastructureStatus, INFRA_STATUS.FAILED);
-  }
-
-  /**
-   * Returns true if at least one of the infrastructure status is UNKNOWN.
-   */
-  static isInfrastructureUnknown(infrastructureStatus: InfrastructureStatus) {
-    return hasAtLeastOneOfStatus(infrastructureStatus, INFRA_STATUS.UNKNOWN);
+  static getOverallStatus(statusList: string[]): string | null {
+    if (hasAtLeastOneOfStatus(statusList, INFRA_STATUS.FAILED)) {
+      return INFRA_STATUS.FAILED;
+    } else if (hasAtLeastOneOfStatus(statusList, INFRA_STATUS.UNKNOWN)) {
+      return INFRA_STATUS.UNKNOWN;
+    } else if (hasAllFieldsInStatusList(statusList, [INFRA_STATUS.NOT_FOUND])) {
+      return INFRA_STATUS.NOT_FOUND;
+    } else if (hasAllFieldsInStatusList(statusList, [INFRA_STATUS.RUNNING])) {
+      return INFRA_STATUS.RUNNING;
+    } else if (hasAllFieldsInStatusList(statusList, [INFRA_STATUS.NOT_FOUND, INFRA_STATUS.DEPLOYING, INFRA_STATUS.RUNNING])) {
+      return INFRA_STATUS.DEPLOYING;
+    } else if (hasAllFieldsInStatusList(statusList, [INFRA_STATUS.RUNNING, INFRA_STATUS.DELETING, INFRA_STATUS.NOT_FOUND])) {
+      return INFRA_STATUS.DELETING;
+    } else {
+      // The overall status could not be determined.
+      return null;
+    }
   }
 
   /**

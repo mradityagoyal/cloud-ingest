@@ -1,5 +1,6 @@
 import { Component, Input } from '@angular/core';
-import { InfrastructureService, INFRA_STATUS } from '../infrastructure.service';
+
+import { INFRA_STATUS } from '../infrastructure.resources';
 
 @Component({
   selector: 'app-infrastructure-status-item',
