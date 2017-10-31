@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='proto/tasks.proto',
   package='',
   syntax='proto3',
-  serialized_pb=_b('\n\x11proto/tasks.proto\"\xb6\x01\n\x0fTaskFailureType\"\xa2\x01\n\x04Type\x12\n\n\x06UNUSED\x10\x00\x12\x0b\n\x07UNKNOWN\x10\x01\x12\x19\n\x15\x46ILE_MODIFIED_FAILURE\x10\x02\x12\x18\n\x14MD5_MISMATCH_FAILURE\x10\x03\x12\x18\n\x14PRECONDITION_FAILURE\x10\x04\x12\x1a\n\x16\x46ILE_NOT_FOUND_FAILURE\x10\x05\x12\x16\n\x12PERMISSION_FAILURE\x10\x06\"G\n\nTaskStatus\"9\n\x04Type\x12\x0c\n\x08UNQUEUED\x10\x00\x12\n\n\x06QUEUED\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"F\n\x08TaskType\":\n\x04Type\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x08\n\x04LIST\x10\x01\x12\x0e\n\nUPLOAD_GCS\x10\x02\x12\x0b\n\x07LOAD_BQ\x10\x03\x62\x06proto3')
+  serialized_pb=_b('\n\x11proto/tasks.proto\"\xb6\x01\n\x0fTaskFailureType\"\xa2\x01\n\x04Type\x12\n\n\x06UNUSED\x10\x00\x12\x0b\n\x07UNKNOWN\x10\x01\x12\x19\n\x15\x46ILE_MODIFIED_FAILURE\x10\x02\x12\x18\n\x14MD5_MISMATCH_FAILURE\x10\x03\x12\x18\n\x14PRECONDITION_FAILURE\x10\x04\x12\x1a\n\x16\x46ILE_NOT_FOUND_FAILURE\x10\x05\x12\x16\n\x12PERMISSION_FAILURE\x10\x06\"G\n\nTaskStatus\"9\n\x04Type\x12\x0c\n\x08UNQUEUED\x10\x00\x12\n\n\x06QUEUED\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"F\n\x08TaskType\":\n\x04Type\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x08\n\x04LIST\x10\x01\x12\x0e\n\nUPLOAD_GCS\x10\x02\x12\x0b\n\x07LOAD_BQ\x10\x03\x42\x07Z\x05protob\x06proto3')
 )
 
 
@@ -231,4 +231,6 @@ TaskType = _reflection.GeneratedProtocolMessageType('TaskType', (_message.Messag
 _sym_db.RegisterMessage(TaskType)
 
 
+DESCRIPTOR.has_options = True
+DESCRIPTOR._options = _descriptor._ParseOptions(descriptor_pb2.FileOptions(), _b('Z\005proto'))
 # @@protoc_insertion_point(module_scope)

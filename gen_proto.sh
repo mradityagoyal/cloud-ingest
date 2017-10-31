@@ -3,7 +3,7 @@
 # languages. This script should be run from the root of the repository.
 pbjs_rel_path="./webconsole/frontend/node_modules/protobufjs/bin/pbjs"
 pbts_rel_path="./webconsole/frontend/node_modules/protobufjs/bin/pbts"
-protoc --python_out=webconsole/backend/ proto/tasks.proto
+protoc --python_out=webconsole/backend/ --go_out=dcp/ proto/tasks.proto
 if ! [ -e "$pbjs_rel_path" ]
 then
   echo "The pbjs binary was not found. Did you install the web frontend dependencies?"

@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"strings"
 )
 
@@ -78,6 +79,7 @@ type Task struct {
 	CreationTime         int64
 	LastModificationTime int64
 	FailureMessage       string
+	FailureType          proto.TaskFailureType_Type
 }
 
 // TaskUpdate represents a task to be updated, with it's log entry and new tasks
@@ -273,6 +275,8 @@ func TaskCompletionMessageJsonToTaskUpdate(msg []byte) (*TaskUpdate, error) {
 		task.Status = Failed
 		if failureMsg, ok := taskCompletionMsgMap["failure_message"]; ok {
 			task.FailureMessage = failureMsg.(string)
+			// TODO(b/68710612): Use a meaningful failure type.
+			task.FailureType = proto.TaskFailureType_UNUSED
 		}
 	} else if taskCompletionMsgMap["status"] == "SUCCESS" {
 		task.Status = Success

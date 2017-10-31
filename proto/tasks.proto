@@ -1,5 +1,7 @@
 syntax = "proto3";
 
+option go_package = "proto";
+
 // Message to wrap the task failure type. This is needed to create a scope that does
 // not conflict with other enums in this file.
 message TaskFailureType {

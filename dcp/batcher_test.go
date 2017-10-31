@@ -32,6 +32,7 @@ func initializePubSubMock() (map[string]bool, func(msg *pubsub.Message)) {
 	return ackedMessages, ackMessageFnMock
 }
 
+// TODO(b/68757834): This test sometimes fails and sometimes doesn't.
 func TestBatcherWithOneUpdate(t *testing.T) {
 	ackedMessages, ackMessageFnMock := initializePubSubMock()
 	var batcher taskUpdatesBatcher

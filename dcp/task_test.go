@@ -18,6 +18,7 @@ package dcp
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"reflect"
 	"testing"
 )
@@ -203,6 +204,7 @@ func TestTaskCompletionMessageJsonToTaskUpdateFailureMsg(t *testing.T) {
 		JobRunId:       jobRunId,
 		TaskId:         "A",
 		Status:         Failed,
+		FailureType:    proto.TaskFailureType_UNUSED,
 		FailureMessage: "Failure",
 	}
 	msg := []byte(`{

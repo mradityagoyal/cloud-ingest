@@ -89,21 +89,6 @@ func getTaskInsertColumns() []string {
 	}
 }
 
-// getTaskUpdateColumns returns an array of the columns necessary for task
-// updates
-func getTaskUpdateColumns() []string {
-	// TODO(b/63100514): Define constants for spanner table names that can be
-	// shared across store and potentially infrastructure setup implementation.
-	return []string{
-		"JobConfigId",
-		"JobRunId",
-		"TaskId",
-		"Status",
-		"FailureMessage",
-		"LastModificationTime",
-	}
-}
-
 func (s *SpannerStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
 	jobConfigRow, err := s.Client.Single().ReadRow(
 		context.Background(),
@@ -402,19 +387,31 @@ func getTaskUpdateAndInsertMutations(ctx context.Context,
 
 	// Update the task.
 	task := updateTask.Task
-	mutations = append(mutations, spanner.Update("Tasks", getTaskUpdateColumns(),
-		[]interface{}{
-			task.JobConfigId,
-			task.JobRunId,
-			task.TaskId,
-			task.Status,
-			task.FailureMessage,
-			timestamp,
-		}))
+	mutations = getTaskUpdateMutations(mutations, task, timestamp)
 
 	// Create the log entry for the updated task.
 	insertLogEntryMutation(&mutations, task, oldStatus, updateTask.LogEntry, timestamp)
 	return mutations
+}
+
+// getTaskUpdateMutations checks if the task is failed or not. If the task is of type failed,
+// it updates the FailureMessage and FailureType columns. Otherwise, it doesn't update these
+// fields because they are not relevant.
+// It returns the spanner mutations that happened as a result of the task update.
+func getTaskUpdateMutations(mutations []*spanner.Mutation, task *Task, timestamp int64) []*spanner.Mutation {
+	// TODO(b/63100514): Define constants for spanner table names that can be
+	// shared across store and potentially infrastructure setup implementation.
+	var updateInputMap = make(map[string]interface{})
+	updateInputMap["JobConfigId"] = task.JobConfigId
+	updateInputMap["JobRunId"] = task.JobRunId
+	updateInputMap["TaskId"] = task.TaskId
+	updateInputMap["Status"] = task.Status
+	updateInputMap["LastModificationTime"] = timestamp
+	if task.Status == Failed {
+		updateInputMap["FailureMessage"] = task.FailureMessage
+		updateInputMap["FailureType"] = int64(task.FailureType)
+	}
+	return append(mutations, spanner.UpdateMap("Tasks", updateInputMap))
 }
 
 // isValidUpdate takes in a spanner row containing the currently stored
