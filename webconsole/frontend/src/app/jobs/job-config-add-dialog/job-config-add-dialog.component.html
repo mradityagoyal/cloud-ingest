@@ -11,7 +11,7 @@
            matInput
            required
            [(ngModel)]="model.jobConfigId"
-           pattern="[0-9a-zA-Z_-]*"
+           pattern="[0-9a-z_-]*"
            #jobConfigId="ngModel"
            placeholder="Config Id"
            i18n="Label for Job Config Id input">
@@ -37,8 +37,19 @@
   </span>
   <h4 i18n="Subtitle in a form for the fields of the destination information for Google Cloud Storage"> Destination information for Google Cloud Storage: </h4>
   <mat-form-field class="ingest-full-width">
-      <input id="gcsBucket" name="gcsBucket" matInput required [(ngModel)]="model.gcsBucket" #gcsBucket="ngModel" placeholder="Google Cloud Storage bucket" i18n="Label for Google Cloud Storage bucket">
+      <input id="gcsBucket"
+             name="gcsBucket"
+             matInput
+             required
+             [(ngModel)]="model.gcsBucket"
+             pattern="(\.|[0-9a-z_-])*"
+             #gcsBucket="ngModel"
+             placeholder="Google Cloud Storage bucket"
+             i18n="Label for Google Cloud Storage bucket">
   </mat-form-field>
+  <span *ngIf="gcsBucket.invalid && (gcsBucket.dirty || gcsBucket.touched)" class="ingest-alert">
+    A GCS bucket can contain lowercase alphanumeric characters, hyphens, underscores and dots.
+  </span>
   <h4 i18n=""> Destination information for BigQuery: </h4>
   <mat-checkbox class="ingest-full-width" id="bigQueryTransferChecked" name="bigQueryTransferChecked" i18n="Label for checkbox to select the transfer rows to BigQuery option" [(ngModel)]="bigQueryTransferChecked">Transfer rows into BigQuery</mat-checkbox>
   <ng-container *ngIf="bigQueryTransferChecked">
