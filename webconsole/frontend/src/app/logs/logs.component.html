@@ -1,0 +1,32 @@
+<h2> Instructions to download the control plane logs: </h2>
+
+<ol>
+  <li>
+    Open a new tab, and navigate to <strong><a href="https://console.cloud.google.com/">console.cloud.google.com</a></strong>.
+  </li>
+  <li>
+    On the left navigation sidebar, click on <strong> Compute Engine.</strong>
+  </li>
+  <li>
+    Locate the <strong>cloud-ingest-dcp</strong> vm instance.
+  </li>
+  <li>
+    Click the <strong> SSH </strong> button under the 'Connect' column.
+  </li>
+  <li>
+    On the browser window that opens, run: <br/>
+    <code ngNonBindable> docker images --filter=reference='gcr.io/mbassiouny-test/cloud-ingest' --format "ancestor={{.ID}}" | xargs docker ps --format "{{.ID}}" --filter | xargs docker logs > dcp.log 2>&1 </code> <br/>
+    This will create a <code> dcp.log </code> file in the current directory with the logs. You can view your logs by running <code> less dcp.log</code>
+  </li>
+  <li>
+    To download your logs:
+    <ol>
+      <li>
+        Run <code> readlink -f dcp.log </code> to get the absolute path to the <code> dcp.log </code> file.
+      </li>
+      <li>
+        Click the tool icon on the top right corner of your vm window.  Select 'Download file'. Copy and paste the absolute path to <code> dcp.log </code> that you obtained above.
+      </li>
+    </ol>
+  </li>
+</ol>

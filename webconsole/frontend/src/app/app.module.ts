@@ -11,11 +11,13 @@ import { AppRoutingModule } from './app-routing.module';
 import { InfrastructureModule } from './infrastructure/infrastructure.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ProjectSelectComponent } from './project-select/project-select.component';
+import { LogsComponent } from './logs/logs.component';
 
 @NgModule({
   declarations: [
     AppComponent,
-    ProjectSelectComponent
+    ProjectSelectComponent,
+    LogsComponent
   ],
   imports: [
     BrowserModule,
