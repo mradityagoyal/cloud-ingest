@@ -23,9 +23,7 @@ export class JobConfigAddDialogComponent {
   model = new JobConfigRequest(
         /** jobConfigId **/ '',
         /** gcsBucket **/ '',
-        /** fileSystemDirectory **/ '',
-        /** bigQueryDataset **/'',
-        /** bigqueryTable **/ '');
+        /** fileSystemDirectory **/ '');
   showError = false;
   errorTitle: string;
 

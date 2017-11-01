@@ -50,16 +50,6 @@
   <span *ngIf="gcsBucket.invalid && (gcsBucket.dirty || gcsBucket.touched)" class="ingest-alert">
     A GCS bucket can contain lowercase alphanumeric characters, hyphens, underscores and dots.
   </span>
-  <h4 i18n=""> Destination information for BigQuery: </h4>
-  <mat-checkbox class="ingest-full-width" id="bigQueryTransferChecked" name="bigQueryTransferChecked" i18n="Label for checkbox to select the transfer rows to BigQuery option" [(ngModel)]="bigQueryTransferChecked">Transfer rows into BigQuery</mat-checkbox>
-  <ng-container *ngIf="bigQueryTransferChecked">
-    <mat-form-field class="ingest-full-width">
-      <input id="bigqueryDataset" name="bigqueryDataset" matInput required [(ngModel)]="model.bigqueryDataset" #bigqueryDataset="ngModel" placeholder="BigQuery dataset" i18n="Label for input of a BigQuery dataset">
-    </mat-form-field>
-    <mat-form-field class="ingest-full-width">
-      <input id="bigqueryTable" name="bigqueryTable" matInput required [(ngModel)]="model.bigqueryTable" #bigqueryTable="ngModel" placeholder="BigQuery table" i18n="Label for input of a BigQuery table">
-    </mat-form-field>
-  </ng-container>
 
   <button mat-raised-button class="ingest-job-config-add-submit" type="submit" [disabled]="!jobConfigAddDialogForm.form.valid ||
       submittingForm" i18n="Label for submit button">

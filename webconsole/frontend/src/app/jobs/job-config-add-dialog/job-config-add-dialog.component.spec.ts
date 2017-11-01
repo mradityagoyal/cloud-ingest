@@ -27,9 +27,9 @@ let fakeJobConfigModel: JobConfigRequest;
 const FAKE_HTTP_ERROR = {error : {error: 'FakeError', message: 'Fake Error Message.'}};
 
 const FAKE_JOB_CONFIG: JobConfigRequest = new JobConfigRequest(
-  'fakeConfigId', 'fakeBucket', 'fakeFileSystemDir', 'fakeBigqueryDataset', 'fakeBigqueryTable');
+  'fakeConfigId', 'fakeBucket', 'fakeFileSystemDir');
 
-const EMPTY_MODEL: JobConfigRequest = new JobConfigRequest('', '', '', '', '');
+const EMPTY_MODEL: JobConfigRequest = new JobConfigRequest('', '', '');
 
 describe('JobConfigAddDialogComponent', () => {
 

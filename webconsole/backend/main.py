@@ -76,16 +76,9 @@ def _get_credentials():
 
 def _get_post_job_configs_job_spec(content):
     """Makes a jobspec json out of the input request content."""
-    if 'bigqueryTable' in content and 'bigqueryDataset' in content:
-        return json.dumps({
-            'onPremSrcDirectory' : content['fileSystemDirectory'].strip(),
-            'gcsBucket' : content['gcsBucket'].strip(),
-            'bigqueryTable' : content['bigqueryTable'].strip(),
-            'bigqueryDataset' : content['bigqueryDataset'].strip()})
-    else:
-        return json.dumps({
-            'onPremSrcDirectory' : content['fileSystemDirectory'].strip(),
-            'gcsBucket' : content['gcsBucket'].strip()})
+    return json.dumps({
+        'onPremSrcDirectory' : content['fileSystemDirectory'].strip(),
+        'gcsBucket' : content['gcsBucket'].strip()})
 
 
 def _get_post_job_configs_error(content):
@@ -104,13 +97,6 @@ def _get_post_job_configs_error(content):
                 'message' : ('Missing at least one of the required fields: '
                              ','.join(fields))
             }
-    if (('bigqueryTable' in content or 'bigqueryDataset' in content) and
-        (not ('bigqueryTable' in content and 'bigqueryDataset' in content))):
-        response = {
-            'error' : 'Full Bigquery info must be specified',
-            'message' : ('If bigqueryTable or bigqueryDataset are specified '
-                         'both must be specified.')
-        }
     return response
 
 @APP.route('/projects/<project_id>/jobconfigs',

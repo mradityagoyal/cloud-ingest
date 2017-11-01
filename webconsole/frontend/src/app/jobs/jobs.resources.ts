@@ -4,9 +4,7 @@ export class JobConfigRequest {
   constructor(
     jobConfigId: string,
     gcsBucket: string,
-    fileSystemDirectory: string,
-    bigqueryDataset: string,
-    bigqueryTable: string
+    fileSystemDirectory: string
   ) { }
 }
 
