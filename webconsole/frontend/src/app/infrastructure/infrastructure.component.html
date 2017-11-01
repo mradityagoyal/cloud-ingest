@@ -64,13 +64,16 @@
       <!-- TODO(b/65736645): Add a button to tear down the infrastructure. -->
     </mat-card>
 
-    <mat-list>
+    <div class="ingest-infrastructure-buttons">
+      <button class="ingest-create-infrastructure" mat-raised-button color="primary" (click)="createInfrastructure()" [disabled]="createInfrastructureDisabled">Create infrastructure</button>
+      <button class="ingest-tear-down-infrastructure" mat-raised-button color="accent" (click)="tearDownInfrastructure()" [disabled]="tearDownDisabled">Tear down infrastructure</button>
+    </div>
+
+    <mat-list class="ingest-infrastructure-status-list">
       <app-infrastructure-status-item [itemName]="'Cloud Spanner'" [itemStatus]="infrastructureStatus.spannerStatus"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'Data Control Plane'" [itemStatus]="infrastructureStatus.dcpStatus"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'Cloud Functions'" [itemStatus]="infrastructureStatus.cloudFunctionsStatus"> </app-infrastructure-status-item>
       <app-infrastructure-status-item [itemName]="'Pubsub'" [itemStatus]="overallPubSubStatus"> </app-infrastructure-status-item>
     </mat-list>
-    <button class="ingest-create-infrastructure" mat-raised-button color="primary" (click)="createInfrastructure()" [disabled]="createInfrastructureDisabled">Create infrastructure</button>
-    <button class="ingest-tear-down-infrastructure" mat-raised-button color="accent" (click)="tearDownInfrastructure()" [disabled]="tearDownDisabled">Tear down infrastructure</button>
   </ng-template>
 </ng-template>
