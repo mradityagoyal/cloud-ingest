@@ -25,6 +25,7 @@
       "environments": {
         "dev": "environments/environment.ts",
         "test": "environments/environment.test.ts",
+        "perf": "environments/environment.perf.ts",
         "prod": "environments/environment.prod.ts"
       }
     }

@@ -46,8 +46,9 @@ fail() {
 }
 
 if [ $# -ne 1 ] || ( [ "$1" != "base" ] && [ "$1" != "dcp" ] && \
-                     [ "$1" != "test" ] && [ "$1" != "dev" ] ); then
- fail "Should provide 1 argument (base|dcp|test|dev)"
+                     [ "$1" != "test" ] && [ "$1" != "perf" ] && \
+                     [ "$1" != "dev" ] ); then
+ fail "Should provide 1 argument (base|dcp|test|perf|dev)"
 fi
 
 if [ "$1" = "base" ]; then

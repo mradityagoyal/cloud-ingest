@@ -49,7 +49,7 @@ def main():
         description='Generate app.yaml app engine config file')
 
     parser.add_argument('environment',
-                        choices=['test', 'prod'],
+                        choices=['test', 'prod', 'perf'],
                         help='Whether to generate the app engine config for '
                              'test or prod environment.')
     args = parser.parse_args()
