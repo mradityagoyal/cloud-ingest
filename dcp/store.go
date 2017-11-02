@@ -29,7 +29,7 @@ import (
 	"google.golang.org/api/iterator"
 )
 
-// Store provides an interface for the backing store that is used by the dcp.
+// Store provides an interface for the backing store that is used by the DCP.
 type Store interface {
 	// GetJobSpec retrieves the JobSpec from the store.
 	GetJobSpec(jobConfigId string) (*JobSpec, error)
@@ -45,6 +45,23 @@ type Store interface {
 	// number of topics to publish to.
 	QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic,
 		loadBigQueryTopic *pubsub.Topic) error
+
+	// GetNumUnprocessedLogs returns the number of rows in the LogEntries table
+	// with the 'Processed' column set to false. Any errors result in returning
+	// zero. Note that although this function returns a simple int64, the
+	// underlying Spanner code scans the entire table to count the rows, so use
+	// this function judiciously.
+	GetNumUnprocessedLogs() (int64, error)
+
+	// GetUnprocessedLogs retrieves up to 'n' rows from the LogEntries table with
+	// the 'Processed' column set to false. These rows are ordered by the
+	// CreationTime column from least to most recent.
+	GetUnprocessedLogs(n int64) ([]*LogEntryRow, error)
+
+	// MarkLogsAsProcessed updates the rows in the LogEntries table, setting the
+	// 'Processed' column to true for all the rows specified by 'logEntryRows'.
+	// Any error means that none of the rows will be updated.
+	MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error
 
 	// TODO(b/67453832): Deprecate InsertNewTasks, this method is not used in the
 	// DCP logic. It should be removed after handling large listing tasks.
@@ -219,6 +236,9 @@ func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
 		// Check if status changed.
 		newStatus := countersObj.GetJobStatus()
 		if newStatus != oldStatus {
+			if JobRunStatusChangeNotificationChannel != nil {
+				JobRunStatusChangeNotificationChannel <- 0
+			}
 			// Job status has changed, add the update to the mutation params.
 			jobInsertColumns = append(jobInsertColumns, "Status")
 			jobInsertValues = append(jobInsertValues, newStatus)
@@ -553,6 +573,105 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 	return nil
 }
 
+func (s *SpannerStore) GetNumUnprocessedLogs() (int64, error) {
+	stmt := spanner.NewStatement("SELECT COUNT(*) as count FROM LogEntries WHERE Processed = false")
+	iter := s.Client.Single().Query(context.Background(), stmt)
+	defer iter.Stop()
+	row, err := iter.Next()
+	if err != nil {
+		return 0, err
+	}
+	var count int64
+	err = row.ColumnByName("count", &count)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (s *SpannerStore) GetUnprocessedLogs(n int64) ([]*LogEntryRow, error) {
+	var stmt spanner.Statement
+	stmt = spanner.NewStatement(`SELECT * FROM LogEntries WHERE Processed = false
+		 ORDER BY CreationTime LIMIT @maxtasks`)
+	stmt.Params["maxtasks"] = n
+	iter := s.Client.Single().Query(context.Background(), stmt)
+	defer iter.Stop()
+	var logEntryRows []*LogEntryRow
+	for {
+		row, err := iter.Next()
+		if err == iterator.Done {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		ler := new(LogEntryRow)
+		if err := row.ColumnByName("JobConfigId", &ler.JobConfigId); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("JobRunId", &ler.JobRunId); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("TaskId", &ler.TaskId); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("LogEntryId", &ler.LogEntryId); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("CreationTime", &ler.CreationTime); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("CurrentStatus", &ler.CurrentStatus); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("PreviousStatus", &ler.PreviousStatus); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("FailureMessage", &ler.FailureMessage); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("LogEntry", &ler.LogEntry); err != nil {
+			return nil, err
+		}
+		if err := row.ColumnByName("Processed", &ler.Processed); err != nil {
+			return nil, err
+		}
+		logEntryRows = append(logEntryRows, ler)
+	}
+	return logEntryRows, nil
+}
+
+func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
+	if len(logEntryRows) == 0 {
+		return nil
+	}
+	_, err := s.Client.ReadWriteTransaction(
+		context.Background(),
+		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+			mutations := make([]*spanner.Mutation, len(logEntryRows))
+			for i, l := range logEntryRows {
+				mutations[i] = spanner.Update(
+					"LogEntries",
+					[]string{
+						"JobConfigId",
+						"JobRunId",
+						"TaskId",
+						"LogEntryId",
+						"Processed",
+					},
+					[]interface{}{
+						l.JobConfigId,
+						l.JobRunId,
+						l.TaskId,
+						l.LogEntryId,
+						true, /* Processed.*/
+					})
+			}
+			return txn.BufferWrite(mutations)
+		})
+	return err
+}
+
 // getUnqueuedTasks retrieves at most n unqueued tasks from the store.
 func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
 	var tasks []*Task
@@ -565,8 +684,7 @@ func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
 			"maxtasks": n,
 		},
 	}
-	iter := s.Client.Single().Query(
-		context.Background(), stmt)
+	iter := s.Client.Single().Query(context.Background(), stmt)
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()

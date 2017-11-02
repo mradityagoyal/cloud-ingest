@@ -25,18 +25,18 @@ var (
 	errTaskNotFound              = errors.New("task not found")
 	errInsertNewTasks            = errors.New("inserting new tasks")
 	errInvalidCompletionMessage  = errors.New("invalid task completion message")
-	errTaskLogEntryCountMismatch = errors.New("task/logEntry count mismatch")
 )
 
 // FakeStore is a fake implementation of Store interface that is used for test
 // purposes.
 type FakeStore struct {
-	tasks      map[string]*Task
-	logEntries map[string]string
+	jobSpec      *JobSpec
+	tasks        map[string]*Task
+	logEntryRows []*LogEntryRow
 }
 
 func (s *FakeStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
-	return nil, errors.New("GetJobSpec: Not implemented.")
+	return s.jobSpec, nil
 }
 
 func (s *FakeStore) GetTaskSpec(
@@ -72,4 +72,45 @@ func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) erro
 func (s *FakeStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic,
 	loadBigQueryTopic *pubsub.Topic) error {
 	return errors.New("QueueTasks: Not implemented.")
+}
+
+func (s *FakeStore) GetNumUnprocessedLogs() (int64, error) {
+	numUnprocessedLogs := int64(0)
+	for _, l := range s.logEntryRows {
+		if l.Processed == false {
+			numUnprocessedLogs++
+		}
+	}
+	return numUnprocessedLogs, nil
+}
+
+func (s *FakeStore) GetUnprocessedLogs(n int64) ([]*LogEntryRow, error) {
+	var logEntryRows []*LogEntryRow
+	for _, l := range s.logEntryRows {
+		if l.Processed == false {
+			logEntryRows = append(logEntryRows, l)
+			if int64(len(logEntryRows)) >= n {
+				break
+			}
+		}
+	}
+	return logEntryRows, nil
+}
+
+func (s *FakeStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
+	for _, l := range logEntryRows {
+		foundEntry := false
+		for _, sl := range s.logEntryRows {
+			if l.JobConfigId == sl.JobConfigId && l.JobRunId == sl.JobRunId &&
+				l.TaskId == sl.TaskId && l.LogEntryId == sl.LogEntryId {
+				sl.Processed = true
+				foundEntry = true
+				break
+			}
+		}
+		if !foundEntry {
+			return errors.New("LogEntryRow to mark as processed not found.")
+		}
+	}
+	return nil
 }

@@ -25,6 +25,7 @@ import (
 type GCS interface {
 	GetAttrs(bucketName string, objectName string) (*storage.ObjectAttrs, error)
 	NewReader(bucketName string, objectName string) (io.ReadCloser, error)
+	NewWriter(bucketName string, objectName string) io.WriteCloser
 }
 
 type GCSClient struct {
@@ -34,10 +35,15 @@ type GCSClient struct {
 func NewGCSClient(client *storage.Client) *GCSClient {
 	return &GCSClient{client}
 }
+
 func (gcs *GCSClient) GetAttrs(bucketName string, objectName string) (*storage.ObjectAttrs, error) {
 	return gcs.client.Bucket(bucketName).Object(objectName).Attrs(context.Background())
 }
 
 func (gcs *GCSClient) NewReader(bucketName string, objectName string) (io.ReadCloser, error) {
 	return gcs.client.Bucket(bucketName).Object(objectName).NewReader(context.Background())
+}
+
+func (gcs *GCSClient) NewWriter(bucketName string, objectName string) io.WriteCloser {
+	return gcs.client.Bucket(bucketName).Object(objectName).NewWriter(context.Background())
 }

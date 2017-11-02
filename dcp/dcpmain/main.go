@@ -127,7 +127,12 @@ func main() {
 	go uploadGCSReceiver.ReceiveMessages()
 	go loadBigQueryReceiver.ReceiveMessages()
 
-	// Loop for infinity to queue tasks
+	// The LogEntryProcessor will continuously export logs from the "LogEntries"
+	// Spanner table to GCS.
+	logEntryProcessor := dcp.LogEntryProcessor{gcsClient, store}
+	logEntryProcessor.ProcessLogs()
+
+	// Loop indefinitely to queue tasks.
 	for {
 		err := dcp.RetryWithExponentialBackoff(
 			queueTasksSleepTime,

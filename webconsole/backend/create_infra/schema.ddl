@@ -38,10 +38,13 @@ CREATE TABLE LogEntries (
       JobRunId STRING(MAX) NOT NULL,
       TaskId STRING(MAX) NOT NULL,
       LogEntryId INT64 NOT NULL,
-      LogEntryCreationTime INT64 NOT NULL,
+      CreationTime INT64 NOT NULL,
       CurrentStatus INT64 NOT NULL,
       PreviousStatus INT64 NOT NULL,
       FailureMessage STRING(MAX),
       LogEntry STRING(MAX) NOT NULL,
+      Processed BOOL NOT NULL,
     ) PRIMARY KEY(JobConfigId, JobRunId, TaskId, LogEntryId),
     INTERLEAVE IN PARENT Tasks ON DELETE NO ACTION
+
+CREATE INDEX LogEntriesByProcessed ON LogEntries(Processed)
