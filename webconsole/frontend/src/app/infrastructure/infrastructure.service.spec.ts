@@ -24,8 +24,7 @@ const FAKE_PUBSUB_STATUS_RUNNING: PubsubStatus = {
 const FAKE_INFRA_STATUS_RUNNING: InfrastructureStatus = {
   spannerStatus: INFRA_STATUS.RUNNING,
   pubsubStatus: FAKE_PUBSUB_STATUS_RUNNING,
-  dcpStatus: INFRA_STATUS.RUNNING,
-  cloudFunctionsStatus: INFRA_STATUS.RUNNING
+  dcpStatus: INFRA_STATUS.RUNNING
 };
 
 const FAKE_PUBSUB_STATUS_NOT_FOUND: PubsubStatus = {
@@ -40,8 +39,7 @@ const FAKE_PUBSUB_STATUS_NOT_FOUND: PubsubStatus = {
 const FAKE_INFRA_STATUS_NOT_FOUND: InfrastructureStatus = {
   spannerStatus: INFRA_STATUS.NOT_FOUND,
   pubsubStatus: FAKE_PUBSUB_STATUS_NOT_FOUND,
-  dcpStatus: INFRA_STATUS.NOT_FOUND,
-  cloudFunctionsStatus: INFRA_STATUS.NOT_FOUND
+  dcpStatus: INFRA_STATUS.NOT_FOUND
 };
 
 const FAKE_PUBSUB_STATUS_UNKNOWN: PubsubStatus = {
@@ -56,8 +54,7 @@ const FAKE_PUBSUB_STATUS_UNKNOWN: PubsubStatus = {
 const FAKE_INFRA_STATUS_UNKNOWN: InfrastructureStatus = {
   spannerStatus: INFRA_STATUS.RUNNING,
   pubsubStatus: FAKE_PUBSUB_STATUS_UNKNOWN,
-  dcpStatus: INFRA_STATUS.UNKNOWN,
-  cloudFunctionsStatus: INFRA_STATUS.RUNNING
+  dcpStatus: INFRA_STATUS.UNKNOWN
 };
 
 const FAKE_PUBSUB_STATUS_FAILED: PubsubStatus = {
@@ -72,8 +69,7 @@ const FAKE_PUBSUB_STATUS_FAILED: PubsubStatus = {
 const FAKE_INFRA_STATUS_FAILED: InfrastructureStatus = {
   spannerStatus: INFRA_STATUS.RUNNING,
   pubsubStatus: FAKE_PUBSUB_STATUS_UNKNOWN,
-  dcpStatus: INFRA_STATUS.FAILED,
-  cloudFunctionsStatus: INFRA_STATUS.RUNNING
+  dcpStatus: INFRA_STATUS.FAILED
 };
 
 const FAKE_PUBSUB_STATUS_DEPLOYING: PubsubStatus = {
@@ -88,8 +84,7 @@ const FAKE_PUBSUB_STATUS_DEPLOYING: PubsubStatus = {
 const FAKE_INFRA_STATUS_DEPLOYING: InfrastructureStatus = {
   spannerStatus: INFRA_STATUS.NOT_FOUND,
   pubsubStatus: FAKE_PUBSUB_STATUS_DEPLOYING,
-  dcpStatus: INFRA_STATUS.NOT_FOUND,
-  cloudFunctionsStatus: INFRA_STATUS.DEPLOYING
+  dcpStatus: INFRA_STATUS.NOT_FOUND
 };
 
 const FAKE_PUBSUB_STATUS_DELETING: PubsubStatus = {
@@ -104,8 +99,7 @@ const FAKE_PUBSUB_STATUS_DELETING: PubsubStatus = {
 const FAKE_INFRA_STATUS_DELETING: InfrastructureStatus = {
   spannerStatus: INFRA_STATUS.RUNNING,
   pubsubStatus: FAKE_PUBSUB_STATUS_DELETING,
-  dcpStatus: INFRA_STATUS.RUNNING,
-  cloudFunctionsStatus: INFRA_STATUS.DELETING
+  dcpStatus: INFRA_STATUS.RUNNING
 };
 
 describe('InfrastructureService', () => {

@@ -139,7 +139,7 @@ export class InfrastructureComponent implements OnInit, OnDestroy {
     this.resetMessageVariables();
     this.updateOverallPubSubStatus(response);
     const statusList = [this.infrastructureStatus.spannerStatus, this.infrastructureStatus.dcpStatus,
-      this.infrastructureStatus.cloudFunctionsStatus, this.overallPubSubStatus];
+      this.overallPubSubStatus];
     this.overallInfrastructureStatus = InfrastructureService.getOverallStatus(statusList);
     this.updateCreateTearDownButtons();
 

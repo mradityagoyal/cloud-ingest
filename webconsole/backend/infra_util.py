@@ -14,14 +14,12 @@
 
 """Ingest infrastructure utility functions for webconsole backend."""
 
-from google.cloud import pubsub
 from google.cloud import spanner
 from google.cloud.exceptions import Conflict
 from google.cloud.exceptions import PreconditionFailed
 from os import path
 
 from create_infra import constants
-from create_infra import cloud_functions_builder
 from create_infra import compute_builder
 from create_infra import pubsub_builder
 from create_infra import spanner_builder
@@ -48,8 +46,7 @@ _TOPICS_SUBSCRIPTIONS = {
 }
 
 # pylint: disable=invalid-name
-def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr,
-                                      functions_bldr, compute_bldr):
+def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr, compute_bldr):
     """Gets the ingest infrastructure deployment status. It uses the passed
     builder objects to check for resources statues.
 
@@ -57,8 +54,6 @@ def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr,
         spanner_bldr: SpannerBuilder to get the spanner database deployment
             status.
         pubsub_bldr: PubBuilder to get pub/sub topics and subscriptions
-            deployment status.
-        functions_bldr: CloudFunctionsBuilder to get the cloud functions
             deployment status.
         compute_bldr: ComputeBuilder to get the DCP GCE instance deployment
             status.
@@ -71,7 +66,6 @@ def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr,
         'NOT_FOUND', or 'UNKNOWN'), or a dictionary with that contains status
         strings. Sample return value:
         {
-            'cloudFunctionsStatus': 'DEPLOYING',
             'dcpStatus': 'RUNNING',
             'pubsubStatus': {
                 'list': 'RUNNING',
@@ -96,8 +90,6 @@ def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr,
         'pubsubStatus': pubsub_status,
         'dcpStatus': compute_bldr.instance_status(
             constants.DCP_INSTANCE_NAME).name,
-        'cloudFunctionsStatus': functions_bldr.function_status(
-            constants.LOAD_BQ_CLOUD_FN_NAME).name,
     }
     return statuses
 # pylint: enable=invalid-name
@@ -121,13 +113,10 @@ def infrastructure_status(credentials, project_id):
     pubsub_bldr = pubsub_builder.PubSubBuilder(
         credentials=credentials, project_id=project_id)
 
-    functions_bldr = cloud_functions_builder.CloudFunctionsBuilder(
-        credentials=credentials, project_id=project_id)
-
     compute_bldr = compute_builder.ComputeBuilder(credentials=credentials,
                                                   project_id=project_id)
     return _infrastructure_status_from_bldrs(
-        spanner_bldr, pubsub_bldr, functions_bldr, compute_bldr)
+        spanner_bldr, pubsub_bldr, compute_bldr)
 
 def create_infrastructure(credentials, project_id, dcp_docker_image=None):
     """Creates the ingest infrastructure. Makes sure that all the infrastructure
@@ -150,15 +139,12 @@ def create_infrastructure(credentials, project_id, dcp_docker_image=None):
     pubsub_bldr = pubsub_builder.PubSubBuilder(
         credentials=credentials, project_id=project_id)
 
-    functions_bldr = cloud_functions_builder.CloudFunctionsBuilder(
-        credentials=credentials, project_id=project_id)
-
     compute_bldr = compute_builder.ComputeBuilder(credentials=credentials,
                                                   project_id=project_id)
 
     # Checking the infrastructure deployment status before creating it.
     infra_statuses = _infrastructure_status_from_bldrs(
-        spanner_bldr, pubsub_bldr, functions_bldr, compute_bldr)
+        spanner_bldr, pubsub_bldr, compute_bldr)
     # Make sure all infrastructure components are not found.
     if not dict_values_are_recursively(infra_statuses,
                                        ResourceStatus.NOT_FOUND.name):
@@ -176,14 +162,6 @@ def create_infrastructure(credentials, project_id, dcp_docker_image=None):
     for topic_subscriptions in _TOPICS_SUBSCRIPTIONS.itervalues():
         pubsub_bldr.create_topic_and_subscriptions(
             topic_subscriptions[0], topic_subscriptions[1])
-
-    # Create the cloud function.
-    function_dir = path.realpath(path.join(
-        _CURRENT_DIR, '../../cloud-functions/gcs-to-bq-importer'))
-    functions_bldr.create_function_async(
-        constants.LOAD_BQ_CLOUD_FN_NAME, function_dir, constants.LOAD_BQ_TOPIC,
-        constants.LOAD_BQ_CLOUD_FN_ENTRY_POINT,
-        constants.LOAD_BQ_CLOUD_FN_TIMEOUT_SECS)
 
     # Create the DCP GCE instance.
     # TODO(b/65753224): Support of not creating the DCP GCE as part of the
@@ -214,15 +192,12 @@ def tear_infrastructure(credentials, project_id):
     pubsub_bldr = pubsub_builder.PubSubBuilder(
         credentials=credentials, project_id=project_id)
 
-    functions_bldr = cloud_functions_builder.CloudFunctionsBuilder(
-        credentials=credentials, project_id=project_id)
-
     compute_bldr = compute_builder.ComputeBuilder(credentials=credentials,
                                                   project_id=project_id)
 
     # Checking the infrastructure deployment status before creating it.
     infra_statuses = _infrastructure_status_from_bldrs(
-        spanner_bldr, pubsub_bldr, functions_bldr, compute_bldr)
+        spanner_bldr, pubsub_bldr, compute_bldr)
     # Make sure all infrastructure components are not deploying or deleting.
     if dict_has_values_recursively(infra_statuses,
                                    set([ResourceStatus.DEPLOYING.name,
@@ -238,9 +213,6 @@ def tear_infrastructure(credentials, project_id):
     # Delete the topics and subscriptions.
     for topic_subscriptions in _TOPICS_SUBSCRIPTIONS.itervalues():
         pubsub_bldr.delete_topic_and_subscriptions(topic_subscriptions[0])
-
-    # Delete the cloud function.
-    functions_bldr.delete_function_async(constants.LOAD_BQ_CLOUD_FN_NAME)
 
     # Delete the DCP GCE instance.
     compute_bldr.delete_instance_async(constants.DCP_INSTANCE_NAME)

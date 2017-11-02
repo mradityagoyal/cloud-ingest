@@ -2,7 +2,6 @@ export interface InfrastructureStatus {
   spannerStatus: string;
   pubsubStatus: PubsubStatus;
   dcpStatus: string;
-  cloudFunctionsStatus: string;
 }
 
 export interface PubsubStatus {
