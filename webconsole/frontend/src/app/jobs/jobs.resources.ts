@@ -1,6 +1,9 @@
 import { TaskFailureType } from '../proto/tasks.js';
 
 export class JobConfigRequest {
+  jobConfigId: string;
+  gcsBucket: string;
+  fileSystemDirectory: string;
   constructor(
     jobConfigId: string,
     gcsBucket: string,

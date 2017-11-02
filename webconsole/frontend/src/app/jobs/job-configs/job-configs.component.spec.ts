@@ -1,18 +1,19 @@
-import { TestBed, async } from '@angular/core/testing';
-import { JobsService } from '../jobs.service';
-import { JobConfigRequest } from '../jobs.resources';
-import { JobConfigsComponent } from './job-configs.component';
-import { HttpErrorResponse } from '@angular/common/http';
-import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
-import { Observable } from 'rxjs/Observable';
-import { MatDialog } from '@angular/material';
-import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
-import { RouterTestingModule } from '@angular/router/testing';
-import { HttpErrorResponseFormatter } from '../../util/error.resources';
-import 'rxjs/add/observable/of';
-import 'rxjs/add/operator/delay';
 import 'rxjs/add/observable/never';
+import 'rxjs/add/observable/of';
 import 'rxjs/add/observable/throw';
+import 'rxjs/add/operator/delay';
+
+import { async, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material';
+import { RouterTestingModule } from '@angular/router/testing';
+import { Observable } from 'rxjs/Observable';
+
+import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
+import { HttpErrorResponseFormatter } from '../../util/error.resources';
+import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
+import { JobConfigResponse } from '../jobs.resources';
+import { JobsService } from '../jobs.service';
+import { JobConfigsComponent } from './job-configs.component';
 
 class JobsServiceStub {
   public getJobConfigs = jasmine.createSpy('getJobConfigs');
@@ -30,7 +31,7 @@ const FAKE_JOBSPEC1: any = {'fakeField1': 'fakeValue1', 'fakeField2' : 'fakeValu
 const FAKE_JOBSPEC2: any = {'fakeField3': 'fakeValue3', 'fakeField4' : 'fakeValue4'};
 const FAKE_JOBSPEC3: any = {'fakeField5': 'fakeValue5', 'fakeField6' : 'fakeValue6'};
 
-const FAKE_JOB_CONFIGS: JobConfigRequest[] = [
+const FAKE_JOB_CONFIGS: JobConfigResponse[] = [
   {
     JobConfigId: 'fakeJobConfigId1',
     JobSpec: FAKE_JOBSPEC1
@@ -45,7 +46,7 @@ const FAKE_JOB_CONFIGS: JobConfigRequest[] = [
   }
 ];
 
-const EMPTY_JOB_CONFIG_ARR: JobConfigRequest[] = [];
+const EMPTY_JOB_CONFIG_ARR: JobConfigResponse[] = [];
 
 const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
 
