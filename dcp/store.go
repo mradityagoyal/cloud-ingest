@@ -250,7 +250,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 	}
 
 	var counters JobCountersCollection
-	err := counters.updateForTaskUpdate(&TaskUpdate{nil, nil, tasks}, 0)
+	err := counters.updateForTaskUpdate(&TaskUpdate{Task: nil, LogEntry: nil, NewTasks: tasks}, 0)
 	if err != nil {
 		return err
 	}

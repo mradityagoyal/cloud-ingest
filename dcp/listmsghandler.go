@@ -46,10 +46,17 @@ func (h *ListProgressMessageHandler) retrieveGenerationNumber(bucketName string,
 }
 
 func (h *ListProgressMessageHandler) HandleMessage(
-	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
+	jobSpec *JobSpec, taskCompletionMessage *TaskCompletionMessage) (*TaskUpdate, error) {
+
+	taskUpdate, err := TaskCompletionMessageToTaskUpdate(taskCompletionMessage)
+	if err != nil {
+		log.Printf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
+		return nil, err
+	}
+
 	taskUpdate.Task.TaskType = listTaskType // Set the type first.
 	if taskUpdate.Task.Status != Success {
-		return nil
+		return taskUpdate, nil
 	}
 	task := taskUpdate.Task
 
@@ -61,14 +68,14 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	if err != nil {
 		log.Printf("Error getting task spec of task: %v, with error: %v.",
 			task, err)
-		return err
+		return nil, err
 	}
 
 	var listTaskSpec ListTaskSpec
 	if err := json.Unmarshal([]byte(taskSpec), &listTaskSpec); err != nil {
 		log.Printf(
 			"Error decoding task spec: %s, with error: %v.", taskSpec, err)
-		return err
+		return nil, err
 	}
 
 	filePaths, err := h.ListingResultReader.ReadListResult(
@@ -77,12 +84,12 @@ func (h *ListProgressMessageHandler) HandleMessage(
 		log.Printf(
 			"Error reading the list task result, list task spec: %v, with error: %v.",
 			listTaskSpec, err)
-		return err
+		return nil, err
 	}
 	taskIdFromFile := <-filePaths
 
 	if taskIdFromFile != task.getTaskFullId() {
-		return errors.New(
+		return nil, errors.New(
 			fmt.Sprintf(noTaskIdInListOutput, task.getTaskFullId(), taskIdFromFile))
 	}
 	var newTasks []*Task
@@ -95,7 +102,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 			log.Printf(
 				"Error reading file metadata for %s:%s, err: %v.",
 				jobSpec.GCSBucket, filePath, err)
-			return err
+			return nil, err
 		}
 
 		uploadGCSTaskSpec := UploadGCSTaskSpec{
@@ -109,7 +116,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 			log.Printf(
 				"Error encoding task spec to JSON string, task spec: %v, err: %v.",
 				uploadGCSTaskSpec, err)
-			return err
+			return nil, err
 		}
 		newTasks = append(newTasks, &Task{
 			JobConfigId: task.JobConfigId,
@@ -121,5 +128,5 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	}
 	taskUpdate.NewTasks = newTasks
 
-	return nil
+	return taskUpdate, nil
 }

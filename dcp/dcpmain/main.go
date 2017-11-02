@@ -114,9 +114,7 @@ func main() {
 	uploadGCSReceiver := dcp.MessageReceiver{
 		Sub:   copyProgressSub,
 		Store: store,
-		Handler: &dcp.UploadGCSProgressMessageHandler{
-			Store: store,
-		},
+		Handler: &dcp.UploadGCSProgressMessageHandler{},
 	}
 
 	loadBigQueryReceiver := dcp.MessageReceiver{

@@ -17,7 +17,6 @@ package dcp
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"reflect"
 	"testing"
@@ -166,98 +165,168 @@ func TestGetTaskUpdates(t *testing.T) {
 /*******************************************************************************
 Task Methods Tests
 *******************************************************************************/
-
-func TestTaskCompletionMessageJsonToTaskUpdate(t *testing.T) {
-	var tests = map[string]int64{
-		"SUCCESS": Success,
-		"FAILED":  Failed,
-	}
-
-	msgFormat := `{
-		"task_id": "job_config_id_A:job_run_id_A:A",
-		"status": "%s"
-	}`
-
-	for jsonStatusString, taskStatus := range tests {
-		want := Task{
-			JobConfigId: jobConfigId,
-			JobRunId:    jobRunId,
-			TaskId:      "A",
-			Status:      taskStatus,
-		}
-		msg := []byte(fmt.Sprintf(msgFormat, jsonStatusString))
-
-		taskUpdate, err := TaskCompletionMessageJsonToTaskUpdate(msg)
-		task := taskUpdate.Task
-		if err != nil {
-			t.Errorf("error converting task msg JSON to Task, error: %v.", err)
-		}
-		if !reflect.DeepEqual(*task, want) {
-			t.Errorf("result: %v, wanted: %v", *task, want)
-		}
-	}
-}
-
-func TestTaskCompletionMessageJsonToTaskUpdateFailureMsg(t *testing.T) {
-	want := Task{
-		JobConfigId:    jobConfigId,
-		JobRunId:       jobRunId,
-		TaskId:         "A",
-		Status:         Failed,
-		FailureType:    proto.TaskFailureType_UNUSED,
-		FailureMessage: "Failure",
-	}
+func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 	msg := []byte(`{
 		"task_id": "job_config_id_A:job_run_id_A:A",
 		"status": "FAILED",
-		"failure_message": "Failure"
+		"failure_reason": 5,
+		"failure_message": "Failure",
+		"log_entry": {
+			"logkey1": "logval1",
+			"lognum": 42
+		},
+		"task_params": {
+			"paramkey1": "paramval1",
+			"paramnum": 42
+		}
 	}`)
-	taskUpdate, err := TaskCompletionMessageJsonToTaskUpdate(msg)
-	task := taskUpdate.Task
+
+	taskCompletionMessage, err := TaskCompletionMessageFromJson(msg)
 	if err != nil {
-		t.Errorf("error converting task msg JSON to Task, error: %v.", err)
+		t.Errorf("Error converting completion msg JSON to TaskCompletionMessage: %v", err)
 	}
-	if !reflect.DeepEqual(*task, want) {
-		t.Errorf("result: %v, wanted: %v", *task, want)
+
+	want := TaskCompletionMessage{
+		FullTaskId:     "job_config_id_A:job_run_id_A:A",
+		Status:         "FAILED",
+		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
+		FailureMessage: "Failure",
+		LogEntry: map[string]interface{}{
+			"logkey1": "logval1",
+			"lognum":  json.Number("42"),
+		},
+		TaskParams: map[string]interface{}{
+			"paramkey1": "paramval1",
+			"paramnum":  json.Number("42"),
+		},
+	}
+
+	if !reflect.DeepEqual(*taskCompletionMessage, want) {
+		t.Errorf("result: %v, wanted: %v", *taskCompletionMessage, want)
 	}
 }
 
-func TestTaskCompletionMessageJsonToTaskUpdateFailureMsgFailParse(t *testing.T) {
-	msg := []byte("Invalid JSON.")
-	if _, err := TaskCompletionMessageJsonToTaskUpdate(msg); err == nil {
-		t.Errorf("invalid JSON: %s. Method should not be able to parse", string(msg))
-	}
-}
-
-func TestTaskCompletionMessageJsonToTaskUpdateMissingId(t *testing.T) {
+func TestTaskCompletionMessageFromJsonSuccessMessage(t *testing.T) {
 	msg := []byte(`{
-		"status": "FAILED",
-		"failure_message": "Failure"
+		"task_id": "job_config_id_A:job_run_id_A:A",
+		"status": "SUCCESS",
+		"log_entry": {
+			"logkey1": "logval1"
+		},
+		"task_params": {
+			"paramkey1": "paramval1"
+		}
 	}`)
-	if _, err := TaskCompletionMessageJsonToTaskUpdate(msg); err == nil {
-		t.Errorf(
-			"task id does not exist in the message: %s, expected error.", string(msg))
+
+	taskCompletionMessage, err := TaskCompletionMessageFromJson(msg)
+	if err != nil {
+		t.Errorf("error converting completion msg JSON to TaskCompletionMessage: %v", err)
+	}
+
+	want := TaskCompletionMessage{
+		FullTaskId: "job_config_id_A:job_run_id_A:A",
+		Status:     "SUCCESS",
+		LogEntry: map[string]interface{}{
+			"logkey1": "logval1",
+		},
+		TaskParams: map[string]interface{}{
+			"paramkey1": "paramval1",
+		},
+	}
+
+	if !reflect.DeepEqual(*taskCompletionMessage, want) {
+		t.Errorf("result: %v, wanted: %v", *taskCompletionMessage, want)
 	}
 }
 
-func TestTaskCompletionMessageJsonToTaskUpdateMissingStatus(t *testing.T) {
-	msg := []byte(`{
-		"task_id": "A"
-	}`)
-	if _, err := TaskCompletionMessageJsonToTaskUpdate(msg); err == nil {
-		t.Errorf(
-			"status does not exist in the message: %s, expected error.", string(msg))
+func TestTaskCompletionMessageToTaskUpdateNilMessage(t *testing.T) {
+	_, err := TaskCompletionMessageToTaskUpdate(nil)
+	if err == nil {
+		t.Error("nil input should have resulted in an error.")
 	}
 }
 
-func TestTaskCompletionMessageJsonToTaskUpdateIncorrectStatus(t *testing.T) {
-	msg := []byte(`{
-		"task_id": "A",
-		"status": "Incorrect status"
-	}`)
-	if _, err := TaskCompletionMessageJsonToTaskUpdate(msg); err == nil {
-		t.Errorf(
-			"incorrect status in the message: %s, expected error.", string(msg))
+func TestTaskCompletionMessageToTaskUpdateBadTask(t *testing.T) {
+	taskCompletionMessage := TaskCompletionMessage{
+		FullTaskId: "invalid",
+	}
+
+	_, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
+
+	if err == nil {
+		t.Error("invalid task should have resulted in an error.")
+	}
+}
+
+func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
+	taskCompletionMessage := TaskCompletionMessage{
+		FullTaskId: "job_config_id_A:job_run_id_A:A",
+		Status:     "SUCCESS",
+		LogEntry:   map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
+		TaskParams: map[string]interface{}{"paramkey1": "paramval1", "paramkey2": "paramval2"},
+	}
+
+	taskUpdate, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
+
+	if err != nil {
+		t.Errorf("error converting completion msg JSON to TaskCompletionMessage: %v", err)
+	}
+
+	want := TaskUpdate{
+		Task: &Task{
+			JobConfigId: "job_config_id_A",
+			JobRunId:    "job_run_id_A",
+			TaskId:      "A",
+			Status:      Success,
+		},
+		LogEntry: &LogEntry{
+			data: map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
+		},
+		OriginalTaskParams: (*TaskParams)(&map[string]interface{}{"paramkey1": "paramval1", "paramkey2": "paramval2"}),
+	}
+
+	if taskUpdate == nil {
+		t.Errorf("taskUpdate is nil, but should be %v.", want)
+	} else if !reflect.DeepEqual(*taskUpdate, want) {
+		t.Errorf("result: %v, wanted: %v", *taskUpdate, want)
+	}
+}
+
+func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
+	taskCompletionMessage := TaskCompletionMessage{
+		FullTaskId:     "job_config_id_A:job_run_id_A:A",
+		Status:         "FAILED",
+		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
+		FailureMessage: "Failure",
+		LogEntry:       map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
+		TaskParams:     map[string]interface{}{"paramkey1": "paramval1", "paramkey2": "paramval2"},
+	}
+
+	taskUpdate, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
+
+	if err != nil {
+		t.Errorf("error converting completion msg JSON to TaskCompletionMessage: %v", err)
+	}
+
+	want := TaskUpdate{
+		Task: &Task{
+			JobConfigId:    "job_config_id_A",
+			JobRunId:       "job_run_id_A",
+			TaskId:         "A",
+			Status:         Failed,
+			FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
+			FailureMessage: "Failure",
+		},
+		LogEntry: &LogEntry{
+			data: map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
+		},
+		OriginalTaskParams: (*TaskParams)(&map[string]interface{}{"paramkey1": "paramval1", "paramkey2": "paramval2"}),
+	}
+
+	if taskUpdate == nil {
+		t.Errorf("taskUpdate is nil, but should be %v.", want)
+	} else if !reflect.DeepEqual(*taskUpdate, want) {
+		t.Errorf("result: %v, wanted: %v", *taskUpdate, want)
 	}
 }
 
@@ -282,18 +351,18 @@ func TestConstructPubSubTaskMsgSuccess(t *testing.T) {
 	// Construct the message
 	msg, err := constructPubSubTaskMsg(task)
 	if err != nil {
-		t.Errorf("Wanted no error, but got %v", err)
+		t.Errorf("wanted no error, but got %v", err)
 	}
 
 	// Unmarshall it into an arbitrary map and compare
 	result := make(map[string]interface{})
 	err = json.Unmarshal(msg, &result)
 	if err != nil {
-		t.Errorf("Wanted no error while unmarshalling expected result, but got %v", err)
+		t.Errorf("wanted no error while unmarshalling expected result, but got %v", err)
 	}
 
 	if !reflect.DeepEqual(want, result) {
-		t.Errorf("Wanted %v but got %v", want, result)
+		t.Errorf("wanted %v but got %v", want, result)
 	}
 }
 
@@ -308,6 +377,6 @@ func TestConstructPubSubTaskMsgFailure(t *testing.T) {
 	// Construct the message
 	_, err := constructPubSubTaskMsg(task)
 	if err == nil {
-		t.Error("Expecting error, got no error.")
+		t.Error("expecting error, got no error.")
 	}
 }

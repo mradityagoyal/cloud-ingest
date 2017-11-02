@@ -18,7 +18,6 @@ package dcp
 import (
 	"errors"
 	"fmt"
-	"reflect"
 	"strconv"
 	"testing"
 
@@ -29,7 +28,55 @@ import (
 var (
 	jobConfigId string = "job_config_id_A"
 	jobRunId    string = "job_run_id_A"
+	taskId      string = "task_id_A"
 )
+
+func listSuccessCompletionMessage() *TaskCompletionMessage {
+	return &TaskCompletionMessage{
+		FullTaskId: jobConfigId + ":" + jobRunId + ":" + taskId,
+		Status:     "SUCCESS",
+		TaskParams: map[string]interface{}{
+			"dst_list_result_bucket":  "bucket1",
+			"dst_list_result_object":  "object",
+			"src_directory":           "dir",
+			"expected_generation_num": 0,
+		},
+		LogEntry: map[string]interface{}{"logkey": "logval"},
+	}
+}
+
+func TestListProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
+	listTask := &Task{
+		JobConfigId: jobConfigId,
+		JobRunId:    jobRunId,
+		TaskId:      taskId,
+		TaskType:    listTaskType,
+		TaskSpec: `{
+			"task_id": "task_id_A",
+			"dst_list_result_bucket": "bucket",
+			"dst_list_result_object": "object",
+			"src_directory": "dir",
+			"expected_generation_num": 0
+		}`,
+		Status: Success,
+	}
+	store := FakeStore{
+		tasks: map[string]*Task{
+			listTask.getTaskFullId(): listTask,
+		},
+	}
+	handler := ListProgressMessageHandler{
+		Store: &store,
+	}
+
+	taskCompletionMessage := listSuccessCompletionMessage()
+	taskCompletionMessage.FullTaskId = "garbage"
+	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
+	if err == nil {
+		t.Errorf("error is nil, expected error: %v.", errInvalidCompletionMessage)
+	}
+
+}
 
 func TestListProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 	store := FakeStore{}
@@ -37,42 +84,12 @@ func TestListProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 		Store: &store,
 	}
 
-	taskUpdate := &TaskUpdate{
-		Task: &Task{Status: Success},
-	}
-	err := handler.HandleMessage(nil /* jobSpec */, taskUpdate)
+	_, err := handler.HandleMessage(nil /* jobSpec */, listSuccessCompletionMessage())
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errTaskNotFound)
 	}
 	if err != errTaskNotFound {
 		t.Errorf("expected error: %v, found: %v.", errTaskNotFound, err)
-	}
-}
-
-func TestListProgressMessageHandlerInvalidTaskSpec(t *testing.T) {
-	uploadGCSTask := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      "A",
-		TaskType:    uploadGCSTaskType,
-		TaskSpec:    "Invalid JSON Task Spec",
-		Status:      Success,
-	}
-	store := FakeStore{
-		tasks: map[string]*Task{
-			uploadGCSTask.getTaskFullId(): uploadGCSTask,
-		},
-	}
-	handler := ListProgressMessageHandler{
-		Store: &store,
-	}
-
-	taskUpdate := &TaskUpdate{
-		Task: uploadGCSTask,
-	}
-
-	if err := handler.HandleMessage(nil /* jobSpec */, taskUpdate); err == nil {
-		t.Errorf("error is nil, expected JSON decode error.")
 	}
 }
 
@@ -86,10 +103,10 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 	listTask := &Task{
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
-		TaskId:      "A",
+		TaskId:      taskId,
 		TaskType:    listTaskType,
 		TaskSpec: `{
-			"task_id": "A",
+			"task_id": "task_id_A",
 			"dst_list_result_bucket": "bucket",
 			"dst_list_result_object": "object",
 			"src_directory": "dir",
@@ -107,10 +124,7 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 		ListingResultReader: mockListReader,
 	}
 
-	taskUpdate := &TaskUpdate{
-		Task: listTask,
-	}
-	err := handler.HandleMessage(nil /* jobSpec */, taskUpdate)
+	_, err := handler.HandleMessage(nil /* jobSpec */, listSuccessCompletionMessage())
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	}
@@ -154,10 +168,7 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
-	taskUpdate := &TaskUpdate{
-		Task: listTask,
-	}
-	err := handler.HandleMessage(jobSpec, taskUpdate)
+	_, err := handler.HandleMessage(jobSpec, listSuccessCompletionMessage())
 	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
@@ -205,10 +216,7 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
-	taskUpdate := &TaskUpdate{
-		Task: listTask,
-	}
-	err := handler.HandleMessage(jobSpec, taskUpdate)
+	_, err := handler.HandleMessage(jobSpec, listSuccessCompletionMessage())
 	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "task_id_B")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
@@ -269,11 +277,7 @@ func TestListProgressMessageHandlerMetadataError(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
-	taskUpdate := &TaskUpdate{
-		Task: listTask,
-	}
-
-	err := handler.HandleMessage(jobSpec, taskUpdate)
+	_, err := handler.HandleMessage(jobSpec, listSuccessCompletionMessage())
 	if err == nil {
 		t.Errorf("expected error: %v.", expectedError)
 	} else if err.Error() != expectedError {
@@ -335,50 +339,64 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
-	taskUpdate := &TaskUpdate{
-		Task: listTask,
-	}
-
-	err := handler.HandleMessage(jobSpec, taskUpdate)
+	taskUpdate, err := handler.HandleMessage(jobSpec, listSuccessCompletionMessage())
 	if err != nil {
 		t.Errorf("expecting success, found error: %v.", err)
 	}
+
+	expectedTaskUpdate := &TaskUpdate{
+		Task:     listTask,
+		LogEntry: NewLogEntry(map[string]interface{}{"logkey": "logval"}),
+		OriginalTaskParams: (*TaskParams)(&map[string]interface{}{
+			"dst_list_result_bucket":  "bucket1",
+			"dst_list_result_object":  "object",
+			"expected_generation_num": 0,
+			"src_directory":           "dir",
+		}),
+	}
+
+	// No task spec on TaskUpdate.
+	listTask.TaskSpec = ""
+
 	if len(taskUpdate.NewTasks) != 2 {
-		t.Errorf("expecting 2 tasks when handling a list message, found %d.",
-			len(taskUpdate.NewTasks))
+		t.Errorf("expecting 2 tasks, found %d.", len(taskUpdate.NewTasks))
 	}
 
 	for i := 0; i < 2; i++ {
-		expectedNewTask := Task{
+		// Handle the task spec json separately, since it doesn't play well with equality checks.
+		expectedNewTaskSpec := fmt.Sprintf(`{
+				"dst_bucket": "bucket2",
+				"dst_object": "file%d",
+			  "expected_generation_num": %d,
+				"src_file": "dir/file%d"
+			}`, i, i, i)
+
+		if !AreEqualJSON(expectedNewTaskSpec, taskUpdate.NewTasks[i].TaskSpec) {
+			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, taskUpdate.NewTasks[i].TaskSpec)
+		}
+
+		// Blow it away.
+		taskUpdate.NewTasks[i].TaskSpec = ""
+
+		// Add task (sans spec) to our expected update.
+		expectedNewTask := &Task{
 			JobConfigId: jobConfigId,
 			JobRunId:    jobRunId,
 			TaskType:    uploadGCSTaskType,
 			TaskId:      GetUploadGCSTaskId("dir/file" + strconv.Itoa(i)),
 		}
-		expectedNewTaskSpec := fmt.Sprintf(`{
-				"src_file": "dir/file%d",
-				"dst_bucket": "bucket2",
-				"dst_object": "file%d",
-			  "expected_generation_num": %d
-			}`, i, i, i)
 
-		var newTask *Task
-		for _, t := range taskUpdate.NewTasks {
-			if expectedNewTask.getTaskFullId() == t.getTaskFullId() {
-				newTask = t
-			}
-		}
+		expectedTaskUpdate.NewTasks = append(expectedTaskUpdate.NewTasks, expectedNewTask)
+	}
 
-		if newTask == nil {
-			t.Errorf("task %v should exist in the returned new tasks", expectedNewTask)
-		}
-		if !AreEqualJSON(expectedNewTaskSpec, newTask.TaskSpec) {
-			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, newTask.TaskSpec)
-		}
-		// Clear the task spec to compare the remaining of the struct.
-		newTask.TaskSpec = ""
-		if !reflect.DeepEqual(expectedNewTask, *newTask) {
-			t.Errorf("expected task: %v, found: %v.", expectedNewTask, *newTask)
-		}
+	DeepEqualCompare("TaskUpdate", expectedTaskUpdate, taskUpdate, t)
+
+	// Check pieces one at a time, for convenient visualization.
+	DeepEqualCompare("TaskUpdate.Task", expectedTaskUpdate.Task, taskUpdate.Task, t)
+	DeepEqualCompare("TaskUpdate.LogEntry", expectedTaskUpdate.LogEntry, taskUpdate.LogEntry, t)
+	DeepEqualCompare("TaskUpdate.OriginalTaskParams",
+		expectedTaskUpdate.OriginalTaskParams, taskUpdate.OriginalTaskParams, t)
+	for i := 0; i < 2; i++ {
+		DeepEqualCompare("NewTasks", expectedTaskUpdate.NewTasks[i], taskUpdate.NewTasks[i], t)
 	}
 }

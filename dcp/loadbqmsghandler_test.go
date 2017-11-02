@@ -21,14 +21,32 @@ import (
 
 func TestHandleMessage(t *testing.T) {
 	handler := LoadBQProgressMessageHandler{}
-	taskUpdate := &TaskUpdate{
-		Task: &Task{Status: Success},
+	taskCompletionMessage := &TaskCompletionMessage{
+		FullTaskId: "J:R:T",
+		Status:     "SUCCESS",
+		TaskParams: map[string]interface{}{},
+		LogEntry:   map[string]interface{}{},
 	}
-	err := handler.HandleMessage(nil /* jobSpec */, taskUpdate)
+	taskUpdate, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 	if taskUpdate.NewTasks != nil && len(taskUpdate.NewTasks) != 0 {
 		t.Errorf("new tasks should be an empty array, new tasks: %v", taskUpdate.NewTasks)
+	}
+}
+
+func TestLoadBQInvalidCompletionMsg(t *testing.T) {
+	handler := LoadBQProgressMessageHandler{}
+	taskCompletionMessage := &TaskCompletionMessage{
+		FullTaskId: "garbage",
+		Status:     "SUCCESS",
+		TaskParams: map[string]interface{}{},
+		LogEntry:   map[string]interface{}{},
+	}
+	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
+
+	if err == nil {
+		t.Errorf("error is nil, expected error: %v.", errInvalidCompletionMessage)
 	}
 }

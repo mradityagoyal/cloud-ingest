@@ -15,13 +15,21 @@ limitations under the License.
 
 package dcp
 
+import "log"
+
 type LoadBQProgressMessageHandler struct {
 }
 
 func (h *LoadBQProgressMessageHandler) HandleMessage(
-	jobSpec *JobSpec, taskUpdate *TaskUpdate) error {
-	taskUpdate.Task.TaskType = loadBQTaskType // Set the type first.
+	jobSpec *JobSpec, taskCompletionMessage *TaskCompletionMessage) (*TaskUpdate, error) {
+	taskUpdate, err := TaskCompletionMessageToTaskUpdate(taskCompletionMessage)
+	if err != nil {
+		log.Printf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
+		return nil, err
+	}
+	taskUpdate.Task.TaskType = loadBQTaskType
+
 	// TODO(mbassiouny): Add the next transition task after loading to BQ when
 	// it's defined.
-	return nil
+	return taskUpdate, nil
 }

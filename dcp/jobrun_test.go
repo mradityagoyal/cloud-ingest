@@ -140,7 +140,7 @@ func TestUpdateForTaskUpdateOneInsertSingleJob(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskType:    listTaskType,
 	}
-	tu := &TaskUpdate{nil, nil, []*Task{task}}
+	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -180,7 +180,7 @@ func TestUpdateForTaskUpdateMultipleInsertsSingleJob(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskType:    loadBQTaskType,
 	}
-	tu := &TaskUpdate{nil, nil, []*Task{task1, task2, task3}}
+	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task1, task2, task3}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -234,7 +234,7 @@ func TestUpdateForTaskUpdateMultipleInsertsMultipleJobs(t *testing.T) {
 		JobRunId:    id2.JobRunId,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{nil, nil, []*Task{task1, task2, task3, task4, task5}}
+	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task1, task2, task3, task4, task5}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -286,7 +286,7 @@ func TestUpdateForTaskUpdateQueuedToSuccess(t *testing.T) {
 		Status:      Success,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, nil, []*Task{}}
+	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -320,7 +320,7 @@ func TestUpdateForTaskUpdateQueuedToSuccessDeltaObjAlreadyExists(t *testing.T) {
 		Status:      Success,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, nil, []*Task{}}
+	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -354,7 +354,7 @@ func TestUpdateForTaskUpdateFailedToSuccess(t *testing.T) {
 		Status:      Success,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, nil, []*Task{}}
+	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -388,7 +388,7 @@ func TestUpdateForTaskUpdateUnqueuedToSuccess(t *testing.T) {
 		Status:      Success,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, nil, []*Task{}}
+	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -422,7 +422,7 @@ func TestUpdateForTaskUpdateUnqueuedToFailed(t *testing.T) {
 		Status:      Failed,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, nil, []*Task{}}
+	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -456,7 +456,7 @@ func TestUpdateForTaskUpdateUnqueuedToQueued(t *testing.T) {
 		Status:      Queued,
 		TaskType:    uploadGCSTaskType,
 	}
-	tu := &TaskUpdate{task, nil, []*Task{}}
+	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -498,7 +498,11 @@ func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
 	logEntryData["bytes_found"] = json.Number("12345678")
 	logEntryData["file_stat_errors"] = json.Number("1")
 	logEntry := NewLogEntry(logEntryData)
-	tu := &TaskUpdate{updatedListTask, logEntry, []*Task{newCopyTask1, newCopyTask2}}
+	tu := &TaskUpdate{
+		Task:     updatedListTask,
+		LogEntry: logEntry,
+		NewTasks: []*Task{newCopyTask1, newCopyTask2},
+	}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)
@@ -572,7 +576,7 @@ func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
 	logEntryData := make(map[string]interface{})
 	logEntryData["src_bytes"] = json.Number("12345")
 	logEntry := NewLogEntry(logEntryData)
-	tu := &TaskUpdate{updatedCopyTask, logEntry, []*Task{newLoadTask}}
+	tu := &TaskUpdate{Task: updatedCopyTask, LogEntry: logEntry, NewTasks: []*Task{newLoadTask}}
 
 	var counters JobCountersCollection
 	counters.deltas = make(map[JobRunFullId]*JobCounters)

@@ -24,6 +24,7 @@ import (
 var (
 	errTaskNotFound              = errors.New("task not found")
 	errInsertNewTasks            = errors.New("inserting new tasks")
+	errInvalidCompletionMessage  = errors.New("invalid task completion message")
 	errTaskLogEntryCountMismatch = errors.New("task/logEntry count mismatch")
 )
 

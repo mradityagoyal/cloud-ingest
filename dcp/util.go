@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"log"
 	"reflect"
+	"testing"
 	"time"
 )
 
@@ -84,4 +85,11 @@ func RetryWithExponentialBackoff(sleepTime time.Duration,
 		}
 	}
 	return nil
+}
+
+// DeepEqualCompare is a useful utility for testing and comparing.
+func DeepEqualCompare(msgPrefix string, want, got interface{}, t *testing.T) {
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("%s: Wanted %v; got %v", msgPrefix, want, got)
+	}
 }
