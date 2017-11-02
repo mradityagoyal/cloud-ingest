@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog, MatSnackBar } from '@angular/material';
 import { ActivatedRoute } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
@@ -10,7 +10,7 @@ import { HttpErrorResponseFormatter } from '../util/error.resources';
 import { INFRA_STATUS, InfrastructureStatus } from './infrastructure.resources';
 import { InfrastructureService } from './infrastructure.service';
 
-const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 3000;
+const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 10000;
 
 @Component({
   selector: 'app-infrastructure',
@@ -18,7 +18,7 @@ const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 3000;
   styleUrls: ['./infrastructure.component.css'],
 })
 
-export class InfrastructureComponent implements OnInit {
+export class InfrastructureComponent implements OnInit, OnDestroy {
 
   infrastructureStatus: InfrastructureStatus;
   showLoadInfrastructureError = false;
@@ -38,6 +38,18 @@ export class InfrastructureComponent implements OnInit {
   overallInfrastructureStatus: string;
   overallPubSubStatus: string;
 
+  /**
+   * Whether this component is alive or not. Used to determine if it should keep polling the
+   * infrastructure status.
+   */
+  alive = false;
+
+  /**
+   * Whether the app is waiting for create infrastructure or teardown infrastructure server
+   * response.
+   */
+  isWaitingForCreateOrTeardownResponse = false;
+
   constructor(private readonly infrastructureService: InfrastructureService,
               private readonly snackBar: MatSnackBar,
               private readonly route: ActivatedRoute,
@@ -46,13 +58,26 @@ export class InfrastructureComponent implements OnInit {
   }
 
   ngOnInit() {
+    this.alive = true;
     this.loadInfrastructureStatus();
     IntervalObservable.create(UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS)
+      .takeWhile(() => this.alive)
       .subscribe(() => {
-        if (this.showInfrastructureDeploying || this.showInfrastructureDeleting) {
+        /**
+         * Only poll when the infrastructure is deploying or deleting, and don't poll if the app
+         * is waiting for a create infrastructure or tear down infrastructure response. Also don't
+         * poll if the infrastructure status is loading initially.
+         */
+        if ((this.showInfrastructureDeploying || this.showInfrastructureDeleting) &&
+          (!this.isWaitingForCreateOrTeardownResponse) &&
+          (!this.showInfrastructureStatusLoading)) {
           this.pollInfrastructureStatus();
         }
       });
+  }
+
+  ngOnDestroy() {
+    this.alive = false;
   }
 
   /**
@@ -179,13 +204,15 @@ export class InfrastructureComponent implements OnInit {
    *     requesting the backend to create the infrastructure.
    */
   createInfrastructure() {
+    this.isWaitingForCreateOrTeardownResponse = true;
     this.showInfrastructureDeployingMessage();
     this.createInfrastructureDisabled = true;
     this.infrastructureService.postCreateInfrastructure().subscribe(
       (response: {}) => {
-        this.pollInfrastructureStatus();
+        this.isWaitingForCreateOrTeardownResponse = false;
       },
       (errorResponse: HttpErrorResponse) => {
+        this.isWaitingForCreateOrTeardownResponse = false;
         const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
         const errorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
         const errorContent: ErrorDialogContent = {
@@ -205,12 +232,14 @@ export class InfrastructureComponent implements OnInit {
     'infrastructure? This will remove any existing jobs.')) {
       return;
     }
+    this.isWaitingForCreateOrTeardownResponse = true;
     this.showInfrastructureDeletingMessage();
     this.infrastructureService.postTearDownInfrastructure().subscribe(
       (response: {}) => {
-        this.pollInfrastructureStatus();
+        this.isWaitingForCreateOrTeardownResponse = false;
       },
       (errorResponse: HttpErrorResponse) => {
+        this.isWaitingForCreateOrTeardownResponse = false;
         const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
         const errorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
         const errorContent: ErrorDialogContent = {

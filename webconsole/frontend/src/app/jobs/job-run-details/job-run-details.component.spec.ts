@@ -459,13 +459,13 @@ describe('JobRunDetailsComponent', () => {
     });
   }));
 
-  it('should get the job run every three seconds', fakeAsync((done) => {
+  it('should get the job run every ten seconds', fakeAsync((done) => {
     intervalObservableCreateSpy.and.callThrough(); // enable polling
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
     // It should get the job runs four times: one initial loading plus 3 polling calls.
-    tick(9000);
+    tick(30000);
     expect(jobsServiceStub.getJobRun.calls.count()).toEqual(4);
     discardPeriodicTasks();
   }));

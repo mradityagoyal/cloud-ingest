@@ -542,14 +542,14 @@ describe('InfrastructureComponent', () => {
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DEPLOYING));
     const createInfrastructureButton = compiled.querySelector('.ingest-create-infrastructure');
     createInfrastructureButton.click();
-    tick(9000);
+    tick(30000);
     fixture.detectChanges();
-    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(4);
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(3);
 
     // The app should not poll when it is not deployed.
     infrastructureServiceStub.getInfrastructureStatus.calls.reset();
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
-    tick(6000);
+    tick(20000);
     fixture.detectChanges();
     expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(1);
 
@@ -558,15 +558,67 @@ describe('InfrastructureComponent', () => {
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_DELETING));
     const tearDownInfrastructureButton = compiled.querySelector('.ingest-tear-down-infrastructure');
     tearDownInfrastructureButton.click();
-    tick(9000);
+    tick(30000);
     fixture.detectChanges();
-    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(4);
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(3);
 
     // The app should not poll when the infrastructure status is 'not found' again.
     infrastructureServiceStub.getInfrastructureStatus.calls.reset();
     infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_FOUND));
-    tick(6000);
+    tick(20000);
     expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(1);
+    discardPeriodicTasks(); // end of fakeAsync test.
+  }));
+
+  it('should not poll if the server has not responded to create infrastructure', fakeAsync(() => {
+    intervalObservableCreateSpy.and.callThrough(); // Enable polling for this test.
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_NOT_FOUND));
+    infrastructureServiceStub.postCreateInfrastructure(Observable.never()); // Never reply.
+
+    // First load the initial state as "not found".
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    tick(500);
+    fixture.detectChanges();
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(1); // initial call
+    // Then, click on the create infrastructure button.
+    fixture.detectChanges();
+    const compiled = fixture.debugElement.nativeElement;
+    const createInfrastructureButton = compiled.querySelector('.ingest-create-infrastructure');
+    createInfrastructureButton.click();
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      // The create infrastucture button finished it's logic. Now let time pass.
+      infrastructureServiceStub.getInfrastructureStatus.calls.reset();
+      tick(90000);
+      expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(0);
+    });
+    discardPeriodicTasks(); // end of fakeAsync test.
+  }));
+
+  it('should not poll if the server has not responded to tear down infrastructure', fakeAsync(() => {
+    intervalObservableCreateSpy.and.callThrough(); // Enable polling for this test.
+    infrastructureServiceStub.getInfrastructureStatus.and.returnValue(Observable.of(FAKE_INFRA_STATUS_RUNNING));
+    infrastructureServiceStub.postTearDownInfrastructure(Observable.never()); // Never reply.
+
+    // First load the initial state as "running".
+    const fixture = TestBed.createComponent(InfrastructureComponent);
+    tick(500);
+    fixture.detectChanges();
+    expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(1); // initial call
+    // Then, click on the tear down infrastructure button.
+    fixture.detectChanges();
+    const compiled = fixture.debugElement.nativeElement;
+    const createInfrastructureButton = compiled.querySelector('.ingest-tear-down-infrastructure');
+    createInfrastructureButton.click();
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      // The tear down infrastucture button finished it's logic. Now let time pass.
+      infrastructureServiceStub.getInfrastructureStatus.calls.reset();
+      tick(90000);
+      expect(infrastructureServiceStub.getInfrastructureStatus.calls.count()).toEqual(0);
+    });
     discardPeriodicTasks(); // end of fakeAsync test.
   }));
 
