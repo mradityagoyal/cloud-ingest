@@ -14,11 +14,13 @@
       <h2> <mat-icon>check</mat-icon> Cloud Ingest Infrastructure is running as expected. </h2>
       Next steps:
       <ol>
-        <li> Download and extract the gsutil worker: <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.27pre_ing5.tar.gz">tar.gz</a> | <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.27pre_ing5.zip">zip</a> </li>
+        <li> Download and extract the gsutil worker: <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.29pre_ing1.tar.gz">tar.gz</a> | <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.29pre_ing1.zip">zip</a> </li>
         <li> In a shell window navigate to the path where you extracted the gsutil worker. </li>
         <li> Run <code> ./gsutil config </code> and choose {{projectId}} as your default project ID when prompted. </li>
-        <li> Run <br/> <code> ./gsutil agent listandcopy \<br/> projects/{{projectId}}/subscriptions/cloud-ingest-list \<br/> projects/{{projectId}}/topics/cloud-ingest-list-progress \<br/> projects/{{projectId}}/subscriptions/cloud-ingest-copy \<br/> projects/{{projectId}}/topics/cloud-ingest-copy-progress
+        <li> Run <br/> <code> ./gsutil -m agent listandcopy -L <b>cloud-ingest-logs</b> \<br/> projects/{{projectId}}/subscriptions/cloud-ingest-list \<br/> projects/{{projectId}}/topics/cloud-ingest-list-progress \<br/> projects/{{projectId}}/subscriptions/cloud-ingest-copy \<br/> projects/{{projectId}}/topics/cloud-ingest-copy-progress
           </code>
+          <br/> <br/>
+          If you wish to save your on-premises log files on a folder other than <b>cloud-ingest-logs</b>, you can modify the <code>-L</code> flag in the command above.
         </li>
       </ol>
       Note: On a windows machine, run <code> python ./gsutil.py </code> instead of <code> ./gsutil</code> for the commands above.
