@@ -41,6 +41,10 @@ export class JobConfigsComponent implements OnInit {
       (error: HttpErrorResponse) => {
         this.errorTitle = HttpErrorResponseFormatter.getTitle(error);
         this.errorMessage = HttpErrorResponseFormatter.getMessage(error);
+        if (error.status === 404) {
+          // If error is not found, add a title that reminds the user to deploy their configs.
+          this.errorTitle = `${this.errorTitle} (did you deploy your infrastructure yet?)`;
+        }
         this.displayErrorMessage = true;
         this.showLoadingSpinner = false;
       });
