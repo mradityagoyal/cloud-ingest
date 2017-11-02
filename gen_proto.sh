@@ -8,6 +8,6 @@ if ! [ -e "$pbjs_rel_path" ]
 then
   echo "The pbjs binary was not found. Did you install the web frontend dependencies?"
 else
-  $pbjs_rel_path -t static-module -w commonjs -o tasks.js ./proto/tasks.proto
+  $pbjs_rel_path -t static-module -w commonjs -o ./webconsole/frontend/src/app/proto/tasks.js ./proto/tasks.proto
   $pbts_rel_path -o ./webconsole/frontend/src/app/proto/tasks.d.ts ./webconsole/frontend/src/app/proto/tasks.js
 fi
