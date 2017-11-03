@@ -4,7 +4,7 @@
 
 .ingest-job-config-heading {
   display: inline-flex;
-  align-items: baseline;
+  align-items: center;
   margin: 0 0 0 10px;
   width: 100%;
 }
@@ -15,7 +15,7 @@
 }
 
 .ingest-add-job-config {
-  margin: 0 50px 0 auto;
+  margin: 0 0 0 20px;
 }
 
 .ingest-card-container {
