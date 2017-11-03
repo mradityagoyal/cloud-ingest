@@ -14,6 +14,7 @@
       <h2> <mat-icon>check</mat-icon> Cloud Ingest Infrastructure is running as expected. </h2>
       Next steps:
       <ol>
+        <li> Install <a href="https://www.python.org/downloads/release/python-2713/">python2.7</a> if is not already installed.</li>
         <li> Download and extract the gsutil worker: <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.29pre_ing1.tar.gz">tar.gz</a> | <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.29pre_ing1.zip">zip</a> </li>
         <li> In a shell window navigate to the path where you extracted the gsutil worker. </li>
         <li> Run <code> ./gsutil config </code> and choose {{projectId}} as your default project ID when prompted. </li>
@@ -23,7 +24,7 @@
           If you wish to save your on-premises log files on a folder other than <b>cloud-ingest-logs</b>, you can modify the <code>-L</code> flag in the command above.
         </li>
       </ol>
-      Note: On a windows machine, run <code> python ./gsutil.py </code> instead of <code> ./gsutil</code> for the commands above.
+      Note: On a windows machine, substitute <code> ./gsutil</code> with <code> C:\Python27\python.exe gsutil </code> for the commands above.
 
     </mat-card>
 
