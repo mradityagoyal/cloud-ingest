@@ -4,6 +4,7 @@ import 'rxjs/add/observable/throw';
 
 import { async, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { MatDialog, MatSnackBar } from '@angular/material';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
@@ -181,6 +182,7 @@ describe('InfrastructureComponent', () => {
         {provide: MatDialog, useValue: matDialogStub}
       ],
       imports: [
+        BrowserAnimationsModule,
         AngularMaterialImporterModule
       ],
     }).compileComponents();
