@@ -1,0 +1,12 @@
+.ingest-break-word {
+  word-break: break-all;
+}
+
+.ingest-failuremsg-cell {
+  max-height: 100px;
+  overflow-y: scroll;
+}
+
+.ingest-failure-table-row {
+  overflow-y: hidden;
+}

@@ -9,7 +9,8 @@ import { HttpErrorResponseFormatter } from '../../../util/error.resources';
 
 @Component({
   selector: 'app-failures-table',
-  templateUrl: './failures-table.component.html'
+  templateUrl: './failures-table.component.html',
+  styleUrls: ['./failures-table.component.css']
 })
 export class FailuresTableComponent implements OnInit {
   @Input() public failureType: TaskFailureType.Type;
