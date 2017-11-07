@@ -45,12 +45,12 @@ def _check_max_num_tasks_in_range(max_num_tasks):
         raise BadRequest("max_num_tasks must be a number between 1 and %d" %
                          SpannerWrapper.ROW_CAP)
 
-def _get_tasks_params_and_types(config_id, run_id, max_num_tasks):
+def _get_tasks_params_and_types(config_id, run_id, max_num_tasks,
+    task_status=None, last_modified_before=None):
     """Gets the base parameters and parameter types used in most queries.
 
     Returns:
-        A tuple of params and param_types of run_id, config_id and
-        max_num_tasks.
+        A tuple of params and param_types of the specified input parameters.
     """
     params = {
         "run_id": run_id,
@@ -62,7 +62,24 @@ def _get_tasks_params_and_types(config_id, run_id, max_num_tasks):
         "config_id": type_pb2.Type(code=type_pb2.STRING),
         "num_tasks": type_pb2.Type(code=type_pb2.INT64)
     }
+    if task_status is not None:
+        params["task_status"] = task_status
+        param_types["task_status"] = type_pb2.Type(code=type_pb2.INT64)
+    if last_modified_before is not None:
+        params["last_modified_before"] = last_modified_before
+        param_types["last_modified_before"] = type_pb2.Type(code=type_pb2.INT64)
     return params, param_types
+
+def _get_tasks_of_status_base_query():
+    """Gets the base query to get the task status.
+    """
+    return (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @config_id "
+             "AND %s = @run_id AND %s = @task_status ") %
+            (SpannerWrapper.TASKS_TABLE,
+             SpannerWrapper.TASK_BY_STATUS_INDEX_NAME,
+             SpannerWrapper.JOB_CONFIG_ID,
+             SpannerWrapper.JOB_RUN_ID,
+             SpannerWrapper.STATUS))
 
 class SpannerWrapper(object):
     """SpannerWrapper class handles all interactions with cloud Spanner.
@@ -364,8 +381,9 @@ class SpannerWrapper(object):
                   SpannerWrapper.LAST_MODIFICATION_TIME)
         return self.list_query(query, params, param_types)
 
+
     def get_tasks_of_status(self, config_id, run_id, max_num_tasks,
-                            task_status):
+                            task_status, last_modified_before=None):
         """Retrieves tasks of the input status for the input job configuration
            and job run.
 
@@ -374,29 +392,24 @@ class SpannerWrapper(object):
           run_id: The job run id.
           max_num_tasks: The maximum number of tasks to retrieve.
           task_status: Get tasks of this status.
+          last_modified_before: Retrieves tasks only before this timestamp.
 
         Raises:
           BadRequest: if max_num_tasks is not in the allowed range or if the
                       task status is not in the allowed range.
-
         """
         _check_max_num_tasks_in_range(max_num_tasks)
         if task_status not in TaskStatus.Type.values():
             raise BadRequest("Task status of id %d is unknown.", task_status)
         params, param_types = _get_tasks_params_and_types(config_id,
-            run_id, max_num_tasks)
-        params["task_status"] = task_status
-        param_types["task_status"] = type_pb2.Type(code=type_pb2.INT64)
-
-        query = (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @config_id "
-                 "AND %s = @run_id AND %s = @task_status "
-                 "ORDER BY %s DESC LIMIT @num_tasks") %
-                (SpannerWrapper.TASKS_TABLE,
-                 SpannerWrapper.TASK_BY_STATUS_INDEX_NAME,
-                 SpannerWrapper.JOB_CONFIG_ID,
-                 SpannerWrapper.JOB_RUN_ID,
-                 SpannerWrapper.STATUS,
-                 SpannerWrapper.LAST_MODIFICATION_TIME))
+            run_id, max_num_tasks, task_status=task_status,
+            last_modified_before=last_modified_before)
+        query = _get_tasks_of_status_base_query()
+        if last_modified_before is not None:
+            query += ("AND %s < @last_modified_before " %
+                SpannerWrapper.LAST_MODIFICATION_TIME)
+        query += ("ORDER BY %s DESC LIMIT @num_tasks" %
+            SpannerWrapper.LAST_MODIFICATION_TIME)
         return self.list_query(query, params, param_types)
 
     def get_tasks_of_failure_type(self, config_id, run_id, max_num_tasks,

@@ -1,7 +1,7 @@
 import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/switchMap';
 
-import { HttpClient, HttpHeaders } from '@angular/common/http';
+import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
@@ -60,15 +60,15 @@ export class JobsService {
     });
   }
 
-  /**
-   * Gets the first 25 tasks of the input status.
-   *
-   * TODO(b/67581174): The job tasks component should paginate to retrieve all of the tasks.
-   */
-  getTasksOfStatus(configId: string, runId: string, status: number): Observable<Task[]> {
+  getTasksOfStatus(configId: string, runId: string, status: number, lastModifiedBefore?: number): Observable<Task[]> {
+    let requestParameters = new HttpParams();
+    if (lastModifiedBefore != null) {
+        requestParameters = requestParameters.set('lastModifiedBefore', String(lastModifiedBefore));
+    }
     return this.project.switchMap(projectId => {
         return this.http.get<Task[]>(
-            `${environment.apiUrl}/projects/${projectId}/tasks/${configId}/${runId}/status/${status}`
+            `${environment.apiUrl}/projects/${projectId}/tasks/${configId}/${runId}/status/${status}`,
+            {params: requestParameters}
         );
     });
   }

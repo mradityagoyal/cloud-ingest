@@ -90,3 +90,5 @@ export const FAILURE_TYPE_TO_STRING_MAP = {
   5: 'File not found failure',
   6: 'Permission failure'
 };
+
+export const DEFAULT_BACKEND_PAGESIZE = 25;

@@ -1,3 +1,13 @@
 .ingest-break-word {
   word-break: break-all;
 }
+
+.ingest-tasks-table {
+  max-height: 80vh;
+}
+
+.ingest-load-more {
+  display: flex;
+  text-align: center;
+  justify-content: center;
+}

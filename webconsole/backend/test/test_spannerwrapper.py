@@ -487,6 +487,20 @@ class TestSpannerWrapper(unittest.TestCase):
             task_status,
             self.snapshot.execute_sql.call_args)
 
+    def test_last_modified_get_status(self):
+        """get_tasks_of_status should populate the correct last_modified_before
+           parameter in the query.
+        """
+        fake_last_modified = 1
+        self.spanner_wrapper.get_tasks_of_status(
+            'fake_config_id', 'fake_run_id', 25, tasks_pb2.TaskStatus.QUEUED,
+            last_modified_before=fake_last_modified)
+        self.snapshot.execute_sql.assert_called()
+        self.check_query_param(
+            'last_modified_before',
+            fake_last_modified,
+            self.snapshot.execute_sql.call_args)
+
     def test_get_tasks_of_failure_type(self):
         """Asserts that the proper failure type is used in the query"""
         task_failure_type = tasks_pb2.TaskFailureType.UNKNOWN

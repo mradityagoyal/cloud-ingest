@@ -14,7 +14,7 @@
       No tasks of this type.
     </ng-container>
     <ng-template #table>
-      <mat-table [dataSource]="dataSource">
+      <mat-table [dataSource]="dataSource" class="ingest-tasks-table" #tasksTable>
 
         <ng-container matColumnDef="taskId">
           <mat-header-cell *matHeaderCellDef> Task Id </mat-header-cell>
@@ -47,3 +47,21 @@
     </ng-template>
   </ng-template>
 </ng-template>
+<!-- The "LOAD MORE" button at the end of the table. The component automatically places this at the end of the table. -->
+<template>
+  <div #loadMore class="ingest-load-more">
+    <div *ngIf="noMoreTasksToLoad" class="ingest-no-more-tasks">
+      <p> No more tasks to load.</p>
+    </div>
+    <div (click)="loadMoreClick()" *ngIf="!noMoreTasksToLoad" class="ingest-load-more-button">
+      <ng-container *ngIf="showMoreTasksLoading; else loadMoreButton">
+        <mat-spinner [diameter]="36" [strokeWidth]="3" ></mat-spinner>
+      </ng-container>
+      <ng-template #loadMoreButton>
+        <button mat-button>
+          <mat-icon>expand_more</mat-icon>LOAD MORE
+        </button>
+      </ng-template>
+    </div>
+  </div>
+</template>

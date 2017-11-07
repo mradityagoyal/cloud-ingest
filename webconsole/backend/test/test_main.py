@@ -38,6 +38,8 @@ FAKE_TASK = get_task("fake_config_id",
                      status=tasks_pb2.TaskStatus.QUEUED,
                      task_spec="fake_task_spec",
                      task_type=tasks_pb2.TaskType.LIST)
+FAKE_TASK_STATUS = tasks_pb2.TaskStatus.QUEUED
+FAKE_LAST_MODIFICATION_TIME = 1
 
 FAKE_JOB_SPEC = json.dumps({
     'onPremSrcDirectory' : 'fakeFileSystemDir',
@@ -119,11 +121,12 @@ class TestMain(unittest.TestCase):
         spanner_wrapper_mock_inst.get_tasks_of_status.return_value = FAKE_TASK
         response = self.app.get(
             '/projects/fakeProjectId/tasks/fakeConfigId/fakeRunId/status/'
-            + str(tasks_pb2.TaskStatus.QUEUED))
+            + str(FAKE_TASK_STATUS)
+            + '?lastModifiedBefore=' + str(FAKE_LAST_MODIFICATION_TIME))
         response_json = json.loads(response.data)
         spanner_wrapper_mock_inst.get_tasks_of_status.assert_called_with(
             'fakeConfigId', 'fakeRunId', main.DEFAULT_PAGE_SIZE,
-            tasks_pb2.TaskStatus.QUEUED)
+            FAKE_TASK_STATUS, FAKE_LAST_MODIFICATION_TIME)
         self.assertEqual(response_json, FAKE_TASK)
 
     @patch.object(main, '_get_credentials')

@@ -1,20 +1,27 @@
-import { FAKE_HTTP_ERROR, FAKE_TASKS } from '../../jobs.test-util';
+import { ErrorDialogComponent } from '../../../util/error-dialog/error-dialog.component';
 import 'rxjs/add/observable/never';
 import 'rxjs/add/observable/of';
 
 import { async, ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material';
 import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../../angular-material-importer/angular-material-importer.module';
-import { Task, TASK_STATUS, TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
+import { TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
 import { JobsService } from '../../jobs.service';
+import { EMPTY_TASK_ARRAY, FAKE_HTTP_ERROR, FAKE_TASKS, FAKE_TASKS2 } from '../../jobs.test-util';
 import { TasksTableComponent } from './tasks-table.component';
 
 class JobsServiceStub {
   public getTasksOfStatus = jasmine.createSpy('getTasksOfStatus');
 }
 
+class MatDialogStub {
+  public open = jasmine.createSpy('open');
+}
+
 let jobsServiceStub: JobsServiceStub;
+let matDialogStub: MatDialogStub;
 
 describe('TasksTableComponent', () => {
   let component: TasksTableComponent;
@@ -23,13 +30,15 @@ describe('TasksTableComponent', () => {
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
     jobsServiceStub.getTasksOfStatus.and.returnValue(Observable.of(FAKE_TASKS));
+    matDialogStub = new MatDialogStub();
     TestBed.configureTestingModule({
       declarations: [ TasksTableComponent ],
       imports: [
         AngularMaterialImporterModule
       ],
       providers: [
-        {provide: JobsService, useValue: jobsServiceStub}
+        {provide: JobsService, useValue: jobsServiceStub},
+        {provide: MatDialog, useValue: matDialogStub}
       ]
     })
     .compileComponents();
@@ -123,4 +132,91 @@ describe('TasksTableComponent', () => {
       expect(errorElement.textContent).toContain('Fake Error Message.');
     });
   });
+
+  it('should show a load more button', async(() => {
+    fixture.whenStable().then(() => {
+      const parentElement = fixture.debugElement.nativeElement;
+      const loadMoreDiv = parentElement.querySelector('.ingest-load-more-button');
+      expect(loadMoreDiv).not.toBeNull();
+    });
+  }));
+
+  it('should load more tasks when load more button is clicked', async(() => {
+    jobsServiceStub.getTasksOfStatus.and.returnValues(Observable.of(FAKE_TASKS), Observable.of(FAKE_TASKS2));
+    fixture = TestBed.createComponent(TasksTableComponent);
+    component = fixture.componentInstance;
+    component.jobRunId = 'fakeJobRunId';
+    component.jobConfigId = 'fakeJobConfigId';
+    component.status = 0;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const element = fixture.debugElement.nativeElement;
+      expect(element.textContent).not.toContain('fakeTaskId3');
+      const loadMoreButton = element.querySelector('.ingest-load-more-button');
+      loadMoreButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        expect(element.textContent).toContain('fakeTaskId3');
+      });
+    });
+  }));
+
+  it('should show a spinner while more tasks are loaded', async(() => {
+    jobsServiceStub.getTasksOfStatus.and.returnValues(Observable.of(FAKE_TASKS), Observable.never());
+    fixture = TestBed.createComponent(TasksTableComponent);
+    component = fixture.componentInstance;
+    component.jobRunId = 'fakeJobRunId';
+    component.jobConfigId = 'fakeJobConfigId';
+    component.status = 0;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const element = fixture.debugElement.nativeElement;
+      expect(element.querySelector('mat-spinner')).toBeNull();
+      const loadMoreButton = element.querySelector('.ingest-load-more-button');
+      loadMoreButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        expect(element.querySelector('mat-spinner')).not.toBeNull();
+      });
+    });
+  }));
+
+  it('should open an error dialog when there is an error', async(() => {
+    jobsServiceStub.getTasksOfStatus.and.returnValues(Observable.of(FAKE_TASKS), Observable.throw(FAKE_HTTP_ERROR));
+    fixture = TestBed.createComponent(TasksTableComponent);
+    component = fixture.componentInstance;
+    component.jobRunId = 'fakeJobRunId';
+    component.jobConfigId = 'fakeJobConfigId';
+    component.status = 0;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const element = fixture.debugElement.nativeElement;
+      const loadMoreButton = element.querySelector('.ingest-load-more-button');
+      loadMoreButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        expect(matDialogStub.open).toHaveBeenCalled();
+        expect(matDialogStub.open.calls.first().args[0]).toBe(ErrorDialogComponent);
+      });
+    });
+  }));
+
+  it('displays a no more tasks message if there are no more tasks to load', async(() => {
+    jobsServiceStub.getTasksOfStatus.and.returnValues(Observable.of(FAKE_TASKS), Observable.of(EMPTY_TASK_ARRAY));
+    fixture = TestBed.createComponent(TasksTableComponent);
+    component = fixture.componentInstance;
+    component.jobRunId = 'fakeJobRunId';
+    component.jobConfigId = 'fakeJobConfigId';
+    component.status = 0;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const element = fixture.debugElement.nativeElement;
+      const loadMoreButton = element.querySelector('.ingest-load-more-button');
+      loadMoreButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        expect(element.querySelector('.ingest-no-more-tasks')).not.toBeNull();
+      });
+    });
+  }));
 });

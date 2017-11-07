@@ -14,6 +14,7 @@ let activatedRouteStub: ActivatedRoute;
 
 const FAKE_JOBCONFIG1 = 'fakeJobConfigId1';
 const FAKE_JOBRUN1 = 'fakeJobRunId1';
+const FAKE_LAST_MODIFIED_TIME = 1;
 
 describe('JobsService', () => {
   beforeEach(() => {
@@ -29,18 +30,36 @@ describe('JobsService', () => {
      });
   });
 
- it('should request for the get tasks of status url once',
+  it('should request for the get tasks of status url once',
+  inject([HttpClient, HttpTestingController], (http: HttpClient, httpMock: HttpTestingController) => {
+  const jobsService = new JobsService(http, activatedRouteStub);
+  let actualTasks: Task[];
+  jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, FAKE_JOBRUN1, TASK_STATUS.SUCCESS).subscribe(
+    (response) => {
+      actualTasks = response;
+    },
+    (error) => {
+      // should not be called
+    });
+  httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/fakeJobRunId1/status/${TASK_STATUS.SUCCESS}`)
+      .flush(FAKE_TASKS);
+  expect(actualTasks).toEqual(FAKE_TASKS);
+  httpMock.verify();
+}));
+
+ it('should request for the get tasks of status url once with last modified',
     inject([HttpClient, HttpTestingController], (http: HttpClient, httpMock: HttpTestingController) => {
     const jobsService = new JobsService(http, activatedRouteStub);
     let actualTasks: Task[];
-    jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, FAKE_JOBRUN1, TASK_STATUS.SUCCESS).subscribe(
+    jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, FAKE_JOBRUN1, TASK_STATUS.SUCCESS, FAKE_LAST_MODIFIED_TIME).subscribe(
       (response) => {
         actualTasks = response;
       },
       (error) => {
         // should not be called
       });
-    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/fakeJobRunId1/status/${TASK_STATUS.SUCCESS}`)
+    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/fakeJobRunId1/status/${TASK_STATUS.SUCCESS}` +
+                       `?lastModifiedBefore=${FAKE_LAST_MODIFIED_TIME}`)
         .flush(FAKE_TASKS);
     expect(actualTasks).toEqual(FAKE_TASKS);
     httpMock.verify();
