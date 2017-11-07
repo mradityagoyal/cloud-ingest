@@ -72,14 +72,14 @@ func TestBatcherWithOneUpdate(t *testing.T) {
 
 	msg := &pubsub.Message{ID: "dummy-msg"}
 
-	mockTicker := newMockTicker()
+	mockTicker := NewMockTicker()
 	testChannel := make(chan int)
 	batcher.initializeAndStartInternal(store, mockTicker, testChannel)
 	// Override Pub/Sub Ack function with a mock one.
 	batcher.ackMessage = ackMessageFnMock
 	batcher.addTaskUpdate(taskUpdate, msg)
 
-	mockTicker.tick()
+	mockTicker.Tick()
 	<-testChannel // Block until the batcher's commitUpdates call has finished.
 	if len(store.tasks) != 3 {
 		t.Errorf("expected 3 tasks in the store, found %v.", len(store.tasks))
@@ -101,7 +101,7 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 		tasks: map[string]*Task{},
 	}
 
-	mockTicker := newMockTicker()
+	mockTicker := NewMockTicker()
 	testChannel := make(chan int)
 	batcher.initializeAndStartInternal(store, mockTicker, testChannel)
 	// Override Pub/Sub Ack function with a mock one.
@@ -153,7 +153,7 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 	}
 	wg.Wait()
 
-	mockTicker.tick()
+	mockTicker.Tick()
 	<-testChannel // Block until the batcher's commitUpdates call has finished.
 
 	// Make sure all the Pub/Sub update messages are ack'ed.

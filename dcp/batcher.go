@@ -35,7 +35,7 @@ type taskUpdatesBatcher struct {
 	pendingTasksToStore *TaskUpdateCollection
 	pendingMsgsToAck    []*pubsub.Message
 	mu                  sync.Mutex
-	ticker              ticker
+	ticker              Ticker
 	ackMessage          func(msg *pubsub.Message)
 }
 
@@ -88,10 +88,10 @@ func (b *taskUpdatesBatcher) commitUpdates() {
 // initializeAndStart initializes the taskUpdateBatcher and starts a Go routine
 // to periodically commits the accumulated pending task updates.
 func (b *taskUpdatesBatcher) initializeAndStart(s Store) {
-	b.initializeAndStartInternal(s, newClockTicker(batchingTimeInterval), nil)
+	b.initializeAndStartInternal(s, NewClockTicker(batchingTimeInterval), nil)
 }
 
-func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t ticker, testChannel chan int) {
+func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t Ticker, testChannel chan int) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.started {
@@ -109,7 +109,7 @@ func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t ticker, testC
 	}
 
 	go func() {
-		c := b.ticker.getChannel()
+		c := b.ticker.GetChannel()
 		for {
 			select {
 			case <-c:
@@ -117,7 +117,7 @@ func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t ticker, testC
 			}
 			// TODO(b/67468147): Implement batching transactions based on the size of
 			// the transaction in addition to the interval based one.
-			if (testChannel != nil) {
+			if testChannel != nil {
 				testChannel <- 0
 			}
 		}

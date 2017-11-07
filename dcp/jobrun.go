@@ -78,6 +78,9 @@ func (j *JobCounters) Unmarshal(countersString string) error {
 
 // ApplyDelta applies the changes in the given deltaObj to this.
 func (j *JobCounters) ApplyDelta(deltaObj *JobCounters) {
+	if j.counter == nil {
+		j.counter = make(map[string]int64)
+	}
 	for key, value := range deltaObj.counter {
 		j.counter[key] += value
 	}

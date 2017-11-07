@@ -17,11 +17,11 @@ package dcp
 
 import "time"
 
-// ticker is a wrapper interface around time.Ticker. This is mainly used to be
+// Ticker is a wrapper interface around time.Ticker. This is mainly used to be
 // able to mock the ticker in unit tests.
-type ticker interface {
-	// getChannel returns the channel on which the ticks are delivered.
-	getChannel() <-chan time.Time
+type Ticker interface {
+	// GetChannel returns the channel on which the ticks are delivered.
+	GetChannel() <-chan time.Time
 }
 
 // clockTicker is a real implementation of ticker using timer.Ticker.
@@ -29,11 +29,11 @@ type clockTicker struct {
 	t *time.Ticker
 }
 
-func (ct clockTicker) getChannel() <-chan time.Time {
+func (ct clockTicker) GetChannel() <-chan time.Time {
 	return ct.t.C
 }
 
-func newClockTicker(d time.Duration) *clockTicker {
+func NewClockTicker(d time.Duration) *clockTicker {
 	return &clockTicker{time.NewTicker(d)}
 }
 
@@ -42,15 +42,15 @@ type mockTicker struct {
 	c chan time.Time
 }
 
-func (mt mockTicker) getChannel() <-chan time.Time {
+func (mt mockTicker) GetChannel() <-chan time.Time {
 	return (<-chan time.Time)(mt.c)
 }
 
-func newMockTicker() *mockTicker {
+func NewMockTicker() *mockTicker {
 	return &mockTicker{make(chan time.Time)}
 }
 
 // tick simulates a tick.
-func (mt mockTicker) tick() {
+func (mt mockTicker) Tick() {
 	mt.c <- time.Now()
 }

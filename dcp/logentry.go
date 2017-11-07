@@ -175,7 +175,7 @@ type LogEntryProcessor struct {
 // binary. We will need to revisit this triggering scheme when we figure out how to
 // support multiple DCPs for a single project.
 func (lep LogEntryProcessor) ProcessLogs() {
-	t := newClockTicker(logEntryCountCheckInterval)
+	t := NewClockTicker(logEntryCountCheckInterval)
 	if JobRunStatusChangeNotificationChannel == nil {
 		// Buffer the channel so the sender doesn't block.
 		JobRunStatusChangeNotificationChannel = make(chan int, 10)
@@ -184,8 +184,8 @@ func (lep LogEntryProcessor) ProcessLogs() {
 }
 
 func (lep LogEntryProcessor) continuouslyProcessLogs(
-	t ticker, jobrunChannel chan int, testChannel chan int) {
-	periodicCheck := t.getChannel()
+	t Ticker, jobrunChannel chan int, testChannel chan int) {
+	periodicCheck := t.GetChannel()
 	var lastN, noProgressCount int64
 	for {
 		select {

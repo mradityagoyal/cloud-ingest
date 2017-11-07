@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"log"
 	"reflect"
 	"strings"
@@ -112,4 +113,22 @@ func DeepEqualCompare(msgPrefix string, want, got interface{}, t *testing.T) {
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("%s: Wanted %v; got %v", msgPrefix, want, got)
 	}
+}
+
+// CreateTmpFile creates a temp file in the os temp directory with a prefix and
+// content string. This method will panic in case of failure writing the file.
+func CreateTmpFile(filePrefix string, content string) string {
+	tmpfile, err := ioutil.TempFile("", filePrefix)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return tmpfile.Name()
 }

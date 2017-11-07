@@ -101,9 +101,9 @@ func getTestingFakeStore(n int64) *FakeStore {
 		fakestore.logEntryRows = append(fakestore.logEntryRows,
 			&LogEntryRow{
 				JobConfigId: "configID",
-				JobRunId: fmt.Sprintf("jobRunID%v", i),
-				TaskId: fmt.Sprintf("taskId%v", i),
-				LogEntryId: i,
+				JobRunId:    fmt.Sprintf("jobRunID%v", i),
+				TaskId:      fmt.Sprintf("taskId%v", i),
+				LogEntryId:  i,
 				// This time corresponds to the time
 				// 2009-11-10T15:00:00.000000000-08:00.
 				CreationTime: 1257894000000000000 + (i * 150),
@@ -133,10 +133,10 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 	mockGcs.EXPECT().NewWriter("dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
-	mockTicker := newMockTicker()
+	mockTicker := NewMockTicker()
 	testChannel := make(chan int)
 	go lep.continuouslyProcessLogs(mockTicker, nil, testChannel)
-	mockTicker.tick()
+	mockTicker.Tick()
 	<-testChannel // Block on the completion of the periodicCheck.
 
 	// Verify the log entries have been processed.
@@ -168,10 +168,10 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	mockGcs.EXPECT().NewWriter("dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
-	mockTicker := newMockTicker()
+	mockTicker := NewMockTicker()
 	testChannel := make(chan int)
 	go lep.continuouslyProcessLogs(mockTicker, nil, testChannel)
-	mockTicker.tick()
+	mockTicker.Tick()
 	<-testChannel // Block on the completion of the periodicCheck.
 
 	// Verify that no entries have been processed.
@@ -181,7 +181,7 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 
 	// Perform enough checks to simulate a no-progress situation.
 	for i := int64(0); i < maxNoProgressCount; i++ {
-		mockTicker.tick()
+		mockTicker.Tick()
 		<-testChannel // Block on the completion of the periodicCheck.
 	}
 
@@ -213,14 +213,14 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	mockGcs.EXPECT().NewWriter("dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
-	mockTicker := newMockTicker()
+	mockTicker := NewMockTicker()
 	jobrunChannel := make(chan int)
 	testChannel := make(chan int)
 	go lep.continuouslyProcessLogs(mockTicker, jobrunChannel, testChannel)
 
 	// Perform a bunch of ticks, but not enough to trigger 'no-progress'.
 	for i := int64(0); i < maxNoProgressCount/2; i++ {
-		mockTicker.tick()
+		mockTicker.Tick()
 		<-testChannel // Block on the completion of the periodicCheck.
 	}
 
@@ -230,7 +230,7 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	}
 
 	// Trigger logs processing by sending on the jobrunChannel.
-	jobrunChannel<- 0
+	jobrunChannel <- 0
 	<-testChannel // Block on the completion of the periodicCheck.
 
 	// Verify the log entries have been processed.
@@ -293,16 +293,16 @@ func TestSanitizeFailureMessage(t *testing.T) {
 
 func TestLogEntryRowStringer(t *testing.T) {
 	l := LogEntryRow{
-		JobConfigId: "UNUSED",
-		JobRunId: "UNUSED",
-		TaskId: "task_id",
-		LogEntryId: 0,
-		CreationTime: 1257894000000000000,
-		CurrentStatus: 3,
+		JobConfigId:    "UNUSED",
+		JobRunId:       "UNUSED",
+		TaskId:         "task_id",
+		LogEntryId:     0,
+		CreationTime:   1257894000000000000,
+		CurrentStatus:  3,
 		PreviousStatus: 1,
 		FailureMessage: "failure_message'\n",
-		LogEntry: "key1:value1 key2:value2",
-		Processed: false,
+		LogEntry:       "key1:value1 key2:value2",
+		Processed:      false,
 	}
 	lString := l.String()
 	lExpectedString := "2009-11-10T15:00:00.000000000-08:00 task_id QUEUED->SUCCESS FailureMessage:'failure_message`\\n' WorkerLog:'key1:value1 key2:value2'"
