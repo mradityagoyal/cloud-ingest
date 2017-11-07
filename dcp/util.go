@@ -18,11 +18,31 @@ package dcp
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 )
+
+type stringReadCloser struct {
+	reader io.Reader
+	closed bool
+}
+
+func (src *stringReadCloser) Read(p []byte) (int, error) {
+	return src.reader.Read(p)
+}
+
+func (src *stringReadCloser) Close() error {
+	src.closed = true
+	return nil
+}
+
+func NewStringReadCloser(s string) *stringReadCloser {
+	return &stringReadCloser{strings.NewReader(s), false}
+}
 
 // AreEqualJson checkes if strings s1 and s2 are identical JSON represention
 // for the same JSON objects.

@@ -16,31 +16,12 @@ limitations under the License.
 package dcp
 
 import (
+	"reflect"
+	"testing"
+
 	"cloud.google.com/go/storage"
 	"github.com/golang/mock/gomock"
-	"io"
-	"reflect"
-	"strings"
-	"testing"
 )
-
-type stringReadCloser struct {
-	reader io.Reader
-	closed bool
-}
-
-func (src *stringReadCloser) Read(p []byte) (int, error) {
-	return src.reader.Read(p)
-}
-
-func (src *stringReadCloser) Close() error {
-	src.closed = true
-	return nil
-}
-
-func newStringReadCloser(s string) *stringReadCloser {
-	return &stringReadCloser{strings.NewReader(s), false}
-}
 
 func TestReadListResultError(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
@@ -64,7 +45,7 @@ func TestReadListResultSuccess(t *testing.T) {
 
 	mockGcs := NewMockGCS(mockCtrl)
 
-	src := newStringReadCloser("line1\nline2\n")
+	src := NewStringReadCloser("line1\nline2\n")
 	mockGcs.EXPECT().
 		NewReader(gomock.Any(), gomock.Any()).
 		Return(src, nil)
