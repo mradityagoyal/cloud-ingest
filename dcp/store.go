@@ -451,6 +451,20 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 				}
 				taskUpdate := tasks.GetTaskUpdate(taskId)
 
+				// If there are any task-specific semantics that need to be part of the transaction, do
+				// them here.
+				if taskUpdate.TransactionalSemantics != nil {
+					err := taskUpdate.TransactionalSemantics.Apply(taskUpdate, txn)
+					if err != nil {
+						return err
+					}
+				}
+
+				// As a safeguard, any task that is now unqueued must not have any "next" tasks set.
+				if taskUpdate.Task.Status == Unqueued && len(taskUpdate.NewTasks) > 0 {
+					return fmt.Errorf("unqueued task %s has 'next' tasks.", taskId)
+				}
+
 				validUpdate, oldStatus, err := isValidUpdate(row, taskUpdate.Task)
 				if err != nil {
 					return err
