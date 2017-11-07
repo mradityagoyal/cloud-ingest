@@ -54,6 +54,8 @@ FAKE_JOB_CONFIG_RESPONSE = {
     'JobConfigId' : 'fakeConfigId',
     'JobSpec' : 'FAKE_JOB_SPEC'}
 
+FAKE_LAST_MODIFICATION_TIME = 1
+
 class TestMain(unittest.TestCase):
     """Tests for main.py
 
@@ -102,11 +104,12 @@ class TestMain(unittest.TestCase):
             FAKE_TASK
         response = self.app.get(
             '/projects/fakeProjectId/tasks/fakeConfigId/fakeRunId/failuretype/'
-            + str(tasks_pb2.TaskFailureType.UNKNOWN))
+            + str(tasks_pb2.TaskFailureType.UNKNOWN)
+            + '?lastModifiedBefore=' + str(FAKE_LAST_MODIFICATION_TIME))
         response_json = json.loads(response.data)
         spanner_wrapper_mock_inst.get_tasks_of_failure_type.assert_called_with(
             'fakeConfigId', 'fakeRunId', main.DEFAULT_PAGE_SIZE,
-            tasks_pb2.TaskFailureType.UNKNOWN)
+            tasks_pb2.TaskFailureType.UNKNOWN, FAKE_LAST_MODIFICATION_TIME)
         self.assertEqual(response_json, FAKE_TASK)
 
     @patch.object(main, '_get_credentials')

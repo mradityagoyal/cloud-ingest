@@ -1,4 +1,3 @@
-import { Task } from 'protractor/built/taskScheduler';
 import 'rxjs/add/observable/never';
 import 'rxjs/add/observable/of';
 
@@ -6,6 +5,7 @@ import { async, ComponentFixture, TestBed } from '@angular/core/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { Task } from 'protractor/built/taskScheduler';
 import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';

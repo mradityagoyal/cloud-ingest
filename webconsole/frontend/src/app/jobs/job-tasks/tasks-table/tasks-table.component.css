@@ -11,3 +11,12 @@
   text-align: center;
   justify-content: center;
 }
+
+.ingest-failuremsg-cell {
+  max-height: 60px;
+  overflow-y: scroll;
+}
+
+.ingest-failure-table-row {
+  overflow-y: hidden;
+}

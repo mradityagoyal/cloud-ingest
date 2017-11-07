@@ -513,6 +513,20 @@ class TestSpannerWrapper(unittest.TestCase):
             task_failure_type,
             self.snapshot.execute_sql.call_args)
 
+    def test_last_modified_failure_type(self):
+        """Asserts that the proper last modified is used in the query"""
+        task_failure_type = tasks_pb2.TaskFailureType.UNKNOWN
+        fake_last_modified = 1
+        # Get 25 tasks as it is the default number of tasks.
+        self.spanner_wrapper.get_tasks_of_failure_type(
+            'fake_config_id', 'fake_run_id', 25, task_failure_type,
+            fake_last_modified)
+        self.snapshot.execute_sql.assert_called()
+        self.check_query_param(
+            'last_modified_before',
+            fake_last_modified,
+            self.snapshot.execute_sql.call_args)
+
     def test_get_tasks_last_modified(self):
         """Asserts that the proper last modified time is used in the query."""
         last_modified = 5

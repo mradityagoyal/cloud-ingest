@@ -1,55 +1,51 @@
-import { Component, OnInit, Input, Output, EventEmitter } from '@angular/core';
+import { Component, EventEmitter, Input, Output } from '@angular/core';
+
+import { TaskFailureType } from '../../../proto/tasks.js';
+import { DEFAULT_BACKEND_PAGESIZE } from '../../jobs.resources';
 import { JobsService } from '../../jobs.service';
-import { TaskFailureType, TaskType } from '../../../proto/tasks.js';
-import { Task, TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
-import { DataSource } from '@angular/cdk/collections';
-import { HttpErrorResponse } from '@angular/common/http';
-import { SimpleDataSource } from '../job-tasks.resources';
-import { HttpErrorResponseFormatter } from '../../../util/error.resources';
 
 @Component({
   selector: 'app-failures-table',
-  templateUrl: './failures-table.component.html',
-  styleUrls: ['./failures-table.component.css']
+  templateUrl: './failures-table.component.html'
 })
-export class FailuresTableComponent implements OnInit {
+export class FailuresTableComponent {
   @Input() public failureType: TaskFailureType.Type;
   @Input() public jobRunId: string;
   @Input() public jobConfigId: string;
   @Input() public failureTypeName: string;
+
+  // Emits when the child tasks table component finished loading the tasks.
   @Output() onLoadFinished = new EventEmitter<TaskFailureType.Type>(true);
+  // Emits if the child tasks table comonent shows no tasks.
   @Output() onNoTasks = new EventEmitter<TaskFailureType.Type>(true);
 
-  TaskType = TaskType;
-  TASK_TYPE_TO_STRING_MAP = TASK_TYPE_TO_STRING_MAP;
+  /**
+   * Whether this particular component has tasks or not. Controls whether content should be shown
+   * or not.
+   */
+  hasTasks = false;
 
-  tasks: Task[];
+  // The number of failed tasks.
+  numFailures = 0;
 
-  showError = false;
-  errorTitle: string;
-  errorMessage: string;
-
-  dataSource: SimpleDataSource;
-  displayedColumns = ['failureMessage', 'taskId', 'taskType', 'creationTime', 'lastModificationTime'];
+  // Re-define this variable here so that it can be used in the template.
+  DEFAULT_BACKEND_PAGESIZE = DEFAULT_BACKEND_PAGESIZE;
 
   constructor(private readonly jobsService: JobsService) { }
 
-  ngOnInit() {
-    this.jobsService.getTasksOfFailureType(this.jobConfigId, this.jobRunId, this.failureType)
-    .subscribe(
-      (response: Task[]) => {
-        this.tasks = response;
-        this.dataSource = new SimpleDataSource(this.tasks);
-        this.onLoadFinished.emit(this.failureType);
-        if (this.tasks.length === 0) {
-          this.onNoTasks.emit(this.failureType);
-        }
-      }, (error: HttpErrorResponse) => {
-        this.errorTitle = HttpErrorResponseFormatter.getTitle(error);
-        this.errorMessage = HttpErrorResponseFormatter.getMessage(error);
-        this.showError = true;
-      }
-    );
+  /**
+   * Handles the onLoadFinished custom event triggered by the tasks table.
+   *
+   * @param numTasksLoaded The number of tasks that the tasks table loaded.
+   */
+  private handleOnLoadFinished(numTasksLoaded: number) {
+    this.numFailures = numTasksLoaded;
+    if (numTasksLoaded === 0) {
+      this.onNoTasks.emit(this.failureType);
+    } else {
+      this.hasTasks = true;
+    }
+    this.onLoadFinished.emit(this.failureType);
   }
 
 }

@@ -1,3 +1,4 @@
+import { TaskFailureType, TaskStatus } from '../../../proto/tasks';
 import { ErrorDialogComponent } from '../../../util/error-dialog/error-dialog.component';
 import 'rxjs/add/observable/never';
 import 'rxjs/add/observable/of';
@@ -14,6 +15,7 @@ import { TasksTableComponent } from './tasks-table.component';
 
 class JobsServiceStub {
   public getTasksOfStatus = jasmine.createSpy('getTasksOfStatus');
+  public getTasksOfFailureType = jasmine.createSpy('getTasksOfFailureType');
 }
 
 class MatDialogStub {
@@ -30,6 +32,7 @@ describe('TasksTableComponent', () => {
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
     jobsServiceStub.getTasksOfStatus.and.returnValue(Observable.of(FAKE_TASKS));
+    jobsServiceStub.getTasksOfFailureType.and.returnValue(Observable.of(FAKE_TASKS));
     matDialogStub = new MatDialogStub();
     TestBed.configureTestingModule({
       declarations: [ TasksTableComponent ],
@@ -49,7 +52,7 @@ describe('TasksTableComponent', () => {
     component = fixture.componentInstance;
     component.jobRunId = 'fakeJobRunId';
     component.jobConfigId = 'fakeJobConfigId';
-    component.status = 0;
+    component.status = TaskStatus.Type.SUCCESS;
     fixture.detectChanges();
   });
 
@@ -75,8 +78,8 @@ describe('TasksTableComponent', () => {
     component = fixture.componentInstance;
     component.jobRunId = 'fakeJobRunId';
     component.jobConfigId = 'fakeJobConfigId';
-    component.status = 0;
-    component.showFailureMessage = true;
+    component.failureType = TaskFailureType.Type.UNKNOWN;
+    component.isFailureTable = true;
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       const parentElement = fixture.debugElement.nativeElement;
@@ -91,7 +94,6 @@ describe('TasksTableComponent', () => {
     component.jobRunId = 'fakeJobRunId';
     component.jobConfigId = 'fakeJobConfigId';
     component.status = 0;
-    component.showFailureMessage = false;
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       const parentElement = fixture.debugElement.nativeElement;

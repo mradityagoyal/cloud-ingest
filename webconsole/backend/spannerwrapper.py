@@ -46,7 +46,7 @@ def _check_max_num_tasks_in_range(max_num_tasks):
                          SpannerWrapper.ROW_CAP)
 
 def _get_tasks_params_and_types(config_id, run_id, max_num_tasks,
-    task_status=None, last_modified_before=None):
+    task_status=None, last_modified_before=None, failure_type=None):
     """Gets the base parameters and parameter types used in most queries.
 
     Returns:
@@ -65,6 +65,9 @@ def _get_tasks_params_and_types(config_id, run_id, max_num_tasks,
     if task_status is not None:
         params["task_status"] = task_status
         param_types["task_status"] = type_pb2.Type(code=type_pb2.INT64)
+    if failure_type is not None:
+        params["failure_type"] = failure_type
+        param_types["failure_type"] = type_pb2.Type(code=type_pb2.INT64)
     if last_modified_before is not None:
         params["last_modified_before"] = last_modified_before
         param_types["last_modified_before"] = type_pb2.Type(code=type_pb2.INT64)
@@ -381,7 +384,6 @@ class SpannerWrapper(object):
                   SpannerWrapper.LAST_MODIFICATION_TIME)
         return self.list_query(query, params, param_types)
 
-
     def get_tasks_of_status(self, config_id, run_id, max_num_tasks,
                             task_status, last_modified_before=None):
         """Retrieves tasks of the input status for the input job configuration
@@ -397,6 +399,7 @@ class SpannerWrapper(object):
         Raises:
           BadRequest: if max_num_tasks is not in the allowed range or if the
                       task status is not in the allowed range.
+
         """
         _check_max_num_tasks_in_range(max_num_tasks)
         if task_status not in TaskStatus.Type.values():
@@ -413,7 +416,7 @@ class SpannerWrapper(object):
         return self.list_query(query, params, param_types)
 
     def get_tasks_of_failure_type(self, config_id, run_id, max_num_tasks,
-                                  failure_type):
+                                  failure_type, last_modified_before=None):
         """Retrieves the tasks of the input failure type for the input job
            configuration and job run.
 
@@ -432,19 +435,22 @@ class SpannerWrapper(object):
             raise BadRequest("Task of failure type %d is unknown.",
                 failure_type)
         params, param_types = _get_tasks_params_and_types(config_id,
-            run_id, max_num_tasks)
-        params["failure_type"] = failure_type
-        param_types["failure_type"] = type_pb2.Type(code=type_pb2.INT64)
+            run_id, max_num_tasks, failure_type=failure_type,
+            last_modified_before=last_modified_before)
 
         query = (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @config_id "
-                 "AND %s = @run_id AND %s = @failure_type "
-                 "ORDER BY %s DESC LIMIT @num_tasks") %
+                  "AND %s = @run_id AND %s = @failure_type ") %
                 (SpannerWrapper.TASKS_TABLE,
                  SpannerWrapper.TASK_BY_STATUS_INDEX_NAME,
                  SpannerWrapper.JOB_CONFIG_ID,
                  SpannerWrapper.JOB_RUN_ID,
-                 SpannerWrapper.FAILURE_TYPE,
-                 SpannerWrapper.LAST_MODIFICATION_TIME))
+                 SpannerWrapper.FAILURE_TYPE))
+
+        if last_modified_before is not None:
+            query += ("AND %s < @last_modified_before " %
+                      SpannerWrapper.LAST_MODIFICATION_TIME)
+        query += ("ORDER BY %s DESC LIMIT @num_tasks"
+            % SpannerWrapper.LAST_MODIFICATION_TIME)
         return self.list_query(query, params, param_types)
 
     # pylint: enable=too-many-arguments

@@ -5,19 +5,22 @@ import {
   AfterViewInit,
   Component,
   ElementRef,
+  EventEmitter,
   Input,
   OnInit,
+  Output,
   QueryList,
   Renderer2,
   ViewChild,
   ViewChildren,
 } from '@angular/core';
 import { MatDialog, MatTable } from '@angular/material';
+import { Observable } from 'rxjs/Rx';
 
 import { ErrorDialogComponent } from '../../../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../../util/error.resources';
-import { Task, TASK_TYPE_TO_STRING_MAP, DEFAULT_BACKEND_PAGESIZE } from '../../jobs.resources';
+import { DEFAULT_BACKEND_PAGESIZE, Task, TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
 import { JobsService } from '../../jobs.service';
 import { SimpleDataSource } from '../job-tasks.resources';
 
@@ -33,7 +36,19 @@ export class TasksTableComponent implements OnInit, AfterViewInit {
   @Input() public status: number;
   @Input() public jobRunId: string;
   @Input() public jobConfigId: string;
-  @Input() public showFailureMessage: boolean;
+
+  /**
+   * Whether this table is a failure table. This affects how the component gets the tasks to
+   * display.
+   */
+  @Input() public isFailureTable: boolean;
+  @Input() public failureType: number;
+
+  /**
+   * This custom event emits when the load is finished. It emits the number of tasks that it gets
+   * on the initial load.
+   */
+  @Output() onLoadFinished = new EventEmitter<number>(true);
 
   TASK_TYPE_TO_STRING_MAP = TASK_TYPE_TO_STRING_MAP;
 
@@ -67,14 +82,30 @@ export class TasksTableComponent implements OnInit, AfterViewInit {
               private dialog: MatDialog) { }
 
   ngOnInit() {
-    if (this.showFailureMessage === true) {
-      this.displayedColumns.push('failureMessage');
+    if (this.jobConfigId == null || this.jobRunId == null) {
+      throw new Error('A job config id and job run id must be specified.');
     }
-    this.jobsService.getTasksOfStatus(this.jobConfigId, this.jobRunId, this.status)
+    if (this.isFailureTable === true) {
+      if (this.failureType == null || this.status != null) {
+        throw new Error('A failure table should contain a failure type input and no status'
+          + 'input.');
+      }
+      this.displayedColumns.push('failureMessage');
+    } else {
+      if (this.status == null) {
+        throw new Error('Must specify a task status.');
+      }
+    }
+    this.loadInitialTasks();
+  }
+
+  private loadInitialTasks() {
+    this.getInitialLoadTasksObservable()
     .subscribe(
       (response: Task[]) => {
         this.tasks = response;
         this.showTasksLoading = false;
+        this.onLoadFinished.emit(response.length);
         if (response.length === 0) {
           this.noTasksToShow = true;
         } else {
@@ -98,6 +129,27 @@ export class TasksTableComponent implements OnInit, AfterViewInit {
       }
     });
   }
+
+  private getInitialLoadTasksObservable(): Observable<Task[]> {
+    if (this.isFailureTable === true) {
+      return this.jobsService.getTasksOfFailureType(this.jobConfigId, this.jobRunId, this.failureType);
+    } else {
+      return this.jobsService.getTasksOfStatus(this.jobConfigId, this.jobRunId, this.status);
+    }
+  }
+
+  private getLoadMoreTasksObservable(): Observable<Task[]> {
+    const lastTask = this.tasks[this.tasks.length - 1];
+    if (this.isFailureTable === true) {
+      return this.jobsService.getTasksOfFailureType(
+        this.jobConfigId, this.jobRunId, this.failureType, lastTask.LastModificationTime);
+    } else {
+      return this.jobsService.getTasksOfStatus(
+        this.jobConfigId, this.jobRunId, this.status, lastTask.LastModificationTime);
+    }
+  }
+
+
   /**
    * Adds the "load more" button to the bottom of the table if there are 25 tasks or more.
    */
@@ -111,8 +163,7 @@ export class TasksTableComponent implements OnInit, AfterViewInit {
   private loadMoreClick() {
     this.showMoreTasksLoading = true;
     const lastTask = this.tasks[this.tasks.length - 1];
-    this.jobsService.getTasksOfStatus(
-      this.jobConfigId, this.jobRunId, this.status, lastTask.LastModificationTime)
+    this.getLoadMoreTasksObservable()
     .subscribe(
     (response: Task[]) => {
       if (response.length === 0) {

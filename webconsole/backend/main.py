@@ -279,8 +279,9 @@ methods=['OPTIONS', 'GET'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def get_tasks_of_failure_type(project_id, config_id, run_id, failure_type):
     """Handles GET requests for tasks of a specified status.
-    This route has one query parameter:
+    This route has two query parameters:
         pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
+        lastModifiedBefore- Only return tasks modified before this timestamp.
     Args:
         project_id: The id of the project.
         config_id: The id of the job config for the desired tasks
@@ -300,13 +301,15 @@ def get_tasks_of_failure_type(project_id, config_id, run_id, failure_type):
                                      APP.config['SPANNER_INSTANCE'],
                                      APP.config['SPANNER_DATABASE'])
     num_tasks = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
+    last_modified_before = _get_int_param(request, 'lastModifiedBefore')
     failure_type_int = int(failure_type)
 
     return jsonify(spanner_wrapper.get_tasks_of_failure_type(
         config_id,
         run_id,
         num_tasks,
-        failure_type_int
+        failure_type_int,
+        last_modified_before
     ))
 
 @APP.route('/projects/<project_id>/infrastructure-status',

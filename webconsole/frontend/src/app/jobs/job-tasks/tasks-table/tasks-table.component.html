@@ -38,7 +38,7 @@
 
         <ng-container matColumnDef="failureMessage">
           <mat-header-cell *matHeaderCellDef> Failure Message </mat-header-cell>
-          <mat-cell class="ingest-break-word" *matCellDef="let task"> {{ task.FailureMessage }} </mat-cell>
+          <mat-cell class="ingest-break-word ingest-failuremsg-cell" *matCellDef="let task"> {{ task.FailureMessage }} </mat-cell>
         </ng-container>
 
         <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
