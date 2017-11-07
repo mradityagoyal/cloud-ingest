@@ -2,7 +2,9 @@
 
 <ng-container *ngIf="showLoadingSpinner; then spinner; else jobrun"></ng-container>
 <ng-template #spinner>
-  <mat-spinner></mat-spinner>
+  <div class="ingest-pageload-spinner">
+    <mat-spinner [diameter]="50" [strokeWidth]="3"></mat-spinner>
+  </div>
 </ng-template>
 
 <ng-template #jobrun>

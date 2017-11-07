@@ -22,7 +22,9 @@
       (onNoTasks)="onNoTasksForFailureType($event)">
     </app-failures-table>
     </div>
-    <mat-spinner *ngIf="showFailuresLoading"></mat-spinner>
+    <div *ngIf="showFailuresLoading" class="ingest-pageload-spinner">
+      <mat-spinner [diameter]="50" [strokeWidth]="3"></mat-spinner>
+    </div>
   </mat-tab>
   <mat-tab label="Succeeded">
     <app-tasks-table [status]="TASK_STATUS.SUCCESS" [jobRunId]="jobRunId" [jobConfigId]="jobConfigId"> </app-tasks-table>

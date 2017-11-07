@@ -10,7 +10,9 @@
 </div>
 <ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else cardContainer"></ng-container>
 <ng-template #loadingSpinner>
-  <mat-spinner></mat-spinner>
+  <div class="ingest-pageload-spinner">
+    <mat-spinner [diameter]="50" [strokeWidth]="3"></mat-spinner>
+  </div>
 </ng-template>
 <ng-template #cardContainer>
   <div class="ingest-error-message" [hidden]="!displayErrorMessage">

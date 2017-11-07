@@ -1,5 +1,7 @@
 <ng-container *ngIf="showTasksLoading; else content">
-  <mat-spinner></mat-spinner>
+  <div class="ingest-pageload-spinner">
+    <mat-spinner [diameter]="50" [strokeWidth]="3"></mat-spinner>
+  </div>
 </ng-container>
 <ng-template #content>
   <div *ngIf="showError; else mainContent" class="ingest-error-message">
