@@ -120,7 +120,9 @@ export class AuthService implements CanActivate {
   signIn(): Promise<void> {
     return new Promise<void>((resolve, reject) => {
       this.loadGapiPromise.then(() => {
-        this.gapiAuth2.signIn()
+        this.gapiAuth2.signIn({
+                  prompt: 'select_account'
+                })
                 .then((user) => {
                   this.user = <UserProfile>{
                     Name: user.getBasicProfile().getName(),
