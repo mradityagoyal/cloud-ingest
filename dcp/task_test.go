@@ -167,16 +167,32 @@ Task status transition tests
 *******************************************************************************/
 func TestCanChangeTaskStatus(t *testing.T) {
 	// Capturing various cases in one test, since it's simple and additive.
-	if canChangeTaskStatus(Success, Unqueued) {t.Error("successful jobs cannot change state")}
-	if canChangeTaskStatus(Success, Failed) {t.Error("successful jobs cannot change state")}
-	if canChangeTaskStatus(Failed, Queued) {t.Error("job state cannot flow backwards")}
-	if !canChangeTaskStatus(Failed, Unqueued) {t.Error("unsuccessful jobs should be reissuable")}
+	if canChangeTaskStatus(Success, Unqueued) {
+		t.Error("successful jobs cannot change state")
+	}
+	if canChangeTaskStatus(Success, Failed) {
+		t.Error("successful jobs cannot change state")
+	}
+	if canChangeTaskStatus(Failed, Queued) {
+		t.Error("job state cannot flow backwards")
+	}
+	if !canChangeTaskStatus(Failed, Unqueued) {
+		t.Error("unsuccessful jobs should be reissuable")
+	}
 
 	// Go through standard forward flow
-	if !canChangeTaskStatus(Unqueued, Queued) {t.Error("standard forwards job flow should work")}
-	if !canChangeTaskStatus(Queued, Success) {t.Error("standard forwards job flow should work")}
-	if !canChangeTaskStatus(Queued, Failed) {t.Error("standard forwards job flow should work")}
-	if !canChangeTaskStatus(Failed, Success) {t.Error("standard forwards job flow should work")}
+	if !canChangeTaskStatus(Unqueued, Queued) {
+		t.Error("standard forwards job flow should work")
+	}
+	if !canChangeTaskStatus(Queued, Success) {
+		t.Error("standard forwards job flow should work")
+	}
+	if !canChangeTaskStatus(Queued, Failed) {
+		t.Error("standard forwards job flow should work")
+	}
+	if !canChangeTaskStatus(Failed, Success) {
+		t.Error("standard forwards job flow should work")
+	}
 
 }
 
