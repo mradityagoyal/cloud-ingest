@@ -29,6 +29,12 @@ type Generator struct {
 	config *pb.DataGeneratorConfig
 	errs   []error
 	mu     sync.Mutex // Protects errs array.
+
+	// Holds the last generation status for getting a status update.
+	lastStatus struct {
+		sync.Mutex
+		val string
+	}
 }
 
 // NewGeneratorFromProtoFile creates a Generator based on proto message in a file.
@@ -48,7 +54,7 @@ func NewGeneratorFromProtoFile(filePath string) (*Generator, error) {
 
 // GenerateObjects generates objects based on the generator config. Returns list
 // of errors propagated during the generation.
-func (g Generator) GenerateObjects() []error {
+func (g *Generator) GenerateObjects() []error {
 	if fs := g.config.GetFileSystem(); fs != nil {
 		return g.generateFileSystemObjects()
 	}
@@ -57,8 +63,15 @@ func (g Generator) GenerateObjects() []error {
 		g.config.DataSource)}
 }
 
+// GetStatus gets the status string of the generation.
+func (g *Generator) GetStatus() string {
+	g.lastStatus.Lock()
+	defer g.lastStatus.Unlock()
+	return g.lastStatus.val
+}
+
 // generateFileSystemObjects generates file system objects.
-func (g Generator) generateFileSystemObjects() []error {
+func (g *Generator) generateFileSystemObjects() []error {
 	distribution, err := getFileSizeDistribution(g.config.GetFileSystem())
 	if err != nil {
 		return []error{err}
@@ -133,6 +146,11 @@ func (g *Generator) generateFileSystemPathsHelper(
 		for ; start < end; start++ {
 			filePath := path.Join(dir.Path, filePrefix+strconv.Itoa(start))
 			c <- filePath
+
+			// Update the last file sent for processing.
+			g.lastStatus.Lock()
+			g.lastStatus.val = fmt.Sprintf("Processing file: %s.", filePath)
+			g.lastStatus.Unlock()
 		}
 		return
 	}

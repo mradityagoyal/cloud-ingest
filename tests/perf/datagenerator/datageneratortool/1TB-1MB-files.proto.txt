@@ -1,0 +1,13 @@
+# Data Generator Config represents 1TB of data with files size about 1MB.
+fileSystem: {
+  dir: {
+    path: "/mnt/disks/data-disk-1tera-test/1TB/1MB-files"
+
+    totalNumberFiles:  1048576 # 1024*1024
+  }
+  uniformDistribution: {
+    min: 524288  # 512KB = 512 *1024
+    max: 1572864 # 1.5MB = (1024 + 512) * 1024
+  }
+  maxNodesInDir: 1024
+}

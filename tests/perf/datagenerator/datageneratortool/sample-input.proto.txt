@@ -1,0 +1,22 @@
+# Sample Data Generator Config for testing.
+fileSystem: {
+  dir: {
+    path: "/tmp/datagenerator/test"
+
+    totalNumberFiles:  100
+
+    subDir: {
+      path: "sub-dir-0"
+      totalNumberFiles: 15
+    }
+    subDir: {
+      path: "sub-dir-1"
+      totalNumberFiles: 30
+    }
+  }
+  uniformDistribution: {
+    min: 524288  # 512KB = 512 *1024
+    max: 1572864 # 1.5MB = (1024 + 512) * 1024
+  }
+  maxNodesInDir: 10
+}
