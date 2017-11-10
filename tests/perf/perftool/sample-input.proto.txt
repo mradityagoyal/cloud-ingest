@@ -1,0 +1,9 @@
+name: "test-perf"
+config: {
+  sourceDir: "/tmp/datagenerator/test/sub-dir-0"
+  destinationBucket: "cloud-ingest-perf-test-00"
+}
+config: {
+  sourceDir: "/tmp/datagenerator/test/sub-dir-1"
+  destinationBucket: "cloud-ingest-perf-test-01"
+}

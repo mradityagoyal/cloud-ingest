@@ -216,10 +216,58 @@ func TestGetPerfResult(t *testing.T) {
 	}
 
 	expectedResult := &PerfResult{
-		SucceededJobs: 1,
-		FailedJobs:    1,
-		TotalTime:     25,
-		Counters:      aggregateCounters,
+		SucceededJobs:  1,
+		FailedJobs:     1,
+		InProgressJobs: 0,
+		TotalTime:      25,
+		Counters:       aggregateCounters,
+	}
+	result := getPerfResult(jobStatuses)
+	if !reflect.DeepEqual(result, expectedResult) {
+		t.Errorf("expected perf result to be : %v, but found: %v",
+			expectedResult, result)
+	}
+}
+
+func TestGetPerfResultJobsInProgress(t *testing.T) {
+	counters1 := dcp.JobCounters{}
+	counters1.Unmarshal(`{"counter-1": 20, "counter-2": 30}`)
+
+	counters2 := dcp.JobCounters{}
+	counters2.Unmarshal(`{"counter-2": 10, "counter-3": 50}`)
+
+	counters3 := dcp.JobCounters{}
+	counters3.Unmarshal(`{"counter-1": 50, "counter-2": 40}`)
+
+	aggregateCounters := dcp.JobCounters{}
+	aggregateCounters.Unmarshal(`{"counter-1": 70, "counter-2": 80, "counter-3": 50}`)
+
+	jobStatuses := []*JobRunStatus{
+		&JobRunStatus{
+			Status:       dcp.JobFailed,
+			CreationTime: 5,
+			FinishTime:   25,
+			Counters:     counters1,
+		},
+		&JobRunStatus{
+			Status:       dcp.JobSuccess,
+			CreationTime: 7,
+			FinishTime:   30,
+			Counters:     counters2,
+		},
+		&JobRunStatus{
+			Status:       dcp.JobInProgress,
+			CreationTime: 6,
+			Counters:     counters3,
+		},
+	}
+
+	expectedResult := &PerfResult{
+		SucceededJobs:  1,
+		FailedJobs:     1,
+		InProgressJobs: 1,
+		TotalTime:      0,
+		Counters:       aggregateCounters,
 	}
 	result := getPerfResult(jobStatuses)
 	if !reflect.DeepEqual(result, expectedResult) {
