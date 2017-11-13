@@ -87,7 +87,11 @@ func (b *taskUpdatesBatcher) commitUpdates() {
 // terminate this thread.
 // initializeAndStart initializes the taskUpdateBatcher and starts a Go routine
 // to periodically commits the accumulated pending task updates.
-func (b *taskUpdatesBatcher) initializeAndStart(s Store, t ticker) {
+func (b *taskUpdatesBatcher) initializeAndStart(s Store) {
+	b.initializeAndStartInternal(s, newClockTicker(batchingTimeInterval), nil)
+}
+
+func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t ticker, testChannel chan int) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.started {
@@ -113,6 +117,9 @@ func (b *taskUpdatesBatcher) initializeAndStart(s Store, t ticker) {
 			}
 			// TODO(b/67468147): Implement batching transactions based on the size of
 			// the transaction in addition to the interval based one.
+			if (testChannel != nil) {
+				testChannel <- 0
+			}
 		}
 	}()
 }

@@ -58,7 +58,7 @@ func (r *MessageReceiver) ReceiveMessages() error {
 	// Currently, there is a batcher for each message receiver type (list,
 	// uploadGCS, loadBQ). May be we can consider only one batcher for all the
 	// receiver types.
-	r.batcher.initializeAndStart(r.Store, newClockTicker(batchingTimeInterval))
+	r.batcher.initializeAndStart(r.Store)
 
 	ctx := context.Background()
 
