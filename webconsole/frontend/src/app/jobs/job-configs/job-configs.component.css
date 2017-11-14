@@ -9,21 +9,10 @@
   width: 100%;
 }
 
-.ingest-info-icon {
-  opacity: 0.5;
-  margin: 0 0 0 10px;
-}
-
 .ingest-add-job-config {
   margin: 0 0 0 20px;
 }
 
-.ingest-card-container {
-  display: flex;
-  flex-flow: row wrap;
-}
-
-.ingest-job-configs-card {
-  min-width: 400px;
-  margin: 10px;
+.ingest-break-word {
+  word-break: break-all;
 }

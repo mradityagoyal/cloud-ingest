@@ -20,9 +20,8 @@ import { Observable } from 'rxjs/Rx';
 import { ErrorDialogComponent } from '../../../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../../util/error.resources';
-import { DEFAULT_BACKEND_PAGESIZE, Task, TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
+import { DEFAULT_BACKEND_PAGESIZE, SimpleDataSource, Task, TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
 import { JobsService } from '../../jobs.service';
-import { SimpleDataSource } from '../job-tasks.resources';
 
 @Component({
   selector: 'app-tasks-table',
@@ -59,7 +58,7 @@ export class TasksTableComponent implements OnInit, AfterViewInit {
   errorTitle: string;
   errorMessage: string;
 
-  dataSource: SimpleDataSource;
+  dataSource: SimpleDataSource<Task>;
   displayedColumns = ['taskType', 'creationTime', 'lastModificationTime', 'taskId'];
 
   // Whether the app should show that more tasks are loading after clicking on load more.

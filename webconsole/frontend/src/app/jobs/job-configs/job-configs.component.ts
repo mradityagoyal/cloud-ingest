@@ -1,10 +1,11 @@
-import { Component, OnInit } from '@angular/core';
-import { JobConfigResponse } from '../jobs.resources';
-import { JobsService } from '../jobs.service';
-import { MatDialog } from '@angular/material';
 import { HttpErrorResponse } from '@angular/common/http';
-import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
+import { Component, OnInit } from '@angular/core';
+import { MatDialog } from '@angular/material';
+
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
+import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
+import { JobConfigResponse, SimpleDataSource } from '../jobs.resources';
+import { JobsService } from '../jobs.service';
 
 @Component({
   selector: 'app-job-configs',
@@ -13,11 +14,15 @@ import { HttpErrorResponseFormatter } from '../../util/error.resources';
 })
 
 export class JobConfigsComponent implements OnInit {
-  jobConfigs: JobConfigResponse[];
   showLoadingSpinner = false;
   errorMessage: string;
   errorTitle: string;
   displayErrorMessage = false;
+  jobConfigs: JobConfigResponse[];
+
+  displayedColumns = ['JobConfigId', 'onPremSrcDirectory', 'gcsBucket'];
+
+  dataSource: SimpleDataSource<JobConfigResponse>;
 
   constructor(
       private readonly jobsService: JobsService,
@@ -31,11 +36,14 @@ export class JobConfigsComponent implements OnInit {
   private updateJobConfigs(): void {
     this.showLoadingSpinner = true;
     this.jobsService.getJobConfigs().subscribe(
-      (response) => {
+      (response: JobConfigResponse[]) => {
         this.jobConfigs = response;
         this.showLoadingSpinner = false;
-        if (this.jobConfigs.length === 0) {
+        if (response.length === 0) {
           this.openAddJobConfigDialog();
+        } else {
+          this.dataSource = new SimpleDataSource(response);
+          console.log(response);
         }
       },
       (error: HttpErrorResponse) => {

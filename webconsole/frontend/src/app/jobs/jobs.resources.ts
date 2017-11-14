@@ -1,3 +1,6 @@
+import { DataSource } from '@angular/cdk/collections';
+import { Observable } from 'rxjs/Rx';
+
 import { TaskFailureType } from '../proto/tasks.js';
 
 export class JobConfigRequest {
@@ -15,9 +18,20 @@ export class JobConfigRequest {
   ) { }
 }
 
+/**
+ * A JobConfigResponse is an object returned by the backend that represents a job configuration.
+ */
 export interface JobConfigResponse {
   JobConfigId: string;
-  JobSpec: string;
+  JobSpec: JobSpec;
+}
+
+/**
+ * A JobSpec contains the information that describes the job.
+ */
+export interface JobSpec {
+  gcsBucket: string;
+  onPremSrcDirectory: string;
 }
 
 export interface JobRun {
@@ -96,3 +110,18 @@ export const FAILURE_TYPE_TO_STRING_MAP = {
 };
 
 export const DEFAULT_BACKEND_PAGESIZE = 25;
+
+export class SimpleDataSource<T> extends DataSource<T> {
+  items: T[];
+
+  constructor(items: T[]) {
+    super();
+    this.items = items;
+  }
+
+  connect(): Observable<T[]> {
+    return Observable.of(this.items);
+  }
+
+  disconnect() {}
+}

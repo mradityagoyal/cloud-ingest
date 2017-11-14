@@ -13,6 +13,7 @@ import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { JobConfigResponse } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
+import { FAKE_JOB_CONFIGS } from '../jobs.test-util';
 import { JobConfigsComponent } from './job-configs.component';
 
 class JobsServiceStub {
@@ -26,25 +27,6 @@ class MatDialogStub {
 class MatDialogRefStub {
   public afterClosed = jasmine.createSpy('afterClosed');
 }
-
-const FAKE_JOBSPEC1: any = {'fakeField1': 'fakeValue1', 'fakeField2' : 'fakeValue2'};
-const FAKE_JOBSPEC2: any = {'fakeField3': 'fakeValue3', 'fakeField4' : 'fakeValue4'};
-const FAKE_JOBSPEC3: any = {'fakeField5': 'fakeValue5', 'fakeField6' : 'fakeValue6'};
-
-const FAKE_JOB_CONFIGS: JobConfigResponse[] = [
-  {
-    JobConfigId: 'fakeJobConfigId1',
-    JobSpec: FAKE_JOBSPEC1
-  },
-  {
-    JobConfigId: 'fakeJobConfigId2',
-    JobSpec: FAKE_JOBSPEC2
-  },
-  {
-    JobConfigId: 'fakeJobConfigId3',
-    JobSpec: FAKE_JOBSPEC3
-  }
-];
 
 const EMPTY_JOB_CONFIG_ARR: JobConfigResponse[] = [];
 
@@ -124,41 +106,23 @@ describe('JobConfigsComponent', () => {
     });
   }));
 
-  it('should contain three md cards', async(() => {
+  it('should contain the job config information', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const elements = compiled.querySelectorAll('mat-card');
-      expect(elements.length).toBe(3);
-    });
-  }));
+      expect(compiled.textContent).toContain('fakeJobConfigId1');
+      expect(compiled.textContent).toContain('fakeSrcDir1');
+      expect(compiled.textContent).toContain('fakeBucket1');
 
-  it('should contain the job config information in cards', async(() => {
-    const fixture = TestBed.createComponent(JobConfigsComponent);
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const elements = compiled.querySelectorAll('mat-card');
-      expect(elements[0].innerText).toContain('fakeJobConfigId1');
-      expect(elements[0].innerText).toContain('fakeField1');
-      expect(elements[0].innerText).toContain('fakeValue1');
-      expect(elements[0].innerText).toContain('fakeField2');
-      expect(elements[0].innerText).toContain('fakeValue2');
+      expect(compiled.textContent).toContain('fakeJobConfigId2');
+      expect(compiled.textContent).toContain('fakeSrcDir2');
+      expect(compiled.textContent).toContain('fakeBucket2');
 
-      expect(elements[1].innerText).toContain('fakeJobConfigId2');
-      expect(elements[1].innerText).toContain('fakeField3');
-      expect(elements[1].innerText).toContain('fakeValue3');
-      expect(elements[1].innerText).toContain('fakeField4');
-      expect(elements[1].innerText).toContain('fakeValue4');
-
-      expect(elements[2].innerText).toContain('fakeJobConfigId3');
-      expect(elements[2].innerText).toContain('fakeField5');
-      expect(elements[2].innerText).toContain('fakeValue5');
-      expect(elements[2].innerText).toContain('fakeField6');
-      expect(elements[2].innerText).toContain('fakeValue6');
+      expect(compiled.textContent).toContain('fakeJobConfigId3');
+      expect(compiled.textContent).toContain('fakeSrcDir3');
+      expect(compiled.textContent).toContain('fakeBucket3');
     });
   }));
 

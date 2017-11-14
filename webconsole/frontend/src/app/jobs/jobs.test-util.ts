@@ -1,9 +1,9 @@
 /**
  * This file contains fakes for the tests in the jobs directory.
  */
-
-import { Task, TASK_STATUS } from './jobs.resources';
 import { TaskFailureType } from '../proto/tasks.js';
+import { JobConfigResponse, JobSpec, Task } from './jobs.resources';
+
 
 export const FAKE_TASKS: Task[] = [
   {
@@ -53,6 +53,25 @@ export const FAKE_TASKS2: Task[] = [
     // October 7, 2017, 12:00:00 PM
     LastModificationTime: 1507402800000000000,
     FailureMessage: 'Fake failure message 3'
+  }
+];
+
+export const FAKE_JOBSPEC1: JobSpec = {'onPremSrcDirectory': 'fakeSrcDir1', 'gcsBucket' : 'fakeBucket1'};
+export const FAKE_JOBSPEC2: JobSpec = {'onPremSrcDirectory': 'fakeSrcDir2', 'gcsBucket' : 'fakeBucket2'};
+export const FAKE_JOBSPEC3: JobSpec = {'onPremSrcDirectory': 'fakeSrcDir3', 'gcsBucket' : 'fakeBucket3'};
+
+export const FAKE_JOB_CONFIGS: JobConfigResponse[] = [
+  {
+    JobConfigId: 'fakeJobConfigId1',
+    JobSpec: FAKE_JOBSPEC1
+  },
+  {
+    JobConfigId: 'fakeJobConfigId2',
+    JobSpec: FAKE_JOBSPEC2
+  },
+  {
+    JobConfigId: 'fakeJobConfigId3',
+    JobSpec: FAKE_JOBSPEC3
   }
 ];
 
