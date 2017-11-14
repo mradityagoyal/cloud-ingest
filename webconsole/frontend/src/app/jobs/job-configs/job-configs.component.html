@@ -1,11 +1,8 @@
 <div class="ingest-job-config-heading">
-  <h2> Job Configurations </h2>
-  <mat-icon class="ingest-info-icon" matTooltip="Job configurations are used to specify details of data transfer jobs. They
-  include information such as the on-premise source directory and the Google Cloud
-  Storage bucket to use." [matTooltipPosition]="'after'">info</mat-icon>
+  <h2> Jobs </h2>
   <button mat-raised-button class="ingest-add-job-config" (click)="openAddJobConfigDialog()">
-    <mat-icon class="mat-24" aria-label="Add a Job Configuration">add_box</mat-icon>
-    Add a job configuration
+    <mat-icon class="mat-24" aria-label="Add a Job">add_box</mat-icon>
+    Add a job
   </button>
 </div>
 <ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else cardContainer"></ng-container>
@@ -16,12 +13,12 @@
 </ng-template>
 <ng-template #cardContainer>
   <div class="ingest-error-message" [hidden]="!displayErrorMessage">
-    <h3> There was an error getting your job configurations </h3>
+    <h3> There was an error getting your jobConfigs? </h3>
     <strong> {{ errorTitle }} </strong>
     <pre> {{ errorMessage }} </pre>
   </div>
   <div *ngIf="jobConfigs?.length === 0">
-    <h4> There are no job configurations. Click the 'Add a job configuration' button on the top right corner of the screen.  </h4>
+    <h4> There are no jobs. Click the 'Add a job' button at the top of the screen.  </h4>
   </div>
   <div class="ingest-card-container" >
     <mat-card class="ingest-job-configs-card" *ngFor="let jobConfig of jobConfigs">
@@ -39,9 +36,9 @@
         TODO(b/65846311): The id of the first job run is only temporarily 'jobrun'. This
                           should change to retrieve the correct job run id.
        -->
-      <button mat-button routerLink="/jobconfigs/{{jobConfig.JobConfigId}}/jobrun"
+      <button mat-button routerLink="/jobs/{{jobConfig.JobConfigId}}/jobrun"
          queryParamsHandling="merge" class="ingest-job-run-link"
-         i18n="Link to view the job run corresponding to the job configuration">
+         i18n="Link to view the job run corresponding to the job">
             View Job Run
       </button>
      </mat-card-actions>

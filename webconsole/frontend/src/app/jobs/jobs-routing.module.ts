@@ -7,17 +7,17 @@ import { JobTasksComponent } from './job-tasks/job-tasks.component';
 
 const jobsRoutes: Routes = [
   {
-    path: 'jobconfigs',
+    path: 'jobs',
     component: JobConfigsComponent,
     canActivate: [AuthService],
   },
   {
-    path: 'jobconfigs/:configId/:runId',
+    path: 'jobs/:configId/:runId',
     component: JobRunDetailsComponent,
     canActivate: [AuthService],
   },
   {
-    path: 'jobconfigs/:configId/:runId/tasks',
+    path: 'jobs/:configId/:runId/tasks',
     component: JobTasksComponent,
     canActivate: [AuthService],
   }

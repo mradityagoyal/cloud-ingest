@@ -1,4 +1,4 @@
-<h3 i18n="Title for job config creation dialog">Create a new job configuration</h3>
+<h3 i18n="Title for job creation dialog">Create a new job</h3>
 
 <div class="ingest-alert" *ngIf="showError">
   There was an error submitting your configuration: {{ errorTitle }}. Open the browser console for details (Ctrl + Shift + J in Google Chrome).
@@ -11,13 +11,13 @@
            matInput
            required
            [(ngModel)]="model.jobConfigId"
-           pattern="[0-9a-z_-]*"
+           pattern="[0-9A-Za-z _-]*"
            #jobConfigId="ngModel"
-           placeholder="Config Id"
-           i18n="Label for Job Config Id input">
+           placeholder="Description"
+           i18n="Label for Job description input">
   </mat-form-field>
   <span *ngIf="jobConfigId.invalid && (jobConfigId.dirty || jobConfigId.touched)" class="ingest-alert">
-    A job configuration id can contain lowercase alphanumeric characters, hyphens, and underscores.
+    A job description can contain alphanumeric characters, hyphens, underscores and space.
   </span>
   <h4 i18n="Subtitle in a form for the fields of the source information for the source file system"> Source information: </h4>
   <mat-form-field class="ingest-full-width">
@@ -53,10 +53,10 @@
 
   <button mat-raised-button class="ingest-job-config-add-submit" type="submit" [disabled]="!jobConfigAddDialogForm.form.valid ||
       submittingForm" i18n="Label for submit button">
-    Submit Job Configuration
+    Submit Job
   </button>
 
 </form>
-<div *ngIf="submittingForm" i18n="Displayed while a job configuration is being created after submitting the job configuration form">
-  Creating Job Configuration...
+<div *ngIf="submittingForm" i18n="Displayed while a job is being created after submitting the job creation form">
+  Creating Job...
 </div>

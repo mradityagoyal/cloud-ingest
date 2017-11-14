@@ -1,6 +1,10 @@
 import { TaskFailureType } from '../proto/tasks.js';
 
 export class JobConfigRequest {
+  /**
+   * The job configuration id is a string that uniquely identified the job configuration. This is
+   * also referred to as a job "description" to the user.
+   */
   jobConfigId: string;
   gcsBucket: string;
   fileSystemDirectory: string;

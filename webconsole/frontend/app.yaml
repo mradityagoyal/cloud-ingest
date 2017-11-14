@@ -10,11 +10,11 @@ handlers:
   upload: dist/(.*)
   secure: always
 
-# Serve index.html for (/infrastructure, /jobconfigs, and
-# /jobconfigs/:configId/:runId) routes.
+# Serve index.html for (/infrastructure, /jobs, and
+# /jobs/:configId/:runId) routes.
 # TODO(b/66955251): Let the web-front end framework handles the bad routes
 # instead of showing ugly App Engine 404 page.
-- url: /|/infrastructure|/jobconfigs|/jobconfigs/.*
+- url: /|/infrastructure|/jobs|/jobs/.*
   static_files: dist/index.html
   upload: dist/index.html
   secure: always

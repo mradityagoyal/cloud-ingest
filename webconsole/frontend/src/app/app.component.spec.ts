@@ -105,15 +105,15 @@ describe('AppComponent', () => {
     });
   }));
 
-  it('should contain a Job Configs link', async(() => {
+  it('should contain a Jobs link', async(() => {
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#jobconfigslink');
+      const element = compiled.querySelector('#jobslink');
       expect(element).not.toBeNull();
-      expect(element.textContent).toContain('Job Configs');
+      expect(element.textContent).toContain('Jobs');
       expect(element.getAttribute('queryParamsHandling')).toBe('merge');
     });
   }));
