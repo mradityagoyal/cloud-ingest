@@ -178,7 +178,7 @@ func TestUpdateForTaskUpdateMultipleInsertsSingleJob(t *testing.T) {
 	task3 := &Task{
 		JobConfigId: fullJobId.JobConfigId,
 		JobRunId:    fullJobId.JobRunId,
-		TaskType:    loadBQTaskType,
+		TaskType:    uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task1, task2, task3}}
 
@@ -222,7 +222,7 @@ func TestUpdateForTaskUpdateMultipleInsertsMultipleJobs(t *testing.T) {
 	task3 := &Task{
 		JobConfigId: id1.JobConfigId,
 		JobRunId:    id1.JobRunId,
-		TaskType:    loadBQTaskType,
+		TaskType:    uploadGCSTaskType,
 	}
 	task4 := &Task{
 		JobConfigId: id2.JobConfigId,
@@ -571,7 +571,7 @@ func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
 	newLoadTask := &Task{
 		JobConfigId: fullJobId.JobConfigId,
 		JobRunId:    fullJobId.JobRunId,
-		TaskType:    loadBQTaskType,
+		TaskType:    uploadGCSTaskType,
 	}
 	logEntryData := make(map[string]interface{})
 	logEntryData["src_bytes"] = json.Number("12345")
@@ -616,9 +616,5 @@ func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
 	if delta.counter[KeyTotalTasks] != 1 {
 		t.Errorf("expected delta.counter[KeyTotalTasks] to be 1, found %d",
 			delta.counter[KeyTotalTasks])
-	}
-	if delta.counter[KeyTotalTasks+KeySuffixLoad] != 1 {
-		t.Errorf("expected delta.counter[KeyTotalTasks + KeySuffixLoad] to be 1, found %d",
-			delta.counter[KeyTotalTasks+KeySuffixLoad])
 	}
 }

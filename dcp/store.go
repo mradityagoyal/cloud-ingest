@@ -43,8 +43,7 @@ type Store interface {
 	// queued.
 	// TODO(b/63015068): This method should be generic and should get arbitrary
 	// number of topics to publish to.
-	QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic,
-		loadBigQueryTopic *pubsub.Topic) error
+	QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic) error
 
 	// GetNumUnprocessedLogs returns the number of rows in the LogEntries table
 	// with the 'Processed' column set to false. Any errors result in returning
@@ -517,8 +516,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 	return err
 }
 
-func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic,
-	loadBigQueryTopic *pubsub.Topic) error {
+func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic) error {
 	tasks, err := s.getUnqueuedTasks(n)
 	if err != nil {
 		return err
@@ -540,8 +538,6 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 			topic = listTopic
 		case uploadGCSTaskType:
 			topic = copyTopic
-		case loadBQTaskType:
-			topic = loadBigQueryTopic
 		default:
 			return errors.New(fmt.Sprintf("unknown Task, task id: %s.", task.TaskId))
 		}

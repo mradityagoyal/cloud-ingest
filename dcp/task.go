@@ -35,19 +35,15 @@ const (
 
 	listTaskPrefix      string = "list"
 	uploadGCSTaskPrefix string = "uploadGCS"
-	loadBQTaskPrefix    string = "loadBigQuery"
 
 	listTaskType      int64 = 1
 	uploadGCSTaskType int64 = 2
-	loadBQTaskType    int64 = 3
 )
 
 type JobSpec struct {
 	OnpremSrcDirectory string `json:"onPremSrcDirectory"`
 	GCSBucket          string `json:"gcsBucket"`
 	GCSDirectory       string `json:"gcsDirectory"`
-	BQDataset          string `json:"bigqueryDataset"`
-	BQTable            string `json:"bigqueryTable"`
 }
 
 type ListTaskSpec struct {
@@ -62,13 +58,6 @@ type UploadGCSTaskSpec struct {
 	DstBucket             string `json:"dst_bucket"`
 	DstObject             string `json:"dst_object"`
 	ExpectedGenerationNum int64  `json:"expected_generation_num"`
-}
-
-type LoadBQTaskSpec struct {
-	SrcGCSBucket string `json:"src_gcs_bucket"`
-	SrcGCSObject string `json:"src_gcs_object"`
-	DstBQDataset string `json:"dst_bq_dataset"`
-	DstBQTable   string `json:"dst_bq_table"`
 }
 
 type Task struct {
@@ -222,14 +211,6 @@ func GetUploadGCSTaskId(filePath string) string {
 	// TODO(b/64038794): The task ids should be a hash of the filePath, the
 	// filePath might be too long and already duplicated in the task spec.
 	return uploadGCSTaskPrefix + taskIdSeparator + filePath
-}
-
-// GetLoadBQTaskId returns the task id of a loadBiqQuery type task for
-// the given file.
-func GetLoadBQTaskId(srcGCSObject string) string {
-	// TODO(b/64038794): The task ids should be a hash of the SrcGCSObject, the
-	// SrcGCSObject might be too long and already duplicated in the task spec.
-	return loadBQTaskPrefix + taskIdSeparator + srcGCSObject
 }
 
 // getTaskFullId is a helper method that generates a unique task id based

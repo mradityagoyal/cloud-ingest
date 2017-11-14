@@ -35,7 +35,6 @@ const (
 
 	KeySuffixList string = "List"
 	KeySuffixCopy string = "Copy"
-	KeySuffixLoad string = "Load"
 
 	// Keys for the log entry counters.
 	KeyListFilesFound     string = "listFilesFound"
@@ -194,8 +193,6 @@ func CounterSuffix(task *Task) (string, error) {
 		return KeySuffixList, nil
 	case uploadGCSTaskType:
 		return KeySuffixCopy, nil
-	case loadBQTaskType:
-		return KeySuffixLoad, nil
 	default:
 		return "", errors.New(fmt.Sprintf(
 			"Found unexpected TaskType updateForTaskUpdate: %v. task:%v", task.TaskType, task))

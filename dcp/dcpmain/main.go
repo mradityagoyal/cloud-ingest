@@ -32,11 +32,9 @@ import (
 const (
 	listProgressSubscription         string = "cloud-ingest-list-progress"
 	copyProgressSubscription         string = "cloud-ingest-copy-progress"
-	loadBigQueryProgressSubscription string = "cloud-ingest-loadbigquery-progress"
 
 	listTopic   string = "cloud-ingest-list"
 	copyTopic   string = "cloud-ingest-copy"
-	loadBQTopic string = "cloud-ingest-loadbigquery"
 
 	spannerInstance string = "cloud-ingest-spanner-instance"
 	spannerDatabase string = "cloud-ingest-database"
@@ -52,11 +50,10 @@ const (
 // GetQueueTasksClosure returns a function that calls the function QueueTasks
 // on the given store with the given values as the parameters.
 func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
-	listTopic *pubsub.Topic, copyTopic *pubsub.Topic,
-	loadBQTopic *pubsub.Topic) func() error {
+	listTopic *pubsub.Topic, copyTopic *pubsub.Topic) func() error {
 
 	return func() error {
-		return store.QueueTasks(num, listTopic, copyTopic, loadBQTopic)
+		return store.QueueTasks(num, listTopic, copyTopic)
 	}
 }
 
@@ -81,11 +78,9 @@ func main() {
 	}
 	listProgressSub := pubSubClient.Subscription(listProgressSubscription)
 	copyProgressSub := pubSubClient.Subscription(copyProgressSubscription)
-	loadBigQueryProgressSub := pubSubClient.Subscription(loadBigQueryProgressSubscription)
 
 	listTopic := pubSubClient.Topic(listTopic)
 	copyTopic := pubSubClient.Topic(copyTopic)
-	loadBQTopic := pubSubClient.Topic(loadBQTopic)
 
 	spannerClient, err := spanner.NewClient(ctx, database)
 	if err != nil {
@@ -117,15 +112,8 @@ func main() {
 		Handler: &dcp.UploadGCSProgressMessageHandler{},
 	}
 
-	loadBigQueryReceiver := dcp.MessageReceiver{
-		Sub:     loadBigQueryProgressSub,
-		Store:   store,
-		Handler: &dcp.LoadBQProgressMessageHandler{},
-	}
-
 	go listingReceiver.ReceiveMessages()
 	go uploadGCSReceiver.ReceiveMessages()
-	go loadBigQueryReceiver.ReceiveMessages()
 
 	// The LogEntryProcessor will continuously export logs from the "LogEntries"
 	// Spanner table to GCS.
@@ -141,7 +129,7 @@ func main() {
 			"QueueTasks",
 			// TODO(b/63018200): The number of tasks to queue(100) should be
 			// configurable, maybe as a command line param.
-			GetQueueTasksClosure(store, 100, listTopic, copyTopic, loadBQTopic),
+			GetQueueTasksClosure(store, 100, listTopic, copyTopic),
 		)
 		if err != nil {
 			log.Printf("Error in queueing tasks: %v.", err)
