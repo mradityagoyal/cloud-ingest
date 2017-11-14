@@ -18,6 +18,9 @@ package dcp
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"log"
+	"os"
 	"strconv"
 	"testing"
 
@@ -71,7 +74,9 @@ func TestListProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 
 	taskCompletionMessage := listSuccessCompletionMessage()
 	taskCompletionMessage.FullTaskId = "garbage"
+	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
+	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errInvalidCompletionMessage)
 	}
@@ -84,7 +89,9 @@ func TestListProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
 		Store: &store,
 	}
 
+	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, listSuccessCompletionMessage())
+	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errTaskNotFound)
 	}
@@ -124,7 +131,9 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 		ListingResultReader: mockListReader,
 	}
 
+	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, listSuccessCompletionMessage())
+	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	}
@@ -277,7 +286,9 @@ func TestListProgressMessageHandlerMetadataError(t *testing.T) {
 		GCSBucket: "bucket2",
 	}
 
+	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(jobSpec, listSuccessCompletionMessage())
+	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Errorf("expected error: %v.", expectedError)
 	} else if err.Error() != expectedError {

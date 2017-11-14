@@ -16,6 +16,9 @@ limitations under the License.
 package dcp
 
 import (
+	"io/ioutil"
+	"log"
+	"os"
 	"testing"
 )
 
@@ -44,7 +47,9 @@ func TestLoadBQInvalidCompletionMsg(t *testing.T) {
 		TaskParams: map[string]interface{}{},
 		LogEntry:   map[string]interface{}{},
 	}
+	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
+	defer log.SetOutput(os.Stdout) // Reenable logging.
 
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errInvalidCompletionMessage)
