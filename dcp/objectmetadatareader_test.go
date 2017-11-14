@@ -52,9 +52,14 @@ func TestMtimeMissing(t *testing.T) {
 
 	reader := NewGCSObjectMetadataReader(mockGcs)
 
-	_, err := reader.GetMetadata("bucket", "object")
-	if err == nil {
-		t.Error("Error should not be nil")
+	result, err := reader.GetMetadata("bucket", "object")
+
+	expected := &ObjectMetadata{Size: 123, Mtime: 0, GenerationNumber: 234}
+
+	if err != nil {
+		t.Errorf("Error should be nil, but was %v", err)
+	} else if *expected != *result {
+		t.Errorf("Wrong result: wanted %v, but got %v", expected, result)
 	}
 }
 

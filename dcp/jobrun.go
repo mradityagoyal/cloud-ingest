@@ -155,9 +155,14 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 		} else if task.Status == Queued {
 			deltaObj.counter[KeyTasksQueued] += 1
 			deltaObj.counter[KeyTasksQueued+suffix] += 1
-		} else {
+		} else if task.Status != Unqueued {
+			// Unqueued is tracked implicitly, so there is currently no
+			// additional counter for unqueued tasks. If we ever start to
+			// throttle on number of running tasks and build up an unqueued
+			// backlog, it will be needed.
+			// TODO(69421417) Add a counter for Unqueued
 			return errors.New(fmt.Sprintf(
-				"Found unexpected task Status in updateForTaskUpdate: %v",
+				"found unexpected task Status in updateForTaskUpdate: %v",
 				task.Status))
 		}
 	}

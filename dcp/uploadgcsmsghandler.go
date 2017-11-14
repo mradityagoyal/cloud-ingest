@@ -16,10 +16,29 @@ limitations under the License.
 package dcp
 
 import (
+	"cloud.google.com/go/storage"
 	"log"
 )
 
 type UploadGCSProgressMessageHandler struct {
+	ObjectMetadataReader ObjectMetadataReader
+}
+
+func (h *UploadGCSProgressMessageHandler) extractGenerationNum(completionMsg *TaskCompletionMessage) (int64, error) {
+	taskSpec, err := NewUploadGCSTaskSpecFromMap(completionMsg.TaskParams)
+	if err != nil {
+		return 0, err
+	}
+
+	// TODO (b/69319257) Move this portion of the work to the queueing worker.
+	metadata, err := h.ObjectMetadataReader.GetMetadata(taskSpec.DstBucket, taskSpec.DstObject)
+	if err == nil {
+		return metadata.GenerationNumber, nil
+	} else if err == storage.ErrObjectNotExist {
+		return 0, nil
+	} else {
+		return 0, err
+	}
 }
 
 func (h *UploadGCSProgressMessageHandler) HandleMessage(
@@ -30,6 +49,20 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(
 		return nil, err
 	}
 	taskUpdate.Task.TaskType = uploadGCSTaskType
+
+	// If there's a chance that we need to reissue the task, we should
+	// look up the expected generation number from GCS. We do this here,
+	// so we don't make a blocking call within the read-write transaction.
+	if NeedGenerationNumCheck(taskUpdate.Task) {
+
+		generationNumber, err := h.extractGenerationNum(taskCompletionMessage)
+		if err != nil {
+			return nil, err
+		}
+		taskUpdate.TransactionalSemantics = &FileIntegritySemantics{
+			ExpectedGenerationNum: generationNumber,
+		}
+	}
 
 	return taskUpdate, nil
 }

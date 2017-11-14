@@ -85,7 +85,7 @@ type Store interface {
 // TODO(b/65497968): Write tests for Store class
 // SpannerStore is a Google Cloud Spanner implementation of the Store interface.
 type SpannerStore struct {
-	Client *spanner.Client
+	Spanner Spanner
 }
 
 // getTaskInsertColumns returns an array of the columns necessary for task
@@ -106,7 +106,7 @@ func getTaskInsertColumns() []string {
 }
 
 func (s *SpannerStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
-	jobConfigRow, err := s.Client.Single().ReadRow(
+	jobConfigRow, err := s.Spanner.Single().ReadRow(
 		context.Background(),
 		"JobConfigs",
 		spanner.Key{jobConfigId},
@@ -127,7 +127,7 @@ func (s *SpannerStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
 func (s *SpannerStore) GetTaskSpec(
 	jobConfigId string, jobRunId string, taskId string) (string, error) {
 
-	taskRow, err := s.Client.Single().ReadRow(
+	taskRow, err := s.Spanner.Single().ReadRow(
 		context.Background(),
 		"Tasks",
 		spanner.Key{jobConfigId, jobRunId, taskId},
@@ -176,7 +176,7 @@ func getFullIdFromJobRow(row *spanner.Row) (JobRunFullId, error) {
 // In order to create the update mutations, the method batch reads the existing
 // job counters objects from Spanner.
 func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
-	txn *spanner.ReadWriteTransaction,
+	txn ReadWriteTransaction,
 	counters JobCountersCollection) error {
 
 	// Batch read the job counters strings to be updated
@@ -274,9 +274,9 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 		return err
 	}
 
-	_, err = s.Client.ReadWriteTransaction(
+	_, err = s.Spanner.ReadWriteTransaction(
 		context.Background(),
-		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		func(ctx context.Context, txn ReadWriteTransaction) error {
 			// Insert the new tasks
 			// TODO(b/63100514): Define constants for spanner table names that can be
 			// shared across store and potentially infrastructure setup implementation.
@@ -355,8 +355,8 @@ func getFullTaskIdFromRow(row *spanner.Row) (string, error) {
 // JobRunId, TaskId, and Status columns are read. Returns a spanner.RowIterator
 // that can be used to iterate over the read rows. (Does not modify idToTask.)
 func readTasksFromSpanner(ctx context.Context,
-	txn *spanner.ReadWriteTransaction,
-	taskUpdateCollection *TaskUpdateCollection) *spanner.RowIterator {
+	txn ReadWriteTransaction,
+	taskUpdateCollection *TaskUpdateCollection) RowIterator {
 	var keys = spanner.KeySets()
 
 	// Create a KeySet for all the tasks to be updated
@@ -374,6 +374,7 @@ func readTasksFromSpanner(ctx context.Context,
 		"JobRunId",
 		"TaskId",
 		"Status",
+		"TaskSpec",
 	})
 }
 
@@ -382,7 +383,7 @@ func readTasksFromSpanner(ctx context.Context,
 // the mutation to update the updateTask and the mutations to insert the
 // insert tasks.
 func getTaskUpdateAndInsertMutations(ctx context.Context,
-	txn *spanner.ReadWriteTransaction, updateTask *TaskUpdate,
+	txn ReadWriteTransaction, updateTask *TaskUpdate,
 	oldStatus int64) []*spanner.Mutation {
 
 	timestamp := time.Now().UnixNano()
@@ -425,6 +426,7 @@ func getTaskUpdateMutations(mutations []*spanner.Mutation, task *Task, timestamp
 	updateInputMap["JobRunId"] = task.JobRunId
 	updateInputMap["TaskId"] = task.TaskId
 	updateInputMap["Status"] = task.Status
+	updateInputMap["TaskSpec"] = task.TaskSpec
 	updateInputMap["LastModificationTime"] = timestamp
 	if task.Status == Failed {
 		updateInputMap["FailureMessage"] = task.FailureMessage
@@ -454,9 +456,9 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 		return nil
 	}
 
-	_, err := s.Client.ReadWriteTransaction(
+	_, err := s.Spanner.ReadWriteTransaction(
 		context.Background(),
-		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		func(ctx context.Context, txn ReadWriteTransaction) error {
 			iter := readTasksFromSpanner(ctx, txn, tasks)
 			var counters JobCountersCollection
 
@@ -465,15 +467,21 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 			// the associated tasks.
 			err := iter.Do(func(row *spanner.Row) error {
 				taskId, err := getFullTaskIdFromRow(row)
+
+				// Grab the task spec from the row as well. It contains information
+				// used by task-specific semantics, and is critical for correctly updating status.
+				var taskSpec string
+				err = row.ColumnByName("TaskSpec", &taskSpec)
 				if err != nil {
 					return err
 				}
 				taskUpdate := tasks.GetTaskUpdate(taskId)
+				taskUpdate.Task.TaskSpec = taskSpec
 
 				// If there are any task-specific semantics that need to be part of the transaction, do
 				// them here.
 				if taskUpdate.TransactionalSemantics != nil {
-					err := taskUpdate.TransactionalSemantics.Apply(taskUpdate, txn)
+					err := taskUpdate.TransactionalSemantics.Apply(taskUpdate)
 					if err != nil {
 						return err
 					}
@@ -571,7 +579,7 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 
 func (s *SpannerStore) GetNumUnprocessedLogs() (int64, error) {
 	stmt := spanner.NewStatement("SELECT COUNT(*) as count FROM LogEntries WHERE Processed = false")
-	iter := s.Client.Single().Query(context.Background(), stmt)
+	iter := s.Spanner.Single().Query(context.Background(), stmt)
 	defer iter.Stop()
 	row, err := iter.Next()
 	if err != nil {
@@ -590,7 +598,7 @@ func (s *SpannerStore) GetUnprocessedLogs(n int64) ([]*LogEntryRow, error) {
 	stmt = spanner.NewStatement(`SELECT * FROM LogEntries WHERE Processed = false
 		 ORDER BY CreationTime LIMIT @maxtasks`)
 	stmt.Params["maxtasks"] = n
-	iter := s.Client.Single().Query(context.Background(), stmt)
+	iter := s.Spanner.Single().Query(context.Background(), stmt)
 	defer iter.Stop()
 	var logEntryRows []*LogEntryRow
 	for {
@@ -641,9 +649,9 @@ func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 	if len(logEntryRows) == 0 {
 		return nil
 	}
-	_, err := s.Client.ReadWriteTransaction(
+	_, err := s.Spanner.ReadWriteTransaction(
 		context.Background(),
-		func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
+		func(ctx context.Context, txn ReadWriteTransaction) error {
 			mutations := make([]*spanner.Mutation, len(logEntryRows))
 			for i, l := range logEntryRows {
 				mutations[i] = spanner.Update(
@@ -680,7 +688,7 @@ func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
 			"maxtasks": n,
 		},
 	}
-	iter := s.Client.Single().Query(context.Background(), stmt)
+	iter := s.Spanner.Single().Query(context.Background(), stmt)
 	defer iter.Stop()
 	for {
 		row, err := iter.Next()

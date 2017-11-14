@@ -108,6 +108,21 @@ func RetryWithExponentialBackoff(sleepTime time.Duration,
 	return nil
 }
 
+// ToInt64 takes an arbitrary value known to be an integer, and
+// converts it to an int64.
+func ToInt64(val interface{}) (int64, error) {
+	switch v := val.(type) {
+	case int64:
+		return v, nil
+	case int:
+		return int64(v), nil
+	case json.Number:
+		return v.Int64()
+	default:
+		return 0, fmt.Errorf("invalid int64 value %v (%T)", val, val)
+	}
+}
+
 // DeepEqualCompare is a useful utility for testing and comparing.
 func DeepEqualCompare(msgPrefix string, want, got interface{}, t *testing.T) {
 	if !reflect.DeepEqual(want, got) {

@@ -60,8 +60,8 @@ func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
 func main() {
 	// TODO(b/63103890): Do proper parsing of command line params.
 	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr,
-			"Only Google cloud project id should be specified in the cmd line param.\n")
+		fmt.Fprintln(os.Stderr,
+			"Only Google cloud project id should be specified in the cmd line param.")
 		os.Exit(1)
 	}
 	proj := os.Args[1]
@@ -82,11 +82,12 @@ func main() {
 	listTopic := pubSubClient.Topic(listTopic)
 	copyTopic := pubSubClient.Topic(copyTopic)
 
-	spannerClient, err := spanner.NewClient(ctx, database)
+	spannerGCloudClient, err := spanner.NewClient(ctx, database)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can not create spanner client, error %v.\n", err)
 		os.Exit(1)
 	}
+	spannerClient := dcp.NewSpannerClient(spannerGCloudClient)
 	store := &dcp.SpannerStore{spannerClient}
 
 	storageClient, err := storage.NewClient(ctx)
@@ -96,20 +97,22 @@ func main() {
 	}
 	gcsClient := dcp.NewGCSClient(storageClient)
 
+	metadataReader := dcp.NewGCSObjectMetadataReader(gcsClient)
 	listingReceiver := dcp.MessageReceiver{
 		Sub:   listProgressSub,
 		Store: store,
 		Handler: &dcp.ListProgressMessageHandler{
-			Store:               store,
 			ListingResultReader: dcp.NewGCSListingResultReader(gcsClient),
-			ObjectMetadataReader: dcp.NewGCSObjectMetadataReader(gcsClient),
+			ObjectMetadataReader: metadataReader,
 		},
 	}
 
 	uploadGCSReceiver := dcp.MessageReceiver{
 		Sub:   copyProgressSub,
 		Store: store,
-		Handler: &dcp.UploadGCSProgressMessageHandler{},
+		Handler: &dcp.UploadGCSProgressMessageHandler{
+			ObjectMetadataReader: metadataReader,
+		},
 	}
 
 	go listingReceiver.ReceiveMessages()

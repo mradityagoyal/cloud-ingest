@@ -16,7 +16,6 @@ limitations under the License.
 package dcp
 
 import (
-	"errors"
 	"strconv"
 )
 
@@ -52,13 +51,12 @@ func (r *GCSObjectMetadataReader) GetMetadata(bucketName string, objectName stri
 	}
 
 	mtimeStr, ok := attr.Metadata[MTIME_ATTR_NAME]
-	if !ok {
-		return nil, errors.New("Missing custom metadata (mtime)")
-	}
-
-	mtime, err := strconv.ParseInt(mtimeStr, 10, 64)
-	if err != nil {
-		return nil, err
+	var mtime int64
+	if ok {
+		mtime, err = strconv.ParseInt(mtimeStr, 10, 64)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &ObjectMetadata{Size: attr.Size, GenerationNumber: attr.Generation, Mtime: mtime}, nil

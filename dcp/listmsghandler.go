@@ -29,12 +29,12 @@ const (
 )
 
 type ListProgressMessageHandler struct {
-	Store                Store
 	ListingResultReader  ListingResultReader
 	ObjectMetadataReader ObjectMetadataReader
 }
 
 func (h *ListProgressMessageHandler) retrieveGenerationNumber(bucketName string, objectName string) (int64, error) {
+	// TODO (b/69319257) Move this portion of the work to the queueing worker.
 	metadata, err := h.ObjectMetadataReader.GetMetadata(bucketName, objectName)
 	if err == nil {
 		return metadata.GenerationNumber, nil
@@ -55,35 +55,37 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	}
 
 	taskUpdate.Task.TaskType = listTaskType // Set the type first.
-	if taskUpdate.Task.Status != Success {
-		return taskUpdate, nil
-	}
 	task := taskUpdate.Task
 
-	// TODO(b/63014658): denormalize the task spec into the progress message, so
-	// you do not have to query the database to get the task spec.
-	// TODO(b/67420045): Message handlers should not have the store object.
-	// Manipulating the store should be isolated from handling the message.
-	taskSpec, err := h.Store.GetTaskSpec(task.JobConfigId, task.JobRunId, task.TaskId)
+	listTaskSpec, err := NewListTaskSpecFromMap(taskUpdate.OriginalTaskParams)
 	if err != nil {
-		log.Printf("Error getting task spec of task: %v, with error: %v.",
-			task, err)
 		return nil, err
 	}
 
-	var listTaskSpec ListTaskSpec
-	if err := json.Unmarshal([]byte(taskSpec), &listTaskSpec); err != nil {
-		log.Printf(
-			"Error decoding task spec: %s, with error: %v.", taskSpec, err)
-		return nil, err
+	// If there's a chance that we need to reissue the task, we should
+	// look up the expected generation number from GCS. We do this here,
+	// so we don't make a blocking call within the read-write transaction.
+	if NeedGenerationNumCheck(taskUpdate.Task) {
+		generationNumber, err := h.retrieveGenerationNumber(
+			listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
+		if err != nil {
+			return nil, err
+		}
+		taskUpdate.TransactionalSemantics = &FileIntegritySemantics{
+			ExpectedGenerationNum: generationNumber,
+		}
+	}
+
+	if taskUpdate.Task.Status != Success {
+		return taskUpdate, nil
 	}
 
 	filePaths, err := h.ListingResultReader.ReadListResult(
 		listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
 	if err != nil {
 		log.Printf(
-			"Error reading the list task result, list task spec: %v, with error: %v.",
-			listTaskSpec, err)
+			"Error reading the list task result, bucket/object: %v/%v, with error: %v.",
+			listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject, err)
 		return nil, err
 	}
 	taskIdFromFile := <-filePaths

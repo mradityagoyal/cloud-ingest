@@ -16,9 +16,12 @@ limitations under the License.
 package dcp
 
 import (
+	"errors"
+	"github.com/golang/mock/gomock"
 	"io/ioutil"
 	"log"
 	"os"
+	"strings"
 	"testing"
 )
 
@@ -27,9 +30,10 @@ func copySuccessCompletionMessage() *TaskCompletionMessage {
 		FullTaskId: jobConfigId + ":" + jobRunId + ":" + taskId,
 		Status:     "SUCCESS",
 		TaskParams: map[string]interface{}{
-			"src_file":   "file",
-			"dst_bucket": "bucket",
-			"dst_object": "object",
+			"src_file":                "file",
+			"dst_bucket":              "bucket",
+			"dst_object":              "object",
+			"expected_generation_num": 1,
 		},
 		LogEntry: map[string]interface{}{"logkey": "logval"},
 	}
@@ -48,7 +52,44 @@ func TestUploadGCSProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errInvalidCompletionMessage)
 	}
+}
 
+func TestUploadGCSProgressMessageHandlerMissingParams(t *testing.T) {
+	handler := UploadGCSProgressMessageHandler{}
+
+	jobSpec := &JobSpec{}
+	taskCompletionMessage := copySuccessCompletionMessage()
+	taskCompletionMessage.TaskParams = TaskParams{}
+	_, err := handler.HandleMessage(jobSpec, taskCompletionMessage)
+
+	if err == nil {
+		t.Error("error is nil, expected error: missing params...")
+	} else if !strings.Contains(err.Error(), "missing params") {
+		t.Errorf("expected error: %s, found: %s.", "missing params", err.Error())
+	}
+}
+
+func TestUploadGCSProgressMessageHandlerFailReadingGenNum(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	errorMsg := "failed to read metadata"
+	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), gomock.Any()).
+		Return(nil, errors.New(errorMsg))
+
+	handler := UploadGCSProgressMessageHandler{
+		ObjectMetadataReader: mockObjectMetadataReader,
+	}
+
+	jobSpec := &JobSpec{}
+	_, err := handler.HandleMessage(jobSpec, copySuccessCompletionMessage())
+
+	if err == nil {
+		t.Errorf("error is nil, expected error: %s.", errorMsg)
+	} else if err.Error() != errorMsg {
+		t.Errorf("expected error: %s, found: %s.", errorMsg, err.Error())
+	}
 }
 
 func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
@@ -57,15 +98,19 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 		JobRunId:    jobRunId,
 		TaskType:    uploadGCSTaskType,
 		TaskId:      taskId,
-		TaskSpec: `{
-			"task_id": task_id_A,
-			"src_file": "file",
-			"dst_bucket": "bucket",
-			"dst_object": "object"
-		}`,
-		Status: Failed,
+		Status:      Success,
 	}
-	handler := UploadGCSProgressMessageHandler{}
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), gomock.Any()).
+		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
+
+	handler := UploadGCSProgressMessageHandler{
+		ObjectMetadataReader: mockObjectMetadataReader,
+	}
 
 	jobSpec := &JobSpec{}
 	taskUpdate, err := handler.HandleMessage(jobSpec, copySuccessCompletionMessage())
@@ -78,18 +123,16 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 		t.Errorf("new tasks should be an empty array, new tasks: %v", taskUpdate.NewTasks)
 	}
 
-	// Update task to re-use in comparison.
-	uploadGCSTask.TaskSpec = ""
-	uploadGCSTask.Status = Success
-
 	expectedTaskUpdate := &TaskUpdate{
 		Task:     uploadGCSTask,
 		LogEntry: NewLogEntry(map[string]interface{}{"logkey": "logval"}),
-		OriginalTaskParams: (*TaskParams)(&map[string]interface{}{
-			"src_file":   "file",
-			"dst_bucket": "bucket",
-			"dst_object": "object",
-		}),
+		OriginalTaskParams: TaskParams{
+			"src_file":                "file",
+			"dst_bucket":              "bucket",
+			"dst_object":              "object",
+			"expected_generation_num": 1,
+		},
+		TransactionalSemantics: &FileIntegritySemantics{ExpectedGenerationNum: 1},
 	}
 
 	DeepEqualCompare("TaskUpdate", expectedTaskUpdate, taskUpdate, t)

@@ -26,6 +26,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/mock/gomock"
+	"strings"
 )
 
 var (
@@ -49,28 +50,7 @@ func listSuccessCompletionMessage() *TaskCompletionMessage {
 }
 
 func TestListProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
-	listTask := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      taskId,
-		TaskType:    listTaskType,
-		TaskSpec: `{
-			"task_id": "task_id_A",
-			"dst_list_result_bucket": "bucket",
-			"dst_list_result_object": "object",
-			"src_directory": "dir",
-			"expected_generation_num": 0
-		}`,
-		Status: Success,
-	}
-	store := FakeStore{
-		tasks: map[string]*Task{
-			listTask.getTaskFullId(): listTask,
-		},
-	}
-	handler := ListProgressMessageHandler{
-		Store: &store,
-	}
+	handler := ListProgressMessageHandler{}
 
 	taskCompletionMessage := listSuccessCompletionMessage()
 	taskCompletionMessage.FullTaskId = "garbage"
@@ -78,25 +58,47 @@ func TestListProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
 	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
-		t.Errorf("error is nil, expected error: %v.", errInvalidCompletionMessage)
+		t.Error("error is nil, expected error: can not parse full task id...")
+	} else if !strings.Contains(err.Error(), "can not parse") {
+		t.Errorf("expected error: %s, found: %s.", "can not parse full task id", err.Error())
 	}
-
 }
 
-func TestListProgressMessageHandlerTaskDoesNotExist(t *testing.T) {
-	store := FakeStore{}
+func TestListProgressMessageHandlerMissingParams(t *testing.T) {
+	handler := ListProgressMessageHandler{}
+
+	taskCompletionMessage := listSuccessCompletionMessage()
+	taskCompletionMessage.TaskParams = TaskParams{}
+
+	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
+	if err == nil {
+		t.Error("error is nil, expected error: missing params...")
+	} else if !strings.Contains(err.Error(), "missing params") {
+		t.Errorf("expected error: %s, found: %s.", "missing params", err.Error())
+	}
+}
+
+func TestListProgressMessageHandlerFailReadingGenNum(t *testing.T) {
+	// Read the successful task, but fail to pick up on the metadata.
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	errorMsg := "failed to read metadata"
+	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), gomock.Any()).
+		Return(nil, errors.New(errorMsg))
+
 	handler := ListProgressMessageHandler{
-		Store: &store,
+		ObjectMetadataReader: mockObjectMetadataReader,
 	}
 
 	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, listSuccessCompletionMessage())
 	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
-		t.Errorf("error is nil, expected error: %v.", errTaskNotFound)
-	}
-	if err != errTaskNotFound {
-		t.Errorf("expected error: %v, found: %v.", errTaskNotFound, err)
+		t.Errorf("error is nil, expected error: %s.", errorMsg)
+	} else if err.Error() != errorMsg {
+		t.Errorf("expected error: %s, found: %s.", errorMsg, err.Error())
 	}
 }
 
@@ -105,30 +107,16 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockListReader := NewMockListingResultReader(mockCtrl)
 	errorMsg := "Failed reading listing result."
-	mockListReader.EXPECT().ReadListResult("bucket", "object").Return(nil, errors.New(errorMsg))
+	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(nil, errors.New(errorMsg))
 
-	listTask := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      taskId,
-		TaskType:    listTaskType,
-		TaskSpec: `{
-			"task_id": "task_id_A",
-			"dst_list_result_bucket": "bucket",
-			"dst_list_result_object": "object",
-			"src_directory": "dir",
-			"expected_generation_num": 0
-		}`,
-		Status: Success,
-	}
-	store := FakeStore{
-		tasks: map[string]*Task{
-			listTask.getTaskFullId(): listTask,
-		},
-	}
+	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), gomock.Any()).
+		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
+
 	handler := ListProgressMessageHandler{
-		Store:               &store,
-		ListingResultReader: mockListReader,
+		ListingResultReader:  mockListReader,
+		ObjectMetadataReader: mockObjectMetadataReader,
 	}
 
 	log.SetOutput(ioutil.Discard) // Suppress the log spam.
@@ -136,8 +124,7 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
-	}
-	if err.Error() != errorMsg {
+	} else if err.Error() != errorMsg {
 		t.Errorf("expected error: %s, found: %s.", errorMsg, err.Error())
 	}
 }
@@ -150,27 +137,14 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 	close(c)
 	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
 
-	listTask := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      "task_id_A",
-		TaskType:    listTaskType,
-		TaskSpec: `{
-			"dst_list_result_bucket": "bucket1",
-			"dst_list_result_object": "object",
-			"src_directory": "dir",
-			"expected_generation_num": 0
-		}`,
-		Status: Success,
-	}
-	store := FakeStore{
-		tasks: map[string]*Task{
-			listTask.getTaskFullId(): listTask,
-		},
-	}
+	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), gomock.Any()).
+		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
+
 	handler := ListProgressMessageHandler{
-		Store:               &store,
-		ListingResultReader: mockListReader,
+		ListingResultReader:  mockListReader,
+		ObjectMetadataReader: mockObjectMetadataReader,
 	}
 
 	jobSpec := &JobSpec{
@@ -181,8 +155,7 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
-	}
-	if err.Error() != errorMsg {
+	} else if err.Error() != errorMsg {
 		t.Errorf("expected error: %s, found: %s.", errorMsg, err.Error())
 	}
 }
@@ -198,27 +171,14 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 	}()
 	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
 
-	listTask := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      "task_id_A",
-		TaskType:    listTaskType,
-		TaskSpec: `{
-			"dst_list_result_bucket": "bucket1",
-			"dst_list_result_object": "object",
-			"src_directory": "dir",
-			"expected_generation_num": 0
-		}`,
-		Status: Success,
-	}
-	store := FakeStore{
-		tasks: map[string]*Task{
-			listTask.getTaskFullId(): listTask,
-		},
-	}
+	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), gomock.Any()).
+		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
+
 	handler := ListProgressMessageHandler{
-		Store:               &store,
-		ListingResultReader: mockListReader,
+		ListingResultReader:  mockListReader,
+		ObjectMetadataReader: mockObjectMetadataReader,
 	}
 
 	jobSpec := &JobSpec{
@@ -229,8 +189,7 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "task_id_B")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
-	}
-	if err.Error() != errorMsg {
+	} else if err.Error() != errorMsg {
 		t.Errorf("expected error: %s, found: %s.", errorMsg, err.Error())
 	}
 }
@@ -249,35 +208,17 @@ func TestListProgressMessageHandlerMetadataError(t *testing.T) {
 	}()
 	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
 
-	// Setup Store
-	listTask := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      "task_id_A",
-		TaskType:    listTaskType,
-		TaskSpec: `{
-			"dst_list_result_bucket": "bucket1",
-			"dst_list_result_object": "object",
-			"src_directory": "dir",
-			"expected_generation_num": 0
-		}`,
-		Status: Success,
-	}
-	store := FakeStore{
-		tasks: map[string]*Task{
-			listTask.getTaskFullId(): listTask,
-		},
-	}
-
 	// Setup ObjectMetadataReader - file0 doesn't exist, file1 is at generation 1.
 	expectedError := "Some transient gcs metadata error"
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), gomock.Any()).
+		GetMetadata(gomock.Any(), "object").
+		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), "file0").
 		Return(nil, errors.New(expectedError))
 
 	handler := ListProgressMessageHandler{
-		Store:                &store,
 		ListingResultReader:  mockListReader,
 		ObjectMetadataReader: mockObjectMetadataReader,
 	}
@@ -311,7 +252,6 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	}()
 	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
 
-	// Setup Store
 	listTask := &Task{
 		JobConfigId: jobConfigId,
 		JobRunId:    jobRunId,
@@ -325,14 +265,12 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		}`,
 		Status: Success,
 	}
-	store := FakeStore{
-		tasks: map[string]*Task{
-			listTask.getTaskFullId(): listTask,
-		},
-	}
 
 	// Setup ObjectMetadataReader - file0 doesn't exist, file1 is at generation 1.
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
+	mockObjectMetadataReader.EXPECT().
+		GetMetadata(gomock.Any(), "object").
+		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 	mockObjectMetadataReader.EXPECT().
 		GetMetadata(gomock.Any(), "file0").
 		Return(nil, storage.ErrObjectNotExist)
@@ -341,7 +279,6 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 
 	handler := ListProgressMessageHandler{
-		Store:                &store,
 		ListingResultReader:  mockListReader,
 		ObjectMetadataReader: mockObjectMetadataReader,
 	}
@@ -358,12 +295,13 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	expectedTaskUpdate := &TaskUpdate{
 		Task:     listTask,
 		LogEntry: NewLogEntry(map[string]interface{}{"logkey": "logval"}),
-		OriginalTaskParams: (*TaskParams)(&map[string]interface{}{
+		OriginalTaskParams: TaskParams{
 			"dst_list_result_bucket":  "bucket1",
 			"dst_list_result_object":  "object",
 			"expected_generation_num": 0,
 			"src_directory":           "dir",
-		}),
+		},
+		TransactionalSemantics: &FileIntegritySemantics{ExpectedGenerationNum: 1},
 	}
 
 	// No task spec on TaskUpdate.

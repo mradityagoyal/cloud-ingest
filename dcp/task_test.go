@@ -19,6 +19,7 @@ import (
 	"encoding/json"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"reflect"
+	"strings"
 	"testing"
 )
 
@@ -159,6 +160,125 @@ func TestGetTaskUpdates(t *testing.T) {
 		(retTask2 != taskUpdate1 && retTask2 != taskUpdate2) {
 		t.Errorf("expected 2 task updates (%v, %v), but found (%v, %v)",
 			taskUpdate1, taskUpdate2, retTask1, retTask2)
+	}
+}
+
+/*******************************************************************************
+Task Spec tests
+*******************************************************************************/
+func TestNewListTaskSpecFromMap(t *testing.T) {
+	var tests = []struct {
+		bucket interface{}
+		object interface{}
+		srcDir interface{}
+		genNum interface{}
+	}{
+		{"bucket", "object", "srcdir", int64(1)},
+		{"bucket", "object", "srcdir", int(1)},
+		{"bucket", "object", "srcdir", json.Number("1")},
+		{nil, "object", "srcdir", int(1)},
+		{"bucket", nil, "srcdir", int(1)},
+		{"bucket", "object", nil, int(1)},
+		{"bucket", "object", "srcdir", nil},
+	}
+
+	for _, tc := range tests {
+		params := make(map[string]interface{})
+		if tc.bucket != nil {
+			params["dst_list_result_bucket"] = tc.bucket
+		}
+		if tc.object != nil {
+			params["dst_list_result_object"] = tc.object
+		}
+		if tc.srcDir != nil {
+			params["src_directory"] = tc.srcDir
+		}
+		if tc.genNum != nil {
+			params["expected_generation_num"] = tc.genNum
+		}
+
+		result, err := NewListTaskSpecFromMap(params)
+
+		if tc.bucket != nil && tc.object != nil && tc.srcDir != nil && tc.genNum != nil {
+			// All values populated, should be working result (always same values).
+			expected := &ListTaskSpec{
+				DstListResultBucket:   "bucket",
+				DstListResultObject:   "object",
+				SrcDirectory:          "srcdir",
+				ExpectedGenerationNum: 1,
+			}
+
+			if err != nil {
+				t.Errorf("expected nil error, got: %v", err)
+			}
+
+			DeepEqualCompare("listTaskSpec construction from map", expected, result, t)
+		} else {
+			// Any missing parameter should result in error.
+			if err == nil {
+				t.Error("wanted: missing params, but got nil error")
+			} else if !strings.Contains(err.Error(), "missing params") {
+				t.Errorf("wanted: missing params, but got: %v", err)
+			}
+		}
+	}
+}
+
+func TestNewUploadGCSTaskSpecFromMap(t *testing.T) {
+	var tests = []struct {
+		srcFile interface{}
+		bucket  interface{}
+		object  interface{}
+		genNum  interface{}
+	}{
+		{"srcfile", "bucket", "object", int64(1)},
+		{"srcfile", "bucket", "object", int(1)},
+		{"srcfile", "bucket", "object", json.Number("1")},
+		{nil, "bucket", "object", int64(1)},
+		{"srcfile", nil, "object", int64(1)},
+		{"srcfile", "bucket", nil, int64(1)},
+		{"srcfile", "bucket", "object", nil},
+	}
+
+	for _, tc := range tests {
+		params := make(map[string]interface{})
+		if tc.srcFile != nil {
+			params["src_file"] = tc.srcFile
+		}
+		if tc.bucket != nil {
+			params["dst_bucket"] = tc.bucket
+		}
+		if tc.object != nil {
+			params["dst_object"] = tc.object
+		}
+		if tc.genNum != nil {
+			params["expected_generation_num"] = tc.genNum
+		}
+
+		result, err := NewUploadGCSTaskSpecFromMap(params)
+
+		if tc.srcFile != nil && tc.bucket != nil && tc.object != nil && tc.genNum != nil {
+			// All values populated, should be working result (always same values).
+			expected := &UploadGCSTaskSpec{
+				SrcFile:               "srcfile",
+				DstBucket:             "bucket",
+				DstObject:             "object",
+				ExpectedGenerationNum: 1,
+			}
+
+			if err != nil {
+				t.Errorf("expected nil error, got: %v", err)
+			}
+
+			DeepEqualCompare("uploadGCSTaskSpec construction from map", expected, result, t)
+		} else {
+			// Any missing parameter should result in error.
+			if err == nil {
+				t.Error("wanted: missing params, but got nil error")
+			} else if !strings.Contains(err.Error(), "missing params") {
+				t.Errorf("wanted: missing params, but got: %v", err)
+			}
+		}
 	}
 }
 
@@ -316,7 +436,7 @@ func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
 		LogEntry: &LogEntry{
 			data: map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
 		},
-		OriginalTaskParams: (*TaskParams)(&map[string]interface{}{"paramkey1": "paramval1", "paramkey2": "paramval2"}),
+		OriginalTaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 
 	if taskUpdate == nil {
@@ -354,7 +474,7 @@ func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 		LogEntry: &LogEntry{
 			data: map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
 		},
-		OriginalTaskParams: (*TaskParams)(&map[string]interface{}{"paramkey1": "paramval1", "paramkey2": "paramval2"}),
+		OriginalTaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 
 	if taskUpdate == nil {

@@ -22,9 +22,9 @@ import (
 )
 
 var (
-	errTaskNotFound              = errors.New("task not found")
-	errInsertNewTasks            = errors.New("inserting new tasks")
-	errInvalidCompletionMessage  = errors.New("invalid task completion message")
+	errTaskNotFound             = errors.New("task not found")
+	errInsertNewTasks           = errors.New("inserting new tasks")
+	errInvalidCompletionMessage = errors.New("invalid task completion message")
 )
 
 // FakeStore is a fake implementation of Store interface that is used for test
