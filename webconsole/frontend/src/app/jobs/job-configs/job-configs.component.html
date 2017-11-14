@@ -28,7 +28,12 @@
         <!-- Description / job configuration column -->
         <ng-container matColumnDef="JobConfigId">
           <mat-header-cell *matHeaderCellDef> Descrption </mat-header-cell>
-          <mat-cell class="ingest-break-word" *matCellDef="let job"> {{ job.JobConfigId }} </mat-cell>
+          <mat-cell class="ingest-break-word" *matCellDef="let job">
+            <a routerLink="/jobs/{{ job.JobConfigId}}/jobrun"
+               queryParamsHandling="merge">
+               {{ job.JobConfigId }}
+            </a>
+          </mat-cell>
         </ng-container>
 
         <!-- Source directory / on premises source directory column -->
