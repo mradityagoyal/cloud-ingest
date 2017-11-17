@@ -529,14 +529,12 @@ $root.TaskType = (function() {
      * @property {number} UNKNOWN=0 UNKNOWN value
      * @property {number} LIST=1 LIST value
      * @property {number} UPLOAD_GCS=2 UPLOAD_GCS value
-     * @property {number} LOAD_BQ=3 LOAD_BQ value
      */
     TaskType.Type = (function() {
         var valuesById = {}, values = Object.create(valuesById);
         values[valuesById[0] = "UNKNOWN"] = 0;
         values[valuesById[1] = "LIST"] = 1;
         values[valuesById[2] = "UPLOAD_GCS"] = 2;
-        values[valuesById[3] = "LOAD_BQ"] = 3;
         return values;
     })();
 

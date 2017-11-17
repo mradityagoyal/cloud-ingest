@@ -51,7 +51,5 @@ message TaskType {
     LIST = 1;
     // Upload to GCS task. Upload a file from the on-premises directory to GCS.
     UPLOAD_GCS = 2;
-    // Load to big query task. Loads a gcs object to bigquery.
-    LOAD_BQ = 3;
   }
 }

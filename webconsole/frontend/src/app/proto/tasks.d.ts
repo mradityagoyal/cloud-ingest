@@ -283,7 +283,6 @@ export namespace TaskType {
     enum Type {
         UNKNOWN = 0,
         LIST = 1,
-        UPLOAD_GCS = 2,
-        LOAD_BQ = 3
+        UPLOAD_GCS = 2
     }
 }
