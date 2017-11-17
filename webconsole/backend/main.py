@@ -99,6 +99,54 @@ def _get_post_job_configs_error(content):
             }
     return response
 
+def _get_delete_job_configs_error(content):
+    """Checks that the input content is in the correct format.
+
+       Returns:
+           An error response dictionary if there is an error with the input
+           content, or None if there is no error.
+    """
+    formatting_error_response = {
+        'error' : 'Request is incorrectly formatted.',
+        'message' : 'The request should be a list of job config id strings.'
+    }
+    if not isinstance(content, list):
+        return formatting_error_response
+    if len(content) == 0:
+        return formatting_error_response
+    for item in content:
+        if not (isinstance(item, str) or isinstance(item, unicode)):
+            return formatting_error_response
+    return None
+
+@APP.route('/projects/<project_id>/jobconfigs/delete',
+           methods=['OPTIONS', 'POST'])
+@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
+def delete_job_configs(project_id):
+    """Handles a request to delete job configurations.
+    """
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
+    if request.method == 'POST':
+        content = request.json
+        error = _get_delete_job_configs_error(content)
+        if error:
+            return jsonify(error), httplib.BAD_REQUEST
+        result = spanner_wrapper.delete_job_configs(content)
+        if len(result['indelible_configs']) > 0:
+            error = {
+                'error': 'Error deleting jobs',
+                'message': ('Could not delete the following jobs because '
+                            'they have tasks in progress: {0}.')
+                            .format(', '.join(result['indelible_configs']))
+            }
+            return jsonify(error), httplib.BAD_REQUEST
+
+        return jsonify(result['delible_configs']), httplib.OK
+
+
 @APP.route('/projects/<project_id>/jobconfigs',
            methods=['GET', 'OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)

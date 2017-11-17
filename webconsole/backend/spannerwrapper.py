@@ -48,7 +48,6 @@ def _check_max_num_tasks_in_range(max_num_tasks):
 def _get_tasks_params_and_types(config_id, run_id, max_num_tasks,
     task_status=None, last_modified_before=None, failure_type=None):
     """Gets the base parameters and parameter types used in most queries.
-
     Returns:
         A tuple of params and param_types of the specified input parameters.
     """
@@ -72,6 +71,101 @@ def _get_tasks_params_and_types(config_id, run_id, max_num_tasks,
         params["last_modified_before"] = last_modified_before
         param_types["last_modified_before"] = type_pb2.Type(code=type_pb2.INT64)
     return params, param_types
+
+def _get_delible_indelible_configs(config_id_list, rows):
+    """Gets a list of delible and indelible configs from the result of the
+       union query to get tasks in progress.
+    """
+    delible_configs = []
+    indelible_configs = []
+    for i, row in enumerate(rows):
+        tasks_count = row[0]
+        if tasks_count > 0:
+            indelible_configs.append(config_id_list[i])
+        else:
+            delible_configs.append(config_id_list[i])
+    return delible_configs, indelible_configs
+
+def _get_all_tasks_in_progress(config_id_list):
+    """Gets a string query that returns the number of tasks in progress for
+       each config in config_id_list.
+
+    Args:
+        config_id_list: The list of job config ids to build the query from.
+    Returns:
+        1) A string query that has one row per config_id_list. Each row has the
+        count of the tasks in progress for each config in config_id_list.
+        2) The params for the query
+        3) The param_types for the query
+    """
+    params = {}
+    param_types = {}
+    query = ''
+    for i, config_id in enumerate(config_id_list):
+        query += _get_tasks_in_progress_query(config_id, params, param_types, i)
+        if i < len(config_id_list)-1:
+            query = query + '\nUNION ALL\n'
+    return query, params, param_types
+
+def _delete_job_configs_transaction(transaction, config_id_list,
+    transaction_read_result):
+    """Reads the tasks in each job configuration, and deletes a job
+       configuration if it has no tasks in progress.
+
+    Args:
+        transaction: The transaction to operate with.
+        config_id_list: The list of job configurations to try to delete.
+        transaction_read_result: A dictionary with fields 'delible_configs' and
+            'indelible_configs'. The function populates these fields with what
+            it finds out about reading the tasks for the job configs.
+    Returns:
+        No return value.
+    Raises:
+        ValueError if there are no job configurations to delete.
+    """
+    query, params, param_types = \
+        _get_all_tasks_in_progress(config_id_list)
+    result = \
+        transaction.execute_sql(query, params=params, param_types=param_types)
+    result.consume_all()
+    delible_configs, indelible_configs = \
+        _get_delible_indelible_configs(config_id_list, result.rows)
+    transaction_read_result['delible_configs'] = delible_configs
+    transaction_read_result['indelible_configs'] = indelible_configs
+    if delible_configs:
+        # Put keys in a list of lists, the expected keyset format.
+        keyset_keys = [[config_id] for config_id in delible_configs]
+        transaction.delete(SpannerWrapper.JOB_CONFIGS_TABLE,
+                            keyset=spanner.KeySet(keys=keyset_keys))
+
+def _get_tasks_in_progress_query(config_id, params, param_types, counter):
+    """Gets a string query that will return the number of tasks that are in
+        progress.
+
+    Args:
+        config_id: The config id to use for the query.
+        counter: The config counter. This is used to populate params and
+          param_types.
+        params: The function populates this dictionary with key config_<counter>
+          and value equal to config_id.
+        param_types: The function populates this dictionary with key
+          config_<counter> and value equal to string parameter type.
+
+    Returns:
+        A string query that counts the number of tasks that are in a QUEUED or
+        UNQUEUED state. The name of the column given to this count is
+        'tasks_in_progress_count'
+    """
+    config_id_param = '@config_' + str(counter)
+    config_id_key = 'config_' + str(counter)
+    query = ('SELECT COUNT(*) AS tasks_in_progress_count FROM {0} '
+            'WHERE {1} = {2} AND  ({3} = {4} OR {3} = {5})').format(
+            SpannerWrapper.TASKS_TABLE, SpannerWrapper.JOB_CONFIG_ID,
+            config_id_param, SpannerWrapper.STATUS, TaskStatus.QUEUED,
+            TaskStatus.UNQUEUED)
+    params[config_id_key] = config_id
+    param_types[config_id_key] = type_pb2.Type(code=type_pb2.STRING)
+    return query
 
 def _get_tasks_of_status_base_query():
     """Gets the base query to get the task status.
@@ -142,7 +236,6 @@ class SpannerWrapper(object):
         self.database_id = database_id
         self.spanner_client = spanner.Client(credentials=credentials,
                                              project=project_id)
-
         # Get a Cloud Spanner instance by ID.
         self.instance = self.spanner_client.instance(instance_id)
 
@@ -480,6 +573,27 @@ class SpannerWrapper(object):
             job_run[SpannerWrapper.COUNTERS] = json.loads(
                 job_run[SpannerWrapper.COUNTERS])
             return job_run
+
+    def delete_job_configs(self, config_id_list):
+        """Deletes a list of job configurations. Only deletes a job
+           configuration if it doesn't have tasks in progress.
+
+        Args:
+          config_id_list: The list of job config ids to delete.
+        Returns:
+          A list of configs that could not be deleted because they had tasks in
+          progress, or None if all the input configs were deleted.
+        """
+        transaction_read_result = {
+            'delible_configs': [],
+            'indelible_configs': []
+        }
+        try:
+            self.database.run_in_transaction(_delete_job_configs_transaction,
+                config_id_list, transaction_read_result)
+        except ValueError:
+            pass # There was nothing to commit. Do nothing.
+        return transaction_read_result
 
     @handle_common_gax_errors
     def insert(self, table, columns, values):

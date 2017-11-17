@@ -1,8 +1,12 @@
 <div class="ingest-job-config-heading">
   <h2> Jobs </h2>
-  <button mat-raised-button class="ingest-add-job-config" (click)="openAddJobConfigDialog()">
+  <button mat-raised-button class="ingest-add-job-config ingest-config-button" (click)="openAddJobConfigDialog()">
     <mat-icon class="mat-24" aria-label="Add a Job">add_box</mat-icon>
     Add a job
+  </button>
+  <button mat-raised-button class="ingest-delete-job-config ingest-config-button" (click)="deleteJobConfigs()" [disabled]="numChecked === 0">
+      <mat-icon class="mat-24" >delete</mat-icon>
+      Delete selected
   </button>
 </div>
 <ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else content"></ng-container>
@@ -25,14 +29,17 @@
     </div>
     <ng-template #jobsTable>
       <mat-table #table [dataSource]="dataSource">
+
         <!-- Description / job configuration column -->
         <ng-container matColumnDef="JobConfigId">
           <mat-header-cell *matHeaderCellDef> Descrption </mat-header-cell>
           <mat-cell class="ingest-break-word" *matCellDef="let job">
-            <a routerLink="/jobs/{{ job.JobConfigId}}/jobrun"
-               queryParamsHandling="merge">
-               {{ job.JobConfigId }}
-            </a>
+            <mat-checkbox id="{{job.JobConfigId}}" (change)="onCheckboxClick($event)" [(ngModel)]="checkedCheckboxes[job.JobConfigId]">
+              <a routerLink="/jobs/{{ job.JobConfigId}}/jobrun"
+                  queryParamsHandling="merge">
+                  {{ job.JobConfigId }}
+              </a>
+            </mat-checkbox>
           </mat-cell>
         </ng-container>
 

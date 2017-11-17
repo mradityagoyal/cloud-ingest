@@ -11,7 +11,7 @@ CREATE TABLE JobRuns (
      JobFinishTime INT64,
      Counters STRING(MAX) NOT NULL,
    ) PRIMARY KEY(JobConfigId, JobRunId),
-   INTERLEAVE IN PARENT JobConfigs ON DELETE NO ACTION
+   INTERLEAVE IN PARENT JobConfigs ON DELETE CASCADE
 
 CREATE TABLE Tasks (
       JobConfigId STRING(MAX) NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE Tasks (
       FailureType INT64,
       FailureMessage STRING(MAX),
     ) PRIMARY KEY(JobConfigId, JobRunId, TaskId),
-    INTERLEAVE IN PARENT JobRuns ON DELETE NO ACTION
+    INTERLEAVE IN PARENT JobRuns ON DELETE CASCADE
 
 CREATE INDEX TasksByStatus ON Tasks(Status, JobConfigId, JobRunId)
 
@@ -45,6 +45,6 @@ CREATE TABLE LogEntries (
       LogEntry STRING(MAX) NOT NULL,
       Processed BOOL NOT NULL,
     ) PRIMARY KEY(JobConfigId, JobRunId, TaskId, LogEntryId),
-    INTERLEAVE IN PARENT Tasks ON DELETE NO ACTION
+    INTERLEAVE IN PARENT Tasks ON DELETE CASCADE
 
 CREATE INDEX LogEntriesByProcessed ON LogEntries(Processed)

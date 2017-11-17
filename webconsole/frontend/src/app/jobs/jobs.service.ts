@@ -88,4 +88,14 @@ export class JobsService {
         );
     });
   }
+
+  deleteJobConfigs(
+      configIdList: string[]
+  ): Observable<string[]> {
+    return this.project.switchMap(projectId => {
+        return this.http.post<string[]>(
+            `${environment.apiUrl}/projects/${projectId}/jobconfigs/delete`,
+            configIdList, POST_HEADERS);
+    });
+  }
 }

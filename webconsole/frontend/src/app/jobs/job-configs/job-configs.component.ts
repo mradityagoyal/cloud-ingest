@@ -1,7 +1,9 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { MatDialog } from '@angular/material';
+import { MatCheckboxChange, MatDialog } from '@angular/material';
 
+import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
+import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { JobConfigResponse, SimpleDataSource } from '../jobs.resources';
@@ -19,6 +21,17 @@ export class JobConfigsComponent implements OnInit {
   errorTitle: string;
   displayErrorMessage = false;
   jobConfigs: JobConfigResponse[];
+
+  /**
+   * A map of jobConfigId -> isChecked. Indicates if the box for a particular config id has been
+   * checked. If the key does not exist, it hasn't been checked.
+   */
+  checkedCheckboxes: { [key: string]: boolean; } = {};
+
+  /**
+   * The number of checkboxes that have been checked.
+   */
+  numChecked = 0;
 
   displayedColumns = ['JobConfigId', 'onPremSrcDirectory', 'gcsBucket'];
 
@@ -43,7 +56,6 @@ export class JobConfigsComponent implements OnInit {
           this.openAddJobConfigDialog();
         } else {
           this.dataSource = new SimpleDataSource(response);
-          console.log(response);
         }
       },
       (error: HttpErrorResponse) => {
@@ -72,5 +84,39 @@ export class JobConfigsComponent implements OnInit {
         this.updateJobConfigs();
       }
     });
+  }
+
+  onCheckboxClick(event: MatCheckboxChange) {
+    let count = 0;
+    for (const key in this.checkedCheckboxes) {
+      if (this.checkedCheckboxes[key] === true) {
+        count++;
+      }
+    }
+    this.numChecked = count;
+  }
+
+  deleteJobConfigs() {
+    const selectedJobConfigs = [];
+    for (const key in this.checkedCheckboxes) {
+      if (this.checkedCheckboxes[key] === true) {
+        selectedJobConfigs.push(key);
+      }
+    }
+    this.jobsService.deleteJobConfigs(selectedJobConfigs).subscribe(
+      (response) => {
+        this.updateJobConfigs();
+      }, (errorResponse: HttpErrorResponse) => {
+        this.updateJobConfigs();
+        const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+        const errorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
+        const errorContent: ErrorDialogContent = {
+          errorTitle: errorTitle,
+          errorMessage: errorMessage
+        };
+        this.dialog.open(ErrorDialogComponent, {
+          data: errorContent
+        });
+      });
   }
 }

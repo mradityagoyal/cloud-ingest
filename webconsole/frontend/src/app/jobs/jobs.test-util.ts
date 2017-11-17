@@ -78,3 +78,5 @@ export const FAKE_JOB_CONFIGS: JobConfigResponse[] = [
 export const EMPTY_TASK_ARRAY: Task[] = [];
 
 export const FAKE_HTTP_ERROR = {error : {error: 'FakeError', message: 'Fake Error Message.'}};
+
+export const FAKE_JOB_CONFIG_LIST = ['fakeconfigid1', 'fakeconfigid2', 'fakeconfigid3'];
