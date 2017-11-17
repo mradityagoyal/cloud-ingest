@@ -9,8 +9,6 @@ export interface PubsubStatus {
   listProgress: string;
   uploadGCS: string;
   uploadGCSProgress: string;
-  loadBigQuery: string;
-  loadBigQueryProgress: string;
 }
 
 export const INFRA_STATUS = {

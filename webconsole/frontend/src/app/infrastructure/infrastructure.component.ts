@@ -87,8 +87,7 @@ export class InfrastructureComponent implements OnInit, OnDestroy {
    */
   private updateOverallPubSubStatus(response: InfrastructureStatus) {
     const statusList = [response.pubsubStatus.list, response.pubsubStatus.listProgress,
-      response.pubsubStatus.uploadGCS, response.pubsubStatus.uploadGCSProgress,
-      response.pubsubStatus.loadBigQuery, response.pubsubStatus.loadBigQueryProgress];
+      response.pubsubStatus.uploadGCS, response.pubsubStatus.uploadGCSProgress];
     this.overallPubSubStatus = InfrastructureService.getOverallStatus(statusList);
   }
 

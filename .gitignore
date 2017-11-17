@@ -8,6 +8,7 @@ out-tsc/
 
 # Angular app dependencies
 node_modules/
+package-lock.json
 
 # e2e build artifacts
 e2e/*.js
