@@ -38,7 +38,7 @@ export class FailuresTableComponent {
    *
    * @param numTasksLoaded The number of tasks that the tasks table loaded.
    */
-  private handleOnLoadFinished(numTasksLoaded: number) {
+  handleOnLoadFinished(numTasksLoaded: number) {
     this.numFailures = numTasksLoaded;
     if (numTasksLoaded === 0) {
       this.onNoTasks.emit(this.failureType);
