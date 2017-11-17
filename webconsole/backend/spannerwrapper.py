@@ -22,7 +22,7 @@ import os
 import time
 import util
 from google.cloud import spanner
-from google.cloud.proto.spanner.v1 import type_pb2
+from google.cloud.spanner_v1.proto import type_pb2
 from gaxerrordecorator import handle_common_gax_errors
 
 from create_infra.job_utilities import TASK_STATUS_UNQUEUED
@@ -149,7 +149,7 @@ class SpannerWrapper(object):
         # Get a Cloud Spanner database by ID.
         self.database = self.instance.database(database_id)
 
-        self.session_pool = spanner.pool.BurstyPool()
+        self.session_pool = spanner.BurstyPool()
         self.session_pool.bind(self.database)
 
     def get_job_configs(self):
