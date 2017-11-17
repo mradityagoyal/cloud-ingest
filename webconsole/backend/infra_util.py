@@ -32,13 +32,13 @@ _CURRENT_DIR = path.dirname(path.realpath(__file__))
 # The cloud ingest pre-defined topics and subscriptions.
 _TOPICS_SUBSCRIPTIONS = {
     'list': (constants.LIST_TOPIC,
-             [constants.LIST_SUBSCRIPTION]),
+             [constants.LIST_SUBSCRIPTION], 30),
     'listProgress': (constants.LIST_PROGRESS_TOPIC,
-                     [constants.LIST_PROGRESS_SUBSCRIPTION]),
+                     [constants.LIST_PROGRESS_SUBSCRIPTION], 30),
     'uploadGCS': (constants.UPLOAD_GCS_TOPIC,
-                  [constants.UPLOAD_GCS_SUBSCRIPTION]),
+                  [constants.UPLOAD_GCS_SUBSCRIPTION], 30),
     'uploadGCSProgress': (constants.UPLOAD_GCS_PROGRESS_TOPIC,
-                          [constants.UPLOAD_GCS_PROGRESS_SUBSCRIPTION]),
+                          [constants.UPLOAD_GCS_PROGRESS_SUBSCRIPTION], 30),
 }
 
 # pylint: disable=invalid-name
@@ -155,7 +155,8 @@ def create_infrastructure(credentials, project_id, dcp_docker_image=None):
     # Create the topics and subscriptions.
     for topic_subscriptions in _TOPICS_SUBSCRIPTIONS.itervalues():
         pubsub_bldr.create_topic_and_subscriptions(
-            topic_subscriptions[0], topic_subscriptions[1])
+            topic_subscriptions[0], topic_subscriptions[1],
+            ack_deadline=topic_subscriptions[2])
 
     # Create the DCP GCE instance.
     # TODO(b/65753224): Support of not creating the DCP GCE as part of the

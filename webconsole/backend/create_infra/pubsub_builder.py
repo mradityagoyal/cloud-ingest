@@ -42,7 +42,7 @@ class PubSubBuilder(object):
             self.project_id, topic_name)
         self.pub_client.create_topic(full_topic_name)
 
-    def create_subscription(self, topic_name, sub_name, ack_deadline=15):
+    def create_subscription(self, topic_name, sub_name, ack_deadline=30):
         """Creates sub_name subscription in topic with deadline ack_deadline."""
         full_topic_name = self.sub_client.topic_path(
             self.project_id, topic_name)
@@ -98,11 +98,13 @@ class PubSubBuilder(object):
             return ResourceStatus.RUNNING
         return ResourceStatus.NOT_FOUND
 
-    def create_topic_and_subscriptions(self, topic_name, sub_names):
+    def create_topic_and_subscriptions(self, topic_name, sub_names,
+                                       ack_deadline=30):
         """Creates topic_name topics and associate sub_names subscriptions."""
         self.create_topic(topic_name)
         for sub_name in sub_names:
-            self.create_subscription(topic_name, sub_name)
+            self.create_subscription(topic_name, sub_name,
+                                     ack_deadline=ack_deadline)
 
     def delete_topic_and_subscriptions(self, topic_name):
         """Deletes topic_name topic and its subscriptions."""
