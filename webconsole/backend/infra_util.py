@@ -39,10 +39,6 @@ _TOPICS_SUBSCRIPTIONS = {
                   [constants.UPLOAD_GCS_SUBSCRIPTION]),
     'uploadGCSProgress': (constants.UPLOAD_GCS_PROGRESS_TOPIC,
                           [constants.UPLOAD_GCS_PROGRESS_SUBSCRIPTION]),
-    'loadBigQuery': (constants.LOAD_BQ_TOPIC,
-                     [constants.LOAD_BQ_SUBSCRIPTION]),
-    'loadBigQueryProgress': (constants.LOAD_BQ_PROGRESS_TOPIC,
-                             [constants.LOAD_BQ_PROGRESS_SUBSCRIPTION]),
 }
 
 # pylint: disable=invalid-name
@@ -70,8 +66,6 @@ def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr, compute_bldr):
             'pubsubStatus': {
                 'list': 'RUNNING',
                 'listProgress': 'RUNNING',
-                'loadBigQuery': 'RUNNING',
-                'loadBigQueryProgres': 'RUNNING',
                 'uploadGCS': 'RUNNING',
                 'uploadGCSProgress': 'RUNNING'
             },

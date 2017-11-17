@@ -15,24 +15,18 @@ JOB_SPEC_1 = {
     u'gcsDirectory': u'/fake/gcs/directory',
     u'onPremSrcDirectory': u'/fake/on/prem/source',
     u'gcsBucket': u'fakeGCSBucket',
-    u'bigqueryDataset': u'fakeBigqueryDataset',
-    u'bigqueryTable': u'fakeBigqueryTable'
 }
 
 JOB_SPEC_2 = {
     u'gcsDirectory': u'/fake/gcs/directory2',
     u'onPremSrcDirectory': u'/fake/on/prem/source2',
     u'gcsBucket': u'fakeGCSBucket2',
-    u'bigqueryDataset': u'fakeBigqueryDataset2',
-    u'bigqueryTable': u'fakeBigqueryTable2'
 }
 
 JOB_SPEC_3 = {
     u'gcsDirectory': u'/fake/gcs/directory3',
     u'onPremSrcDirectory': u'/fake/on/prem/source3',
     u'gcsBucket': u'fakeGCSBucket3',
-    u'bigqueryDataset': u'fakeBigqueryDataset3',
-    u'bigqueryTable': u'fakeBigqueryTable3'
 }
 
 JOB_SPEC_1_STR = json.dumps(JOB_SPEC_1)
@@ -88,37 +82,26 @@ class TestUtil(unittest.TestCase):
         """Tests dict_values_are_recursively method returns true."""
 
         statuses = {
-            'cloudFunctionsStatus': 'NOT_FOUND',
             'dcpStatus': 'NOT_FOUND',
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'NOT_FOUND',
-                'loadBigQuery': 'NOT_FOUND',
-                'loadBigQueryProgress': 'NOT_FOUND',
                 'uploadGCS': 'NOT_FOUND',
                 'uploadGCSProgress': 'NOT_FOUND'
             },
             'spannerStatus': 'NOT_FOUND'
         }
         self.assertTrue(dict_values_are_recursively(statuses, 'NOT_FOUND'))
-
-        statuses['pubsubStatus']['loadBigQueryProgress'] = 'RUNNING'
-        self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
-
-        statuses['pubsubStatus']['loadBigQueryProgress'] = 'NOT_FOUND'
         statuses['dcpStatus'] = 'RUNNING'
         self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
 
     def test_dict_values_are_recursively_false(self):
         """Tests dict_values_are_recursively method returns false."""
         statuses = {
-            "cloudFunctionsStatus": "RUNNING",
             "dcpStatus": "UNKNOWN",
             "pubsubStatus": {
                 "list": "RUNNING",
                 "listProgress": "RUNNING",
-                "loadBigQuery": "RUNNING",
-                "loadBigQueryProgress": "RUNNING",
                 "uploadGCS": "RUNNING",
                 "uploadGCSProgress": "RUNNING"
             },
@@ -132,35 +115,25 @@ class TestUtil(unittest.TestCase):
         """
 
         statuses = {
-            'cloudFunctionsStatus': 'RUNNING',
             'dcpStatus': 'NOT_FOUND',
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'NOT_FOUND',
-                'loadBigQuery': 'NOT_FOUND',
-                'loadBigQueryProgress': 'NOT_FOUND',
                 'uploadGCS': 'NOT_FOUND',
                 'uploadGCSProgress': 'NOT_FOUND'
             },
             'spannerStatus': 'NOT_FOUND'
         }
-        self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
-
-        statuses['cloudFunctionsStatus'] = 'NOT_FOUND'
-        statuses['pubsubStatus']['loadBigQuery'] = 'RUNNING'
-        self.assertFalse(dict_values_are_recursively(statuses, 'NOT_FOUND'))
+        self.assertTrue(dict_values_are_recursively(statuses, 'NOT_FOUND'))
 
     def test_dict_has_values_recursively_false(self):
         """Tests dict_has_values_recursively method returns false."""
 
         statuses = {
-            'cloudFunctionsStatus': 'RUNNING',
             'dcpStatus': 'UNKNOWN',
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'RUNNING',
-                'loadBigQuery': 'UNKNOWN',
-                'loadBigQueryProgress': 'NOT_FOUND',
                 'uploadGCS': 'RUNNING',
                 'uploadGCSProgress': 'UNKNOWN'
             },
@@ -173,13 +146,10 @@ class TestUtil(unittest.TestCase):
         """Tests dict_has_values_recursively method returns true."""
 
         statuses = {
-            'cloudFunctionsStatus': 'RUNNING',
             'dcpStatus': 'DEPLOYING',
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'RUNNING',
-                'loadBigQuery': 'DELETING',
-                'loadBigQueryProgress': 'NOT_FOUND',
                 'uploadGCS': 'RUNNING',
                 'uploadGCSProgress': 'UNKNOWN'
             },
@@ -193,13 +163,10 @@ class TestUtil(unittest.TestCase):
         exactly one value that matches."""
 
         statuses = {
-            'cloudFunctionsStatus': 'RUNNING',
             'dcpStatus': 'DEPLOYING',
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'RUNNING',
-                'loadBigQuery': 'NOT_FOUND',
-                'loadBigQueryProgress': 'NOT_FOUND',
                 'uploadGCS': 'RUNNING',
                 'uploadGCSProgress': 'UNKNOWN'
             },

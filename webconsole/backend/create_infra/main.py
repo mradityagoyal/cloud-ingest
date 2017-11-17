@@ -19,7 +19,6 @@ import argparse
 import os
 import time
 
-import cloud_functions_builder
 import constants
 import compute_builder
 import job_utilities
@@ -53,14 +52,10 @@ def _parse_topic_subscriptions(topic_subs_name):
     return topic_subs_arr[0], topic_subs_arr[1:]
 
 
-def tear_down_infrastructure(
-    args, spanner_bldr, pubsub_bldr, fn_bldr, compute_bldr):
+def tear_down_infrastructure(args, spanner_bldr, pubsub_bldr, compute_bldr):
     """Tears down cloud ingest infrastructure."""
     print 'Deleting GCE instance {}.'.format(args.compute_name)
     compute_bldr.delete_instance(args.compute_name)
-
-    print 'Deleting cloud function {}.'.format(args.function_name)
-    fn_bldr.delete_function(args.function_name)
 
     # Deleting topics.
     for topic_subs_name in args.pubsub:
@@ -72,8 +67,7 @@ def tear_down_infrastructure(
     spanner_bldr.delete_instance()
 
 
-def create_infrastructure(
-    args, spanner_bldr, pubsub_bldr, fn_bldr, compute_bldr):
+def create_infrastructure(args, spanner_bldr, pubsub_bldr, compute_bldr):
     """Creates cloud ingest infrastructure."""
     print 'Creating spanner instance {}.'.format(args.spanner_instance)
     spanner_bldr.create_instance()
@@ -87,11 +81,6 @@ def create_infrastructure(
         print 'Creating topic {}, and subscription {}.'.format(
             topic_name, ','.join(sub_names))
         pubsub_bldr.create_topic_and_subscriptions(topic_name, sub_names)
-
-    print 'Creating cloud function {}.'.format(args.function_name)
-    fn_bldr.create_function(args.function_name, args.function_src_dir,
-                            args.function_topic, args.function_entrypoint,
-                            args.cloud_function_timeout)
 
     if args.skip_running_dcp:
         print('Skipping create GCE VM for running DCP. All compute arguments '
@@ -129,52 +118,12 @@ def main():
                                 constants.UPLOAD_GCS_PROGRESS_TOPIC,
                                 constants.UPLOAD_GCS_PROGRESS_SUBSCRIPTION),
                             '%s,%s' % (
-                                constants.LOAD_BQ_PROGRESS_TOPIC,
-                                constants.LOAD_BQ_PROGRESS_SUBSCRIPTION),
-                            '%s,%s' % (
                                 constants.LIST_TOPIC,
                                 constants.LIST_SUBSCRIPTION),
                             '%s,%s' % (
                                 constants.UPLOAD_GCS_TOPIC,
-                                constants.UPLOAD_GCS_SUBSCRIPTION),
-                            '%s,%s' % (
-                                constants.LOAD_BQ_TOPIC,
-                                constants.LOAD_BQ_SUBSCRIPTION)
+                                constants.UPLOAD_GCS_SUBSCRIPTION)
                         ])
-
-    parser.add_argument('--function-name', '-f', type=str,
-                        help='Cloud Function name.',
-                        default=constants.LOAD_BQ_CLOUD_FN_NAME)
-
-    cloud_function_dir = os.path.realpath(
-        os.path.join(DIR, '../../../cloud-functions/gcs-to-bq-importer'))
-    parser.add_argument('--function-src-dir', '-sd', type=str,
-                        help='Cloud Function source directory.',
-                        default=cloud_function_dir)
-
-    parser.add_argument('--function-staging-bucket', '-b', type=str,
-                        help='Cloud Function source code staging bucket.',
-                        default=None)
-
-    parser.add_argument('--function-staging-object', '-o', type=str,
-                        help='Cloud Function source code staging object.',
-                        default=None)
-
-    parser.add_argument('--function-topic', '-t', type=str,
-                        help='PubSub topic Cloud Function is listening to.',
-                        default=constants.LOAD_BQ_TOPIC)
-
-    parser.add_argument('--function-entrypoint', '-e', type=str,
-                        help='Cloud Function entry point.',
-                        default=constants.LOAD_BQ_CLOUD_FN_ENTRY_POINT)
-
-    parser.add_argument('--cloud-function-timeout', type=str,
-                        help='The Cloud Function execution timeout. It '
-                             'determines how long before a cloud function is '
-                             'considered timed out. Must be a duration in '
-                             'seconds, followed by an s. The default is 9 '
-                             'minutes.',
-                        default=constants.LOAD_BQ_CLOUD_FN_TIMEOUT_SECS)
 
     parser.add_argument('--skip-running-dcp', '-sdcp', action='store_true',
                         help='Skip running the DCP in a new VM.',
@@ -212,10 +161,6 @@ def main():
                         help='GCS destination directory in the bucket.',
                         default='')
 
-    parser.add_argument('--dst-bq-dataset', type=str,
-                        help='Big query destination dataset.',
-                        default=None)
-
     parser.add_argument('--job-config-name', type=str,
                         help='Name of the job config for the job being '
                              'inserted.',
@@ -224,10 +169,6 @@ def main():
     parser.add_argument('--job-run-name', type=str,
                         help='Name of the job run for the job being inserted.',
                         default='job-run-00')
-
-    parser.add_argument('--dst-bq-table', type=str,
-                        help='Big query destination table in the dataset.',
-                        default=None)
 
     parser.add_argument('--force', action='store_true',
                         help='Forcing tear down cloud ingest infrastructure.',
@@ -242,27 +183,22 @@ def main():
 
     # Make sure that insert job has the sufficient arguments.
     if args.insert_job:
-        if (not args.src_dir or not args.dst_gcs_bucket or
-            not args.dst_bq_dataset or not args.dst_bq_table):
-            parser.error('--insert-job requires --src-dir, --dst-gcs-bucket, '
-                         '--dst-bq-dataset and --dst-bq-table')
+        if (not args.src_dir or not args.dst_gcs_bucket):
+            parser.error('--insert-job requires --src-dir and --dst-gcs-bucket')
         if args.mode == 'TearDown':
             parser.error('Can not insert new jobs in the TearDown mode.')
 
     spanner_bldr = spanner_builder.SpannerBuilder(args.spanner_instance)
     pubsub_bldr = pubsub_builder.PubSubBuilder()
-    fn_bldr = cloud_functions_builder.CloudFunctionsBuilder()
     compute_bldr = compute_builder.ComputeBuilder()
 
     if 'Create' in args.mode:
-        create_infrastructure(
-            args, spanner_bldr, pubsub_bldr, fn_bldr, compute_bldr)
+        create_infrastructure(args, spanner_bldr, pubsub_bldr, compute_bldr)
 
     database = spanner_bldr.get_database(args.database)
     if args.insert_job:
         job_utilities.create_job(database, args.src_dir,
                                  args.dst_gcs_bucket, args.dst_gcs_dir,
-                                 args.dst_bq_dataset, args.dst_bq_table,
                                  args.job_config_name, args.job_run_name)
 
     if 'TearDown' in args.mode:
@@ -272,8 +208,7 @@ def main():
                   '--force argument to force the tear down.')
             time.sleep(1)
 
-        tear_down_infrastructure(
-            args, spanner_bldr, pubsub_bldr, fn_bldr, compute_bldr)
+        tear_down_infrastructure(args, spanner_bldr, pubsub_bldr, compute_bldr)
 
 
 if __name__ == '__main__':

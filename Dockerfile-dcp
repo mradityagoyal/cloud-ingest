@@ -8,7 +8,6 @@ ADD webconsole/backend/create_infra /cloud-ingest/webconsole/backend/create_infr
 # Adding sym-link to create_infra for backward compatibility.
 RUN ln -s webconsole/backend/create_infra /cloud-ingest/create-infra
 
-ADD cloud-functions /cloud-ingest/cloud-functions
 ADD dcpmain /cloud-ingest/
 
 # Fix libraries dependencies.

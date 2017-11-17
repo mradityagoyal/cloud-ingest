@@ -45,7 +45,7 @@ def jobs_have_completed(database):
 
 # pylint: disable=too-many-arguments,too-many-locals
 def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
-               dst_bq_dataset, dst_bq_table, config_name, run_name):
+               config_name, run_name):
     """Creates a new transfer job into the spanner database."""
     with database.batch() as batch:
         # Adding job config.
@@ -53,9 +53,7 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
         job_spec = {
             'onPremSrcDirectory': src_dir,
             'gcsBucket': dst_gcs_bucket,
-            'gcsDirectory': dst_gcs_dir,
-            'bigqueryDataset': dst_bq_dataset,
-            'bigqueryTable': dst_bq_table
+            'gcsDirectory': dst_gcs_dir
         }
         batch.insert(
             table='JobConfigs',

@@ -13,7 +13,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License
 
-"""Integration test for on-premises ingest into BigQuery via GCS."""
+"""Integration test for on-premises ingest into GCS."""
 import argparse
 import os
 import random
@@ -27,7 +27,6 @@ import uuid
 
 # pylint: disable=import-error,no-name-in-module,no-member,invalid-name
 import google.cloud
-from google.cloud import bigquery
 from google.cloud import storage
 
 _TEST_SUFFIX_LENGTH = 6
@@ -39,16 +38,12 @@ _JOB_SUFFIX = str(uuid.uuid4())
 _JOB_CONFIG_NAME = 'ingest-job-%s' % _JOB_SUFFIX
 _JOB_RUN_NAME = 'ingest-job-run-%s' % _JOB_SUFFIX
 
-_DATASET_NAME = 'opi_integration_test_dataset%s' % _TEST_SUFFIX
-_TABLE_NAME = 'opi_integration_test_table%s' % _TEST_SUFFIX
 _BUCKET_NAME = 'opi-integration-test-bucket%s' % _TEST_SUFFIX
 _LIST_OUTPUT_OBJECT_NAME = 'opi-integration-test-list-output-object'
 
-_BIGQUERY_CLIENT = bigquery.Client()
 _STORAGE_CLIENT = storage.Client()
 
-# Source data for the test; 3 files which should eventually result in
-# 15 BigQuery rows.
+# Source data for the test; 3 files.
 _FILE_CONTENTS = (
     'Ann,5\nBetsy,8\nCarlos,6\nDmitri,24',
     'Elizabeth,12\nFrank,14\nGarrett,75\nHelen,35\nIvan,12',
@@ -56,19 +51,6 @@ _FILE_CONTENTS = (
 )
 # One object per source file, plus one list output object
 _NUM_EXPECTED_OBJECTS = len(_FILE_CONTENTS) + 1
-_NUM_EXPECTED_BQ_ROWS = sum(len(contents.split())
-                            for contents in _FILE_CONTENTS)
-
-
-def _CleanUpBq(bq_client):
-    """Deletes the existing BigQuery dataset/table, if they exist."""
-    try:
-        bq_dataset = bq_client.dataset(_DATASET_NAME)
-        bq_table = bq_dataset.table(_TABLE_NAME)
-        bq_table.delete()
-        bq_dataset.delete()
-    except google.cloud.exceptions.NotFound:
-        pass
 
 
 def _CleanUpGCS(storage_client):
@@ -85,7 +67,7 @@ def _CleanUpGCS(storage_client):
 
 
 def _CreateTempFiles():
-    """Creates temporary CSV files for eventual insertion into BigQuery."""
+    """Creates temporary CSV files."""
     tmp_dir = tempfile.mkdtemp()
     tmp_file_paths = []
     for i in xrange(3):
@@ -111,17 +93,6 @@ def _GetNumGCSObjects():
     """Returns the number of GCS objects in the staging bucket."""
     bucket = _STORAGE_CLIENT.bucket(_BUCKET_NAME)
     return len(list(bucket.list_blobs()))
-
-
-def _GetNumBQRows():
-    """Returns the number of BigQuery rows in the table."""
-    bq_dataset = _BIGQUERY_CLIENT.dataset(_DATASET_NAME)
-    bq_table = bq_dataset.table(_TABLE_NAME)
-    bq_table.reload()
-    num_rows = bq_table.num_rows
-    if num_rows > 0:
-        print 'Found %s rows in BigQuery table %s' % (num_rows, _TABLE_NAME)
-    return num_rows
 
 
 def _PrintOutputLines(output_stream, stream_name, cancel_event):
@@ -176,20 +147,6 @@ class _AsyncStreamPrinter(object):
             if cancel_event.isSet():
                 return
             print '%s: %s' % (stream_name, line.rstrip('\n'))
-
-
-def _CreateBQDatasetAndTable():
-    """Creates the (empty) test BigQuery dataset and table."""
-    dataset = _BIGQUERY_CLIENT.dataset(_DATASET_NAME)
-    dataset.create()
-    print 'Dataset {} created.'.format(dataset.name)
-    table = dataset.table(_TABLE_NAME)
-    table.schema = (
-        bigquery.SchemaField('Name', 'STRING'),
-        bigquery.SchemaField('Age', 'INTEGER'),
-    )
-    table.create()
-    print 'Table {} created.'.format(table.name)
 
 
 def _IsRunningInteractively():
@@ -267,7 +224,6 @@ def _DCPInfrastructureCommand(command, docker_image, insert_job=False):
             '-j',  # Insert new job
             '--src-dir', TMP_DIR,
             '--dst-gcs-bucket', _BUCKET_NAME,
-            '--dst-bq-dataset', _DATASET_NAME, '--dst-bq-table', _TABLE_NAME,
             '--job-config-name', _JOB_CONFIG_NAME,
             '--job-run-name', _JOB_RUN_NAME
         ])
@@ -336,9 +292,8 @@ if __name__ == '__main__':
 
     try:
         dcp_container_id = None
-        _CreateBQDatasetAndTable()
 
-        # Set up the GCS staging bucket for objects to be loaded into BigQuery.
+        # Set up the GCS staging bucket.
         _STORAGE_CLIENT.bucket(_BUCKET_NAME).create()
 
         TMP_DIR, FILE_PATHS = _CreateTempFiles()
@@ -363,17 +318,9 @@ if __name__ == '__main__':
         gsutil_stdout_printer.cancel_event.set()
         gsutil_stderr_printer.cancel_event.set()
 
-        print 'Waiting for BQ rows to be created'
-        _WaitForFunc(lambda: _GetNumBQRows() >= _NUM_EXPECTED_BQ_ROWS,
-                     timeout=300)
-        num_actual_bq_rows = _GetNumBQRows()
-        if num_actual_bq_rows != _NUM_EXPECTED_BQ_ROWS:
-            raise Exception('Expected %s GCS objects but found %s.' % (
-                            _NUM_EXPECTED_BQ_ROWS, num_actual_bq_rows))
         # TODO: Teardown DCP infrastructure (Spanner and Pub/Sub queues)
         sys.exit(0)
     finally:
-        _CleanUpBq(_BIGQUERY_CLIENT)
         _CleanUpGCS(_STORAGE_CLIENT)
         if dcp_container_id:
             _RunCommand(['sudo', 'docker', 'stop', dcp_container_id],

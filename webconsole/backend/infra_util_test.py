@@ -87,10 +87,6 @@ class InfraUtilTest(unittest.TestCase):
                 return_value = ResourceStatus.RUNNING
             if topic == constants.LIST_PROGRESS_TOPIC:
                 return_value = ResourceStatus.UNKNOWN
-            if topic == constants.LOAD_BQ_TOPIC:
-                return_value = ResourceStatus.NOT_FOUND
-            if topic == constants.LOAD_BQ_PROGRESS_TOPIC:
-                return_value = ResourceStatus.DEPLOYING
             if topic == constants.UPLOAD_GCS_TOPIC:
                 return_value = ResourceStatus.DELETING
             if topic == constants.UPLOAD_GCS_PROGRESS_TOPIC:
@@ -115,8 +111,6 @@ class InfraUtilTest(unittest.TestCase):
             "pubsubStatus": {
                 "list": ResourceStatus.RUNNING.name,
                 "listProgress": ResourceStatus.UNKNOWN.name,
-                "loadBigQuery": ResourceStatus.NOT_FOUND.name,
-                "loadBigQueryProgres": ResourceStatus.DEPLOYING.name,
                 "uploadGCS": ResourceStatus.DELETING.name,
                 "uploadGCSProgress": ResourceStatus.RUNNING.name
             },
