@@ -73,10 +73,7 @@ class TestSpannerWrapper(unittest.TestCase):
         spanner_mock.Client.return_value = self.spanner_client
 
         self.pool = MagicMock()
-
-        pool_mock = MagicMock()
-        pool_mock.BurstyPool.return_value = self.pool
-        spanner_mock.pool = pool_mock
+        spanner_mock.BurstyPool.return_value = self.pool
 
         self.spanner_wrapper = SpannerWrapper('', '', '', '')
 
