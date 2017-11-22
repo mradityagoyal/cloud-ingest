@@ -37,7 +37,13 @@ const (
 	logEntryCountCheckInterval time.Duration = 1 * time.Minute
 	noProgressTimeout          time.Duration = 60 * time.Minute
 	maxNoProgressCount         int64         = int64(noProgressTimeout / logEntryCountCheckInterval)
-	numLogsToFetchPerRun       int64         = 10000
+
+	// MarkLogsAsProcessed updates a single column in the LogEntries table,
+	// but also uses the four columns that are part of the entry's index.
+	// Spanner transactions must be less than 20k mutations, where each
+	// column and row counts as a mutation. Since MarkLogsAsProcessed uses
+	// five columns total, we must limit this to 20k/5 = 4000.
+	numLogsToFetchPerRun int64 = 4000
 
 	// Similar to the format specified in RFC 3339 (used by
 	// time.MarshalText), however this format uses trailing zeros for the
