@@ -27,10 +27,16 @@ import (
 	"encoding/base64"
 	"log"
 	"strings"
+	"sync"
 
 	"golang.org/x/net/context"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/golang/groupcache/lru"
+)
+
+const (
+	jobSpecsCacheMaxSize = 1000
 )
 
 // MessageHandler interface is used to abstract handling of various message
@@ -51,13 +57,46 @@ type MessageReceiver struct {
 	Store   Store
 	Handler MessageHandler
 
-	batcher taskUpdatesBatcher
+	batcher       taskUpdatesBatcher
+	jobSpecsCache struct {
+		sync.RWMutex
+		c *lru.Cache
+	}
+}
+
+func (r *MessageReceiver) getJobSpec(jobConfigId string) (*JobSpec, error) {
+	// Try to find the job from the cache.
+	r.jobSpecsCache.RLock()
+	jobSpec, ok := r.jobSpecsCache.c.Get(jobConfigId)
+	r.jobSpecsCache.RUnlock()
+	if ok {
+		return jobSpec.(*JobSpec), nil
+	}
+	// TODO(b/69675852): Multiple threads will get the reader lock, all of them
+	// will try to get the job spec from the store and update it in the cache.
+	// This is unlikely because the list task will be probably the first one to
+	// cache the job spec, and all the other tasks are dependent on it.
+
+	// Get the job spec from the store and add it to the cache.
+	log.Printf("Did not find Job Spec for (%s) in the cache, querying the store",
+		jobConfigId)
+	storeJobSpec, err := r.Store.GetJobSpec(jobConfigId)
+	if err != nil {
+		return nil, err
+	}
+	r.jobSpecsCache.Lock()
+	r.jobSpecsCache.c.Add(jobConfigId, storeJobSpec)
+	r.jobSpecsCache.Unlock()
+	return storeJobSpec, nil
 }
 
 func (r *MessageReceiver) ReceiveMessages() error {
 	// Currently, there is a batcher for each message receiver type (list, uploadGCS).
 	// Maybe we can consider only one batcher for all the receiver types.
 	r.batcher.initializeAndStart(r.Store)
+	r.jobSpecsCache.Lock()
+	r.jobSpecsCache.c = lru.New(jobSpecsCacheMaxSize)
+	r.jobSpecsCache.Unlock()
 
 	ctx := context.Background()
 
@@ -90,9 +129,7 @@ func (r *MessageReceiver) ReceiveMessages() error {
 			return
 		}
 
-		// TODO(b/63060838): Do caching for the JobSpec, querying the database for each
-		// task is not efficient.
-		jobSpec, err := r.Store.GetJobSpec(jobConfigId)
+		jobSpec, err := r.getJobSpec(jobConfigId)
 		if err != nil {
 			log.Printf("Error in getting JobSpec of JobConfig: %d, with error: %v.",
 				jobConfigId, err)
