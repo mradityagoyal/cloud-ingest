@@ -30,11 +30,11 @@ import (
 )
 
 const (
-	listProgressSubscription         string = "cloud-ingest-list-progress"
-	copyProgressSubscription         string = "cloud-ingest-copy-progress"
+	listProgressSubscription string = "cloud-ingest-list-progress"
+	copyProgressSubscription string = "cloud-ingest-copy-progress"
 
-	listTopic   string = "cloud-ingest-list"
-	copyTopic   string = "cloud-ingest-copy"
+	listTopic string = "cloud-ingest-list"
+	copyTopic string = "cloud-ingest-copy"
 
 	spannerInstance string = "cloud-ingest-spanner-instance"
 	spannerDatabase string = "cloud-ingest-database"
@@ -42,7 +42,7 @@ const (
 	// The number of consecutive failures after which the program aborts
 	maxNumFailures int = 15
 	// The time for which the program sleeps between calls to store.QueueTasks
-	queueTasksSleepTime time.Duration = 10 * time.Millisecond
+	queueTasksSleepTime time.Duration = 1 * time.Second
 	// The max time for which the program sleeps between calls to store.QueueTasks
 	maxQueueTasksSleepTime time.Duration = 5 * time.Minute
 )
@@ -102,7 +102,7 @@ func main() {
 		Sub:   listProgressSub,
 		Store: store,
 		Handler: &dcp.ListProgressMessageHandler{
-			ListingResultReader: dcp.NewGCSListingResultReader(gcsClient),
+			ListingResultReader:  dcp.NewGCSListingResultReader(gcsClient),
 			ObjectMetadataReader: metadataReader,
 		},
 	}
