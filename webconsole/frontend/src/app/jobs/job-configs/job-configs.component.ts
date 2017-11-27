@@ -6,7 +6,7 @@ import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.compo
 import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
-import { JobConfigResponse, SimpleDataSource } from '../jobs.resources';
+import { JobConfigRequest, JobConfigResponse, SimpleDataSource } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 
 @Component({
@@ -32,6 +32,13 @@ export class JobConfigsComponent implements OnInit {
    * The number of checkboxes that have been checked.
    */
   numChecked = 0;
+
+  /**
+   * An object to pass to the add job configuration dialog with starting information for the
+   * dialog.
+   */
+  startingJobConfig: JobConfigRequest = new JobConfigRequest(/*jobConfigId*/'',
+      /*gcsBucket*/'', /*fileSystemDirectory*/'');
 
   displayedColumns = ['JobConfigId', 'onPremSrcDirectory', 'gcsBucket'];
 
@@ -76,7 +83,8 @@ export class JobConfigsComponent implements OnInit {
 
   openAddJobConfigDialog(): void {
     const jobConfigDialogReference = this.dialog.open(JobConfigAddDialogComponent, {
-      width: '500px'
+      width: '500px',
+      data: this.startingJobConfig
     });
 
     jobConfigDialogReference.afterClosed().subscribe(configSuccessfullyPosted => {
@@ -118,5 +126,27 @@ export class JobConfigsComponent implements OnInit {
           data: errorContent
         });
       });
+  }
+
+  /**
+   * Handles the user click on the clone existing configuration button.
+   */
+  cloneExistingConfig() {
+    let selectedJobConfigId: string;
+    for (const key in this.checkedCheckboxes) {
+      if (this.checkedCheckboxes[key] === true) {
+        selectedJobConfigId = key;
+        break;
+      }
+    }
+    for (const jobConfig of this.jobConfigs) {
+      if (jobConfig.JobConfigId === selectedJobConfigId) {
+        this.startingJobConfig.jobConfigId = jobConfig.JobConfigId + ' copy';
+        this.startingJobConfig.gcsBucket = jobConfig.JobSpec.gcsBucket;
+        this.startingJobConfig.fileSystemDirectory = jobConfig.JobSpec.onPremSrcDirectory;
+        break;
+      }
+    }
+    this.openAddJobConfigDialog();
   }
 }

@@ -8,6 +8,10 @@
       <mat-icon class="mat-24" >delete</mat-icon>
       Delete selected
   </button>
+  <button mat-raised-button class="ingest-copy-job-config ingest-config-button" (click)="cloneExistingConfig()" [disabled]="numChecked !== 1">
+    <mat-icon class="mat-24" >content_copy</mat-icon>
+    Copy this job
+  </button>
 </div>
 <ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else content"></ng-container>
 <ng-template #loadingSpinner>

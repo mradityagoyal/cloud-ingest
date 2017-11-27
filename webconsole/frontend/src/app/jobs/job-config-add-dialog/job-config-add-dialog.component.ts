@@ -1,8 +1,8 @@
 import 'rxjs/add/operator/finally';
 
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component } from '@angular/core';
-import { MatDialogRef } from '@angular/material';
+import { Component, Inject } from '@angular/core';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
 
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigRequest } from '../jobs.resources';
@@ -27,8 +27,16 @@ export class JobConfigAddDialogComponent {
   showError = false;
   errorTitle: string;
 
+  /**
+   * Makes the JobConfig add dialog component.
+   *
+   * @param data An input JobConfigRequest to use as start configuration for the dialog.
+   */
   constructor(private readonly jobsService: JobsService,
-              private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>) { }
+              private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>,
+              @Inject(MAT_DIALOG_DATA) public data: JobConfigRequest) {
+                this.model = data;
+              }
 
   onSubmit() {
     this.submittingForm = true;

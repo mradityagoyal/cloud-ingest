@@ -13,7 +13,7 @@ import { AngularMaterialImporterModule } from '../../angular-material-importer/a
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
-import { JobConfigResponse } from '../jobs.resources';
+import { JobConfigRequest, JobConfigResponse } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 import { FAKE_JOB_CONFIG_LIST, FAKE_JOB_CONFIGS } from '../jobs.test-util';
 import { JobConfigsComponent } from './job-configs.component';
@@ -271,6 +271,30 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
         fixture.whenStable().then(() => {
           expect(matDialogStub.open).toHaveBeenCalled();
           expect(matDialogStub.open.calls.first().args[0]).toBe(ErrorDialogComponent);
+        });
+      });
+    });
+  }));
+
+  it('should open a job config dialog with the selected job config information', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox1 = compiled.querySelector('#fakeJobConfigId1-input');
+      checkbox1.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const deleteConfigButton = compiled.querySelector('.ingest-copy-job-config');
+        deleteConfigButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          const component = fixture.debugElement.componentInstance;
+          const startingConfig: JobConfigRequest = matDialogStub.open.calls.first().args[1].data;
+          expect(matDialogStub.open).toHaveBeenCalled();
+          expect(startingConfig.jobConfigId).toContain(FAKE_JOB_CONFIGS[0].JobConfigId);
+          expect(startingConfig.fileSystemDirectory).toContain(FAKE_JOB_CONFIGS[0].JobSpec.onPremSrcDirectory);
+          expect(startingConfig.gcsBucket).toContain(FAKE_JOB_CONFIGS[0].JobSpec.gcsBucket);
         });
       });
     });

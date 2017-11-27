@@ -2,7 +2,7 @@ import 'rxjs/add/observable/of';
 
 import { async, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
-import { MatDialogRef } from '@angular/material';
+import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { Observable } from 'rxjs/Observable';
 
@@ -45,6 +45,7 @@ describe('JobConfigAddDialogComponent', () => {
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},
         {provide: MatDialogRef, useValue: matDialogRefStub},
+        {provide: MAT_DIALOG_DATA, useValue: EMPTY_MODEL}
       ],
       imports: [
         FormsModule,
