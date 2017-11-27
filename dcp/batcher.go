@@ -25,6 +25,7 @@ import (
 
 const (
 	batchingTimeInterval time.Duration = 1 * time.Second
+	maxBatchSize                       = 1000
 )
 
 // taskUpdatesBatcher provides a capability for batching tasks updates/inserts
@@ -34,6 +35,8 @@ type taskUpdatesBatcher struct {
 	store               Store
 	pendingTasksToStore *TaskUpdateCollection
 	pendingMsgsToAck    []*pubsub.Message
+	currUpdateSize      int
+	maxBatchSize        int
 	mu                  sync.Mutex
 	ticker              Ticker
 	ackMessage          func(msg *pubsub.Message)
@@ -45,42 +48,67 @@ func (b *taskUpdatesBatcher) addTaskUpdate(
 	taskUpdate *TaskUpdate, msg *pubsub.Message) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
+	// Check the batch size before adding the new TaskUpdate.
+	if b.currUpdateSize+1+len(taskUpdate.NewTasks) > b.maxBatchSize {
+		// Commit the current updates first before getting batching new ones.
+		b.commitUpdates()
+	}
 	b.pendingTasksToStore.AddTaskUpdate(taskUpdate)
 	b.pendingMsgsToAck = append(b.pendingMsgsToAck, msg)
+	b.currUpdateSize += 1 + len(taskUpdate.NewTasks)
 }
 
-// commitUpdates commits the pending tasks to be inserted/updated to the spanner
-// store and ack's the Pub/Sub progress messages upon the success of the
-// transaction. If everything is successful, it resets the pendingTasksToStore
-// map and pendingMsgsToAck list.
+// commitUpdates retries commitUpdatesClosure with exponential back off
+// strategy. mu Lock should be acquired before calling this function.
 func (b *taskUpdatesBatcher) commitUpdates() {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	if len(b.pendingMsgsToAck) == 0 {
-		return
+	// TODO(b/69788003): RetryWithExponentialBackoff should should only retry on
+	// re-triable error.
+	err := RetryWithExponentialBackoff(
+		time.Second,              // Initial sleep time.
+		30*time.Second,           // Max sleep time.
+		10,                       // Max number of failures
+		"commitUpdates",          // Function name
+		b.commitUpdatesClosure(), // Closure to run.
+	)
+	if err != nil {
+		panic(err)
 	}
+}
 
-	// TODO(b/67472516): One optimization we can do here is to take a copy of
-	// tasks and messages, and then release the lock before calling the
-	// UpdateAndInsertTasks or ack'ing the messages. This way we guarantee that
-	// other receivers will be blocked for Spanner transaction or Pub/Sub server
-	// calls to complete.
-	if err := b.store.UpdateAndInsertTasks(b.pendingTasksToStore); err != nil {
-		log.Printf("Error on UpdateAndInsertTasks: %v.", err)
-		return
+// commitUpdatesClosure returns a closure that commits the pending tasks to be
+// inserted/updated to the spanner store and ack's the Pub/Sub progress messages
+// upon the success of the transaction. If everything is successful, it resets
+// the pendingTasksToStore map and pendingMsgsToAck list.
+func (b *taskUpdatesBatcher) commitUpdatesClosure() func() error {
+
+	return func() error {
+		if len(b.pendingMsgsToAck) == 0 {
+			return nil
+		}
+
+		// TODO(b/67472516): One optimization we can do here is to take a copy of
+		// tasks and messages, and then release the lock before calling the
+		// UpdateAndInsertTasks or ack'ing the messages. This way we guarantee that
+		// other receivers will be blocked for Spanner transaction or Pub/Sub server
+		// calls to complete.
+		if err := b.store.UpdateAndInsertTasks(b.pendingTasksToStore); err != nil {
+			log.Printf("Error on UpdateAndInsertTasks: %v.", err)
+			return err
+		}
+
+		// Ack'ing the messages. This ack is asynchronous, meaning that the client
+		// library marks the message as ack'ed, and will batch the actual ack's to the
+		// Pub/Sub server.
+		for _, msg := range b.pendingMsgsToAck {
+			b.ackMessage(msg)
+		}
+
+		// Reset the pending tasks to commit and pending messages to ack.
+		b.pendingTasksToStore.Clear()
+		b.pendingMsgsToAck = b.pendingMsgsToAck[:0]
+		b.currUpdateSize = 0
+		return nil
 	}
-
-	// Ack'ing the messages. This ack is asynchronous, meaning that the client
-	// library marks the message as ack'ed, and will batch the actual ack's to the
-	// Pub/Sub server.
-	for _, msg := range b.pendingMsgsToAck {
-		b.ackMessage(msg)
-	}
-
-	// Reset the pending tasks to commit and pending messages to ack.
-	b.pendingTasksToStore.Clear()
-	b.pendingMsgsToAck = b.pendingMsgsToAck[:0]
 }
 
 // TODO(b/67468360): Consider passing a context in case we need to cancel or
@@ -104,19 +132,17 @@ func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t Ticker, testC
 	b.ticker = t
 	b.pendingTasksToStore = &TaskUpdateCollection{}
 	b.pendingMsgsToAck = []*pubsub.Message{}
+	b.currUpdateSize = 0
+	b.maxBatchSize = maxBatchSize
 	b.ackMessage = func(msg *pubsub.Message) {
 		msg.Ack()
 	}
 
 	go func() {
-		c := b.ticker.GetChannel()
-		for {
-			select {
-			case <-c:
-				b.commitUpdates()
-			}
-			// TODO(b/67468147): Implement batching transactions based on the size of
-			// the transaction in addition to the interval based one.
+		for range b.ticker.GetChannel() {
+			b.mu.Lock()
+			b.commitUpdates()
+			b.mu.Unlock()
 			if testChannel != nil {
 				testChannel <- 0
 			}

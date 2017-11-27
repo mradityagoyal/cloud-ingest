@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"fmt"
 	"strconv"
 	"sync"
 	"testing"
@@ -32,42 +33,45 @@ func initializePubSubMock() (map[string]bool, func(msg *pubsub.Message)) {
 	return ackedMessages, ackMessageFnMock
 }
 
-// TODO(b/68757834): This test sometimes fails and sometimes doesn't.
-func TestBatcherWithOneUpdate(t *testing.T) {
-	ackedMessages, ackMessageFnMock := initializePubSubMock()
-	var batcher taskUpdatesBatcher
-
-	task := &Task{
-		JobConfigId: "dummy-config",
+// createTaskAndTaskUpdate creates a dummy Task with status Queued, and a
+// TaskUpdate to change the dummy task status to Success and create new tasks.
+func createTaskAndTaskUpdate(
+	configId string, numberNewTasks int) (*Task, *TaskUpdate) {
+	task := Task{
+		JobConfigId: configId,
 		JobRunId:    "dummy-run",
 		TaskId:      "dummy-task",
 		Status:      Queued,
 	}
 
+	updatedTask := task
+	// Change the task update status to success.
+	updatedTask.Status = Success
+
+	taskUpdate := TaskUpdate{
+		Task:     &updatedTask,
+		NewTasks: make([]*Task, numberNewTasks),
+	}
+	for i := 0; i < numberNewTasks; i++ {
+		taskUpdate.NewTasks[i] = &Task{
+			JobConfigId: task.JobConfigId,
+			JobRunId:    task.JobRunId,
+			TaskId:      fmt.Sprintf("dummy-new-task-%d", i),
+		}
+	}
+	return &task, &taskUpdate
+}
+
+func TestBatcherWithOneUpdate(t *testing.T) {
+	ackedMessages, ackMessageFnMock := initializePubSubMock()
+	var batcher taskUpdatesBatcher
+
+	task, taskUpdate := createTaskAndTaskUpdate("dummy-config", 2)
+
 	store := &FakeStore{
 		tasks: map[string]*Task{
 			task.getTaskFullId(): task,
 		},
-	}
-
-	updatedTask := *task
-	updatedTask.Status = Success
-
-	task1 := &Task{
-		JobConfigId: "dummy-config",
-		JobRunId:    "dummy-run",
-		TaskId:      "new-task-1",
-	}
-
-	task2 := &Task{
-		JobConfigId: "dummy-config",
-		JobRunId:    "dummy-run",
-		TaskId:      "new-task-2",
-	}
-
-	taskUpdate := &TaskUpdate{
-		Task:     &updatedTask,
-		NewTasks: []*Task{task1, task2},
 	}
 
 	msg := &pubsub.Message{ID: "dummy-msg"}
@@ -104,20 +108,21 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 	mockTicker := NewMockTicker()
 	testChannel := make(chan int)
 	batcher.initializeAndStartInternal(store, mockTicker, testChannel)
+	// Setting the max batch size to exercise commits based on the batch size.
+	batcher.maxBatchSize = 13
 	// Override Pub/Sub Ack function with a mock one.
 	batcher.ackMessage = ackMessageFnMock
 
 	numberOfTasks := 100
 
+	tasks := make([]*Task, numberOfTasks)
+	taskUpdates := make([]*TaskUpdate, numberOfTasks)
+
 	// Initialize the store with new tasks
 	for i := 0; i < numberOfTasks; i++ {
-		task := &Task{
-			JobConfigId: "dummy-config",
-			JobRunId:    "dummy-run",
-			TaskId:      "dummy-task-" + strconv.Itoa(i),
-			Status:      Queued,
-		}
-		store.tasks[task.getTaskFullId()] = task
+		tasks[i], taskUpdates[i] = createTaskAndTaskUpdate(
+			fmt.Sprintf("dummy-config-%d", i), i%2)
+		store.tasks[tasks[i].getTaskFullId()] = tasks[i]
 	}
 
 	var wg sync.WaitGroup
@@ -126,29 +131,8 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 		wg.Add(1)
 		go func(count int) {
 			defer wg.Done()
-			updatedTask := &Task{
-				JobConfigId: "dummy-config",
-				JobRunId:    "dummy-run",
-				TaskId:      "dummy-task-" + strconv.Itoa(count),
-				Status:      Success,
-			}
-
-			newTasks := []*Task{}
-			// Half of the tasks generate new tasks.
-			if count%2 != 0 {
-				newTasks = append(newTasks, &Task{
-					JobConfigId: "dummy-config",
-					JobRunId:    "dummy-run",
-					TaskId:      "new-task-" + strconv.Itoa(count),
-					Status:      Unqueued,
-				})
-			}
-			taskUpdate := &TaskUpdate{
-				Task:     updatedTask,
-				NewTasks: newTasks,
-			}
 			msg := &pubsub.Message{ID: "dummy-msg-" + strconv.Itoa(count)}
-			batcher.addTaskUpdate(taskUpdate, msg)
+			batcher.addTaskUpdate(taskUpdates[count], msg)
 		}(i)
 	}
 	wg.Wait()
@@ -167,5 +151,48 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 	if len(store.tasks) != numberOfTasks+numberOfTasks/2 {
 		t.Errorf("expected %v tasks in the store, found %v",
 			numberOfTasks+numberOfTasks/2, len(store.tasks))
+	}
+}
+
+func TestBatcherMaxBatchSize(t *testing.T) {
+	ackedMessages, ackMessageFnMock := initializePubSubMock()
+	var batcher taskUpdatesBatcher
+
+	task1, taskUpdate1 := createTaskAndTaskUpdate("dummy-config-1", 2)
+	task2, taskUpdate2 := createTaskAndTaskUpdate("dummy-config-2", 0)
+
+	store := &FakeStore{
+		tasks: map[string]*Task{
+			task1.getTaskFullId(): task1,
+			task2.getTaskFullId(): task2,
+		},
+	}
+
+	msg1 := &pubsub.Message{ID: "dummy-msg-1"}
+	msg2 := &pubsub.Message{ID: "dummy-msg-2"}
+
+	mockTicker := NewMockTicker()
+	testChannel := make(chan int)
+	batcher.initializeAndStartInternal(store, mockTicker, testChannel)
+	// Override Pub/Sub Ack function with a mock one.
+	batcher.ackMessage = ackMessageFnMock
+	batcher.maxBatchSize = 3
+	batcher.addTaskUpdate(taskUpdate1, msg1)
+
+	// Try adding another update task should trigger the commit.
+	batcher.addTaskUpdate(taskUpdate2, msg1)
+
+	if len(store.tasks) != 4 {
+		t.Errorf("expected 4 tasks in the store, found %v.", len(store.tasks))
+	}
+	if store.tasks[task1.getTaskFullId()].Status != Success {
+		t.Errorf("expected task %v to be updated success status.",
+			store.tasks[task1.getTaskFullId()])
+	}
+	if !ackedMessages[msg1.ID] {
+		t.Errorf("message %v should be ack'ed but it's not.", msg1.ID)
+	}
+	if ackedMessages[msg2.ID] {
+		t.Errorf("message %v should not be ack'ed but it is.", msg2.ID)
 	}
 }
