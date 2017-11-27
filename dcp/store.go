@@ -29,6 +29,14 @@ import (
 	"google.golang.org/api/iterator"
 )
 
+// Note that these constants should be kept in sync with changes to the Spanner schema.
+// Changing the number of columns in a table, or creating or removing indexes could
+// change these limits.
+const (
+	MarkLogsAsProcessedBatchSize int = 2000
+	// TODO(b/69808978): Determine and implement other transaction limits.
+)
+
 // Store provides an interface for the backing store that is used by the DCP.
 type Store interface {
 	// GetJobSpec retrieves the JobSpec from the store.
@@ -649,31 +657,46 @@ func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 	if len(logEntryRows) == 0 {
 		return nil
 	}
-	_, err := s.Spanner.ReadWriteTransaction(
-		context.Background(),
-		func(ctx context.Context, txn ReadWriteTransaction) error {
-			mutations := make([]*spanner.Mutation, len(logEntryRows))
-			for i, l := range logEntryRows {
-				mutations[i] = spanner.Update(
-					"LogEntries",
-					[]string{
-						"JobConfigId",
-						"JobRunId",
-						"TaskId",
-						"LogEntryId",
-						"Processed",
-					},
-					[]interface{}{
-						l.JobConfigId,
-						l.JobRunId,
-						l.TaskId,
-						l.LogEntryId,
-						true, /* Processed.*/
-					})
-			}
-			return txn.BufferWrite(mutations)
-		})
-	return err
+	// Break the logEntryRows into multiple transactions to get under the 20000
+	// Spanner mutation transaction limit. These entries don't all have to be updated
+	// in a single transaction, since the LogEntryProcessor guarantees at-least-once
+	// log writing to GCS.
+	txnSize := MarkLogsAsProcessedBatchSize
+	for i := 0; i < len(logEntryRows); i += txnSize {
+		rangeEnd := i + txnSize
+		if rangeEnd > len(logEntryRows) {
+			rangeEnd = len(logEntryRows)
+		}
+		txnRows := logEntryRows[i:rangeEnd]
+		_, err := s.Spanner.ReadWriteTransaction(
+			context.Background(),
+			func(ctx context.Context, txn ReadWriteTransaction) error {
+				mutations := make([]*spanner.Mutation, len(txnRows))
+				for i, l := range txnRows {
+					mutations[i] = spanner.Update(
+						"LogEntries",
+						[]string{
+							"JobConfigId",
+							"JobRunId",
+							"TaskId",
+							"LogEntryId",
+							"Processed",
+						},
+						[]interface{}{
+							l.JobConfigId,
+							l.JobRunId,
+							l.TaskId,
+							l.LogEntryId,
+							true, /* Processed.*/
+						})
+				}
+				return txn.BufferWrite(mutations)
+			})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // getUnqueuedTasks retrieves at most n unqueued tasks from the store.
