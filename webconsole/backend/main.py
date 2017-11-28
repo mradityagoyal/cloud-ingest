@@ -20,24 +20,25 @@ be sent.
 """
 import argparse
 import httplib
+import json
 import logging
 import re
-import json
-from corsdecorator import crossdomain  # To allow requests from the front-end
+import traceback
+
 from flask import Flask
 from flask import jsonify
 from flask import request
+from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import Conflict
-from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import Forbidden
+from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import PreconditionFailed
 from google.cloud.exceptions import ServerError
 from google.cloud.exceptions import Unauthorized
-from google.cloud.exceptions import BadRequest
 from google.oauth2.credentials import Credentials
 
 import infra_util
-import traceback
+from corsdecorator import crossdomain  # To allow requests from the front-end
 from spannerwrapper import SpannerWrapper
 
 APP = Flask(__name__)
@@ -179,39 +180,6 @@ def job_configs(project_id):
         created_config = spanner_wrapper.get_job_config(
             content['jobConfigId'])
         return jsonify(created_config), httplib.CREATED
-
-@APP.route('/projects/<project_id>/jobruns', methods=['GET', 'OPTIONS', 'POST'])
-@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def job_runs(project_id):
-    """Handle all job run related requests."""
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
-    if request.method == 'GET':
-        created_before = _get_int_param(request, 'createdBefore')
-        num_runs = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
-
-        return jsonify(spanner_wrapper.get_job_runs(
-            num_runs,
-            created_before=created_before
-        ))
-    elif request.method == 'POST':
-        content = request.json
-        if 'JobConfigId' not in content or 'JobRunId' not in content:
-            response = {
-                'error':
-                'missing required property',
-                'message': ('Missing at least one of the required properties: '
-                            '[\'JobConfigId\', \'JobRunId\']')
-            }
-            return jsonify(response), httplib.BAD_REQUEST
-
-        spanner_wrapper.create_job_run(content['JobConfigId'],
-                                       content['JobRunId'])
-        created_job_run = spanner_wrapper.get_job_run(
-            content['JobConfigId'], content['JobRunId'])
-        return jsonify(created_job_run), httplib.CREATED
 
 @APP.route('/projects/<project_id>/jobruns/<config_id>/<run_id>',
            methods=['GET', 'OPTIONS'])

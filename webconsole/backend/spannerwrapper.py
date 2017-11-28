@@ -20,19 +20,19 @@ client is in JSON format and stored in a dictionary.
 import json
 import os
 import time
-import util
-from google.cloud import spanner
-from google.cloud.spanner_v1.proto import type_pb2
-from gaxerrordecorator import handle_common_gax_errors
 
+from google.cloud import spanner
+from google.cloud.exceptions import BadRequest
+from google.cloud.spanner_v1.proto import type_pb2
+
+import util
 from create_infra.job_utilities import TASK_STATUS_UNQUEUED
 from create_infra.job_utilities import TASK_TYPE_LIST
 from create_infra.job_utilities import JOB_STATUS_IN_PROGRESS
+from gaxerrordecorator import handle_common_gax_errors
 from proto.tasks_pb2 import TaskFailureType
 from proto.tasks_pb2 import TaskStatus
-from proto.tasks_pb2 import TaskType
 
-from google.cloud.exceptions import BadRequest
 
 def _check_max_num_tasks_in_range(max_num_tasks):
     """Checks that the maximum number of tasks is in the allowed range.
@@ -385,98 +385,6 @@ class SpannerWrapper(object):
 
         self.insert(SpannerWrapper.TASKS_TABLE,
                     SpannerWrapper.TASKS_COLUMNS, values)
-
-    def get_job_runs(self, max_num_runs, created_before=None):
-        """Retrieves job runs from Cloud Spanner.
-
-        Retrieves 0 to max_num_runs job runs. If a created_before time is
-        specified, only jobs created before the given time will be returned
-        (created_before is intended for use as a continuation token for paging).
-        The returned job runs are sorted by creation time, with the most
-        recent runs listed first.
-
-        Args:
-            max_num_runs: 0 to max_num_runs will be returned. Must be > 0
-                          and < ROW_CAP.
-            created_before: The time before which all returned runs were created
-
-        Returns:
-            A list of dictionaries, where each dictionary represents a job run.
-
-        Raises:
-            ValueError: If max_num_runs is <= 0 or > ROW_CAP
-        """
-        if max_num_runs <= 0:
-            raise ValueError("max_num_runs must be greater than 0")
-        if max_num_runs > SpannerWrapper.ROW_CAP:
-            raise ValueError("max_num_runs must be less than or equal to %d" %
-                             SpannerWrapper.ROW_CAP)
-
-        query = "SELECT * FROM %s" % SpannerWrapper.JOB_RUNS_TABLE
-        params = {"num_runs": max_num_runs}
-        param_types = {"num_runs": type_pb2.Type(code=type_pb2.INT64)}
-        if created_before:
-            query += " WHERE %s < @created_before" % (
-                SpannerWrapper.JOB_CREATION_TIME)
-            params["created_before"] = created_before
-            param_types["created_before"] = type_pb2.Type(code=type_pb2.INT64)
-
-        query += " ORDER BY %s DESC LIMIT @num_runs" % (
-            SpannerWrapper.JOB_CREATION_TIME)
-        job_runs = self.list_query(query, params, param_types)
-        return util.json_to_dictionary_in_field(job_runs,
-                                                SpannerWrapper.COUNTERS)
-
-    # pylint: disable=too-many-arguments
-    def get_tasks_for_run(self, config_id, run_id, max_num_tasks,
-                          task_type=None, last_modified=None):
-        """Retrieves the tasks with the given type for the specified job run.
-
-        Retrieves the tasks for the specified job run from Cloud Spanner. If
-        a task type is specified, only retrieves tasks of that type. Otherwise
-        returns alls tasks for the given job run. Tasks are sorted by
-        last modification time, with the most recently modified tasks
-        listed first.
-
-        Args:
-            config_id: The config id of the desired tasks
-            run_id: The job run id of the desired tasks
-            max_num_tasks: The number of tasks to return. Must be > 0.
-                           max_num_tasks is the max number of tasks returned,
-                           less than max_num_tasks will be returned if there
-                           are not enough matching tasks.
-            task_type: The desired type of the tasks, defaults to None.
-            last_modified: All returned tasks will have a last_modified time
-                         less than the given time
-
-        Returns:
-          A dictionary containing the tasks matching the given parameters.
-
-        Raises:
-          BadRequest: If max_num_tasks is not in range.
-        """
-        _check_max_num_tasks_in_range(max_num_tasks)
-        if (task_type is not None and
-            task_type not in TaskType.Type.values()):
-            raise BadRequest("Task of type %d is unknown.", task_type)
-        params, param_types = _get_tasks_params_and_types(config_id,
-            run_id, max_num_tasks)
-
-        query = ("SELECT * FROM %s WHERE %s = @config_id AND %s = @run_id " %
-            (SpannerWrapper.TASKS_TABLE, SpannerWrapper.JOB_CONFIG_ID,
-                SpannerWrapper.JOB_RUN_ID))
-        if last_modified:
-            params["last_modified"] = last_modified
-            param_types["last_modified"] = type_pb2.Type(code=type_pb2.INT64)
-            query += ("AND %s < @last_modified " %
-                SpannerWrapper.LAST_MODIFICATION_TIME)
-        if task_type:
-            params["task_type"] = task_type
-            param_types["task_type"] = type_pb2.Type(code=type_pb2.INT64)
-            query += ("AND %s = @task_type " % SpannerWrapper.TASK_TYPE)
-        query += ("ORDER BY %s DESC LIMIT @num_tasks" %
-                  SpannerWrapper.LAST_MODIFICATION_TIME)
-        return self.list_query(query, params, param_types)
 
     def get_tasks_of_status(self, config_id, run_id, max_num_tasks,
                             task_status, last_modified_before=None):
