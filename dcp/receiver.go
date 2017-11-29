@@ -90,15 +90,13 @@ func (r *MessageReceiver) getJobSpec(jobConfigId string) (*JobSpec, error) {
 	return storeJobSpec, nil
 }
 
-func (r *MessageReceiver) ReceiveMessages() error {
+func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
 	// Currently, there is a batcher for each message receiver type (list, uploadGCS).
 	// Maybe we can consider only one batcher for all the receiver types.
 	r.batcher.initializeAndStart(r.Store)
 	r.jobSpecsCache.Lock()
 	r.jobSpecsCache.c = lru.New(jobSpecsCacheMaxSize)
 	r.jobSpecsCache.Unlock()
-
-	ctx := context.Background()
 
 	err := r.Sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
 		// Node JS client library send the message with quotes, removing the quotes
@@ -146,9 +144,20 @@ func (r *MessageReceiver) ReceiveMessages() error {
 
 		r.batcher.addTaskUpdate(taskUpdate, msg)
 	})
+
+	if ctx.Err() != nil {
+		log.Printf(
+			"Error receiving messages for subscription %v, with context error: %v.",
+			r.Sub, ctx.Err())
+	}
+
+	// The Pub/Sub client libraries already retries on retriable errors. Panic
+	// here on non-retriable errors.
 	if err != nil {
 		log.Printf("Error receiving messages for subscription %v, with error: %v.",
 			r.Sub, err)
+		// TODO(b/69918304): We should not panic in the managed service. Instead,
+		// we should have an alerting technique for non-retriable errors.
+		panic(err)
 	}
-	return err
 }

@@ -123,8 +123,8 @@ func main() {
 		},
 	}
 
-	go listingReceiver.ReceiveMessages()
-	go uploadGCSReceiver.ReceiveMessages()
+	go listingReceiver.ReceiveMessages(ctx)
+	go uploadGCSReceiver.ReceiveMessages(ctx)
 
 	// The LogEntryProcessor will continuously export logs from the "LogEntries"
 	// Spanner table to GCS.
