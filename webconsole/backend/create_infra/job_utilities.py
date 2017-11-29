@@ -65,21 +65,22 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
             'totalTasks': 1,  # Start at 1 b/c list task is manually inserted
             'tasksCompleted': 0,
             'tasksFailed': 0,
+            'tasksQueued': 0,
+            'tasksUnqueued': 1,
 
             # List task stats.
             'totalTasksList': 1,
             'tasksCompletedList': 0,
             'tasksFailedList': 0,
+            'tasksQueuedList': 0,
+            'tasksUnqueuedList': 1,
 
             # Copy task stats.
             'totalTasksCopy': 0,
             'tasksCompletedCopy': 0,
             'tasksFailedCopy': 0,
-
-            # Load task stats.
-            'totalTasksLoad': 0,
-            'tasksCompletedLoad': 0,
-            'tasksFailedLoad': 0
+            'tasksQueuedCopy': 0,
+            'tasksUnqueuedCopy': 0
         }
 
         # Adding a job run.

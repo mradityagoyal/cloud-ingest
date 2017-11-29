@@ -312,21 +312,22 @@ class SpannerWrapper(object):
             'totalTasks': initial_total_tasks,
             'tasksCompleted': 0,
             'tasksFailed': 0,
+            'tasksQueued': 0,
+            'tasksUnqueued': initial_total_tasks,
 
             # List task stats.
             'totalTasksList': initial_total_tasks,
             'tasksCompletedList': 0,
             'tasksFailedList': 0,
+            'tasksQueuedList': 0,
+            'tasksUnqueuedList': initial_total_tasks,
 
             # Copy task stats.
             'totalTasksCopy': 0,
             'tasksCompletedCopy': 0,
             'tasksFailedCopy': 0,
-
-            # Load task stats.
-            'totalTasksLoad': 0,
-            'tasksCompletedLoad': 0,
-            'tasksFailedLoad': 0
+            'tasksQueuedCopy': 0,
+            'tasksUnqueuedCopy': 0
         }
         # The job status is set to in counters because the first list
         # task is manually inserted. When the logic in the DCP is changed,

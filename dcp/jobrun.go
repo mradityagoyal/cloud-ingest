@@ -32,6 +32,7 @@ const (
 	KeyTasksCompleted string = "tasksCompleted"
 	KeyTasksFailed    string = "tasksFailed"
 	KeyTasksQueued    string = "tasksQueued"
+	KeyTasksUnqueued  string = "tasksUnqueued"
 
 	KeySuffixList string = "List"
 	KeySuffixCopy string = "Copy"
@@ -125,15 +126,32 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 			return err
 		}
 		// Decrement the old status' counters.
-		if oldStatus == Failed {
-			deltaObj.counter[KeyTasksFailed] -= 1
-			deltaObj.counter[KeyTasksFailed+suffix] -= 1
-		} else if oldStatus == Queued {
+		switch oldStatus {
+		case Unqueued:
+			deltaObj.counter[KeyTasksUnqueued] -= 1
+			deltaObj.counter[KeyTasksUnqueued+suffix] -= 1
+		case Queued:
 			deltaObj.counter[KeyTasksQueued] -= 1
 			deltaObj.counter[KeyTasksQueued+suffix] -= 1
+		case Failed:
+			deltaObj.counter[KeyTasksFailed] -= 1
+			deltaObj.counter[KeyTasksFailed+suffix] -= 1
+		default:
+			return errors.New(fmt.Sprintf("Unexpected oldStatus: %v", oldStatus))
 		}
+
 		// Increment the new status' counters.
-		if task.Status == Success {
+		switch task.Status {
+		case Unqueued:
+			deltaObj.counter[KeyTasksUnqueued] += 1
+			deltaObj.counter[KeyTasksUnqueued+suffix] += 1
+		case Queued:
+			deltaObj.counter[KeyTasksQueued] += 1
+			deltaObj.counter[KeyTasksQueued+suffix] += 1
+		case Failed:
+			deltaObj.counter[KeyTasksFailed] += 1
+			deltaObj.counter[KeyTasksFailed+suffix] += 1
+		case Success:
 			deltaObj.counter[KeyTasksCompleted] += 1
 			deltaObj.counter[KeyTasksCompleted+suffix] += 1
 			if tu.LogEntry == nil {
@@ -149,21 +167,8 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 			case uploadGCSTaskType:
 				deltaObj.counter[KeyBytesCopied] += le.val("src_bytes")
 			}
-		} else if task.Status == Failed {
-			deltaObj.counter[KeyTasksFailed] += 1
-			deltaObj.counter[KeyTasksFailed+suffix] += 1
-		} else if task.Status == Queued {
-			deltaObj.counter[KeyTasksQueued] += 1
-			deltaObj.counter[KeyTasksQueued+suffix] += 1
-		} else if task.Status != Unqueued {
-			// Unqueued is tracked implicitly, so there is currently no
-			// additional counter for unqueued tasks. If we ever start to
-			// throttle on number of running tasks and build up an unqueued
-			// backlog, it will be needed.
-			// TODO(69421417) Add a counter for Unqueued
-			return errors.New(fmt.Sprintf(
-				"found unexpected task Status in updateForTaskUpdate: %v",
-				task.Status))
+		default:
+			return errors.New(fmt.Sprintf("Unexpected task.Status: %v", task.Status))
 		}
 	}
 
@@ -182,6 +187,8 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 		}
 		deltaObj.counter[KeyTotalTasks] += 1
 		deltaObj.counter[KeyTotalTasks+suffix] += 1
+		deltaObj.counter[KeyTasksUnqueued] += 1
+		deltaObj.counter[KeyTasksUnqueued+suffix] += 1
 	}
 
 	return nil

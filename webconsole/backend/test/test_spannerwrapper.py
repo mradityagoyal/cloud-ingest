@@ -236,21 +236,22 @@ class TestSpannerWrapper(unittest.TestCase):
             'totalTasks': 0,
             'tasksCompleted': 0,
             'tasksFailed': 0,
+            'tasksQueued': 0,
+            'tasksUnqueued': 0,
 
             # List task stats.
             'totalTasksList': 0,
             'tasksCompletedList': 0,
             'tasksFailedList': 0,
+            'tasksQueuedList': 0,
+            'tasksUnqueuedList': 0,
 
             # Copy task stats.
             'totalTasksCopy': 0,
             'tasksCompletedCopy': 0,
             'tasksFailedCopy': 0,
-
-            # Load task stats.
-            'totalTasksLoad': 0,
-            'tasksCompletedLoad': 0,
-            'tasksFailedLoad': 0
+            'tasksQueuedCopy': 0,
+            'tasksUnqueuedCopy': 0
         }
         transaction = self.set_up_transaction()
 

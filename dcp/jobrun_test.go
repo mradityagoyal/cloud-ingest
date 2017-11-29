@@ -408,6 +408,9 @@ func TestUpdateForTaskUpdateUnqueuedToSuccess(t *testing.T) {
 	if delta.counter[KeyTasksFailed] != 0 {
 		t.Errorf("expected delta.counter[KeyTasksFailed] to be 0, found %d", delta.counter[KeyTasksFailed])
 	}
+	if delta.counter[KeyTasksUnqueued] != -1 {
+		t.Errorf("expected delta.counter[KeyTasksUnqueued] to be -1, found %d", delta.counter[KeyTasksUnqueued])
+	}
 	assertOtherDeltaFieldsUnchangedForUpdate(t, delta)
 }
 
@@ -442,6 +445,9 @@ func TestUpdateForTaskUpdateUnqueuedToFailed(t *testing.T) {
 	if delta.counter[KeyTasksFailed] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksFailed] to be 1, found %d", delta.counter[KeyTasksFailed])
 	}
+	if delta.counter[KeyTasksUnqueued] != -1 {
+		t.Errorf("expected delta.counter[KeyTasksUnqueued] to be -1, found %d", delta.counter[KeyTasksUnqueued])
+	}
 	assertOtherDeltaFieldsUnchangedForUpdate(t, delta)
 }
 
@@ -465,6 +471,16 @@ func TestUpdateForTaskUpdateUnqueuedToQueued(t *testing.T) {
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
+	}
+	delta, exists := counters.deltas[fullJobId]
+	if !exists {
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+	}
+	if delta.counter[KeyTasksQueued] != 1 {
+		t.Errorf("expected delta.counter[KeyTasksQueued] to be 1, found %d", delta.counter[KeyTasksQueued])
+	}
+	if delta.counter[KeyTasksUnqueued] != -1 {
+		t.Errorf("expected delta.counter[KeyTasksUnqueued] to be -1, found %d", delta.counter[KeyTasksUnqueued])
 	}
 }
 
