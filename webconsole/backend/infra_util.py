@@ -165,7 +165,7 @@ def create_infrastructure(credentials, project_id, dcp_docker_image=None):
     if dcp_docker_image:
         compute_bldr.create_instance_async(
             constants.DCP_INSTANCE_NAME, dcp_docker_image,
-            constants.DCP_INSTANCE_CMD_LINE, [project_id])
+            constants.DCP_INSTANCE_CMD_LINE, ["-projectid="+project_id])
 
 def tear_infrastructure(credentials, project_id):
     """Tears the ingest infrastructure. Makes sure that all the infrastructure

@@ -22,6 +22,7 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"reflect"
 	"strconv"
 	"testing"
 )
@@ -62,6 +63,12 @@ func getTestingTaskUpdate(expectedGenerationNum int, status int64, failureType p
 	}
 
 	return taskUpdate
+}
+
+func DeepEqualCompare(msgPrefix string, want, got interface{}, t *testing.T) {
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("%s: Wanted %v; got %v", msgPrefix, want, got)
+	}
 }
 
 func compareTaskUpdates(want, got *TaskUpdate, t *testing.T) {

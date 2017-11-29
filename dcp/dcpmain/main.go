@@ -16,6 +16,7 @@ limitations under the License.
 package main
 
 import (
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -47,6 +48,21 @@ const (
 	maxQueueTasksSleepTime time.Duration = 5 * time.Minute
 )
 
+var (
+	projectId    string
+	tasksToQueue int
+)
+
+func init() {
+	flag.StringVar(&projectId, "projectid", "", "The project id to associate with this DCP. Must be set!")
+	flag.IntVar(&tasksToQueue, "taskstoqueue", 100, "The number of tasks to queue at a time.")
+	flag.Parse()
+	if projectId == "" {
+		fmt.Println("The projectid flag must be set. Run 'dcpmain -h' for more info about flags.")
+		os.Exit(1)
+	}
+}
+
 // GetQueueTasksClosure returns a function that calls the function QueueTasks
 // on the given store with the given values as the parameters.
 func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
@@ -58,20 +74,12 @@ func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
 }
 
 func main() {
-	// TODO(b/63103890): Do proper parsing of command line params.
-	if len(os.Args) != 2 {
-		fmt.Fprintln(os.Stderr,
-			"Only Google cloud project id should be specified in the cmd line param.")
-		os.Exit(1)
-	}
-	proj := os.Args[1]
-
 	database := fmt.Sprintf("projects/%s/instances/%s/databases/%s",
-		proj, spannerInstance, spannerDatabase)
+		projectId, spannerInstance, spannerDatabase)
 
 	ctx := context.Background()
 
-	pubSubClient, err := pubsub.NewClient(ctx, proj)
+	pubSubClient, err := pubsub.NewClient(ctx, projectId)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can not create pubsub client, error: %v.\n", err)
 		os.Exit(1)
@@ -130,9 +138,7 @@ func main() {
 			maxQueueTasksSleepTime,
 			maxNumFailures,
 			"QueueTasks",
-			// TODO(b/63018200): The number of tasks to queue(100) should be
-			// configurable, maybe as a command line param.
-			GetQueueTasksClosure(store, 100, listTopic, copyTopic),
+			GetQueueTasksClosure(store, tasksToQueue, listTopic, copyTopic),
 		)
 		if err != nil {
 			log.Printf("Error in queueing tasks: %v.", err)

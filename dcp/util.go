@@ -23,7 +23,6 @@ import (
 	"log"
 	"reflect"
 	"strings"
-	"testing"
 	"time"
 )
 
@@ -120,13 +119,6 @@ func ToInt64(val interface{}) (int64, error) {
 		return v.Int64()
 	default:
 		return 0, fmt.Errorf("invalid int64 value %v (%T)", val, val)
-	}
-}
-
-// DeepEqualCompare is a useful utility for testing and comparing.
-func DeepEqualCompare(msgPrefix string, want, got interface{}, t *testing.T) {
-	if !reflect.DeepEqual(want, got) {
-		t.Errorf("%s: Wanted %v; got %v", msgPrefix, want, got)
 	}
 }
 
