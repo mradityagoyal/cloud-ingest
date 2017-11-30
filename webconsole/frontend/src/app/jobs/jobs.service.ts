@@ -8,7 +8,7 @@ import { Observable } from 'rxjs/Observable';
 
 import { environment } from '../../environments/environment';
 import { TaskFailureType } from '../proto/tasks.js';
-import { JobConfigRequest, JobConfigResponse, JobRun, JobRunParams, Task } from './jobs.resources';
+import { JobConfigRequest, JobConfigResponse, JobRun, Task } from './jobs.resources';
 
 const POST_HEADERS = {
     headers: new HttpHeaders().set('Content-Type', 'application/json')
@@ -29,17 +29,10 @@ export class JobsService {
     });
   }
 
-  getJobRuns(): Observable<JobRun[]> {
-    return this.project.switchMap(projectId => {
-        return this.http.get<JobRun[]>(
-            `${environment.apiUrl}/projects/${projectId}/jobruns`);
-    });
-  }
-
-  getJobRun(configId: string, runId: string): Observable<JobRun> {
+  getJobRun(configId: string): Observable<JobRun> {
     return this.project.switchMap(projectId => {
         return this.http.get<JobRun>(
-            `${environment.apiUrl}/projects/${projectId}/jobruns/${configId}/${runId}`
+            `${environment.apiUrl}/projects/${projectId}/jobrun/${configId}`
         );
     });
   }
@@ -49,14 +42,6 @@ export class JobsService {
         return this.http.post<JobConfigResponse>(
             `${environment.apiUrl}/projects/${projectId}/jobconfigs`,
             config, POST_HEADERS);
-    });
-  }
-
-  postJobRun(jobParams: JobRunParams): Observable<JobRun> {
-    return this.project.switchMap(projectId => {
-        return this.http.post<JobRun>(
-            `${environment.apiUrl}/projects/${projectId}/jobruns`,
-            jobParams, POST_HEADERS);
     });
   }
 

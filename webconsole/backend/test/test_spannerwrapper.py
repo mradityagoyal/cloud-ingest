@@ -189,6 +189,7 @@ class TestSpannerWrapper(unittest.TestCase):
         self.assertEqual(len(values),
                          len(columns))
 
+
     def test_create_job_config_failure(self):
         """Asserts that create_job_config handles a raised GaxError.
 
@@ -351,58 +352,6 @@ class TestSpannerWrapper(unittest.TestCase):
             fake_last_modified,
             self.snapshot.execute_sql.call_args)
 
-    def test_get_job_run(self):
-        """Asserts that a single job run is successfully returned."""
-        config_id = 'test-config'
-        run_id = 'test-run'
-        status = 1
-        job_creation_time = 1501284844
-        counters = "{}"
-
-        result = MagicMock()
-        result.__iter__.return_value = [[
-            config_id, run_id, status, job_creation_time, counters
-        ]]
-        result.fields = self.get_fields_list(SpannerWrapper.JOB_RUNS_COLUMNS)
-        self.snapshot.execute_sql.return_value = result
-
-        actual = self.spanner_wrapper.get_job_run(config_id, run_id)
-        expected = self.get_job_run(config_id, run_id, status,
-                                    job_creation_time, counters)
-
-        self.assertEqual(actual, expected)
-
-    def test_get_job_run_nonexistent(self):
-        """Asserts None is returned when there is no matching job run."""
-        result = MagicMock()
-        result.__iter__.return_value = []
-        self.snapshot.execute_sql.return_value = result
-
-        actual = self.spanner_wrapper.get_job_run('', '')
-        self.assertIsNone(actual)
-
-    def test_get_job_run_config_id(self):
-        """Asserts that the proper JobConfigId is passed to the query."""
-        config_id = 'test-config'
-        self.spanner_wrapper.get_job_run(config_id, 'run-id')
-        self.snapshot.execute_sql.assert_called()
-        self.check_query_param(
-            "config_id",
-            config_id,
-            self.snapshot.execute_sql.call_args
-        )
-
-    def test_get_job_run_run_id(self):
-        """Asserts that the proper JobRunId is passed to the query."""
-        run_id = 'run-id'
-        self.spanner_wrapper.get_job_run('config-id', run_id)
-        self.snapshot.execute_sql.assert_called()
-        self.check_query_param(
-            "run_id",
-            run_id,
-            self.snapshot.execute_sql.call_args
-        )
-
     def set_up_transaction(self):
         """Sets up all needed mocks and returns the transaction mock.
 
@@ -459,28 +408,6 @@ class TestSpannerWrapper(unittest.TestCase):
         return {
             SpannerWrapper.JOB_CONFIG_ID: config_id,
             SpannerWrapper.JOB_SPEC: job_spec
-        }
-
-    @staticmethod
-    def get_job_run(config_id, run_id, status, job_creation_time, counters):
-        """Returns a job run in dictionary format containing the given values.
-
-        Args:
-          config_id: The job config id
-          run_id: The job run id
-          status: An int representing the status of the job
-          job_creation_time: An int representing the job_creation_time
-          counters: A string holding the JSON job counters obj
-
-        Returns:
-          A job run in dictionary format containing the given values.
-        """
-        return {
-            SpannerWrapper.JOB_CONFIG_ID: config_id,
-            SpannerWrapper.JOB_RUN_ID: run_id,
-            SpannerWrapper.STATUS: status,
-            SpannerWrapper.JOB_CREATION_TIME: job_creation_time,
-            SpannerWrapper.COUNTERS: json.loads(counters)
         }
 
     @staticmethod

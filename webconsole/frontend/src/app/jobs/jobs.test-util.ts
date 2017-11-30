@@ -2,7 +2,7 @@
  * This file contains fakes for the tests in the jobs directory.
  */
 import { TaskFailureType } from '../proto/tasks.js';
-import { JobConfigResponse, JobSpec, Task } from './jobs.resources';
+import { JobConfigResponse, JobRun, JobSpec, Task } from './jobs.resources';
 
 
 export const FAKE_TASKS: Task[] = [
@@ -59,6 +59,7 @@ export const FAKE_TASKS2: Task[] = [
 export const FAKE_JOBSPEC1: JobSpec = {'onPremSrcDirectory': 'fakeSrcDir1', 'gcsBucket' : 'fakeBucket1'};
 export const FAKE_JOBSPEC2: JobSpec = {'onPremSrcDirectory': 'fakeSrcDir2', 'gcsBucket' : 'fakeBucket2'};
 export const FAKE_JOBSPEC3: JobSpec = {'onPremSrcDirectory': 'fakeSrcDir3', 'gcsBucket' : 'fakeBucket3'};
+export const FAKE_JOBSPEC4: JobSpec = {'onPremSrcDirectory': 'fakeSrcDir4', 'gcsBucket' : 'fakeBucket4'};
 
 export const FAKE_JOB_CONFIGS: JobConfigResponse[] = [
   {
@@ -72,6 +73,121 @@ export const FAKE_JOB_CONFIGS: JobConfigResponse[] = [
   {
     JobConfigId: 'fakeJobConfigId3',
     JobSpec: FAKE_JOBSPEC3
+  }
+];
+
+export const FAKE_JOB_RUNS: JobRun[] = [
+  {
+    JobConfigId: 'fakeJobConfigId0',
+    JobRunId: 'fakeJobRunId0',
+    JobCreationTime: '1504833274371000000',
+    Status: 0,
+    JobSpec: FAKE_JOBSPEC1,
+    Counters: {
+      totalTasks: 0,
+      tasksCompleted: 0,
+      tasksFailed: 0,
+
+      totalTasksList: 0,
+      tasksCompletedList: 0,
+      tasksFailedList: 0,
+
+      totalTasksCopy: 0,
+      tasksCompletedCopy: 0,
+      tasksFailedCopy: 0,
+
+      totalTasksLoad: 0,
+      tasksCompletedLoad: 0,
+      tasksFailedLoad: 0,
+
+      listFilesFound: 0,
+      listBytesFound: 0,
+      bytesCopied: 0
+    }
+  },
+  {
+    JobConfigId: 'fakeJobConfigId1',
+    JobRunId: 'fakeJobRunId1',
+    JobCreationTime: '1504833274371000000',
+    Status: 1,
+    JobSpec: FAKE_JOBSPEC2,
+    Counters: {
+      totalTasks: 1,
+      tasksCompleted: 0,
+      tasksFailed: 0,
+
+      totalTasksList: 1,
+      tasksCompletedList: 0,
+      tasksFailedList: 0,
+
+      totalTasksCopy: 0,
+      tasksCompletedCopy: 0,
+      tasksFailedCopy: 0,
+
+      totalTasksLoad: 0,
+      tasksCompletedLoad: 0,
+      tasksFailedLoad: 0,
+
+      listFilesFound: 0,
+      listBytesFound: 0,
+      bytesCopied: 0
+    }
+  },
+  {
+    JobConfigId: 'fakeJobConfigId2',
+    JobRunId: 'fakeJobRunId2',
+    JobCreationTime: '1504833274371000000',
+    Status: 2,
+    JobSpec: FAKE_JOBSPEC3,
+    Counters: {
+      totalTasks: 5,
+      tasksCompleted: 4,
+      tasksFailed: 1,
+
+      totalTasksList: 1,
+      tasksCompletedList: 1,
+      tasksFailedList: 0,
+
+      totalTasksCopy: 4,
+      tasksCompletedCopy: 3,
+      tasksFailedCopy: 1,
+
+      totalTasksLoad: 0,
+      tasksCompletedLoad: 0,
+      tasksFailedLoad: 0,
+
+      listFilesFound: 4,
+      listBytesFound: 11223344,
+      bytesCopied: 11220000
+    }
+  },
+  {
+    JobConfigId: 'fakeJobConfigId3',
+    JobRunId: 'fakeJobRunId3',
+    JobCreationTime: '1504833274371000000',
+    Status: 3,
+    JobSpec: FAKE_JOBSPEC4,
+    Counters: {
+      totalTasks: 9,
+      tasksCompleted: 9,
+      tasksFailed: 0,
+
+      totalTasksList: 1,
+      tasksCompletedList: 1,
+      tasksFailedList: 0,
+
+      totalTasksCopy: 4,
+      tasksCompletedCopy: 4,
+      tasksFailedCopy: 0,
+
+      totalTasksLoad: 4,
+      tasksCompletedLoad: 4,
+      tasksFailedLoad: 0,
+
+      listFilesFound: 4,
+      listBytesFound: 11223344,
+      bytesCopied: 11223344
+    }
   }
 ];
 

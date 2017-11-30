@@ -24,6 +24,10 @@
       <dd>{{ jobRun.JobCreationTime / 1000000 | date:'short' }}</dd>
       <dt>Status</dt>
       <dd>{{ jobRun.Status | jobStatus }}</dd>
+      <dt>Source directory</dt>
+      <dd>{{ jobRun.JobSpec.onPremSrcDirectory }}</dd>
+      <dt>Destination bucket</dt>
+      <dd>{{ jobRun.JobSpec.gcsBucket }}</dd>
     </dl>
 
     <mat-tab-group id="job-progress-tabs">
@@ -36,10 +40,6 @@
           <dt>Tasks Failed</dt>
           <dd>{{ jobRun.Counters.tasksFailed }}</dd>
         </dl>
-      <a routerLink="/jobs/{{jobConfigId}}/{{jobRunId}}/tasks"
-         queryParamsHandling="merge">
-         View all tasks
-      </a>
       </mat-tab>
 
       <ng-container *ngIf="jobRun.Counters.totalTasksList > 0">
@@ -87,6 +87,10 @@
         </mat-tab>
       </ng-container>
     </mat-tab-group>
+    <a routerLink="/jobs/{{jobConfigId}}/{{jobRunId}}/tasks"
+    queryParamsHandling="merge">
+      View all tasks
+    </a>
   </ng-template>
 </ng-template>
 

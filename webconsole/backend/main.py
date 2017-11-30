@@ -58,6 +58,38 @@ _AUTH_HEADER_REGEX = re.compile(r'^\s*Bearer\s+(?P<access_token>[^\s]*)$')
 _FIRST_JOB_RUN_ID = "jobrun"
 _LIST_TASK_ID = "list"
 
+# A regex pattern that matches a valid job config id (description).
+_CONFIG_ID_PATTERN = re.compile('^[0-9A-Za-z _-]+$')
+
+# The error returned to the user indicating that the config id is invalid.
+_CONFIG_FORMAT_ERROR = {
+    'error' : 'The job config id is not in the expected format',
+    'message' : ('A job config id can only contain alphanumeric  characters,'
+                 ' underscore, hyphen and space.')
+    }
+
+# A regex pattern that matches a valid project id. Matches a string that has
+# lowercase letters, digits or hyphens and must start with a lowercase letter.
+# It must be between 6 and 30 characters
+_PROJECT_ID_PATTERN = re.compile('^[a-z]([0-9a-z-]){5,29}$')
+
+# The error returned to the user indicating that the project id is in an
+# invalid format.
+_PROJECT_ID_FORMAT_ERROR = {
+    'error' : 'The project id is not in the expected format',
+    'message' : ('Project ID must be between 6 and 30 characters. A project ID '
+                 ' can have lowercase letters, digits or hyphens and must start'
+                 ' with a lowercase letter.')
+    }
+
+# An error returned to the user indicating that the job config id was not
+# found.
+_CONFIG_NOT_FOUND_ERROR = {
+    'error' : 'Job Config ID',
+    'message' : ('The input job config id was not found on the'
+                 'database')
+}
+
 def _get_credentials():
     """Gets OAuth2 credentials from request Authorization headers."""
     auth_header = request.headers.get('Authorization')
@@ -181,31 +213,37 @@ def job_configs(project_id):
             content['jobConfigId'])
         return jsonify(created_config), httplib.CREATED
 
-@APP.route('/projects/<project_id>/jobruns/<config_id>/<run_id>',
+@APP.route('/projects/<project_id>/jobrun/<config_id>',
            methods=['GET', 'OPTIONS'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def job_run(project_id, config_id, run_id):
-    """Responds with the specified job run, or 404 Not Found.
+def get_job_run(project_id, config_id):
+    """Gets the job run info for the input config id.
 
     Args:
         project_id: The id of the project.
-        config_id: The id of the job config
-        run_id: The id of the job run
+        config_id: The id of the job config.
 
     Returns:
         On success-
-            200, A JSON job run object
+            200, A JSON object containining the job run info with the
+                 job config info.
         On failure-
-            404, Not found if a job run with the given ids does not exist
+            400, Bad request if the job config id is not valid or the project
+                 id is not valid.
+            404, Not found if a job run with the given ids does not exist.
     """
     spanner_wrapper = SpannerWrapper(_get_credentials(),
                                      project_id,
                                      APP.config['SPANNER_INSTANCE'],
                                      APP.config['SPANNER_DATABASE'])
-    result = spanner_wrapper.get_job_run(config_id, run_id)
+    if not _PROJECT_ID_PATTERN.match(project_id):
+        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    # TODO(b/69975301): Check for the config_id when creating a job config.
+    if not _CONFIG_ID_PATTERN.match(config_id):
+        return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
+    result = spanner_wrapper.get_job_run(config_id, _FIRST_JOB_RUN_ID)
     if not result:
-        raise NotFound(("Could not find a job run with config_id: %s,"
-                        " run_id: %s") % (config_id, run_id))
+        return jsonify(_CONFIG_NOT_FOUND_ERROR), httplib.NOT_FOUND
     return jsonify(result), httplib.OK
 
 @APP.route('/projects/<project_id>/tasks/<config_id>/<run_id>',

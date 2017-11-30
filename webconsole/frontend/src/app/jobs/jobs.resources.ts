@@ -40,11 +40,7 @@ export interface JobRun {
   JobCreationTime: string;
   Status: number;
   Counters: Counters;
-}
-
-export interface JobRunParams {
-  JobConfigId: string;
-  JobRunId: string;
+  JobSpec: JobSpec;
 }
 
 export interface Counters {

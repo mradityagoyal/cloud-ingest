@@ -2,10 +2,15 @@ import 'rxjs/add/operator/takeWhile';
 
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit } from '@angular/core';
+import { MatDialog } from '@angular/material';
 import { ActivatedRoute, Router } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
+import { Observable } from 'rxjs/Rx';
 
-import { JobRun } from '../jobs.resources';
+import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
+import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
+import { HttpErrorResponseFormatter } from '../../util/error.resources';
+import { JobConfigResponse, JobRun } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 
 const UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS = 10000;
@@ -24,12 +29,16 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
   jobRunId: string;
   alive: boolean; // Used to control when the component should poll the job run info.
 
+  // The job config object that corresponds to this job run.
+  jobConfig: JobConfigResponse;
+
   showLoadingSpinner: boolean;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private jobService: JobsService
+    private jobService: JobsService,
+    private dialog: MatDialog
   ) {
     this.jobConfigId = route.snapshot.paramMap.get('configId');
     this.jobRunId = this.route.snapshot.paramMap.get('runId');
@@ -38,7 +47,8 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.showLoadingSpinner = true;
     this.alive = true;
-    this.updateJobRun();
+    // this.getJobConfig();
+    this.initialJobLoad();
     IntervalObservable.create(UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS)
     /**
      * TODO(b/66414686): This observable should not emit if the job has completed.
@@ -53,51 +63,34 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
     this.alive = false;
   }
 
-  private updateJobRun() {
-    this.jobService.getJobRun(this.jobConfigId, this.jobRunId)
-    .subscribe(
-      (response: JobRun) => {
-        this.handleGetJobRunResponse(response);
-      },
-      (error: HttpErrorResponse) => {
-        this.handleGetJobRunErrorResponse(error);
-      }
-    );
-  }
-
-  /**
-   * Updates the state of the Job Run details after a successful call to getJobRun.
-   *
-   * @param{response} The http response from getJobRun.
-   */
-  private handleGetJobRunResponse(response: JobRun) {
-    this.jobRun = response;
-    this.showLoadingSpinner = false;
-    this.showError = false;
-  }
-  /**
-   * Updates the state of the Job Run details after an error.
-   *
-   * @param{response} The http error response from getJobRun.
-   */
-  private handleGetJobRunErrorResponse(error: HttpErrorResponse) {
-    /**
-     * TODO(b/66416361): Job run details page should not retry to get the job run if the error is
-     * not retry-able.
-     */
-    if (error.error instanceof Error) {
-      // A client-side or network error occurred
-      console.error('An error occurred requesting the job run details:', error.error.message);
-    } else {
-      // Back-end returned an unsuccessful response code
-      this.errorTitle = error.error.error;
-      this.errorMessage = error.error.message;
-      if (!this.errorMessage) {
-        this.errorTitle = error.statusText;
-        this.errorMessage = error.message;
-      }
+  private initialJobLoad() {
+    // Combine the observables that get the job run and job config.
+    this.jobService.getJobRun(this.jobConfigId)
+    .subscribe((response: JobRun) => {
+      this.jobRun = response;
+      this.showLoadingSpinner = false;
+    }, (error: HttpErrorResponse) => {
+      this.errorTitle = HttpErrorResponseFormatter.getTitle(error);
+      this.errorMessage = HttpErrorResponseFormatter.getMessage(error);
       this.showError = true;
       this.showLoadingSpinner = false;
-    }
+    });
+  }
+
+  private updateJobRun() {
+    this.jobService.getJobRun(this.jobConfigId)
+    .subscribe(
+      (response: JobRun) => {
+        this.jobRun = response;
+      },
+      (error: HttpErrorResponse) => {
+        const errorContent: ErrorDialogContent = {
+          errorTitle: HttpErrorResponseFormatter.getTitle(error),
+          errorMessage: HttpErrorResponseFormatter.getMessage(error)
+        };
+        this.dialog.open(ErrorDialogComponent, {
+          data: errorContent
+        });
+      });
   }
 }

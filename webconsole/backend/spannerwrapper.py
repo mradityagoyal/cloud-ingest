@@ -45,7 +45,7 @@ def _check_max_num_tasks_in_range(max_num_tasks):
         raise BadRequest("max_num_tasks must be a number between 1 and %d" %
                          SpannerWrapper.ROW_CAP)
 
-def _get_tasks_params_and_types(config_id, run_id, max_num_tasks,
+def _get_tasks_params_and_types(config_id, run_id, max_num_tasks=None,
     task_status=None, last_modified_before=None, failure_type=None):
     """Gets the base parameters and parameter types used in most queries.
     Returns:
@@ -464,23 +464,21 @@ class SpannerWrapper(object):
           run_id: The job run id of the desired job run.
 
         Returns:
-          A dictionary containing the job_run with the given job_run_id or
-          None if no such job run exists.
+          A dictionary containing the job run and job config info.
         """
-        query = ("SELECT * FROM %s WHERE %s = @run_id AND %s = @config_id" %
-                 (SpannerWrapper.JOB_RUNS_TABLE, SpannerWrapper.JOB_RUN_ID,
-                  SpannerWrapper.JOB_CONFIG_ID))
-        job_run = self.single_result_query(
-            query,
-            {"run_id": run_id, "config_id": config_id},
-            {
-                "run_id": type_pb2.Type(code=type_pb2.STRING),
-                "config_id": type_pb2.Type(code=type_pb2.STRING)
-            }
-        )
+        query = ('SELECT * FROM {0} JOIN {1} ON {0}.{2} = @config_id AND '
+                 '{0}.{3} = @run_id AND {1}.{2} = @config_id').format(
+                 SpannerWrapper.JOB_RUNS_TABLE,
+                 SpannerWrapper.JOB_CONFIGS_TABLE, SpannerWrapper.JOB_CONFIG_ID,
+                 SpannerWrapper.JOB_RUN_ID)
+        params, param_types = _get_tasks_params_and_types(run_id=run_id,
+            config_id=config_id)
+        job_run = self.single_result_query(query, params, param_types)
         if job_run:
             job_run[SpannerWrapper.COUNTERS] = json.loads(
                 job_run[SpannerWrapper.COUNTERS])
+            job_run[SpannerWrapper.JOB_SPEC] = json.loads(
+                job_run[SpannerWrapper.JOB_SPEC])
             return job_run
 
     def delete_job_configs(self, config_id_list):

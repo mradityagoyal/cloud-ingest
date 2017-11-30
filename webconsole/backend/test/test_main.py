@@ -29,6 +29,14 @@ from google.cloud.exceptions import PreconditionFailed
 from google.cloud.exceptions import Unauthorized
 from google.cloud.exceptions import BadRequest
 from test.testutils import get_task
+from google.cloud.spanner_v1.proto import type_pb2
+from google.cloud import spanner
+from google.cloud.spanner_v1.streamed import StreamedResultSet
+from google.cloud.spanner_v1.database import Database
+from google.cloud.spanner_v1.database import SnapshotCheckout
+from google.cloud.spanner_v1.instance import Instance
+from google.cloud.spanner_v1.transaction import Transaction
+from google.cloud.spanner_v1.snapshot import Snapshot
 from proto import tasks_pb2
 import httplib
 
@@ -43,9 +51,12 @@ FAKE_TASK = get_task("fake_config_id",
 FAKE_TASK_STATUS = tasks_pb2.TaskStatus.QUEUED
 FAKE_LAST_MODIFICATION_TIME = 1
 
-FAKE_JOB_SPEC = json.dumps({
+FAKE_JOB_SPEC = {
     'onPremSrcDirectory' : 'fakeFileSystemDir',
-    'gcsBucket' : 'fakeGcsBucket'})
+    'gcsBucket' : 'fakeGcsBucket'
+}
+
+FAKE_JOB_SPEC_JSON = json.dumps(FAKE_JOB_SPEC)
 
 FAKE_JOB_CONFIG_REQUEST = json.dumps({
     'jobConfigId' : 'fakeConfigId',
@@ -54,9 +65,60 @@ FAKE_JOB_CONFIG_REQUEST = json.dumps({
 
 FAKE_JOB_CONFIG_RESPONSE = {
     'JobConfigId' : 'fakeConfigId',
-    'JobSpec' : 'FAKE_JOB_SPEC'}
+    'JobSpec' : FAKE_JOB_SPEC_JSON
+}
+
+# Fake Counters object containing what is expected on the job counters field.
+FAKE_COUNTERS = {
+    'tasksCompleted':0,
+    'tasksCompletedCopy':0,
+    'tasksCompletedList':0,
+    'tasksCompletedLoad':0,
+    'tasksFailed':0,
+    'tasksFailedCopy':0,
+    'tasksFailedList':0,
+    'tasksFailedLoad':0,
+    'tasksQueued':1,
+    'tasksQueuedList':1,
+    'totalTasks':1,
+    'totalTasksCopy':0,
+    'totalTasksList':1,
+    'totalTasksLoad':0
+}
+FAKE_COUNTERS_JSON = json.dumps(FAKE_COUNTERS)
+
+# Fake response returning information from a join in the JobConfigs and JobRuns
+# table.
+FAKE_JOB_RUN_JOB_CONFIG_RESPONSE = {
+    'JobConfigId' : 'fakeConfigId',
+    'JobRunId' : 'fakeJobRunId',
+    'JobSpec' : FAKE_JOB_SPEC_JSON,
+    'Counters' : FAKE_COUNTERS_JSON
+}
 
 FAKE_LAST_MODIFICATION_TIME = 1
+
+
+def _get_fields_list(names):
+    """Gets a list of mock StrucType.Field from a list of names to populate
+    these Fields with.
+    """
+    field_mocks = []
+    for name in names:
+        field_mock = MagicMock(spec=type_pb2.StructType.Field)
+        field_mock.name = name
+        field_mocks.append(field_mock)
+    return field_mocks
+
+def _get_mock_streamed_result(dictionary):
+    """Gets a mock StreamedResultSet from an input dictionary.
+    """
+    mock_result = MagicMock(spec=StreamedResultSet)
+    mock_result.__iter__.return_value = [
+        dictionary.values()
+    ]
+    mock_result.fields = _get_fields_list(dictionary.keys())
+    return mock_result
 
 class TestMain(unittest.TestCase):
     """Tests for main.py
@@ -70,21 +132,26 @@ class TestMain(unittest.TestCase):
         self.app.testing = True
 
         # Set up the google.cloud.spanner mocks.
-        self.mock_database = MagicMock()
-        self.mock_instance = MagicMock()
-        self.mock_client = MagicMock()
-        self.mock_transaction = MagicMock()
+        self.mock_database = MagicMock(spec=Database)
+        self.mock_instance = MagicMock(spec=Instance)
+        self.mock_client = MagicMock(spec=spanner.Client)
+        self.mock_transaction = MagicMock(spec=Transaction)
+        self.mock_snapshot = MagicMock(spec=Snapshot)
 
         self.spanner_mock_patcher = patch('spannerwrapper.spanner')
         self.spanner_mock = self.spanner_mock_patcher.start()
 
-        self.get_credentials_mock_patcher = \
-            patch.object(main, '_get_credentials')
+        (self.
+         get_credentials_mock_patcher) = patch.object(main, '_get_credentials')
         self.get_credentials_mock = self.get_credentials_mock_patcher.start()
 
         self.mock_instance.database.return_value = self.mock_database
         self.mock_client.instance.return_value = self.mock_instance
         self.spanner_mock.Client.return_value = self.mock_client
+
+        snapshot_checkout_mock = MagicMock(spec=SnapshotCheckout)
+        snapshot_checkout_mock.__enter__.return_value = self.mock_snapshot
+        self.mock_database.snapshot.return_value = snapshot_checkout_mock
 
         def run_in_transaction(trans_function, *args):
             """A replacement for the run_in_transaction function that runs the
@@ -126,8 +193,8 @@ class TestMain(unittest.TestCase):
         """
         spanner_wrapper_mock_inst = MagicMock()
         spanner_wrapper_mock.return_value = spanner_wrapper_mock_inst
-        spanner_wrapper_mock_inst.get_tasks_of_failure_type.return_value = \
-            FAKE_TASK
+        (spanner_wrapper_mock_inst
+         .get_tasks_of_failure_type.return_value) = FAKE_TASK
         response = self.app.get(
             '/projects/fakeProjectId/tasks/fakeConfigId/fakeRunId/failuretype/'
             + str(tasks_pb2.TaskFailureType.UNKNOWN)
@@ -169,15 +236,15 @@ class TestMain(unittest.TestCase):
             'get_job_config', 'create_job_run',
             'create_job_run_first_list_task'))
         spanner_wrapper_mock.return_value = spanner_wrapper_mock_inst
-        spanner_wrapper_mock_inst.get_job_config.return_value = \
-            FAKE_JOB_CONFIG_RESPONSE
+        (spanner_wrapper_mock_inst.get_job_config
+         .return_value) = FAKE_JOB_CONFIG_RESPONSE
         response = self.app.post('/projects/fakeProjectId/jobconfigs',
                            data=FAKE_JOB_CONFIG_REQUEST,
                            content_type='application/json')
         response_json = json.loads(response.data)
 
         spanner_wrapper_mock_inst.create_job_config.assert_called_with(
-            'fakeConfigId', FAKE_JOB_SPEC)
+            'fakeConfigId', FAKE_JOB_SPEC_JSON)
         self.assertEqual(response_json, FAKE_JOB_CONFIG_RESPONSE)
 
     @patch.object(main, '_get_credentials')
@@ -305,27 +372,105 @@ class TestMain(unittest.TestCase):
 
         sql_query = self.mock_transaction.execute_sql.call_args[0][0]
         params = self.mock_transaction.execute_sql.call_args[1]['params']
-        param_types = \
-            self.mock_transaction.execute_sql.call_args[1]['param_types']
+        param_types = (self
+            .mock_transaction.execute_sql.call_args[1]['param_types'])
 
         # Assert that the query is counting from tasks table.
         assert 'SELECT COUNT' in sql_query
         assert 'FROM {0}'.format(SpannerWrapper.TASKS_TABLE) in sql_query
 
         # Assert that the params and param types appear in the query.
-        assert '{0} = @config_0'.format(SpannerWrapper.JOB_CONFIG_ID) \
-            in sql_query
-        assert '{0} = @config_1'.format(SpannerWrapper.JOB_CONFIG_ID) \
-            in sql_query
-        assert '{0} = @config_2'.format(SpannerWrapper.JOB_CONFIG_ID) \
-            in sql_query
+        assert ('{0} = @config_0'.format(SpannerWrapper.JOB_CONFIG_ID)
+            in sql_query)
+        assert ('{0} = @config_1'.format(SpannerWrapper.JOB_CONFIG_ID)
+            in sql_query)
+        assert ('{0} = @config_2'.format(SpannerWrapper.JOB_CONFIG_ID)
+            in sql_query)
 
-        assert params['config_0'] == 'fakeconfigid1' \
-            and 'config_0' in param_types
-        assert params['config_1'] == 'fakeconfigid2' \
-            and 'config_1' in param_types
-        assert params['config_2'] == 'fakeconfigid3' \
-            and 'config_2' in param_types
+        assert (params['config_0'] == 'fakeconfigid1'
+            and 'config_0' in param_types)
+        assert (params['config_1'] == 'fakeconfigid2'
+            and 'config_1' in param_types)
+        assert (params['config_2'] == 'fakeconfigid3'
+            and 'config_2' in param_types)
+
+    def test_get_job_run(self):
+        """
+        jobrun/<config_id> should return the job run and job config info from
+        the job run.
+        """
+        mock_result = _get_mock_streamed_result(
+            FAKE_JOB_RUN_JOB_CONFIG_RESPONSE)
+        self.mock_snapshot.execute_sql.return_value = mock_result
+        response = self.app.get('/projects/fakeprojectid/jobrun/fakeconfigid')
+        response_json = json.loads(response.data)
+        sql_query = self.mock_snapshot.execute_sql.call_args[0][0]
+        params = self.mock_snapshot.execute_sql.call_args[0][1]
+
+        # Assert that the query reads from both the job runs and job configs
+        # table.
+        assert 'FROM {0} JOIN {1}'.format(SpannerWrapper.JOB_RUNS_TABLE,
+            SpannerWrapper.JOB_CONFIGS_TABLE) in sql_query
+        assert ('{0} = @config_id'.format(SpannerWrapper.JOB_CONFIG_ID)
+            in sql_query)
+        assert ('{0} = @run_id'.format(SpannerWrapper.JOB_RUN_ID)
+            in sql_query)
+
+        # Assert that the query passes the expected config parameters.
+        assert params['config_id'] == 'fakeconfigid'
+        assert params['run_id'] == 'jobrun'
+
+        # Assert that the response json is the result from the query.
+        assert (response_json[SpannerWrapper.JOB_CONFIG_ID] ==
+            FAKE_JOB_RUN_JOB_CONFIG_RESPONSE[SpannerWrapper.JOB_CONFIG_ID])
+        assert (response_json[SpannerWrapper.JOB_RUN_ID] ==
+            FAKE_JOB_RUN_JOB_CONFIG_RESPONSE[SpannerWrapper.JOB_RUN_ID])
+        assert (response_json[SpannerWrapper.COUNTERS] ==
+            json.loads(
+                FAKE_JOB_RUN_JOB_CONFIG_RESPONSE[SpannerWrapper.COUNTERS]))
+        assert (response_json[SpannerWrapper.JOB_SPEC] ==
+            json.loads(
+                FAKE_JOB_RUN_JOB_CONFIG_RESPONSE[SpannerWrapper.JOB_SPEC]))
+
+    def test_get_job_run_error1(self):
+        """
+        jobrun/<config_id> should return an error if the config id is not in the
+        expected format.
+        """
+        response = self.app.get('/projects/fakeprojectid/jobrun/'
+                                'fake*invalid.config')
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_get_job_run_error2(self):
+        """
+        jobrun/<config_id> should return an error if the project id is not in
+        the expected format.
+        """
+        response = self.app.get('/projects/fake*invalid+projectid/jobrun/'
+                                'fakeconfigid')
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_job_run_not_found(self):
+        """
+        jobrun/<config_id> should return a not found error if the job config
+        was not found.
+        """
+        # Return no jobs when reading from the database.
+        (self.mock_snapshot.execute_sql
+         .return_value) = _get_mock_streamed_result({})
+
+        response = self.app.get('/projects/fakeprojectid/jobrun/'
+                                'fakeconfigid')
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.NOT_FOUND
+        assert response_json['error'] is not None
 
     def tearDown(self):
         self.spanner_mock_patcher.stop()

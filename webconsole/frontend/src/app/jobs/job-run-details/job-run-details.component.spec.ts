@@ -1,147 +1,28 @@
-import { async, ComponentFixture, TestBed, fakeAsync, tick, discardPeriodicTasks } from '@angular/core/testing';
-import { RouterTestingModule } from '@angular/router/testing';
-import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { async, ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { MatDialog } from '@angular/material';
 import { By } from '@angular/platform-browser';
-import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
-import { JobsService } from '../jobs.service';
-import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
-import { JobRun } from '../jobs.resources';
-import { JobStatusPipe } from '../job-status/job-status.pipe';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
+import { RouterTestingModule } from '@angular/router/testing';
 import { Observable } from 'rxjs/Observable';
+import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 
+import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
+import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
+import { JobStatusPipe } from '../job-status/job-status.pipe';
+import { JobsService } from '../jobs.service';
+import { FAKE_HTTP_ERROR, FAKE_JOB_RUNS } from '../jobs.test-util';
 import { JobRunDetailsComponent } from './job-run-details.component';
 
 class JobsServiceStub {
   public getJobRun = jasmine.createSpy('getJobRun');
 }
 
-const FAKE_JOB_RUNS: JobRun[] = [
-  {
-    JobConfigId: 'fakeJobConfigId0',
-    JobRunId: 'fakeJobRunId0',
-    JobCreationTime: '1504833274371000000',
-    Status: 0,
-    Counters: {
-      totalTasks: 0,
-      tasksCompleted: 0,
-      tasksFailed: 0,
-
-      totalTasksList: 0,
-      tasksCompletedList: 0,
-      tasksFailedList: 0,
-
-      totalTasksCopy: 0,
-      tasksCompletedCopy: 0,
-      tasksFailedCopy: 0,
-
-      totalTasksLoad: 0,
-      tasksCompletedLoad: 0,
-      tasksFailedLoad: 0,
-
-      listFilesFound: 0,
-      listBytesFound: 0,
-      bytesCopied: 0
-    }
-  },
-  {
-    JobConfigId: 'fakeJobConfigId1',
-    JobRunId: 'fakeJobRunId1',
-    JobCreationTime: '1504833274371000000',
-    Status: 1,
-    Counters: {
-      totalTasks: 1,
-      tasksCompleted: 0,
-      tasksFailed: 0,
-
-      totalTasksList: 1,
-      tasksCompletedList: 0,
-      tasksFailedList: 0,
-
-      totalTasksCopy: 0,
-      tasksCompletedCopy: 0,
-      tasksFailedCopy: 0,
-
-      totalTasksLoad: 0,
-      tasksCompletedLoad: 0,
-      tasksFailedLoad: 0,
-
-      listFilesFound: 0,
-      listBytesFound: 0,
-      bytesCopied: 0
-    }
-  },
-  {
-    JobConfigId: 'fakeJobConfigId2',
-    JobRunId: 'fakeJobRunId2',
-    JobCreationTime: '1504833274371000000',
-    Status: 2,
-    Counters: {
-      totalTasks: 5,
-      tasksCompleted: 4,
-      tasksFailed: 1,
-
-      totalTasksList: 1,
-      tasksCompletedList: 1,
-      tasksFailedList: 0,
-
-      totalTasksCopy: 4,
-      tasksCompletedCopy: 3,
-      tasksFailedCopy: 1,
-
-      totalTasksLoad: 0,
-      tasksCompletedLoad: 0,
-      tasksFailedLoad: 0,
-
-      listFilesFound: 4,
-      listBytesFound: 11223344,
-      bytesCopied: 11220000
-    }
-  },
-  {
-    JobConfigId: 'fakeJobConfigId3',
-    JobRunId: 'fakeJobRunId3',
-    JobCreationTime: '1504833274371000000',
-    Status: 3,
-    Counters: {
-      totalTasks: 9,
-      tasksCompleted: 9,
-      tasksFailed: 0,
-
-      totalTasksList: 1,
-      tasksCompletedList: 1,
-      tasksFailedList: 0,
-
-      totalTasksCopy: 4,
-      tasksCompletedCopy: 4,
-      tasksFailedCopy: 0,
-
-      totalTasksLoad: 4,
-      tasksCompletedLoad: 4,
-      tasksFailedLoad: 0,
-
-      listFilesFound: 4,
-      listBytesFound: 11223344,
-      bytesCopied: 11223344
-    }
-  }
-];
-
-const FAKE_HTTP_ERROR = {
-  error: {
-    error: 'Forbidden',
-    message: 'You are not allowed to access this resource'
-  },
-  message: 'Fake error message.',
-  statusText: 'FORBIDDEN'
-};
-
-const BADLY_FORMATED_ERROR = {
-  error: 'I am not json like expected',
-  message: 'Fake error message.',
-  statusText: 'I\'M A TEAPOT'
-};
+class MatDialogStub {
+  public open = jasmine.createSpy('open');
+}
 
 let jobsServiceStub: JobsServiceStub;
+let matDialogStub: MatDialogStub;
 let intervalObservableCreateSpy: any;
 
 describe('JobRunDetailsComponent', () => {
@@ -150,6 +31,7 @@ describe('JobRunDetailsComponent', () => {
 
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
+    matDialogStub = new MatDialogStub();
     jobsServiceStub.getJobRun.and.returnValue(Observable.of(FAKE_JOB_RUNS[0]));
     // Disable polling for most tests.
     intervalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
@@ -159,7 +41,8 @@ describe('JobRunDetailsComponent', () => {
         JobStatusPipe
       ],
       providers: [
-        {provide: JobsService, useValue: jobsServiceStub}
+        {provide: JobsService, useValue: jobsServiceStub},
+        {provide: MatDialog, useValue: matDialogStub}
       ],
       imports: [
         NoopAnimationsModule,
@@ -210,30 +93,8 @@ describe('JobRunDetailsComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('.ingest-error-message');
-      expect(element).not.toBeNull();
-      const titleElement = compiled.querySelector('.ingest-error-title');
-      expect(titleElement.innerText).toContain(FAKE_HTTP_ERROR.error.error);
-      const msgElement = compiled.querySelector('.ingest-error-details');
-      expect(msgElement.innerText).toContain(FAKE_HTTP_ERROR.error.message);
-    });
-  }));
-
-  it('should show an error message even when the error is badly formatted',
-        async(() => {
-    jobsServiceStub.getJobRun.and.returnValue(Observable.throw(BADLY_FORMATED_ERROR));
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('.ingest-error-message');
-      expect(element).not.toBeNull();
-      const titleElement = compiled.querySelector('.ingest-error-title');
-      expect(titleElement.innerText).toContain(BADLY_FORMATED_ERROR.statusText);
-      const msgElement = compiled.querySelector('.ingest-error-details');
-      expect(msgElement.innerText).toContain(BADLY_FORMATED_ERROR.message);
+      expect(compiled.textContent).toContain(FAKE_HTTP_ERROR.error.error);
+      expect(compiled.textContent).toContain(FAKE_HTTP_ERROR.error.message);
     });
   }));
 
@@ -467,6 +328,32 @@ describe('JobRunDetailsComponent', () => {
     // It should get the job runs four times: one initial loading plus 3 polling calls.
     tick(30000);
     expect(jobsServiceStub.getJobRun.calls.count()).toEqual(4);
+    discardPeriodicTasks();
+  }));
+
+  it('should display the job config information', async(() => {
+    fixture = TestBed.createComponent(JobRunDetailsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      fixture.detectChanges();
+      const compiled = fixture.debugElement.nativeElement;
+      expect(compiled.textContent).toContain('fakeJobConfigId0');
+      expect(compiled.textContent).toContain('fakeSrcDir1');
+      expect(compiled.textContent).toContain('fakeBucket1');
+    });
+  }));
+
+  it('should open the mat dialog stub with the error dialog', fakeAsync((done) => {
+    // Load successfully on first call, but throw on second call.
+    jobsServiceStub.getJobRun.and.returnValues(Observable.of(FAKE_JOB_RUNS[0]), Observable.throw(FAKE_HTTP_ERROR));
+    intervalObservableCreateSpy.and.callThrough();
+    fixture = TestBed.createComponent(JobRunDetailsComponent);
+    component = fixture.componentInstance;
+    fixture.detectChanges();
+    tick(10000); // Tick for long enough until the app makes a polling call.
+    expect(matDialogStub.open).toHaveBeenCalled();
+    expect(matDialogStub.open.calls.mostRecent().args[0]).toBe(ErrorDialogComponent);
     discardPeriodicTasks();
   }));
 
