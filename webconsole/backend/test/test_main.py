@@ -16,29 +16,33 @@
 
 Includes unit tests for the flask routes on main.py.
 """
-import unittest
-import main
-from mock import patch
-from mock import MagicMock
-from spannerwrapper import SpannerWrapper
+import httplib
 import json
+import unittest
+
+from google.cloud import spanner
+from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import Conflict
-from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import Forbidden
+from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import PreconditionFailed
 from google.cloud.exceptions import Unauthorized
-from google.cloud.exceptions import BadRequest
-from test.testutils import get_task
-from google.cloud.spanner_v1.proto import type_pb2
-from google.cloud import spanner
-from google.cloud.spanner_v1.streamed import StreamedResultSet
 from google.cloud.spanner_v1.database import Database
 from google.cloud.spanner_v1.database import SnapshotCheckout
 from google.cloud.spanner_v1.instance import Instance
-from google.cloud.spanner_v1.transaction import Transaction
+from google.cloud.spanner_v1.pool import SessionCheckout
+from google.cloud.spanner_v1.proto import type_pb2
+from google.cloud.spanner_v1.session import Session
 from google.cloud.spanner_v1.snapshot import Snapshot
+from google.cloud.spanner_v1.streamed import StreamedResultSet
+from google.cloud.spanner_v1.transaction import Transaction
+from mock import MagicMock
+from mock import patch
+
+import main
 from proto import tasks_pb2
-import httplib
+from spannerwrapper import SpannerWrapper
+from test.testutils import get_task
 
 FAKE_TASK = get_task("fake_config_id",
                      "fake_run_id",
@@ -56,7 +60,13 @@ FAKE_JOB_SPEC = {
     'gcsBucket' : 'fakeGcsBucket'
 }
 
+FAKE_JOB_SPEC2 = {
+    'onPremSrcDirectory' : 'fakeFileSystemDir2',
+    'gcsBucket' : 'fakeGcsBucket2'
+}
+
 FAKE_JOB_SPEC_JSON = json.dumps(FAKE_JOB_SPEC)
+FAKE_JOB_SPEC_JSON2 = json.dumps(FAKE_JOB_SPEC2)
 
 FAKE_JOB_CONFIG_REQUEST = json.dumps({
     'jobConfigId' : 'fakeConfigId',
@@ -66,6 +76,11 @@ FAKE_JOB_CONFIG_REQUEST = json.dumps({
 FAKE_JOB_CONFIG_RESPONSE = {
     'JobConfigId' : 'fakeConfigId',
     'JobSpec' : FAKE_JOB_SPEC_JSON
+}
+
+FAKE_JOB_CONFIG_RESPONSE2 = {
+    'JobConfigId' : 'fakeConfigId2',
+    'JobSpec' : FAKE_JOB_SPEC_JSON2
 }
 
 # Fake Counters object containing what is expected on the job counters field.
@@ -98,6 +113,9 @@ FAKE_JOB_RUN_JOB_CONFIG_RESPONSE = {
 
 FAKE_LAST_MODIFICATION_TIME = 1
 
+_EMPTY_MOCK_STREAMED_RESULT = MagicMock(spec=StreamedResultSet)
+_EMPTY_MOCK_STREAMED_RESULT.__iter__.return_value = []
+_EMPTY_MOCK_STREAMED_RESULT.fields = []
 
 def _get_fields_list(names):
     """Gets a list of mock StrucType.Field from a list of names to populate
@@ -117,7 +135,22 @@ def _get_mock_streamed_result(dictionary):
     mock_result.__iter__.return_value = [
         dictionary.values()
     ]
+    mock_result.one.return_value = dictionary.values()
     mock_result.fields = _get_fields_list(dictionary.keys())
+    return mock_result
+
+def _get_mock_streamed_result_list(dictionary_list):
+    """Gets a mockStreamedResultSet from an input dictionary list.
+
+    Args:
+      dictionary_list: All the items in this list must have the same keys.
+    """
+    mock_result = MagicMock(spec=StreamedResultSet)
+    mock_result.fields = _get_fields_list(dictionary_list[0].keys())
+    result_list = []
+    for dictionary in dictionary_list:
+        result_list.append(dictionary.values())
+    mock_result.__iter__.return_value = result_list
     return mock_result
 
 class TestMain(unittest.TestCase):
@@ -130,29 +163,36 @@ class TestMain(unittest.TestCase):
     def setUp(self):
         self.app = main.APP.test_client()
         self.app.testing = True
-
-        # Set up the google.cloud.spanner mocks.
+        # Set up the spanner mocks
         self.mock_database = MagicMock(spec=Database)
         self.mock_instance = MagicMock(spec=Instance)
         self.mock_client = MagicMock(spec=spanner.Client)
         self.mock_transaction = MagicMock(spec=Transaction)
         self.mock_snapshot = MagicMock(spec=Snapshot)
-
+        self.mock_bursty_pool = MagicMock(spec=spanner.BurstyPool)
+        self.mock_session = MagicMock(spec=Session)
+        self.mock_session_checkout = MagicMock(spec=SessionCheckout)
+        self.snapshot_checkout_mock = MagicMock(spec=SnapshotCheckout)
+        # Start the patchers used in all the tests.
         self.spanner_mock_patcher = patch('spannerwrapper.spanner')
         self.spanner_mock = self.spanner_mock_patcher.start()
-
         (self.
          get_credentials_mock_patcher) = patch.object(main, '_get_credentials')
         self.get_credentials_mock = self.get_credentials_mock_patcher.start()
-
-        self.mock_instance.database.return_value = self.mock_database
-        self.mock_client.instance.return_value = self.mock_instance
+        # Set up the client and pool
         self.spanner_mock.Client.return_value = self.mock_client
-
-        snapshot_checkout_mock = MagicMock(spec=SnapshotCheckout)
-        snapshot_checkout_mock.__enter__.return_value = self.mock_snapshot
-        self.mock_database.snapshot.return_value = snapshot_checkout_mock
-
+        self.spanner_mock.BurstyPool.return_value = self.mock_bursty_pool
+        self.mock_client.instance.return_value = self.mock_instance
+        # Set up the database
+        self.mock_instance.database.return_value = self.mock_database
+        self.snapshot_checkout_mock.__enter__.return_value = self.mock_snapshot
+        self.mock_database.snapshot.return_value = self.snapshot_checkout_mock
+        self.mock_session_checkout.__enter__.return_value = self.mock_session
+        self.mock_bursty_pool.session.return_value = self.mock_session_checkout
+        # Set up the transactions
+        self.mock_transaction.return_value = self.mock_transaction
+        self.mock_transaction.__enter__ = self.mock_transaction
+        self.mock_session.transaction.return_value = self.mock_transaction
         def run_in_transaction(trans_function, *args):
             """A replacement for the run_in_transaction function that runs the
                function that is passed.
@@ -224,28 +264,6 @@ class TestMain(unittest.TestCase):
             'fakeConfigId', 'fakeRunId', main.DEFAULT_PAGE_SIZE,
             FAKE_TASK_STATUS, FAKE_LAST_MODIFICATION_TIME)
         self.assertEqual(response_json, FAKE_TASK)
-
-    @patch.object(main, '_get_credentials')
-    @patch.object(main, 'SpannerWrapper')
-    def test_post_job_config(self, spanner_wrapper_mock,
-        dummy_get_credentials):
-        """ Tests that posting a job configuration passes correct parameters to
-            spannerwrapper.
-        """
-        spanner_wrapper_mock_inst = MagicMock(spec=('create_job_config',
-            'get_job_config', 'create_job_run',
-            'create_job_run_first_list_task'))
-        spanner_wrapper_mock.return_value = spanner_wrapper_mock_inst
-        (spanner_wrapper_mock_inst.get_job_config
-         .return_value) = FAKE_JOB_CONFIG_RESPONSE
-        response = self.app.post('/projects/fakeProjectId/jobconfigs',
-                           data=FAKE_JOB_CONFIG_REQUEST,
-                           content_type='application/json')
-        response_json = json.loads(response.data)
-
-        spanner_wrapper_mock_inst.create_job_config.assert_called_with(
-            'fakeConfigId', FAKE_JOB_SPEC_JSON)
-        self.assertEqual(response_json, FAKE_JOB_CONFIG_RESPONSE)
 
     @patch.object(main, '_get_credentials')
     @patch.object(main, 'logging')
@@ -472,7 +490,102 @@ class TestMain(unittest.TestCase):
         assert response.status_code == httplib.NOT_FOUND
         assert response_json['error'] is not None
 
+    def test_get_job_configs(self):
+        """
+        <project_id>/jobconfigs GET should return a list of job configurations
+        from the spanner database.
+        """
+        mock_result = _get_mock_streamed_result_list([FAKE_JOB_CONFIG_RESPONSE,
+            FAKE_JOB_CONFIG_RESPONSE2])
+        self.mock_snapshot.execute_sql.return_value = mock_result
+
+        response = self.app.get('/projects/fakeprojectid/jobconfigs')
+        response_json = json.loads(response.data)
+
+        sql_query = self.mock_snapshot.execute_sql.call_args[0][0]
+
+        # Assert it reads from job configs table.
+        assert 'FROM {0}'.format(SpannerWrapper.JOB_CONFIGS_TABLE) in sql_query
+
+        # Assert that both configs are returned.
+        assert (response_json[0][SpannerWrapper.JOB_CONFIG_ID] ==
+            FAKE_JOB_CONFIG_RESPONSE[SpannerWrapper.JOB_CONFIG_ID])
+        assert (response_json[0][SpannerWrapper.JOB_SPEC] ==
+            json.loads(FAKE_JOB_CONFIG_RESPONSE[SpannerWrapper.JOB_SPEC]))
+
+        assert (response_json[1][SpannerWrapper.JOB_CONFIG_ID] ==
+            FAKE_JOB_CONFIG_RESPONSE2[SpannerWrapper.JOB_CONFIG_ID])
+        assert (response_json[1][SpannerWrapper.JOB_SPEC] ==
+            json.loads(FAKE_JOB_CONFIG_RESPONSE2[SpannerWrapper.JOB_SPEC]))
+
+    def test_post_job_configs(self):
+        """
+        <project_id>/jobconfigs POST should create a new job configuration.
+        """
+        self.app.post(('/projects/fakeprojectid/jobconfigs'),
+            data=json.dumps({'jobConfigId' : 'fakeConfigId1',
+                             'gcsBucket' : 'fake-gcs-bucket-1',
+                             'fileSystemDirectory': '/fake/on/prem/dir'}),
+                             content_type='application/json')
+
+        insert_calls = self.mock_transaction.insert.mock_calls
+
+        # Assert that it inserts the first list task, a job config and a job
+        # run in their tables.
+        assert insert_calls[0][1][0] == SpannerWrapper.JOB_CONFIGS_TABLE
+        assert insert_calls[1][1][0] == SpannerWrapper.JOB_RUNS_TABLE
+        assert insert_calls[2][1][0] == SpannerWrapper.TASKS_TABLE
+
+    def test_post_job_configs_error(self):
+        """
+        <project_id>/jobconfigs POST should throw an error if the project id
+        does not match the pattern.
+        """
+        response = self.app.post(('/projects/fakeprojectid/jobconfigs'),
+            data=json.dumps({'jobConfigId' : 'invalid*config.name',
+                             'gcsBucket' : 'fake-gcs-bucket-1',
+                             'fileSystemDirectory': '/fake/on/prem/dir'}),
+                             content_type='application/json')
+
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_post_job_configs_error2(self):
+        """
+        <project_id>/jobconfigs POST should throw an error if the bucket id does
+        not match the pattern.
+        """
+        response = self.app.post(('/projects/fakeprojectid/jobconfigs'),
+            data=json.dumps({'jobConfigId' : 'fakeConfigId1',
+                             'gcsBucket' : 'invalid*gcs.bucket',
+                             'fileSystemDirectory': '/fake/on/prem/dir'}),
+                             content_type='application/json')
+
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_post_job_configs_error3(self):
+        """
+        <project_id>/jobconfigs POST should throw an error if the file system
+        directory is not in a valid format.
+        """
+        response = self.app.post(('/projects/fakeprojectid/jobconfigs'),
+            data=json.dumps({'jobConfigId' : 'fakeConfigId1',
+                             'gcsBucket' : 'fake-gcs-bucket-1',
+                             'fileSystemDirectory': '*not-a-valid-directory'}),
+                             content_type='application/json')
+
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
     def tearDown(self):
+        # Stop patchers.
         self.spanner_mock_patcher.stop()
         self.get_credentials_mock_patcher.stop()
 

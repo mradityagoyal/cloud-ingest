@@ -52,12 +52,6 @@ _ALLOWED_HEADERS = ['Content-Type', 'Authorization']
 
 _AUTH_HEADER_REGEX = re.compile(r'^\s*Bearer\s+(?P<access_token>[^\s]*)$')
 
-# TODO(b/65846311): Temporary constants used to create the job run and first
-# list task when a job config is created. Eventually DCP should manage
-# scheduling/creating job runs and first listing tasks.
-_FIRST_JOB_RUN_ID = "jobrun"
-_LIST_TASK_ID = "list"
-
 # A regex pattern that matches a valid job config id (description).
 _CONFIG_ID_PATTERN = re.compile('^[0-9A-Za-z _-]+$')
 
@@ -71,7 +65,7 @@ _CONFIG_FORMAT_ERROR = {
 # A regex pattern that matches a valid project id. Matches a string that has
 # lowercase letters, digits or hyphens and must start with a lowercase letter.
 # It must be between 6 and 30 characters
-_PROJECT_ID_PATTERN = re.compile('^[a-z]([0-9a-z-]){5,29}$')
+_PROJECT_ID_PATTERN = re.compile(r'^[a-z]([0-9a-z-]){5,29}$')
 
 # The error returned to the user indicating that the project id is in an
 # invalid format.
@@ -82,12 +76,71 @@ _PROJECT_ID_FORMAT_ERROR = {
                  ' with a lowercase letter.')
     }
 
+# A regex pattern that matches an absolute unix path.
+_UNIX_SOURCE_PATH_PATTERN = re.compile(r'^(/[^/ ]*)+/?$')
+
+# A regex pattern that matches an absolute windows path.
+# Taken from:
+# https://www.safaribooksonline.com/library/view/regular-expressions-cookbook/9781449327453/ch08s18.html
+_WINDOWS_SOURCE_PATH_PATTERN = re.compile(
+r"""\A
+[a-z]:\\                    # Drive
+(?:[^\\/:*?"<>|\r\n]+\\)*   # Folder
+[^\\/:*?"<>|\r\n]*          # File
+\Z""", re.VERBOSE | re.IGNORECASE)
+
+# An error indicating that the path provided was not a valid unix or windows
+# path.
+_PATH_PATTERN_ERROR = {
+    'error' : 'Invalid pattern',
+    'message' : 'The source path is not a valid windows or unix pattern.'
+}
+
+# A regex pattern that matches a valid bucket id.
+_BUCKET_PATTERN = re.compile(r'^[a-z0-9](\.|[0-9a-z_-])+[a-z0-9]$')
+
+# An error determining that the bucket pattern
+_BUCKET_PATTERN_ERRROR = {
+    'error' : 'Invalid bucket name',
+    'message' : 'The input bucket name is not a valid bucket.'
+}
+
+
 # An error returned to the user indicating that the job config id was not
 # found.
 _CONFIG_NOT_FOUND_ERROR = {
     'error' : 'Job Config ID',
     'message' : ('The input job config id was not found on the'
-                 'database')
+                    'database')
+}
+
+# An error returned to the user indicating that no configurations were found.
+_NO_CONFIGS_ERROR = {
+    'error' : 'No configurations found',
+    'message': 'No configurations were found for the supplied project id.'
+}
+
+# An input string indicating the file system directory argument for jobs.
+FILE_SYSTEM_DIR = 'fileSystemDirectory'
+
+# An input string indicating the gcs bucket argument for jobs.
+GCS_BUCKET = 'gcsBucket'
+
+# An input string indicating the job config id argument for jobs.
+CONFIG_ID = 'jobConfigId'
+
+# A string indicating the input gcs directory argument for jobs.
+ON_PREM_SRC_DIRECTORY = 'onPremSrcDirectory'
+
+# The required fields for a post job config request.
+POST_CONFIG_FIELDS = [FILE_SYSTEM_DIR, GCS_BUCKET, CONFIG_ID]
+
+# An error returned to the user indicating that a field was missing on posting a
+# job configuration.
+_MISSING_FIELD_ERROR = {
+    'error' : 'Missing required field',
+    'message' : ('Missing at least one of the required fields: '
+                    ','.join(POST_CONFIG_FIELDS))
 }
 
 def _get_credentials():
@@ -108,10 +161,10 @@ def _get_credentials():
     return credentials
 
 def _get_post_job_configs_job_spec(content):
-    """Makes a jobspec json out of the input request content."""
-    return json.dumps({
-        'onPremSrcDirectory' : content['fileSystemDirectory'].strip(),
-        'gcsBucket' : content['gcsBucket'].strip()})
+    """Makes a jobspec dictionary out of the input request content."""
+    return {
+        ON_PREM_SRC_DIRECTORY : content[FILE_SYSTEM_DIR].strip(),
+        GCS_BUCKET : content[GCS_BUCKET].strip()}
 
 
 def _get_post_job_configs_error(content):
@@ -121,16 +174,17 @@ def _get_post_job_configs_error(content):
            An error response dictionary if there is an error with the input
            content; or None if there is no error.
     """
-    fields = ('jobConfigId', 'gcsBucket', 'fileSystemDirectory')
-    response = None
-    for field in fields:
+    for field in POST_CONFIG_FIELDS:
         if field not in content:
-            response = {
-                'error' : 'Missing required field',
-                'message' : ('Missing at least one of the required fields: '
-                             ','.join(fields))
-            }
-    return response
+            return _MISSING_FIELD_ERROR
+    if not (_UNIX_SOURCE_PATH_PATTERN.match(content[FILE_SYSTEM_DIR]) or
+        _WINDOWS_SOURCE_PATH_PATTERN.match(content[FILE_SYSTEM_DIR])):
+        return _PATH_PATTERN_ERROR
+    if not _CONFIG_ID_PATTERN.match(content[CONFIG_ID]):
+        return _CONFIG_FORMAT_ERROR
+    if not _BUCKET_PATTERN.match(content[GCS_BUCKET]):
+        return _BUCKET_PATTERN_ERRROR
+    return None
 
 def _get_delete_job_configs_error(content):
     """Checks that the input content is in the correct format.
@@ -184,34 +238,26 @@ def delete_job_configs(project_id):
            methods=['GET', 'OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
 def job_configs(project_id):
-    """Handle all job config related requests."""
+    """Handles geting a list of job configs and creating a new job
+       configuration
+    """
     spanner_wrapper = SpannerWrapper(_get_credentials(),
                                      project_id,
                                      APP.config['SPANNER_INSTANCE'],
                                      APP.config['SPANNER_DATABASE'])
+    if not _PROJECT_ID_PATTERN.match(project_id):
+        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
     if request.method == 'GET':
-        response = jsonify(spanner_wrapper.get_job_configs())
-        return response
+        configs = spanner_wrapper.get_job_configs()
+        return jsonify(configs)
     elif request.method == 'POST':
         content = request.json
         error = _get_post_job_configs_error(content)
         if error:
             return jsonify(error), httplib.BAD_REQUEST
         job_spec = _get_post_job_configs_job_spec(content)
-        spanner_wrapper.create_job_config(content['jobConfigId'], job_spec)
-
-        # TODO(b/65943019): The web console should not schedule the job runs and
-        # should not create the first task. Remove that after the functionality
-        # is added to the DCP.
-        spanner_wrapper.create_job_run(
-            content['jobConfigId'], _FIRST_JOB_RUN_ID, initial_total_tasks=1)
-        spanner_wrapper.create_job_run_first_list_task(
-            content['jobConfigId'], _FIRST_JOB_RUN_ID, _LIST_TASK_ID,
-            job_spec)
-
-        created_config = spanner_wrapper.get_job_config(
-            content['jobConfigId'])
-        return jsonify(created_config), httplib.CREATED
+        spanner_wrapper.create_new_job(content[CONFIG_ID], job_spec)
+        return jsonify({}), httplib.OK
 
 @APP.route('/projects/<project_id>/jobrun/<config_id>',
            methods=['GET', 'OPTIONS'])
@@ -238,10 +284,9 @@ def get_job_run(project_id, config_id):
                                      APP.config['SPANNER_DATABASE'])
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
-    # TODO(b/69975301): Check for the config_id when creating a job config.
     if not _CONFIG_ID_PATTERN.match(config_id):
         return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
-    result = spanner_wrapper.get_job_run(config_id, _FIRST_JOB_RUN_ID)
+    result = spanner_wrapper.get_job_run(config_id)
     if not result:
         return jsonify(_CONFIG_NOT_FOUND_ERROR), httplib.NOT_FOUND
     return jsonify(result), httplib.OK

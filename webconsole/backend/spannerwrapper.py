@@ -18,17 +18,15 @@ also writes new JobConfigs and JobRuns. All data passed to and from the
 client is in JSON format and stored in a dictionary.
 """
 import json
-import os
-import time
 
 from google.cloud import spanner
 from google.cloud.exceptions import BadRequest
 from google.cloud.spanner_v1.proto import type_pb2
 
 import util
+from create_infra.job_utilities import JOB_STATUS_IN_PROGRESS
 from create_infra.job_utilities import TASK_STATUS_UNQUEUED
 from create_infra.job_utilities import TASK_TYPE_LIST
-from create_infra.job_utilities import JOB_STATUS_IN_PROGRESS
 from gaxerrordecorator import handle_common_gax_errors
 from proto.tasks_pb2 import TaskFailureType
 from proto.tasks_pb2 import TaskStatus
@@ -178,6 +176,82 @@ def _get_tasks_of_status_base_query():
              SpannerWrapper.JOB_RUN_ID,
              SpannerWrapper.STATUS))
 
+# TODO(b/65846311): Temporary constants used to create the job run and first
+# list task when a job config is created. Eventually DCP should manage
+# scheduling/creating job runs and first listing tasks.
+_FIRST_JOB_RUN_ID = "jobrun"
+_LIST_TASK_ID = "list"
+
+_INITIAL_TOTAL_TASKS = 1
+_INITIAL_COUNTERS_DICT = {
+    # Overall job run stats.
+    'totalTasks': _INITIAL_TOTAL_TASKS,
+    'tasksCompleted': 0,
+    'tasksFailed': 0,
+    'tasksQueued': 0,
+    'tasksUnqueued': _INITIAL_TOTAL_TASKS,
+
+    # List task stats.
+    'totalTasksList': _INITIAL_TOTAL_TASKS,
+    'tasksCompletedList': 0,
+    'tasksFailedList': 0,
+    'tasksQueuedList': 0,
+    'tasksUnqueuedList': _INITIAL_TOTAL_TASKS,
+
+    # Copy task stats.
+    'totalTasksCopy': 0,
+    'tasksCompletedCopy': 0,
+    'tasksFailedCopy': 0,
+    'tasksQueuedCopy': 0,
+    'tasksUnqueuedCopy': 0
+}
+
+def _get_task_spec_first_list_task(job_spec_dict, config_id):
+    """
+    Gets the task spec for the first list task from a job spec dictionary.
+    """
+    list_result_object_name = 'list-task-output-%s-%s-%s' % (config_id,
+        _FIRST_JOB_RUN_ID, _LIST_TASK_ID)
+    task_spec = {
+        'src_directory': job_spec_dict['onPremSrcDirectory'],
+        'dst_list_result_bucket': job_spec_dict['gcsBucket'],
+        'dst_list_result_object': list_result_object_name,
+        'expected_generation_num': 0,
+    }
+    return task_spec
+
+# TODO(b/65943019): The web console should not schedule the job runs and
+# should not create the first task. Remove that after the functionality
+# is added to the DCP.
+def _create_new_job_transaction(transaction, config_id, job_spec):
+    """Creates a new job on the JobConfigs, JobRuns table and inserts the first
+       list task on the tasks table.
+
+    Args:
+        transaction: The transaction to operate with.
+        config_id: The id to give to the job.
+        jobspec: The job spec as a dictionary.
+    """
+    run_id = _FIRST_JOB_RUN_ID
+    task_spec_json = json.dumps(_get_task_spec_first_list_task(job_spec,
+        config_id))
+    job_spec_json = json.dumps(job_spec)
+    current_time_nanos = util.get_unix_nano()
+    transaction.insert(SpannerWrapper.JOB_CONFIGS_TABLE,
+        columns=SpannerWrapper.JOB_CONFIGS_COLUMNS,
+        values=[(config_id, job_spec_json)])
+    # The job status is set to in counters because the first list
+    # task is manually inserted. When the logic in the DCP is changed,
+    # new jobs should be inserted with a status of not started.
+    transaction.insert(SpannerWrapper.JOB_RUNS_TABLE,
+        columns=SpannerWrapper.JOB_RUNS_COLUMNS,
+        values=[(config_id, run_id, JOB_STATUS_IN_PROGRESS, current_time_nanos,
+        json.dumps(_INITIAL_COUNTERS_DICT))])
+    transaction.insert(SpannerWrapper.TASKS_TABLE,
+        columns=SpannerWrapper.TASKS_COLUMNS, values=[(config_id, run_id,
+        _LIST_TASK_ID, current_time_nanos, current_time_nanos,
+        TASK_STATUS_UNQUEUED, task_spec_json, TASK_TYPE_LIST)])
+
 class SpannerWrapper(object):
     """SpannerWrapper class handles all interactions with cloud Spanner.
 
@@ -255,136 +329,17 @@ class SpannerWrapper(object):
         list_query = self.list_query(query)
         return util.json_to_dictionary_in_field(list_query, self.JOB_SPEC)
 
-    def get_job_config(self, config_id):
-        """Retrieves the specified job config from Cloud Spanner.
-
-        Args:
-            config_id: The id of the desired job config.
-
-        Returns:
-            A dictionary containing the desired job config, mapping from
-            attribute to value.
+    def create_new_job(self, config_id, jobspec):
         """
-        query = ("SELECT * FROM %s WHERE %s = @config_id" %
-                 (SpannerWrapper.JOB_CONFIGS_TABLE,
-                  SpannerWrapper.JOB_CONFIG_ID))
-        return self.single_result_query(
-            query,
-            {"config_id": config_id},
-            {"config_id": type_pb2.Type(code=type_pb2.STRING)}
-        )
+        Transactionally creates a new job inserting the new job config, the new
+        job run, and a the first list task.
 
-    def create_job_config(self, config_id, job_spec):
-        """Creates a new job config using the given config attributes.
-
-        Args:
-            config_id: The desired config id for the new job config
-            job_spec: The desired job spec for the new job config
-
-        Raises:
-            Conflict if the job config already exists
+        Arguments
+            config_id: The configuration id to use for the job.
+            job_spec: A dictionary representing the job spec to use for the job.
         """
-        config_id = unicode(config_id)
-        job_spec = unicode(job_spec)
-        values = [config_id, job_spec]
-
-        self.insert(SpannerWrapper.JOB_CONFIGS_TABLE,
-                    SpannerWrapper.JOB_CONFIGS_COLUMNS, values)
-
-    def create_job_run(self, config_id, run_id, initial_total_tasks=0):
-        """Creates a new job run with the given JobRun attributes.
-
-        Args:
-            config_id: The desired JobConfigId of the new job run
-            run_id: The desired JobRunId of the new job run
-            initial_total_tasks: Initial number of total tasks in the job run.
-
-        Raises:
-            Conflict if the job run already exists
-        """
-        # TODO(b/65943019): Remove initial_total_tasks params. This should
-        # be always 0. This param should be removed after the DCP has proper
-        # handling of job scheduling.
-        config_id = unicode(config_id)
-        run_id = unicode(run_id)
-        counters = {
-            # Overall job run stats.
-            'totalTasks': initial_total_tasks,
-            'tasksCompleted': 0,
-            'tasksFailed': 0,
-            'tasksQueued': 0,
-            'tasksUnqueued': initial_total_tasks,
-
-            # List task stats.
-            'totalTasksList': initial_total_tasks,
-            'tasksCompletedList': 0,
-            'tasksFailedList': 0,
-            'tasksQueuedList': 0,
-            'tasksUnqueuedList': initial_total_tasks,
-
-            # Copy task stats.
-            'totalTasksCopy': 0,
-            'tasksCompletedCopy': 0,
-            'tasksFailedCopy': 0,
-            'tasksQueuedCopy': 0,
-            'tasksUnqueuedCopy': 0
-        }
-        # The job status is set to in counters because the first list
-        # task is manually inserted. When the logic in the DCP is changed,
-        # new jobs should be inserted with a status of not started.
-        values = [config_id, run_id, JOB_STATUS_IN_PROGRESS,
-                  self._get_unix_nano(), json.dumps(counters)]
-
-        self.insert(SpannerWrapper.JOB_RUNS_TABLE,
-                    SpannerWrapper.JOB_RUNS_COLUMNS, values)
-
-    def create_job_run_first_list_task(self, config_id, run_id, task_id,
-                                       job_spec):
-        """DO NOT USE, only intended for temporary use by flask app job_configs
-        handler method in main.py. Creates the first listing task for a job run.
-
-        TODO(b/65846311): The web console should not schedule the job runs and
-        should not create the first task. Remove this method after the
-        functionality is added to the DCP.
-        """
-        config_id = unicode(config_id)
-        run_id = unicode(run_id)
-        task_id = unicode(task_id)
-
-        job_spec_dict = json.loads(job_spec)
-
-        if 'gcsDirectory' in job_spec_dict:
-            list_result_object_name = os.path.join(
-            job_spec_dict['gcsDirectory'],
-            'list-task-output-%s-%s-%s' % (config_id,
-                                           run_id,
-                                           task_id))
-        else:
-            list_result_object_name = 'list-task-output-%s-%s-%s' % (config_id,
-                                                                     run_id,
-                                                                     task_id)
-        task_spec = {
-            'src_directory': job_spec_dict['onPremSrcDirectory'],
-            'dst_list_result_bucket': job_spec_dict['gcsBucket'],
-            'dst_list_result_object': list_result_object_name,
-            'expected_generation_num': 0,
-        }
-
-        current_time_nanos = self._get_unix_nano()
-
-        values = [
-            config_id,
-            run_id,
-            task_id,
-            current_time_nanos,
-            current_time_nanos,
-            TASK_STATUS_UNQUEUED,
-            json.dumps(task_spec).encode('utf-8'),
-            TASK_TYPE_LIST,
-        ]
-
-        self.insert(SpannerWrapper.TASKS_TABLE,
-                    SpannerWrapper.TASKS_COLUMNS, values)
+        self.database.run_in_transaction(_create_new_job_transaction,
+            config_id, jobspec)
 
     def get_tasks_of_status(self, config_id, run_id, max_num_tasks,
                             task_status, last_modified_before=None):
@@ -456,7 +411,7 @@ class SpannerWrapper(object):
         return self.list_query(query, params, param_types)
 
     # pylint: enable=too-many-arguments
-    def get_job_run(self, config_id, run_id):
+    def get_job_run(self, config_id, run_id=_FIRST_JOB_RUN_ID):
         """Retrieves the job run with the specified job run id.
 
         Args:
@@ -501,24 +456,6 @@ class SpannerWrapper(object):
         except ValueError:
             pass # There was nothing to commit. Do nothing.
         return transaction_read_result
-
-    @handle_common_gax_errors
-    def insert(self, table, columns, values):
-        """Inserts the given values into the specified table.
-
-        Args:
-          table: The name of the table for the insertion
-          columns: The columns of the values, passed as an array of strings.
-          values: The values to insert into the given columns. Passed as an
-                  array. Note: Any string values should be in unicode.
-
-        Raises:
-          Conflict: If the item to insert already exists
-        """
-        with self.session_pool.session() as session:
-            with session.transaction() as transaction:
-                transaction.insert(table, columns=columns,
-                                   values=[values])
 
     @handle_common_gax_errors
     def list_query(self, query, query_params=None, param_types=None):
@@ -593,14 +530,3 @@ class SpannerWrapper(object):
             i += 1
 
         return obj
-
-    @staticmethod
-    def _get_unix_nano():
-        """Returns the current Unix time in nanoseconds
-
-        Returns:
-            An integer representing the current Unix time in nanoseconds
-        """
-        # time.time() returns Unix time in seconds. Multiply by 1e9 to get
-        # the time in nanoseconds
-        return int(time.time() * 1e9)

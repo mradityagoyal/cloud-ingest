@@ -2,6 +2,7 @@
 """
 
 import json
+import time
 
 def json_to_dictionary_in_field(dictionary_list, json_field):
     """Reads the json in the input dictionary fields for each dictionary in the
@@ -70,3 +71,13 @@ def dict_has_values_recursively(dictionary, desired_values):
             if value in desired_values:
                 return True
     return False
+
+def get_unix_nano():
+    """Returns the current Unix time in nanoseconds
+
+    Returns:
+        An integer representing the current Unix time in nanoseconds
+    """
+    # time.time() returns Unix time in seconds. Multiply by 1e9 to get
+    # the time in nanoseconds
+    return int(time.time() * 1e9)
