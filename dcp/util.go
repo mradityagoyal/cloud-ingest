@@ -21,9 +21,11 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"path/filepath"
 	"reflect"
 	"strings"
 	"time"
+	"unicode"
 )
 
 type stringReadCloser struct {
@@ -138,4 +140,52 @@ func CreateTmpFile(filePrefix string, content string) string {
 		log.Fatal(err)
 	}
 	return tmpfile.Name()
+}
+
+// GetRelPathOsAgnostic wraps the path/filepath package's Rel function, and does some
+// basic sanitization for Windows and NFS paths.
+//
+// Go's filepath.Rel function internally relies on the os package, which sets a different
+// 'Separator' constant depending on which OS it is compiled for. Since we're compiling
+// for *nix, none of the filepath or path package functions will work correctly on
+// Windows or NFS directories (i.e., it doesn't recognize backslash as a separator).
+func GetRelPathOsAgnostic(root, file string) string {
+	rootBslashes := strings.Count(root, "\\")
+	rootFslashes := strings.Count(root, "/")
+	var rootHasDrivePrefix bool
+	if len(root) >= 2 && unicode.IsLetter([]rune(root)[0]) && root[1] == ':' {
+		rootHasDrivePrefix = true
+	}
+
+	fileBslashes := strings.Count(file, "\\")
+	fileFslashes := strings.Count(file, "/")
+	var fileHasDrivePrefix bool
+	if len(file) >= 2 && unicode.IsLetter([]rune(file)[0]) && file[1] == ':' {
+		fileHasDrivePrefix = true
+	}
+
+	// We have a *nix path, we can directly use Go's filepath.Rel(...) function.
+	if rootBslashes == 0 && fileBslashes == 0 && !rootHasDrivePrefix && !fileHasDrivePrefix && (rootFslashes >= 0 || fileFslashes >= 0) {
+		relPath, _ := filepath.Rel(root, file)
+		return relPath
+	}
+
+	// If we have a Windows or NFS path (say, D:\dir\file0, or \\dir\file1) then
+	// sanitize the paths so filepath.Rel(...) can operate as if they're *nix paths.
+	if rootHasDrivePrefix {
+		root = root[2:] // Strip the drive prefix.
+	}
+	if rootBslashes >= 0 && rootFslashes == 0 {
+		root = strings.Replace(root, "\\", "/", -1)
+	}
+
+	if fileHasDrivePrefix {
+		file = file[2:] // Strip the drive prefix.
+	}
+	if fileBslashes >= 0 && fileFslashes == 0 {
+		file = strings.Replace(file, "\\", "/", -1)
+	}
+
+	relPath, _ := filepath.Rel(root, file)
+	return relPath
 }

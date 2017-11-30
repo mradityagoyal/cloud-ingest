@@ -21,7 +21,6 @@ import (
 	"errors"
 	"fmt"
 	"log"
-	"path/filepath"
 )
 
 const (
@@ -97,7 +96,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	var newTasks []*Task
 	for filePath := range filePaths {
 		uploadGCSTaskId := GetUploadGCSTaskId(filePath)
-		dstObject, _ := filepath.Rel(listTaskSpec.SrcDirectory, filePath)
+		dstObject := GetRelPathOsAgnostic(listTaskSpec.SrcDirectory, filePath)
 
 		generationNumber, err := h.retrieveGenerationNumber(jobSpec.GCSBucket, dstObject)
 		if err != nil {
