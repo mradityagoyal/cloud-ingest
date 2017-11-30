@@ -34,7 +34,7 @@
                 <li> Install <a href="https://www.python.org/downloads/release/python-2713/">python2.7</a> if is not already installed.</li>
                 <li> Download and extract the gsutil worker: <a href="https://storage.googleapis.com/cloud-ingest-pub/gsutil_4.29pre_ing1.zip">zip</a> </li>
                 <li> In a shell window navigate to the path where you extracted the gsutil worker. </li>
-                <li> Run <code> C:\Python27\python.exe config </code> and choose <code>{{projectId}}</code> as your default project ID when prompted. </li>
+                <li> Run <code> C:\Python27\python.exe gsutil config </code> and choose <code>{{projectId}}</code> as your default project ID when prompted. </li>
                 <li> Run <br/> <code> C:\Python27\python.exe gsutil -m agent listandcopy -L <b>..\cloud-ingest-logs</b> ^<br/> projects/{{projectId}}/subscriptions/cloud-ingest-list ^<br/> projects/{{projectId}}/topics/cloud-ingest-list-progress ^<br/> projects/{{projectId}}/subscriptions/cloud-ingest-copy ^<br/> projects/{{projectId}}/topics/cloud-ingest-copy-progress
                   </code>
                   <br/> <br/>
