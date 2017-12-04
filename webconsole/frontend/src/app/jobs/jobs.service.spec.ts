@@ -34,14 +34,14 @@ describe('JobsService', () => {
   inject([HttpClient, HttpTestingController], (http: HttpClient, httpMock: HttpTestingController) => {
   const jobsService = new JobsService(http, activatedRouteStub);
   let actualTasks: Task[];
-  jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, FAKE_JOBRUN1, TASK_STATUS.SUCCESS).subscribe(
+  jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, TASK_STATUS.SUCCESS).subscribe(
     (response) => {
       actualTasks = response;
     },
     (error) => {
       // should not be called
     });
-  httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/fakeJobRunId1/status/${TASK_STATUS.SUCCESS}`)
+  httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/status/${TASK_STATUS.SUCCESS}`)
       .flush(FAKE_TASKS);
   expect(actualTasks).toEqual(FAKE_TASKS);
   httpMock.verify();
@@ -51,14 +51,14 @@ describe('JobsService', () => {
     inject([HttpClient, HttpTestingController], (http: HttpClient, httpMock: HttpTestingController) => {
     const jobsService = new JobsService(http, activatedRouteStub);
     let actualTasks: Task[];
-    jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, FAKE_JOBRUN1, TASK_STATUS.SUCCESS, FAKE_LAST_MODIFIED_TIME).subscribe(
+    jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, TASK_STATUS.SUCCESS, FAKE_LAST_MODIFIED_TIME).subscribe(
       (response) => {
         actualTasks = response;
       },
       (error) => {
         // should not be called
       });
-    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/fakeJobRunId1/status/${TASK_STATUS.SUCCESS}` +
+    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/status/${TASK_STATUS.SUCCESS}` +
                        `?lastModifiedBefore=${FAKE_LAST_MODIFIED_TIME}`)
         .flush(FAKE_TASKS);
     expect(actualTasks).toEqual(FAKE_TASKS);

@@ -131,9 +131,9 @@ export class TasksTableComponent implements OnInit, AfterViewInit {
 
   private getInitialLoadTasksObservable(): Observable<Task[]> {
     if (this.isFailureTable === true) {
-      return this.jobsService.getTasksOfFailureType(this.jobConfigId, this.jobRunId, this.failureType);
+      return this.jobsService.getTasksOfFailureType(this.jobConfigId, this.failureType);
     } else {
-      return this.jobsService.getTasksOfStatus(this.jobConfigId, this.jobRunId, this.status);
+      return this.jobsService.getTasksOfStatus(this.jobConfigId, this.status);
     }
   }
 
@@ -141,10 +141,10 @@ export class TasksTableComponent implements OnInit, AfterViewInit {
     const lastTask = this.tasks[this.tasks.length - 1];
     if (this.isFailureTable === true) {
       return this.jobsService.getTasksOfFailureType(
-        this.jobConfigId, this.jobRunId, this.failureType, lastTask.LastModificationTime);
+        this.jobConfigId, this.failureType, lastTask.LastModificationTime);
     } else {
       return this.jobsService.getTasksOfStatus(
-        this.jobConfigId, this.jobRunId, this.status, lastTask.LastModificationTime);
+        this.jobConfigId, this.status, lastTask.LastModificationTime);
     }
   }
 

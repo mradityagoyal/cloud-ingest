@@ -25,7 +25,6 @@ import unittest
 from mock import MagicMock
 from mock import patch
 
-from proto import tasks_pb2
 from spannerwrapper import SpannerWrapper
 
 # Disable pylint since pylint bug makes pylint think google.gax
@@ -101,75 +100,6 @@ class TestSpannerWrapper(unittest.TestCase):
         self.snapshot.execute_sql.assert_called()
         query = self.snapshot.execute_sql.call_args[0][0]
         self.assertIn(SpannerWrapper.JOB_CONFIGS_TABLE, query)
-
-    def test_get_tasks_of_status(self):
-        """Asserts that the proper task status is used in the query"""
-        task_status = tasks_pb2.TaskStatus.QUEUED
-        self.spanner_wrapper.get_tasks_of_status(
-            'fake_config_id', 'fake_run_id', 25, task_status)
-        self.snapshot.execute_sql.assert_called()
-        self.check_query_param(
-            'task_status',
-            task_status,
-            self.snapshot.execute_sql.call_args)
-
-    def test_last_modified_get_status(self):
-        """get_tasks_of_status should populate the correct last_modified_before
-           parameter in the query.
-        """
-        fake_last_modified = 1
-        self.spanner_wrapper.get_tasks_of_status(
-            'fake_config_id', 'fake_run_id', 25, tasks_pb2.TaskStatus.QUEUED,
-            last_modified_before=fake_last_modified)
-        self.snapshot.execute_sql.assert_called()
-        self.check_query_param(
-            'last_modified_before',
-            fake_last_modified,
-            self.snapshot.execute_sql.call_args)
-
-    def test_get_tasks_of_failure_type(self):
-        """Asserts that the proper failure type is used in the query"""
-        task_failure_type = tasks_pb2.TaskFailureType.UNKNOWN
-        # Get 25 tasks as it is the default number of tasks.
-        self.spanner_wrapper.get_tasks_of_failure_type(
-            'fake_config_id', 'fake_run_id', 25, task_failure_type)
-        self.snapshot.execute_sql.assert_called()
-        self.check_query_param(
-            'failure_type',
-            task_failure_type,
-            self.snapshot.execute_sql.call_args)
-
-    def test_last_modified_failure_type(self):
-        """Asserts that the proper last modified is used in the query"""
-        task_failure_type = tasks_pb2.TaskFailureType.UNKNOWN
-        fake_last_modified = 1
-        # Get 25 tasks as it is the default number of tasks.
-        self.spanner_wrapper.get_tasks_of_failure_type(
-            'fake_config_id', 'fake_run_id', 25, task_failure_type,
-            fake_last_modified)
-        self.snapshot.execute_sql.assert_called()
-        self.check_query_param(
-            'last_modified_before',
-            fake_last_modified,
-            self.snapshot.execute_sql.call_args)
-
-    def check_query_param(self, param_name, expected_value, call_args):
-        """Asserts that the query contains the given param with the right value.
-
-        Asserts that the query contains a variable named param_name and that
-        the variable param_name is passed the query with value expected_value.
-
-        Args:
-            param_name: The name of the variable in the query
-            expected_value: The expected value of the param_name variable
-            call_args: The call_args of the mocked execute_sql call
-        """
-        query = call_args[0][0]
-        self.assertIn(param_name, query)
-
-        query_params = call_args[0][1]
-        self.assertIn(param_name, query_params)
-        self.assertEqual(query_params[param_name], expected_value)
 
     @staticmethod
     def get_fields_list(fields):

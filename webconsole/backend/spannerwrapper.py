@@ -20,7 +20,6 @@ client is in JSON format and stored in a dictionary.
 import json
 
 from google.cloud import spanner
-from google.cloud.exceptions import BadRequest
 from google.cloud.spanner_v1.proto import type_pb2
 
 import util
@@ -28,37 +27,26 @@ from create_infra.job_utilities import JOB_STATUS_IN_PROGRESS
 from create_infra.job_utilities import TASK_STATUS_UNQUEUED
 from create_infra.job_utilities import TASK_TYPE_LIST
 from gaxerrordecorator import handle_common_gax_errors
-from proto.tasks_pb2 import TaskFailureType
 from proto.tasks_pb2 import TaskStatus
 
-
-def _check_max_num_tasks_in_range(max_num_tasks):
-    """Checks that the maximum number of tasks is in the allowed range.
-    Args:
-        max_num_tasks: The number of tasks.
-    Raises:
-        BadRequest: If max_num_tasks is <= 0 or > ROW_CAP
-    """
-    if max_num_tasks <= 0 or max_num_tasks > SpannerWrapper.ROW_CAP:
-        raise BadRequest("max_num_tasks must be a number between 1 and %d" %
-                         SpannerWrapper.ROW_CAP)
-
-def _get_tasks_params_and_types(config_id, run_id, max_num_tasks=None,
+def _get_params_and_param_types(config_id, run_id, num_tasks=None,
     task_status=None, last_modified_before=None, failure_type=None):
     """Gets the base parameters and parameter types used in most queries.
+
     Returns:
         A tuple of params and param_types of the specified input parameters.
     """
     params = {
         "run_id": run_id,
-        "config_id": config_id,
-        "num_tasks": max_num_tasks
+        "config_id": config_id
     }
     param_types = {
         "run_id": type_pb2.Type(code=type_pb2.STRING),
-        "config_id": type_pb2.Type(code=type_pb2.STRING),
-        "num_tasks": type_pb2.Type(code=type_pb2.INT64)
+        "config_id": type_pb2.Type(code=type_pb2.STRING)
     }
+    if num_tasks is not None:
+        params["num_tasks"] = num_tasks
+        param_types["task_status"] = type_pb2.Type(code=type_pb2.INT64)
     if task_status is not None:
         params["task_status"] = task_status
         param_types["task_status"] = type_pb2.Type(code=type_pb2.INT64)
@@ -175,6 +163,9 @@ def _get_tasks_of_status_base_query():
              SpannerWrapper.JOB_CONFIG_ID,
              SpannerWrapper.JOB_RUN_ID,
              SpannerWrapper.STATUS))
+
+# The number of task rows to retrieve per query.
+_NUM_OF_TASKS = 25
 
 # TODO(b/65846311): Temporary constants used to create the job run and first
 # list task when a job config is created. Eventually DCP should manage
@@ -341,28 +332,20 @@ class SpannerWrapper(object):
         self.database.run_in_transaction(_create_new_job_transaction,
             config_id, jobspec)
 
-    def get_tasks_of_status(self, config_id, run_id, max_num_tasks,
-                            task_status, last_modified_before=None):
+    def get_tasks_of_status(self, config_id, task_status,
+        last_modified_before=None):
         """Retrieves tasks of the input status for the input job configuration
            and job run.
 
         Args:
           config_id: The job configuration id.
-          run_id: The job run id.
-          max_num_tasks: The maximum number of tasks to retrieve.
           task_status: Get tasks of this status.
           last_modified_before: Retrieves tasks only before this timestamp.
-
-        Raises:
-          BadRequest: if max_num_tasks is not in the allowed range or if the
-                      task status is not in the allowed range.
-
         """
-        _check_max_num_tasks_in_range(max_num_tasks)
-        if task_status not in TaskStatus.Type.values():
-            raise BadRequest("Task status of id %d is unknown.", task_status)
-        params, param_types = _get_tasks_params_and_types(config_id,
-            run_id, max_num_tasks, task_status=task_status,
+        params, param_types = _get_params_and_param_types(config_id,
+            run_id=_FIRST_JOB_RUN_ID,
+            num_tasks=_NUM_OF_TASKS,
+            task_status=task_status,
             last_modified_before=last_modified_before)
         query = _get_tasks_of_status_base_query()
         if last_modified_before is not None:
@@ -372,27 +355,20 @@ class SpannerWrapper(object):
             SpannerWrapper.LAST_MODIFICATION_TIME)
         return self.list_query(query, params, param_types)
 
-    def get_tasks_of_failure_type(self, config_id, run_id, max_num_tasks,
-                                  failure_type, last_modified_before=None):
+    def get_tasks_of_failure_type(self, config_id, failure_type,
+        last_modified_before=None):
         """Retrieves the tasks of the input failure type for the input job
            configuration and job run.
 
         Args:
           config_id: The job configuration id.
-          run_id: The job run id.
-          max_num_tasks: The maximum number of tasks to retrieve.
           failure_type: Get tasks of this failure type.
-
-        Raises:
-          BadRequest: if max_num_tasks is not in the allowed range or if the
-                      failure type is not in the allowed range.
+          last_modified_before: Timestamp to retrieve tasks before this
+              timestamp.
         """
-        _check_max_num_tasks_in_range(max_num_tasks)
-        if failure_type not in TaskFailureType.Type.values():
-            raise BadRequest("Task of failure type %d is unknown.",
-                failure_type)
-        params, param_types = _get_tasks_params_and_types(config_id,
-            run_id, max_num_tasks, failure_type=failure_type,
+        params, param_types = _get_params_and_param_types(config_id,
+            run_id=_FIRST_JOB_RUN_ID, num_tasks=_NUM_OF_TASKS,
+            failure_type=failure_type,
             last_modified_before=last_modified_before)
 
         query = (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @config_id "
@@ -426,7 +402,7 @@ class SpannerWrapper(object):
                  SpannerWrapper.JOB_RUNS_TABLE,
                  SpannerWrapper.JOB_CONFIGS_TABLE, SpannerWrapper.JOB_CONFIG_ID,
                  SpannerWrapper.JOB_RUN_ID)
-        params, param_types = _get_tasks_params_and_types(run_id=run_id,
+        params, param_types = _get_params_and_param_types(run_id=run_id,
             config_id=config_id)
         job_run = self.single_result_query(query, params, param_types)
         if job_run:

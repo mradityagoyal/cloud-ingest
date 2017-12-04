@@ -36,16 +36,18 @@ from google.cloud.exceptions import PreconditionFailed
 from google.cloud.exceptions import ServerError
 from google.cloud.exceptions import Unauthorized
 from google.oauth2.credentials import Credentials
+from proto.tasks_pb2 import TaskFailureType
+from proto.tasks_pb2 import TaskStatus
+
 
 import infra_util
+import util
 from corsdecorator import crossdomain  # To allow requests from the front-end
 from spannerwrapper import SpannerWrapper
 
 APP = Flask(__name__)
 APP.config.from_pyfile('ingestwebconsole.default_settings')
 APP.config.from_envvar('INGEST_CONFIG_PATH')
-
-DEFAULT_PAGE_SIZE = 25
 
 # Allowed headers in cross-site http requests.
 _ALLOWED_HEADERS = ['Content-Type', 'Authorization']
@@ -143,6 +145,27 @@ _MISSING_FIELD_ERROR = {
                     ','.join(POST_CONFIG_FIELDS))
 }
 
+# An error returned to the user indicating that the task status was not in the
+# list of accepted task status.
+_INVALID_TASK_STATUS_ERROR = {
+    'error': 'Invalid task status',
+    'message': 'The provided task status is not recognized.'
+}
+
+# An error returned to the user indicating that the failure type was not in the
+# list of accepted task failure types.
+_INVALID_TASK_FAILURE_TYPE_ERROR = {
+    'error': 'Invalid task failure type',
+    'message': 'The provided task failure type is not recognized.'
+}
+
+# An error returned to the user indicating that the last modified timestamp is
+# invalid.
+_INVALID_TIMESTAMP_ERROR = {
+    'error' : 'Invalid last modified timestamp',
+    'message' : 'The timestamp must be between 0 and now.'
+}
+
 def _get_credentials():
     """Gets OAuth2 credentials from request Authorization headers."""
     auth_header = request.headers.get('Authorization')
@@ -204,6 +227,38 @@ def _get_delete_job_configs_error(content):
     for item in content:
         if not (isinstance(item, str) or isinstance(item, unicode)):
             return formatting_error_response
+    return None
+
+def _get_error_for_get_tasks_of_status(last_modified, task_status):
+    """Checks that the input for the get tasks of status route is in the
+       correct format.
+
+       Returns:
+           An error response dictionary if there is an error with the input, or
+           None if there is no error.
+    """
+    current_time = util.get_unix_nano()
+    if last_modified is not None and (
+        last_modified > current_time or last_modified < 0):
+        return _INVALID_TIMESTAMP_ERROR
+    if task_status not in TaskStatus.Type.values():
+        return _INVALID_TASK_STATUS_ERROR
+    return None
+
+def _get_tasks_failure_error(last_modified, failure_type):
+    """Checks that the input for the get tasks of failure type route is in the
+       correct format.
+
+       Returns:
+           An error response dictionary if there is an error with the input, or
+           None if there is no error.
+    """
+    current_time = util.get_unix_nano()
+    if last_modified is not None and (
+        last_modified > current_time or last_modified < 0):
+        return _INVALID_TIMESTAMP_ERROR
+    if failure_type not in TaskFailureType.Type.values():
+        return _INVALID_TASK_FAILURE_TYPE_ERROR
     return None
 
 @APP.route('/projects/<project_id>/jobconfigs/delete',
@@ -291,122 +346,78 @@ def get_job_run(project_id, config_id):
         return jsonify(_CONFIG_NOT_FOUND_ERROR), httplib.NOT_FOUND
     return jsonify(result), httplib.OK
 
-@APP.route('/projects/<project_id>/tasks/<config_id>/<run_id>',
-           methods=['OPTIONS', 'GET'])
-@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def tasks(project_id, config_id, run_id):
-    """Handles GET requests for tasks.
-    This route has several optional query parameters.
-        pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
-                  Values less than 1 and greater than 10,000 result in a
-                  response of 400 BAD_REQUEST.
-        lastModifiedBefore- The unix epoch time used to filter tasks. Only tasks
-                            with last modified times before the given time
-                            will be returned.
-        type- Only tasks with the given type will be returned.
-    Args:
-        project_id: The id of the project.
-        config_id: The id of the job config for the desired tasks
-        run_id: The id of the job run for the desired tasks
-    Returns:
-        On success-
-            200, A JSON list of pageSize (defaults to DEFAULT_PAGE_SIZE)
-                 matching tasks
-        On failure-
-            400, Bad request due to invalid values for query params
-            500, Any uncaught exception is raised during the processing of
-                 the request
-    """
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
-    last_modified_before = _get_int_param(request, 'lastModifiedBefore')
-    task_type = request.args.get('type')
-    num_tasks = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
-
-    return jsonify(spanner_wrapper.get_tasks_for_run(
-        config_id,
-        run_id,
-        num_tasks,
-        last_modified=last_modified_before,
-        task_type=task_type
-    ))
-
 @APP.route(
-'/projects/<project_id>/tasks/<config_id>/<run_id>/status/<task_status>',
+'/projects/<project_id>/tasks/<config_id>/status/<task_status>',
 methods=['OPTIONS', 'GET'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def get_tasks_of_status(project_id, config_id, run_id, task_status):
+def get_tasks_of_status(project_id, config_id, task_status):
     """Handles GET requests for tasks of a specified status.
     This route has two query parameters:
-        pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
         lastModifiedBefore- Only return tasks modified before this timestamp.
     Args:
         project_id: The id of the project.
         config_id: The id of the job config for the desired tasks
-        run_id: The id of the job run for the desired tasks
         task_status: The task status code for the tasks.
     Returns:
-        On success-
-            200, A JSON list of pageSize (defaults to DEFAULT_PAGE_SIZE)
-                 matching tasks
-        On failure-
-            400, Bad request due to invalid values for query params
-            500, Any uncaught exception is raised during the processing of
-                 the request
+        The tasks of the input status that are found in the database. The
+        maximum number of tasks returned is equal to the _NUM_OF_TASKS constant
+        in the spannerwrapper.py file.
     """
     spanner_wrapper = SpannerWrapper(_get_credentials(),
                                      project_id,
                                      APP.config['SPANNER_INSTANCE'],
                                      APP.config['SPANNER_DATABASE'])
-    num_tasks = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
+    if not _PROJECT_ID_PATTERN.match(project_id):
+        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    if not _CONFIG_ID_PATTERN.match(config_id):
+        return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
     last_modified_before = _get_int_param(request, 'lastModifiedBefore')
     task_status_int = int(task_status)
+    error = _get_error_for_get_tasks_of_status(last_modified_before,
+        task_status_int)
+    if error:
+        return jsonify(error), httplib.BAD_REQUEST
 
     return jsonify(spanner_wrapper.get_tasks_of_status(
         config_id,
-        run_id,
-        num_tasks,
         task_status_int,
         last_modified_before
     ))
 
 @APP.route(
-'/projects/<project_id>/tasks/<config_id>/<run_id>/failuretype/<failure_type>',
+'/projects/<project_id>/tasks/<config_id>/failuretype/<failure_type>',
 methods=['OPTIONS', 'GET'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def get_tasks_of_failure_type(project_id, config_id, run_id, failure_type):
+def get_tasks_of_failure_type(project_id, config_id, failure_type):
     """Handles GET requests for tasks of a specified status.
-    This route has two query parameters:
-        pageSize- The number of tasks to return. Default is DEFAULT_PAGE_SIZE.
+    This route has one query parameter:
         lastModifiedBefore- Only return tasks modified before this timestamp.
     Args:
         project_id: The id of the project.
         config_id: The id of the job config for the desired tasks
-        run_id: The id of the job run for the desired tasks
         failure_type: The failure type code of the tasks
     Returns:
-        On success-
-            200, A JSON list of pageSize (defaults to DEFAULT_PAGE_SIZE)
-                 matching tasks
-        On failure-
-            400, Bad request due to invalid values for query params
-            500, Any uncaught exception is raised during the processing of
-                 the request
+        The tasks of the input status that are found in the database. The
+        maximum number of tasks returned is equal to the _NUM_OF_TASKS constant
+        in the spannerwrapper.py file.
     """
     spanner_wrapper = SpannerWrapper(_get_credentials(),
                                      project_id,
                                      APP.config['SPANNER_INSTANCE'],
                                      APP.config['SPANNER_DATABASE'])
-    num_tasks = _get_int_param(request, 'pageSize') or DEFAULT_PAGE_SIZE
+    if not _PROJECT_ID_PATTERN.match(project_id):
+        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    if not _CONFIG_ID_PATTERN.match(config_id):
+        return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
     last_modified_before = _get_int_param(request, 'lastModifiedBefore')
     failure_type_int = int(failure_type)
+    error = _get_tasks_failure_error(last_modified_before,
+        failure_type_int)
+    if error:
+        return jsonify(error), httplib.BAD_REQUEST
 
     return jsonify(spanner_wrapper.get_tasks_of_failure_type(
         config_id,
-        run_id,
-        num_tasks,
         failure_type_int,
         last_modified_before
     ))

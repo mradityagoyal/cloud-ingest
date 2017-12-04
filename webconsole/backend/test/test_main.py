@@ -42,18 +42,8 @@ from mock import patch
 import main
 from proto import tasks_pb2
 from spannerwrapper import SpannerWrapper
-from test.testutils import get_task
-
-FAKE_TASK = get_task("fake_config_id",
-                     "fake_run_id",
-                     "fake_task_id",
-                     task_creation_time=0,
-                     last_mod_time=1,
-                     status=tasks_pb2.TaskStatus.QUEUED,
-                     task_spec="fake_task_spec",
-                     task_type=tasks_pb2.TaskType.LIST)
-FAKE_TASK_STATUS = tasks_pb2.TaskStatus.QUEUED
-FAKE_LAST_MODIFICATION_TIME = 1
+from proto.tasks_pb2 import TaskFailureType
+from proto.tasks_pb2 import TaskStatus
 
 FAKE_JOB_SPEC = {
     'onPremSrcDirectory' : 'fakeFileSystemDir',
@@ -111,7 +101,54 @@ FAKE_JOB_RUN_JOB_CONFIG_RESPONSE = {
     'Counters' : FAKE_COUNTERS_JSON
 }
 
-FAKE_LAST_MODIFICATION_TIME = 1
+FAKE_TIME1 = 1
+
+FAKE_TASK_SPEC1 = {
+    'src_directory': '/fake/source/directory/1',
+    'dst_list_result_bucket': 'fake-destination-bucket-1',
+    'dst_list_result_object': 'list-task-output-fake',
+    'expected_generation_num': 0,
+}
+
+FAKE_TASK_SPEC1_JSON = json.dumps(FAKE_TASK_SPEC1)
+
+FAKE_TASK1 = {
+    SpannerWrapper.JOB_CONFIG_ID: 'fake config 1',
+    SpannerWrapper.JOB_RUN_ID: 'jobRunId1',
+    SpannerWrapper.TASK_ID: 'faketaskid',
+    SpannerWrapper.TASK_CREATION_TIME: FAKE_TIME1,
+    SpannerWrapper.LAST_MODIFICATION_TIME: FAKE_TIME1,
+    SpannerWrapper.STATUS: tasks_pb2.TaskStatus.UNQUEUED,
+    SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC1_JSON,
+    SpannerWrapper.TASK_TYPE: tasks_pb2.TaskType.LIST
+}
+
+FAKE_TIME2 = 2
+
+
+FAKE_TASK_SPEC2 = {
+    'src_directory': '/fake/source/directory/2',
+    'dst_list_result_bucket': 'fake-destination-bucket-2',
+    'dst_list_result_object': 'list-task-output-fake-2',
+    'expected_generation_num': 0,
+}
+
+FAKE_TASK_SPEC2_JSON = json.dumps(FAKE_TASK_SPEC2)
+
+FAKE_TASK2 = {
+    SpannerWrapper.JOB_CONFIG_ID: 'fake config 2',
+    SpannerWrapper.JOB_RUN_ID: 'jobRunId2',
+    SpannerWrapper.TASK_ID: 'faketaskid2',
+    SpannerWrapper.TASK_CREATION_TIME: FAKE_TIME2,
+    SpannerWrapper.LAST_MODIFICATION_TIME: FAKE_TIME2,
+    SpannerWrapper.STATUS: tasks_pb2.TaskStatus.QUEUED,
+    SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC2_JSON,
+    SpannerWrapper.TASK_TYPE: tasks_pb2.TaskType.LIST
+}
+
+FAKE_TASK_LIST = [FAKE_TASK1, FAKE_TASK2]
+
+FAKE_INVALID_TIME = -4
 
 _EMPTY_MOCK_STREAMED_RESULT = MagicMock(spec=StreamedResultSet)
 _EMPTY_MOCK_STREAMED_RESULT.__iter__.return_value = []
@@ -223,47 +260,6 @@ class TestMain(unittest.TestCase):
               response_json['traceback'])
             self.assertTrue(exception_list[i].__name__ in
               response_json['traceback'])
-
-    @patch.object(main, '_get_credentials')
-    @patch.object(main, 'SpannerWrapper')
-    def test_get_failure_type(self, spanner_wrapper_mock,
-        dummy_get_credentials):
-        """ Tests that getting tasks with failure type passes the correct
-            parameters to spannerwrapper.
-        """
-        spanner_wrapper_mock_inst = MagicMock()
-        spanner_wrapper_mock.return_value = spanner_wrapper_mock_inst
-        (spanner_wrapper_mock_inst
-         .get_tasks_of_failure_type.return_value) = FAKE_TASK
-        response = self.app.get(
-            '/projects/fakeProjectId/tasks/fakeConfigId/fakeRunId/failuretype/'
-            + str(tasks_pb2.TaskFailureType.UNKNOWN)
-            + '?lastModifiedBefore=' + str(FAKE_LAST_MODIFICATION_TIME))
-        response_json = json.loads(response.data)
-        spanner_wrapper_mock_inst.get_tasks_of_failure_type.assert_called_with(
-            'fakeConfigId', 'fakeRunId', main.DEFAULT_PAGE_SIZE,
-            tasks_pb2.TaskFailureType.UNKNOWN, FAKE_LAST_MODIFICATION_TIME)
-        self.assertEqual(response_json, FAKE_TASK)
-
-    @patch.object(main, '_get_credentials')
-    @patch.object(main, 'SpannerWrapper')
-    def test_get_tasks_of_status(self, spanner_wrapper_mock,
-        dummy_get_credentials):
-        """ Tests that getting tasks with status passes correct parameters to
-            spannerwrapper.
-        """
-        spanner_wrapper_mock_inst = MagicMock()
-        spanner_wrapper_mock.return_value = spanner_wrapper_mock_inst
-        spanner_wrapper_mock_inst.get_tasks_of_status.return_value = FAKE_TASK
-        response = self.app.get(
-            '/projects/fakeProjectId/tasks/fakeConfigId/fakeRunId/status/'
-            + str(FAKE_TASK_STATUS)
-            + '?lastModifiedBefore=' + str(FAKE_LAST_MODIFICATION_TIME))
-        response_json = json.loads(response.data)
-        spanner_wrapper_mock_inst.get_tasks_of_status.assert_called_with(
-            'fakeConfigId', 'fakeRunId', main.DEFAULT_PAGE_SIZE,
-            FAKE_TASK_STATUS, FAKE_LAST_MODIFICATION_TIME)
-        self.assertEqual(response_json, FAKE_TASK)
 
     @patch.object(main, '_get_credentials')
     @patch.object(main, 'logging')
@@ -579,6 +575,175 @@ class TestMain(unittest.TestCase):
                              'fileSystemDirectory': '*not-a-valid-directory'}),
                              content_type='application/json')
 
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_get_tasks_failure_type(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/failuretype/<failure_type>
+        should get the tasks of the input failure type.
+        """
+        mock_result = _get_mock_streamed_result_list(FAKE_TASK_LIST)
+        self.mock_snapshot.execute_sql.return_value = mock_result
+        response = self.app.get('/projects/fakeprojectid/tasks/fakeconfigid/'
+            'failuretype/' + str(TaskFailureType.FILE_MODIFIED_FAILURE) +
+            '?lastModifiedBefore=' + str(FAKE_TIME1))
+        response_json = json.loads(response.data)
+        sql_query = self.mock_snapshot.execute_sql.call_args[0][0]
+        params = self.mock_snapshot.execute_sql.call_args[0][1]
+
+        # Assert that it returns the tasks from the query.
+        assert response_json[0] == FAKE_TASK_LIST[0]
+        assert response_json[1] == FAKE_TASK_LIST[1]
+
+        # Assert the query uses the expected query parameters
+        assert ('FROM {0}'.format(SpannerWrapper.TASKS_TABLE)
+            in sql_query)
+        assert ('{0} = @config_id'.format(SpannerWrapper.JOB_CONFIG_ID) in
+            sql_query)
+        assert ('{0} = @failure_type'.format(SpannerWrapper.FAILURE_TYPE) in
+            sql_query)
+        assert ('{0} < @last_modified_before'.format(
+            SpannerWrapper.LAST_MODIFICATION_TIME) in sql_query)
+
+        # Assert that it contains the query parameter values.
+        assert params['config_id'] == 'fakeconfigid'
+        assert params['failure_type'] == TaskFailureType.FILE_MODIFIED_FAILURE
+        assert params['last_modified_before'] == FAKE_TIME1
+
+    def test_get_tasks_failure_error(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/failuretype/<failure_type>
+        should return an error if the failure type is invalid
+        """
+        response = self.app.get('/projects/fakeprojectid/tasks/fakeconfigid/'
+            'failuretype/500')
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_get_tasks_failure_error2(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/failuretype/<failure_type>
+        should return an error if the last modification time is invalid
+        """
+        response = self.app.get('/projects/fakeprojectid/tasks/fakeconfigid/'
+            'failuretype/' + str(TaskFailureType.MD5_MISMATCH_FAILURE) +
+            '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_get_tasks_failure_error3(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/failuretype/<failure_type>
+        should return an error if the project id is invalid
+        """
+        response = self.app.get('/projects/fake*.*invalid/tasks/fakeconfigid/'
+            'failuretype/' + str(TaskFailureType.MD5_MISMATCH_FAILURE) +
+            '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_get_tasks_failure_error4(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/failuretype/<failure_type>
+        should return an error if the config id is invalid
+        """
+        response = self.app.get('/projects/fakeprojectid/tasks/fake*invalid./'
+            'failuretype/' + str(TaskFailureType.MD5_MISMATCH_FAILURE) +
+            '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+
+    def test_get_tasks_of_status(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/status/<task_status>
+        should get the tasks of the input failure status.
+        """
+        mock_result = _get_mock_streamed_result_list(FAKE_TASK_LIST)
+        self.mock_snapshot.execute_sql.return_value = mock_result
+        response = self.app.get('/projects/fakeprojectid/tasks/fakeconfigid/'
+            'status/' + str(TaskStatus.UNQUEUED) +
+            '?lastModifiedBefore=' + str(FAKE_TIME1))
+        response_json = json.loads(response.data)
+        sql_query = self.mock_snapshot.execute_sql.call_args[0][0]
+        params = self.mock_snapshot.execute_sql.call_args[0][1]
+
+        # Assert that it returns the tasks from the query.
+        assert response_json[0] == FAKE_TASK_LIST[0]
+        assert response_json[1] == FAKE_TASK_LIST[1]
+
+        # Assert the query uses the expected query parameters
+        assert ('FROM {0}'.format(SpannerWrapper.TASKS_TABLE)
+            in sql_query)
+        assert ('{0} = @config_id'.format(SpannerWrapper.JOB_CONFIG_ID) in
+            sql_query)
+        assert ('{0} = @task_status'.format(SpannerWrapper.STATUS) in
+            sql_query)
+        assert ('{0} < @last_modified_before'.format(
+            SpannerWrapper.LAST_MODIFICATION_TIME) in sql_query)
+
+        # Assert that it contains the query parameter values.
+        assert params['config_id'] == 'fakeconfigid'
+        assert params['task_status'] == TaskStatus.UNQUEUED
+        assert params['last_modified_before'] == FAKE_TIME1
+
+    def test_get_tasks_of_status_error(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/status/<task_status>
+        should return an error if the status is invalid
+        """
+        response = self.app.get('/projects/fakeprojectid/tasks/fakeconfigid/'
+            'status/500')
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_get_tasks_of_status_error2(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/status/<task_status>
+        should return an error if the last modification time is invalid
+        """
+        response = self.app.get('/projects/fakeprojectid/tasks/fakeconfigid/'
+            'status/' + str(TaskStatus.UNQUEUED) +
+            '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_get_tasks_of_status_error3(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/status/<task_status>
+        should return an error if the project id is invalid
+        """
+        response = self.app.get('/projects/invalid$projectid/tasks/'
+            'fakeconfigid/status/' + str(TaskStatus.UNQUEUED) +
+            '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_get_tasks_of_status_error4(self):
+        """
+        /projects/<project_id>/tasks/<config_id>/status/<task_status>
+        should return an error if the config id is invalid
+        """
+        response = self.app.get('/projects/invalid$projectid/tasks/'
+            'invalid#configid/status/' + str(TaskStatus.UNQUEUED) +
+            '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
         response_json = json.loads(response.data)
 
         assert response.status_code == httplib.BAD_REQUEST

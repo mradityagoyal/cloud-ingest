@@ -93,7 +93,8 @@ const-rgx=(([A-Z_][A-Z0-9_]*)|(__.*__))$
 class-rgx=[A-Z_][a-zA-Z0-9]+$
 
 # Regular expression which should only match correct function names
-function-rgx=[a-z_][a-z0-9_]{2,30}$
+# Taken from: https://github.com/google/apitools/blob/master/default.pylintrc
+function-rgx=^(?:(?P<camel_case>_?[A-Z][a-zA-Z0-9]*)|(?P<snake_case>_?[a-z][a-z0-9_]*))$
 
 # Regular expression which should only match correct method names
 method-rgx=[a-z_][a-z0-9_]{2,30}$
