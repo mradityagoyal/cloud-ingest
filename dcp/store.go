@@ -16,13 +16,12 @@ limitations under the License.
 package dcp
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/spanner"

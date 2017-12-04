@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"io/ioutil"
@@ -85,7 +86,7 @@ func TestListProgressMessageHandlerFailReadingGenNum(t *testing.T) {
 	errorMsg := "failed to read metadata"
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), gomock.Any()).
+		GetMetadata(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil, errors.New(errorMsg))
 
 	handler := ListProgressMessageHandler{
@@ -107,11 +108,11 @@ func TestListProgressMessageHandlerFailReadingListResult(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockListReader := NewMockListingResultReader(mockCtrl)
 	errorMsg := "Failed reading listing result."
-	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(nil, errors.New(errorMsg))
+	mockListReader.EXPECT().ReadListResult(context.Background(), "bucket1", "object").Return(nil, errors.New(errorMsg))
 
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), gomock.Any()).
+		GetMetadata(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 
 	handler := ListProgressMessageHandler{
@@ -135,11 +136,11 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 	mockListReader := NewMockListingResultReader(mockCtrl)
 	c := make(chan string)
 	close(c)
-	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
+	mockListReader.EXPECT().ReadListResult(context.Background(), "bucket1", "object").Return(c, nil)
 
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), gomock.Any()).
+		GetMetadata(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 
 	handler := ListProgressMessageHandler{
@@ -169,11 +170,11 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 		defer close(c)
 		c <- "task_id_B"
 	}()
-	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
+	mockListReader.EXPECT().ReadListResult(context.Background(), "bucket1", "object").Return(c, nil)
 
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), gomock.Any()).
+		GetMetadata(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 
 	handler := ListProgressMessageHandler{
@@ -206,16 +207,16 @@ func TestListProgressMessageHandlerMetadataError(t *testing.T) {
 		c <- "job_config_id_A:job_run_id_A:task_id_A"
 		c <- "dir/file0"
 	}()
-	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
+	mockListReader.EXPECT().ReadListResult(context.Background(), "bucket1", "object").Return(c, nil)
 
 	// Setup ObjectMetadataReader - file0 doesn't exist, file1 is at generation 1.
 	expectedError := "Some transient gcs metadata error"
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), "object").
+		GetMetadata(gomock.Any(), gomock.Any(), "object").
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), "file0").
+		GetMetadata(gomock.Any(), gomock.Any(), "file0").
 		Return(nil, errors.New(expectedError))
 
 	handler := ListProgressMessageHandler{
@@ -250,7 +251,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		c <- "dir/file0"
 		c <- "dir/file1"
 	}()
-	mockListReader.EXPECT().ReadListResult("bucket1", "object").Return(c, nil)
+	mockListReader.EXPECT().ReadListResult(context.Background(), "bucket1", "object").Return(c, nil)
 
 	listTask := &Task{
 		JobConfigId: jobConfigId,
@@ -269,13 +270,13 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	// Setup ObjectMetadataReader - file0 doesn't exist, file1 is at generation 1.
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), "object").
+		GetMetadata(gomock.Any(), gomock.Any(), "object").
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), "file0").
+		GetMetadata(gomock.Any(), gomock.Any(), "file0").
 		Return(nil, storage.ErrObjectNotExist)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), "file1").
+		GetMetadata(gomock.Any(), gomock.Any(), "file1").
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 
 	handler := ListProgressMessageHandler{

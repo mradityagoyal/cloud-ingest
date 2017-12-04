@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"context"
 	"reflect"
 	"testing"
 
@@ -28,11 +29,11 @@ func TestReadListResultError(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	mockGcs := NewMockGCS(mockCtrl)
-	mockGcs.EXPECT().NewReader(gomock.Any(), gomock.Any()).Return(nil, storage.ErrObjectNotExist)
+	mockGcs.EXPECT().NewReader(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, storage.ErrObjectNotExist)
 
 	reader := NewGCSListingResultReader(mockGcs)
 
-	_, err := reader.ReadListResult("bucket", "object")
+	_, err := reader.ReadListResult(context.Background(), "bucket", "object")
 
 	if err == nil {
 		t.Errorf("Expected error '%v', but got <nil>", storage.ErrObjectNotExist)
@@ -47,12 +48,12 @@ func TestReadListResultSuccess(t *testing.T) {
 
 	src := NewStringReadCloser("line1\nline2\n")
 	mockGcs.EXPECT().
-		NewReader(gomock.Any(), gomock.Any()).
+		NewReader(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
 
 	reader := NewGCSListingResultReader(mockGcs)
 
-	result, err := reader.ReadListResult("bucket", "object")
+	result, err := reader.ReadListResult(context.Background(), "bucket", "object")
 
 	if err != nil {
 		t.Errorf("Expected no error, but got '%v'", err)

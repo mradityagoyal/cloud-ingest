@@ -16,13 +16,12 @@ limitations under the License.
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log"
 	"os"
 	"time"
-
-	"golang.org/x/net/context"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/spanner"

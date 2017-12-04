@@ -5,6 +5,7 @@
 package dcp
 
 import (
+	context "context"
 	gomock "github.com/golang/mock/gomock"
 	reflect "reflect"
 )
@@ -33,14 +34,14 @@ func (m *MockObjectMetadataReader) EXPECT() *MockObjectMetadataReaderMockRecorde
 }
 
 // GetMetadata mocks base method
-func (m *MockObjectMetadataReader) GetMetadata(bucketName, objectName string) (*ObjectMetadata, error) {
-	ret := m.ctrl.Call(m, "GetMetadata", bucketName, objectName)
+func (m *MockObjectMetadataReader) GetMetadata(ctx context.Context, bucketName, objectName string) (*ObjectMetadata, error) {
+	ret := m.ctrl.Call(m, "GetMetadata", ctx, bucketName, objectName)
 	ret0, _ := ret[0].(*ObjectMetadata)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetMetadata indicates an expected call of GetMetadata
-func (mr *MockObjectMetadataReaderMockRecorder) GetMetadata(bucketName, objectName interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetadata", reflect.TypeOf((*MockObjectMetadataReader)(nil).GetMetadata), bucketName, objectName)
+func (mr *MockObjectMetadataReaderMockRecorder) GetMetadata(ctx, bucketName, objectName interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetMetadata", reflect.TypeOf((*MockObjectMetadataReader)(nil).GetMetadata), ctx, bucketName, objectName)
 }

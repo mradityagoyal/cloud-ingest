@@ -24,12 +24,11 @@ and provide a monitoring capabilities for the transfers.
 package dcp
 
 import (
+	"context"
 	"encoding/base64"
 	"log"
 	"strings"
 	"sync"
-
-	"golang.org/x/net/context"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/golang/groupcache/lru"

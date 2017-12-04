@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"context"
 	"strconv"
 )
 
@@ -30,7 +31,7 @@ type ObjectMetadata struct {
 
 // ObjectMetadataReader is a simple interface around reading object metadata from GCS objects.
 type ObjectMetadataReader interface {
-	GetMetadata(bucketName string, objectName string) (*ObjectMetadata, error)
+	GetMetadata(ctx context.Context, bucketName string, objectName string) (*ObjectMetadata, error)
 }
 
 type GCSObjectMetadataReader struct {
@@ -44,8 +45,8 @@ func NewGCSObjectMetadataReader(gcs GCS) *GCSObjectMetadataReader {
 
 // GetMetadata retrieves metadata for an object.
 // When an object does not exist, the "not found" error is propagated, as with all GCS errors.
-func (r *GCSObjectMetadataReader) GetMetadata(bucketName string, objectName string) (*ObjectMetadata, error) {
-	attr, err := r.gcs.GetAttrs(bucketName, objectName)
+func (r *GCSObjectMetadataReader) GetMetadata(ctx context.Context, bucketName string, objectName string) (*ObjectMetadata, error) {
+	attr, err := r.gcs.GetAttrs(ctx, bucketName, objectName)
 	if err != nil {
 		return nil, err
 	}

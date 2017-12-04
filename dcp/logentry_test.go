@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -130,12 +131,12 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 		t.Errorf("Expected 0 written lines, found %d", writer.WrittenLines)
 	}
 
-	mockGcs.EXPECT().NewWriter("dummy_bucket",
+	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
 	mockTicker := NewMockTicker()
 	testChannel := make(chan int)
-	go lep.continuouslyProcessLogs(mockTicker, nil, testChannel)
+	go lep.continuouslyProcessLogs(context.Background(), mockTicker, nil, testChannel)
 	mockTicker.Tick()
 	<-testChannel // Block on the completion of the periodicCheck.
 
@@ -165,12 +166,12 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 		t.Errorf("Expected 0 written lines, found %d", writer.WrittenLines)
 	}
 
-	mockGcs.EXPECT().NewWriter("dummy_bucket",
+	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
 	mockTicker := NewMockTicker()
 	testChannel := make(chan int)
-	go lep.continuouslyProcessLogs(mockTicker, nil, testChannel)
+	go lep.continuouslyProcessLogs(context.Background(), mockTicker, nil, testChannel)
 	mockTicker.Tick()
 	<-testChannel // Block on the completion of the periodicCheck.
 
@@ -210,13 +211,13 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 		t.Errorf("Expected 0 written lines, found %d", writer.WrittenLines)
 	}
 
-	mockGcs.EXPECT().NewWriter("dummy_bucket",
+	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
 	mockTicker := NewMockTicker()
 	jobrunChannel := make(chan int)
 	testChannel := make(chan int)
-	go lep.continuouslyProcessLogs(mockTicker, jobrunChannel, testChannel)
+	go lep.continuouslyProcessLogs(context.Background(), mockTicker, jobrunChannel, testChannel)
 
 	// Perform a bunch of ticks, but not enough to trigger 'no-progress'.
 	for i := int64(0); i < maxNoProgressCount/2; i++ {
@@ -258,9 +259,9 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 		t.Errorf("Expected 0 written lines, found %d", writer.WrittenLines)
 	}
 
-	mockGcs.EXPECT().NewWriter("dummy_bucket",
+	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
-	lep.SingleLogsProcessingRun(1) // Process a single log entry.
+	lep.SingleLogsProcessingRun(context.Background(), 1) // Process a single log entry.
 
 	// Verify a single log entry has been processed.
 	if c, _ := store.GetNumUnprocessedLogs(); c != 2 {
@@ -270,9 +271,9 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 		t.Errorf("Expected 1 written line, found %d", writer.WrittenLines)
 	}
 
-	mockGcs.EXPECT().NewWriter("dummy_bucket",
+	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000150-08:00.log").Return(&writer)
-	lep.SingleLogsProcessingRun(100) // Process all (two) remaining log entries.
+	lep.SingleLogsProcessingRun(context.Background(), 100) // Process all (two) remaining log entries.
 
 	// Verify all remaining log entries have been processed.
 	if c, _ := store.GetNumUnprocessedLogs(); c != 0 {

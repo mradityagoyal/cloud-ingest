@@ -16,22 +16,24 @@ limitations under the License.
 package dcp
 
 import (
-	"cloud.google.com/go/storage"
+	"context"
 	"log"
+
+	"cloud.google.com/go/storage"
 )
 
 type UploadGCSProgressMessageHandler struct {
 	ObjectMetadataReader ObjectMetadataReader
 }
 
-func (h *UploadGCSProgressMessageHandler) extractGenerationNum(completionMsg *TaskCompletionMessage) (int64, error) {
+func (h *UploadGCSProgressMessageHandler) extractGenerationNum(ctx context.Context, completionMsg *TaskCompletionMessage) (int64, error) {
 	taskSpec, err := NewUploadGCSTaskSpecFromMap(completionMsg.TaskParams)
 	if err != nil {
 		return 0, err
 	}
 
 	// TODO (b/69319257) Move this portion of the work to the queueing worker.
-	metadata, err := h.ObjectMetadataReader.GetMetadata(taskSpec.DstBucket, taskSpec.DstObject)
+	metadata, err := h.ObjectMetadataReader.GetMetadata(ctx, taskSpec.DstBucket, taskSpec.DstObject)
 	if err == nil {
 		return metadata.GenerationNumber, nil
 	} else if err == storage.ErrObjectNotExist {
@@ -43,6 +45,7 @@ func (h *UploadGCSProgressMessageHandler) extractGenerationNum(completionMsg *Ta
 
 func (h *UploadGCSProgressMessageHandler) HandleMessage(
 	jobSpec *JobSpec, taskCompletionMessage *TaskCompletionMessage) (*TaskUpdate, error) {
+	ctx := context.Background()
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(taskCompletionMessage)
 	if err != nil {
 		log.Printf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
@@ -55,7 +58,7 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(
 	// so we don't make a blocking call within the read-write transaction.
 	if NeedGenerationNumCheck(taskUpdate.Task) {
 
-		generationNumber, err := h.extractGenerationNum(taskCompletionMessage)
+		generationNumber, err := h.extractGenerationNum(ctx, taskCompletionMessage)
 		if err != nil {
 			return nil, err
 		}

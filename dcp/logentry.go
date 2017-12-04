@@ -16,6 +16,7 @@ limitations under the License.
 package dcp
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"hash/fnv"
@@ -180,11 +181,11 @@ func (lep LogEntryProcessor) ProcessLogs() {
 		// Buffer the channel so the sender doesn't block.
 		JobRunStatusChangeNotificationChannel = make(chan int, 10)
 	}
-	go lep.continuouslyProcessLogs(t, JobRunStatusChangeNotificationChannel, nil)
+	go lep.continuouslyProcessLogs(context.Background(), t, JobRunStatusChangeNotificationChannel, nil)
 }
 
 func (lep LogEntryProcessor) continuouslyProcessLogs(
-	t Ticker, jobrunChannel chan int, testChannel chan int) {
+	ctx context.Context, t Ticker, jobrunChannel chan int, testChannel chan int) {
 	periodicCheck := t.GetChannel()
 	var lastN, noProgressCount int64
 	for {
@@ -197,7 +198,7 @@ func (lep LogEntryProcessor) continuouslyProcessLogs(
 				continue
 			}
 			if n >= numLogsToFetchPerRun {
-				lep.SingleLogsProcessingRun(numLogsToFetchPerRun)
+				lep.SingleLogsProcessingRun(ctx, numLogsToFetchPerRun)
 			} else if n > 0 {
 				// Also, dump logs if there has been no progress (the
 				// number of log entries hasn't changed) for too long.
@@ -208,7 +209,7 @@ func (lep LogEntryProcessor) continuouslyProcessLogs(
 					noProgressCount = 0
 				}
 				if noProgressCount >= maxNoProgressCount {
-					lep.SingleLogsProcessingRun(numLogsToFetchPerRun)
+					lep.SingleLogsProcessingRun(ctx, numLogsToFetchPerRun)
 					noProgressCount = 0
 				}
 			}
@@ -222,7 +223,7 @@ func (lep LogEntryProcessor) continuouslyProcessLogs(
 				continue
 			}
 			if n > 0 {
-				lep.SingleLogsProcessingRun(numLogsToFetchPerRun)
+				lep.SingleLogsProcessingRun(ctx, numLogsToFetchPerRun)
 			}
 		}
 		if testChannel != nil {
@@ -235,7 +236,7 @@ func (lep LogEntryProcessor) continuouslyProcessLogs(
 // writes them to GCS, and then marks those rows as processed. Note that writing to GCS
 // and updating the LogEntries rows in Spanner is not transactional, so it's possible
 // that the same log entry will be written to GCS more than once.
-func (lep LogEntryProcessor) SingleLogsProcessingRun(n int64) {
+func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int64) {
 	logs, err := lep.Store.GetUnprocessedLogs(n)
 	if err != nil {
 		log.Println("Error fetching unprocessed logs:", err)
@@ -267,7 +268,7 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(n int64) {
 			// Note that the timestamp is in nanoseconds, so collisions are
 			// nearly impossible (two subsequent Go timestamps are ~50ns apart).
 			objectName := fmt.Sprintf("logs/%v/%v.log", jobConfigId, string(timebytes))
-			gcsLogFile = lep.Gcs.NewWriter(bucketName, objectName)
+			gcsLogFile = lep.Gcs.NewWriter(ctx, bucketName, objectName)
 			gcsLogFiles[jobConfigId] = gcsLogFile
 		}
 		_, err := fmt.Fprintln(gcsLogFile, logEntryRow)

@@ -17,15 +17,15 @@ package dcp
 
 import (
 	"cloud.google.com/go/storage"
-	"golang.org/x/net/context"
+	"context"
 	"io"
 )
 
 // Pass-through wrapper for Google Cloud Storage client.
 type GCS interface {
-	GetAttrs(bucketName string, objectName string) (*storage.ObjectAttrs, error)
-	NewReader(bucketName string, objectName string) (io.ReadCloser, error)
-	NewWriter(bucketName string, objectName string) io.WriteCloser
+	GetAttrs(ctx context.Context, bucketName string, objectName string) (*storage.ObjectAttrs, error)
+	NewReader(ctx context.Context, bucketName string, objectName string) (io.ReadCloser, error)
+	NewWriter(ctx context.Context, bucketName string, objectName string) io.WriteCloser
 }
 
 type GCSClient struct {
@@ -36,14 +36,14 @@ func NewGCSClient(client *storage.Client) *GCSClient {
 	return &GCSClient{client}
 }
 
-func (gcs *GCSClient) GetAttrs(bucketName string, objectName string) (*storage.ObjectAttrs, error) {
-	return gcs.client.Bucket(bucketName).Object(objectName).Attrs(context.Background())
+func (gcs *GCSClient) GetAttrs(ctx context.Context, bucketName string, objectName string) (*storage.ObjectAttrs, error) {
+	return gcs.client.Bucket(bucketName).Object(objectName).Attrs(ctx)
 }
 
-func (gcs *GCSClient) NewReader(bucketName string, objectName string) (io.ReadCloser, error) {
-	return gcs.client.Bucket(bucketName).Object(objectName).NewReader(context.Background())
+func (gcs *GCSClient) NewReader(ctx context.Context, bucketName string, objectName string) (io.ReadCloser, error) {
+	return gcs.client.Bucket(bucketName).Object(objectName).NewReader(ctx)
 }
 
-func (gcs *GCSClient) NewWriter(bucketName string, objectName string) io.WriteCloser {
-	return gcs.client.Bucket(bucketName).Object(objectName).NewWriter(context.Background())
+func (gcs *GCSClient) NewWriter(ctx context.Context, bucketName string, objectName string) io.WriteCloser {
+	return gcs.client.Bucket(bucketName).Object(objectName).NewWriter(ctx)
 }

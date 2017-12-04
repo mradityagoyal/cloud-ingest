@@ -17,6 +17,7 @@ package dcp
 
 import (
 	"cloud.google.com/go/storage"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,9 +33,9 @@ type ListProgressMessageHandler struct {
 	ObjectMetadataReader ObjectMetadataReader
 }
 
-func (h *ListProgressMessageHandler) retrieveGenerationNumber(bucketName string, objectName string) (int64, error) {
+func (h *ListProgressMessageHandler) retrieveGenerationNumber(ctx context.Context, bucketName string, objectName string) (int64, error) {
 	// TODO (b/69319257) Move this portion of the work to the queueing worker.
-	metadata, err := h.ObjectMetadataReader.GetMetadata(bucketName, objectName)
+	metadata, err := h.ObjectMetadataReader.GetMetadata(ctx, bucketName, objectName)
 	if err == nil {
 		return metadata.GenerationNumber, nil
 	} else if err == storage.ErrObjectNotExist {
@@ -47,6 +48,7 @@ func (h *ListProgressMessageHandler) retrieveGenerationNumber(bucketName string,
 func (h *ListProgressMessageHandler) HandleMessage(
 	jobSpec *JobSpec, taskCompletionMessage *TaskCompletionMessage) (*TaskUpdate, error) {
 
+	ctx := context.Background()
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(taskCompletionMessage)
 	if err != nil {
 		log.Printf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
@@ -66,7 +68,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	// so we don't make a blocking call within the read-write transaction.
 	if NeedGenerationNumCheck(taskUpdate.Task) {
 		generationNumber, err := h.retrieveGenerationNumber(
-			listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
+			ctx, listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
 		if err != nil {
 			return nil, err
 		}
@@ -80,7 +82,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	}
 
 	filePaths, err := h.ListingResultReader.ReadListResult(
-		listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
+		ctx, listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
 	if err != nil {
 		log.Printf(
 			"Error reading the list task result, bucket/object: %v/%v, with error: %v.",
@@ -98,7 +100,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 		uploadGCSTaskId := GetUploadGCSTaskId(filePath)
 		dstObject := GetRelPathOsAgnostic(listTaskSpec.SrcDirectory, filePath)
 
-		generationNumber, err := h.retrieveGenerationNumber(jobSpec.GCSBucket, dstObject)
+		generationNumber, err := h.retrieveGenerationNumber(ctx, jobSpec.GCSBucket, dstObject)
 		if err != nil {
 			log.Printf(
 				"Error reading file metadata for %s:%s, err: %v.",

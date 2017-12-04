@@ -17,6 +17,7 @@ package dcp
 
 import (
 	"bufio"
+	"context"
 )
 
 // ListResultReader is the interface that reads the listing task results from a
@@ -25,7 +26,7 @@ type ListingResultReader interface {
 	// ReadListResult reads the listing task result from the GCS object identified
 	// by bucketName and objectName. It returns a string channel that contains the
 	// listed objects.
-	ReadListResult(bucketName string, objectName string) (chan string, error)
+	ReadListResult(ctx context.Context, bucketName string, objectName string) (chan string, error)
 }
 
 type GCSListingResultReader struct {
@@ -36,10 +37,10 @@ func NewGCSListingResultReader(gcs GCS) *GCSListingResultReader {
 	return &GCSListingResultReader{gcs}
 }
 
-func (r *GCSListingResultReader) ReadListResult(bucketName string, objectName string) (chan string, error) {
+func (r *GCSListingResultReader) ReadListResult(ctx context.Context, bucketName string, objectName string) (chan string, error) {
 	c := make(chan string)
 
-	sr, err := r.gcs.NewReader(bucketName, objectName)
+	sr, err := r.gcs.NewReader(ctx, bucketName, objectName)
 	if err != nil {
 		return nil, err
 	}

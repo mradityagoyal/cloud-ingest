@@ -17,6 +17,7 @@ package dcp
 
 import (
 	"cloud.google.com/go/storage"
+	"context"
 	"errors"
 	"github.com/golang/mock/gomock"
 	"testing"
@@ -27,11 +28,11 @@ func TestGCSError(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	mockGcs := NewMockGCS(mockCtrl)
-	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any()).Return(nil, errors.New("some error"))
+	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("some error"))
 
 	reader := NewGCSObjectMetadataReader(mockGcs)
 
-	_, err := reader.GetMetadata("bucket", "object")
+	_, err := reader.GetMetadata(context.Background(), "bucket", "object")
 	if err == nil {
 		t.Error("Error should not be nil")
 	}
@@ -48,11 +49,11 @@ func TestMtimeMissing(t *testing.T) {
 	}
 
 	mockGcs := NewMockGCS(mockCtrl)
-	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any()).Return(&attr, nil)
+	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(&attr, nil)
 
 	reader := NewGCSObjectMetadataReader(mockGcs)
 
-	result, err := reader.GetMetadata("bucket", "object")
+	result, err := reader.GetMetadata(context.Background(), "bucket", "object")
 
 	expected := &ObjectMetadata{Size: 123, Mtime: 0, GenerationNumber: 234}
 
@@ -74,11 +75,11 @@ func TestMtimeMisformatted(t *testing.T) {
 	}
 
 	mockGcs := NewMockGCS(mockCtrl)
-	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any()).Return(&attr, nil)
+	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(&attr, nil)
 
 	reader := NewGCSObjectMetadataReader(mockGcs)
 
-	_, err := reader.GetMetadata("bucket", "object")
+	_, err := reader.GetMetadata(context.Background(), "bucket", "object")
 	if err == nil {
 		t.Error("Error should not be nil")
 	}
@@ -98,11 +99,11 @@ func TestSuccess(t *testing.T) {
 	expected := &ObjectMetadata{Size: 123, Mtime: 345, GenerationNumber: 234}
 
 	mockGcs := NewMockGCS(mockCtrl)
-	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any()).Return(&attr, nil)
+	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(&attr, nil)
 
 	reader := NewGCSObjectMetadataReader(mockGcs)
 
-	result, err := reader.GetMetadata("bucket", "object")
+	result, err := reader.GetMetadata(context.Background(), "bucket", "object")
 
 	if err != nil {
 		t.Errorf("Error should be nil, but was %v", err)

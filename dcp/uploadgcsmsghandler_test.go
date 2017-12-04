@@ -75,7 +75,7 @@ func TestUploadGCSProgressMessageHandlerFailReadingGenNum(t *testing.T) {
 	errorMsg := "failed to read metadata"
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), gomock.Any()).
+		GetMetadata(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil, errors.New(errorMsg))
 
 	handler := UploadGCSProgressMessageHandler{
@@ -105,7 +105,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockObjectMetadataReader := NewMockObjectMetadataReader(mockCtrl)
 	mockObjectMetadataReader.EXPECT().
-		GetMetadata(gomock.Any(), gomock.Any()).
+		GetMetadata(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 
 	handler := UploadGCSProgressMessageHandler{
