@@ -749,6 +749,42 @@ class TestMain(unittest.TestCase):
         assert response.status_code == httplib.BAD_REQUEST
         assert response_json['error'] is not None
 
+    def test_infra_status_error(self):
+        """
+        /projects/<project_id>/infrastructure-status should return an error if
+        the project id is invalid
+        """
+        response = self.app.get('/projects/invalid<projectid/'
+            'infrastructure-status')
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_create_infra_error(self):
+        """
+        /projects/<project_id>/create-infrastructure should return an error if
+        the project id is invalid
+        """
+        response = self.app.post('/projects/invalid*project/'
+            'create-infrastructure')
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
+    def test_tear_infra_error(self):
+        """
+        /projects/<project_id>/tear-down-infrastructure should return an error
+        if the project id is invalid
+        """
+        response = self.app.post('/projects/<project_id>/'
+            'tear-down-infrastructure')
+        response_json = json.loads(response.data)
+
+        assert response.status_code == httplib.BAD_REQUEST
+        assert response_json['error'] is not None
+
     def tearDown(self):
         # Stop patchers.
         self.spanner_mock_patcher.stop()

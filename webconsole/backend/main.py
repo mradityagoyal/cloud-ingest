@@ -267,15 +267,17 @@ def _get_tasks_failure_error(last_modified, failure_type):
 def delete_job_configs(project_id):
     """Handles a request to delete job configurations.
     """
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
+    if not _PROJECT_ID_PATTERN.match(project_id):
+        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
     if request.method == 'POST':
         content = request.json
         error = _get_delete_job_configs_error(content)
         if error:
             return jsonify(error), httplib.BAD_REQUEST
+        spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                    project_id,
+                                    APP.config['SPANNER_INSTANCE'],
+                                    APP.config['SPANNER_DATABASE'])
         result = spanner_wrapper.delete_job_configs(content)
         if len(result['indelible_configs']) > 0:
             error = {
@@ -296,12 +298,12 @@ def job_configs(project_id):
     """Handles geting a list of job configs and creating a new job
        configuration
     """
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                    project_id,
+                                    APP.config['SPANNER_INSTANCE'],
+                                    APP.config['SPANNER_DATABASE'])
     if request.method == 'GET':
         configs = spanner_wrapper.get_job_configs()
         return jsonify(configs)
@@ -333,14 +335,14 @@ def get_job_run(project_id, config_id):
                  id is not valid.
             404, Not found if a job run with the given ids does not exist.
     """
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
     if not _CONFIG_ID_PATTERN.match(config_id):
         return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
     result = spanner_wrapper.get_job_run(config_id)
     if not result:
         return jsonify(_CONFIG_NOT_FOUND_ERROR), httplib.NOT_FOUND
@@ -363,10 +365,6 @@ def get_tasks_of_status(project_id, config_id, task_status):
         maximum number of tasks returned is equal to the _NUM_OF_TASKS constant
         in the spannerwrapper.py file.
     """
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
     if not _CONFIG_ID_PATTERN.match(config_id):
@@ -377,7 +375,10 @@ def get_tasks_of_status(project_id, config_id, task_status):
         task_status_int)
     if error:
         return jsonify(error), httplib.BAD_REQUEST
-
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                    project_id,
+                                    APP.config['SPANNER_INSTANCE'],
+                                    APP.config['SPANNER_DATABASE'])
     return jsonify(spanner_wrapper.get_tasks_of_status(
         config_id,
         task_status_int,
@@ -401,10 +402,6 @@ def get_tasks_of_failure_type(project_id, config_id, failure_type):
         maximum number of tasks returned is equal to the _NUM_OF_TASKS constant
         in the spannerwrapper.py file.
     """
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
     if not _CONFIG_ID_PATTERN.match(config_id):
@@ -415,7 +412,10 @@ def get_tasks_of_failure_type(project_id, config_id, failure_type):
         failure_type_int)
     if error:
         return jsonify(error), httplib.BAD_REQUEST
-
+    spanner_wrapper = SpannerWrapper(_get_credentials(),
+                                     project_id,
+                                     APP.config['SPANNER_INSTANCE'],
+                                     APP.config['SPANNER_DATABASE'])
     return jsonify(spanner_wrapper.get_tasks_of_failure_type(
         config_id,
         failure_type_int,
@@ -432,6 +432,8 @@ def infrastructure_status(project_id):
     statuses. Each status is a string from one of the following values
     ('RUNNING', 'DEPLOYING', 'DELETING', 'FAILED', 'NOT_FOUND', or 'UNKNOWN')
     """
+    if not _PROJECT_ID_PATTERN.match(project_id):
+        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
     # TODO(b/65586429): Getting the infrastructure status API may take the
     # resources (in the request body) to query for.
     return jsonify(infra_util.infrastructure_status(_get_credentials(),
@@ -443,6 +445,8 @@ def infrastructure_status(project_id):
 def create_infrastructure(project_id):
     """Creates the ingest infrastructure.
     """
+    if not _PROJECT_ID_PATTERN.match(project_id):
+        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
     # TODO(b/65754348): Creating the infrastructure API may take the resources
     # (in the request body) to create.
     dcp_docker_image = (None if APP.config.get('SKIP_RUNNING_DCP', False) else
@@ -463,6 +467,8 @@ def create_infrastructure(project_id):
 def tear_infrastructure(project_id):
     """Tears down the ingest infrastructure.
     """
+    if not _PROJECT_ID_PATTERN.match(project_id):
+        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
     # TODO(b/65754348): Tearing the infrastructure API may take the resources
     # (in the request body) to tear down.
     infra_util.tear_infrastructure(_get_credentials(), project_id)
