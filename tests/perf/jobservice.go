@@ -12,10 +12,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 )
 
-const (
-	apiEndpoint = "https://api-dot-cloud-ingest-perf.appspot.com/"
-)
-
 // JobRunStatus represents a job run status.
 type JobRunStatus struct {
 	Status       int64
@@ -37,6 +33,9 @@ type JobService interface {
 type IngestService struct {
 	projectId string
 
+	// Webconsole backend API endpoint to hit for all requests.
+	apiEndpoint string
+
 	// Defined to distinguish between actual http post and fake http post in unit
 	// tests.
 	httpPostFn func(url string, contentType string, body io.Reader) (
@@ -49,17 +48,18 @@ type IngestService struct {
 
 // NewIngestService creates a new IngestService based on projectId and
 // http.Client object.
-func NewIngestService(projectId string, httpClient *http.Client) *IngestService {
+func NewIngestService(projectId, apiEndpoint string, httpClient *http.Client) *IngestService {
 	return &IngestService{
-		projectId:  projectId,
-		httpPostFn: httpClient.Post,
-		httpGetFn:  httpClient.Get,
+		projectId:   projectId,
+		apiEndpoint: apiEndpoint,
+		httpPostFn:  httpClient.Post,
+		httpGetFn:   httpClient.Get,
 	}
 }
 
 func (s IngestService) CreateJobConfig(
 	configId string, sourceDir string, destinationBucket string) error {
-	url := apiEndpoint + path.Join("projects", s.projectId, "jobconfigs")
+	url := s.apiEndpoint + path.Join("projects", s.projectId, "jobconfigs")
 	requestBody := map[string]string{
 		"jobConfigId":         configId,
 		"fileSystemDirectory": sourceDir,
@@ -87,8 +87,7 @@ func (s IngestService) CreateJobConfig(
 
 func (s IngestService) GetJobStatus(
 	configId string, runId string) (*JobRunStatus, error) {
-	url := apiEndpoint +
-		path.Join("projects", s.projectId, "jobruns", configId, runId)
+	url := s.apiEndpoint + path.Join("projects", s.projectId, "jobrun", configId)
 	res, err := s.httpGetFn(url)
 	if err != nil {
 		return nil, err

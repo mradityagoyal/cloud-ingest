@@ -27,11 +27,18 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/tests/perf"
 )
 
+const (
+	defaultApiEndpoint = "https://api-dot-cloud-ingest-perf.appspot.com/"
+)
+
 func main() {
 	protoMessagePath := flag.String("msg-file", "", "Path of the proto message file.")
 	projectId := flag.String(
 		"project-id", "",
 		"Project id to run the perf. Empty project will choose the default project.")
+	apiEndpoint := flag.String(
+		"api-endpoint", defaultApiEndpoint,
+		fmt.Sprintf("Webconsole backend API endpoint. The default is %s", defaultApiEndpoint))
 	updateInterval := flag.Duration("update-interval", 5*time.Second,
 		"Interval in which we show update of the current file being generated.")
 	timeout := flag.Duration(
@@ -47,7 +54,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	p, err := perf.NewPerfRunner(*projectId)
+	p, err := perf.NewPerfRunner(*projectId, *apiEndpoint)
 	if err != nil {
 		log.Printf("Failed to create perf runner with err: %v", err)
 		os.Exit(1)

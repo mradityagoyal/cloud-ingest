@@ -13,6 +13,10 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 )
 
+const (
+	testApiEndpoint = "test_api_endpoint/"
+)
+
 // serviceTestWrapper is wrapper to provide a mock implementation of http post
 // and http get.
 type serviceTestWrapper struct {
@@ -37,7 +41,7 @@ type serviceTestWrapper struct {
 
 func (w serviceTestWrapper) mockHTTPPost(
 	url string, contentType string, body io.Reader) (resp *http.Response, err error) {
-	expectedUrl := apiEndpoint + "projects/" + w.projectId + "/jobconfigs"
+	expectedUrl := testApiEndpoint + "projects/" + w.projectId + "/jobconfigs"
 	if expectedUrl != url {
 		w.t.Errorf(
 			"expected to post job config url to be %s, found %s", expectedUrl, url)
@@ -68,8 +72,8 @@ func (w serviceTestWrapper) mockHTTPPost(
 }
 
 func (w serviceTestWrapper) mockHTTPGet(url string) (resp *http.Response, err error) {
-	expectedUrl := apiEndpoint + "projects/" + w.projectId +
-		"/jobruns/" + w.configId + "/" + w.runId
+	expectedUrl := testApiEndpoint + "projects/" + w.projectId +
+		"/jobrun/" + w.configId
 	if expectedUrl != url {
 		w.t.Errorf(
 			"expected to get job status url to be %s, found %s", expectedUrl, url)
@@ -95,8 +99,9 @@ func TestCreateJobConfigRequestError(t *testing.T) {
 	}
 
 	j := IngestService{
-		projectId:  w.projectId,
-		httpPostFn: w.mockHTTPPost,
+		projectId:   w.projectId,
+		apiEndpoint: testApiEndpoint,
+		httpPostFn:  w.mockHTTPPost,
 	}
 	err := j.CreateJobConfig(w.configId, w.sourceDir, w.destinationBucket)
 	if err == nil {
@@ -119,8 +124,9 @@ func TestCreateJobConfigNotCreatedStatusCode(t *testing.T) {
 	}
 
 	j := IngestService{
-		projectId:  w.projectId,
-		httpPostFn: w.mockHTTPPost,
+		projectId:   w.projectId,
+		apiEndpoint: testApiEndpoint,
+		httpPostFn:  w.mockHTTPPost,
 	}
 	err := j.CreateJobConfig(w.configId, w.sourceDir, w.destinationBucket)
 	if err == nil {
@@ -144,8 +150,9 @@ func TestCreateJobConfigSuccess(t *testing.T) {
 	}
 
 	j := IngestService{
-		projectId:  w.projectId,
-		httpPostFn: w.mockHTTPPost,
+		projectId:   w.projectId,
+		apiEndpoint: testApiEndpoint,
+		httpPostFn:  w.mockHTTPPost,
 	}
 	if err := j.CreateJobConfig(
 		w.configId, w.sourceDir, w.destinationBucket); err != nil {
@@ -164,8 +171,9 @@ func TestGetJobStatusRequestError(t *testing.T) {
 	}
 
 	j := IngestService{
-		projectId: w.projectId,
-		httpGetFn: w.mockHTTPGet,
+		projectId:   w.projectId,
+		apiEndpoint: testApiEndpoint,
+		httpGetFn:   w.mockHTTPGet,
 	}
 	_, err := j.GetJobStatus(w.configId, w.runId)
 	if err == nil {
@@ -187,8 +195,9 @@ func TestGetJobStatusNotOKStatusCode(t *testing.T) {
 	}
 
 	j := IngestService{
-		projectId: w.projectId,
-		httpGetFn: w.mockHTTPGet,
+		projectId:   w.projectId,
+		apiEndpoint: testApiEndpoint,
+		httpGetFn:   w.mockHTTPGet,
 	}
 	_, err := j.GetJobStatus(w.configId, w.runId)
 	if err == nil {
@@ -213,8 +222,9 @@ func TestGetJobStatusErrorDecodingResponse(t *testing.T) {
 	}
 
 	j := IngestService{
-		projectId: w.projectId,
-		httpGetFn: w.mockHTTPGet,
+		projectId:   w.projectId,
+		apiEndpoint: testApiEndpoint,
+		httpGetFn:   w.mockHTTPGet,
 	}
 
 	_, err := j.GetJobStatus(w.configId, w.runId)
@@ -249,8 +259,9 @@ func TestGetJobStatusSuccess(t *testing.T) {
 	}
 
 	j := IngestService{
-		projectId: w.projectId,
-		httpGetFn: w.mockHTTPGet,
+		projectId:   w.projectId,
+		apiEndpoint: testApiEndpoint,
+		httpGetFn:   w.mockHTTPGet,
 	}
 	job, err := j.GetJobStatus(w.configId, w.runId)
 	if err != nil {

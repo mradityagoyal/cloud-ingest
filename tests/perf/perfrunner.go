@@ -68,7 +68,7 @@ type PerfRunner struct {
 
 // NewPerfRunner creates a new PerfRunner based on a projectId. Uses the default
 // project if the projectId is empty.
-func NewPerfRunner(projectId string) (*PerfRunner, error) {
+func NewPerfRunner(projectId, apiEndpoint string) (*PerfRunner, error) {
 	creds, err := google.FindDefaultCredentials(context.Background())
 	if err != nil {
 		log.Printf("Can not find default credentials, err: %v.", err)
@@ -79,7 +79,7 @@ func NewPerfRunner(projectId string) (*PerfRunner, error) {
 	}
 	return &PerfRunner{
 		jobService: NewIngestService(
-			projectId, oauth2.NewClient(context.Background(), creds.TokenSource)),
+			projectId, apiEndpoint, oauth2.NewClient(context.Background(), creds.TokenSource)),
 		ticker: dcp.NewClockTicker(jobStatusPollingInterval),
 	}, nil
 }
