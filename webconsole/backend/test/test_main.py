@@ -103,6 +103,7 @@ FAKE_JOB_RUN_JOB_CONFIG_RESPONSE = {
 
 FAKE_TIME1 = 1
 
+# A dictionary representing a task spec stored in the backend.
 FAKE_TASK_SPEC1 = {
     'src_directory': '/fake/source/directory/1',
     'dst_list_result_bucket': 'fake-destination-bucket-1',
@@ -112,6 +113,7 @@ FAKE_TASK_SPEC1 = {
 
 FAKE_TASK_SPEC1_JSON = json.dumps(FAKE_TASK_SPEC1)
 
+# A dictionary representing a task that the backend returns.
 FAKE_TASK1 = {
     SpannerWrapper.JOB_CONFIG_ID: 'fake config 1',
     SpannerWrapper.JOB_RUN_ID: 'jobRunId1',
@@ -123,9 +125,21 @@ FAKE_TASK1 = {
     SpannerWrapper.TASK_TYPE: tasks_pb2.TaskType.LIST
 }
 
+# A dictionary representing the expected flask output for the fake task 1.
+EXPECTED_FAKE_TASK1 = {
+    SpannerWrapper.JOB_CONFIG_ID: 'fake config 1',
+    SpannerWrapper.JOB_RUN_ID: 'jobRunId1',
+    SpannerWrapper.TASK_ID: 'faketaskid',
+    SpannerWrapper.TASK_CREATION_TIME: str(FAKE_TIME1),
+    SpannerWrapper.LAST_MODIFICATION_TIME: str(FAKE_TIME1),
+    SpannerWrapper.STATUS: tasks_pb2.TaskStatus.UNQUEUED,
+    SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC1_JSON,
+    SpannerWrapper.TASK_TYPE: tasks_pb2.TaskType.LIST
+}
+
 FAKE_TIME2 = 2
 
-
+# A dictionary representing a task spec stored in the backend.
 FAKE_TASK_SPEC2 = {
     'src_directory': '/fake/source/directory/2',
     'dst_list_result_bucket': 'fake-destination-bucket-2',
@@ -135,12 +149,25 @@ FAKE_TASK_SPEC2 = {
 
 FAKE_TASK_SPEC2_JSON = json.dumps(FAKE_TASK_SPEC2)
 
+# A dictionary representing a task stored in the backend.
 FAKE_TASK2 = {
     SpannerWrapper.JOB_CONFIG_ID: 'fake config 2',
     SpannerWrapper.JOB_RUN_ID: 'jobRunId2',
     SpannerWrapper.TASK_ID: 'faketaskid2',
     SpannerWrapper.TASK_CREATION_TIME: FAKE_TIME2,
     SpannerWrapper.LAST_MODIFICATION_TIME: FAKE_TIME2,
+    SpannerWrapper.STATUS: tasks_pb2.TaskStatus.QUEUED,
+    SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC2_JSON,
+    SpannerWrapper.TASK_TYPE: tasks_pb2.TaskType.LIST
+}
+
+# A dictionary representing the expected flask output for the fake task 1.
+EXPECTED_FAKE_TASK2 = {
+    SpannerWrapper.JOB_CONFIG_ID: 'fake config 2',
+    SpannerWrapper.JOB_RUN_ID: 'jobRunId2',
+    SpannerWrapper.TASK_ID: 'faketaskid2',
+    SpannerWrapper.TASK_CREATION_TIME: str(FAKE_TIME2),
+    SpannerWrapper.LAST_MODIFICATION_TIME: str(FAKE_TIME2),
     SpannerWrapper.STATUS: tasks_pb2.TaskStatus.QUEUED,
     SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC2_JSON,
     SpannerWrapper.TASK_TYPE: tasks_pb2.TaskType.LIST
@@ -595,8 +622,8 @@ class TestMain(unittest.TestCase):
         params = self.mock_snapshot.execute_sql.call_args[0][1]
 
         # Assert that it returns the tasks from the query.
-        assert response_json[0] == FAKE_TASK_LIST[0]
-        assert response_json[1] == FAKE_TASK_LIST[1]
+        assert response_json[0] == EXPECTED_FAKE_TASK1
+        assert response_json[1] == EXPECTED_FAKE_TASK2
 
         # Assert the query uses the expected query parameters
         assert ('FROM {0}'.format(SpannerWrapper.TASKS_TABLE)
@@ -680,8 +707,8 @@ class TestMain(unittest.TestCase):
         params = self.mock_snapshot.execute_sql.call_args[0][1]
 
         # Assert that it returns the tasks from the query.
-        assert response_json[0] == FAKE_TASK_LIST[0]
-        assert response_json[1] == FAKE_TASK_LIST[1]
+        assert response_json[0] == EXPECTED_FAKE_TASK1
+        assert response_json[1] == EXPECTED_FAKE_TASK2
 
         # Assert the query uses the expected query parameters
         assert ('FROM {0}'.format(SpannerWrapper.TASKS_TABLE)

@@ -75,7 +75,7 @@ export interface Task {
   Status: number;
   CreationTime: number;
   WorkerId: string;
-  LastModificationTime: number;
+  LastModificationTime: string;
   FailureMessage: string;
 }
 

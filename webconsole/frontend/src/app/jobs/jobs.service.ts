@@ -45,7 +45,7 @@ export class JobsService {
     });
   }
 
-  getTasksOfStatus(configId: string, status: number, lastModifiedBefore?: number): Observable<Task[]> {
+  getTasksOfStatus(configId: string, status: number, lastModifiedBefore?: string): Observable<Task[]> {
     let requestParameters = new HttpParams();
     if (lastModifiedBefore != null) {
         requestParameters = requestParameters.set('lastModifiedBefore', String(lastModifiedBefore));
@@ -61,7 +61,7 @@ export class JobsService {
   getTasksOfFailureType(
     configId: string,
     failureType: TaskFailureType.Type,
-    lastModifiedBefore?: number): Observable<Task[]> {
+    lastModifiedBefore?: string): Observable<Task[]> {
     let requestParameters = new HttpParams();
     if (lastModifiedBefore != null) {
         requestParameters = requestParameters.set('lastModifiedBefore', String(lastModifiedBefore));

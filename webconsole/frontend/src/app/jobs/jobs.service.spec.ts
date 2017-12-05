@@ -14,7 +14,7 @@ let activatedRouteStub: ActivatedRoute;
 
 const FAKE_JOBCONFIG1 = 'fakeJobConfigId1';
 const FAKE_JOBRUN1 = 'fakeJobRunId1';
-const FAKE_LAST_MODIFIED_TIME = 1;
+const FAKE_LAST_MODIFIED_TIME = '1';
 
 describe('JobsService', () => {
   beforeEach(() => {

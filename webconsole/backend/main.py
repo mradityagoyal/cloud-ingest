@@ -261,6 +261,21 @@ def _get_tasks_failure_error(last_modified, failure_type):
         return _INVALID_TASK_FAILURE_TYPE_ERROR
     return None
 
+def _convert_time_to_str(task_list):
+    """Converts the LastModificationTime field and the CreationTime field to
+        string on the list of tasks.
+
+       Returns:
+           The list of tasks with the LastModificationTime and CreationTime
+           as strings.
+    """
+    for task in task_list:
+        task[SpannerWrapper.LAST_MODIFICATION_TIME] = str(
+            task[SpannerWrapper.LAST_MODIFICATION_TIME])
+        task[SpannerWrapper.TASK_CREATION_TIME] = str(
+            task[SpannerWrapper.TASK_CREATION_TIME])
+    return task_list
+
 @APP.route('/projects/<project_id>/jobconfigs/delete',
            methods=['OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
@@ -379,11 +394,9 @@ def get_tasks_of_status(project_id, config_id, task_status):
                                     project_id,
                                     APP.config['SPANNER_INSTANCE'],
                                     APP.config['SPANNER_DATABASE'])
-    return jsonify(spanner_wrapper.get_tasks_of_status(
-        config_id,
-        task_status_int,
-        last_modified_before
-    ))
+    tasks = spanner_wrapper.get_tasks_of_status(config_id, task_status_int,
+        last_modified_before)
+    return jsonify(_convert_time_to_str(tasks))
 
 @APP.route(
 '/projects/<project_id>/tasks/<config_id>/failuretype/<failure_type>',
@@ -416,11 +429,9 @@ def get_tasks_of_failure_type(project_id, config_id, failure_type):
                                      project_id,
                                      APP.config['SPANNER_INSTANCE'],
                                      APP.config['SPANNER_DATABASE'])
-    return jsonify(spanner_wrapper.get_tasks_of_failure_type(
-        config_id,
-        failure_type_int,
-        last_modified_before
-    ))
+    tasks = spanner_wrapper.get_tasks_of_failure_type(config_id,
+        failure_type_int, last_modified_before)
+    return jsonify(_convert_time_to_str(tasks))
 
 @APP.route('/projects/<project_id>/infrastructure-status',
            methods=['OPTIONS', 'GET'])
