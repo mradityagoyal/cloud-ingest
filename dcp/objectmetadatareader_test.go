@@ -16,18 +16,20 @@ limitations under the License.
 package dcp
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"errors"
-	"github.com/golang/mock/gomock"
 	"testing"
+
+	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/golang/mock/gomock"
 )
 
 func TestGCSError(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, errors.New("some error"))
 
 	reader := NewGCSObjectMetadataReader(mockGcs)
@@ -48,7 +50,7 @@ func TestMtimeMissing(t *testing.T) {
 		Metadata:   map[string]string{},
 	}
 
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(&attr, nil)
 
 	reader := NewGCSObjectMetadataReader(mockGcs)
@@ -74,7 +76,7 @@ func TestMtimeMisformatted(t *testing.T) {
 		Metadata:   map[string]string{MTIME_ATTR_NAME: "totally not a number"},
 	}
 
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(&attr, nil)
 
 	reader := NewGCSObjectMetadataReader(mockGcs)
@@ -98,7 +100,7 @@ func TestSuccess(t *testing.T) {
 
 	expected := &ObjectMetadata{Size: 123, Mtime: 345, GenerationNumber: 234}
 
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(&attr, nil)
 
 	reader := NewGCSObjectMetadataReader(mockGcs)

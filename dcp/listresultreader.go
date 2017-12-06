@@ -18,6 +18,7 @@ package dcp
 import (
 	"bufio"
 	"context"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 )
 
 // ListResultReader is the interface that reads the listing task results from a
@@ -30,10 +31,10 @@ type ListingResultReader interface {
 }
 
 type GCSListingResultReader struct {
-	gcs GCS
+	gcs gcloud.GCS
 }
 
-func NewGCSListingResultReader(gcs GCS) *GCSListingResultReader {
+func NewGCSListingResultReader(gcs gcloud.GCS) *GCSListingResultReader {
 	return &GCSListingResultReader{gcs}
 }
 

@@ -17,6 +17,7 @@ package dcp
 
 import (
 	"context"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"strconv"
 )
 
@@ -35,11 +36,11 @@ type ObjectMetadataReader interface {
 }
 
 type GCSObjectMetadataReader struct {
-	gcs GCS
+	gcs gcloud.GCS
 }
 
 // NewGCSObjectMetadataReader constructs an ObjectMetadataReader that calls into GCS.
-func NewGCSObjectMetadataReader(gcs GCS) *GCSObjectMetadataReader {
+func NewGCSObjectMetadataReader(gcs gcloud.GCS) *GCSObjectMetadataReader {
 	return &GCSObjectMetadataReader{gcs}
 }
 

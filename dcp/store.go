@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/spanner"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"google.golang.org/api/iterator"
 )
 
@@ -92,7 +93,7 @@ type Store interface {
 // TODO(b/65497968): Write tests for Store class
 // SpannerStore is a Google Cloud Spanner implementation of the Store interface.
 type SpannerStore struct {
-	Spanner Spanner
+	Spanner gcloud.Spanner
 }
 
 // getTaskInsertColumns returns an array of the columns necessary for task
@@ -183,7 +184,7 @@ func getFullIdFromJobRow(row *spanner.Row) (JobRunFullId, error) {
 // In order to create the update mutations, the method batch reads the existing
 // job counters objects from Spanner.
 func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
-	txn ReadWriteTransaction,
+	txn gcloud.ReadWriteTransaction,
 	counters JobCountersCollection) error {
 
 	// Batch read the job counters strings to be updated
@@ -283,7 +284,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 
 	_, err = s.Spanner.ReadWriteTransaction(
 		context.Background(),
-		func(ctx context.Context, txn ReadWriteTransaction) error {
+		func(ctx context.Context, txn gcloud.ReadWriteTransaction) error {
 			// Insert the new tasks
 			// TODO(b/63100514): Define constants for spanner table names that can be
 			// shared across store and potentially infrastructure setup implementation.
@@ -362,8 +363,8 @@ func getFullTaskIdFromRow(row *spanner.Row) (string, error) {
 // JobRunId, TaskId, and Status columns are read. Returns a spanner.RowIterator
 // that can be used to iterate over the read rows. (Does not modify idToTask.)
 func readTasksFromSpanner(ctx context.Context,
-	txn ReadWriteTransaction,
-	taskUpdateCollection *TaskUpdateCollection) RowIterator {
+	txn gcloud.ReadWriteTransaction,
+	taskUpdateCollection *TaskUpdateCollection) gcloud.RowIterator {
 	var keys = spanner.KeySets()
 
 	// Create a KeySet for all the tasks to be updated
@@ -390,7 +391,7 @@ func readTasksFromSpanner(ctx context.Context,
 // the mutation to update the updateTask and the mutations to insert the
 // insert tasks.
 func getTaskUpdateAndInsertMutations(ctx context.Context,
-	txn ReadWriteTransaction, updateTask *TaskUpdate,
+	txn gcloud.ReadWriteTransaction, updateTask *TaskUpdate,
 	oldStatus int64) []*spanner.Mutation {
 
 	timestamp := time.Now().UnixNano()
@@ -465,7 +466,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 
 	_, err := s.Spanner.ReadWriteTransaction(
 		context.Background(),
-		func(ctx context.Context, txn ReadWriteTransaction) error {
+		func(ctx context.Context, txn gcloud.ReadWriteTransaction) error {
 			iter := readTasksFromSpanner(ctx, txn, tasks)
 			var counters JobCountersCollection
 
@@ -669,7 +670,7 @@ func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 		txnRows := logEntryRows[i:rangeEnd]
 		_, err := s.Spanner.ReadWriteTransaction(
 			context.Background(),
-			func(ctx context.Context, txn ReadWriteTransaction) error {
+			func(ctx context.Context, txn gcloud.ReadWriteTransaction) error {
 				mutations := make([]*spanner.Mutation, len(txnRows))
 				for i, l := range txnRows {
 					mutations[i] = spanner.Update(

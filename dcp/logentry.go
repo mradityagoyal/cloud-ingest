@@ -28,6 +28,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 )
 
 // This channel is used to notify the LogEntryProcessor that a job run changed
@@ -168,8 +169,8 @@ func (l LogEntryRow) String() string {
 }
 
 type LogEntryProcessor struct {
-	Gcs   GCS   // For writing the log entry files to GCS.
-	Store Store // For reading and updating LogEntries in Spanner.
+	Gcs   gcloud.GCS // For writing the log entry files to GCS.
+	Store Store      // For reading and updating LogEntries in Spanner.
 }
 
 // TODO(b/69171420): This assumes a single processor and single DCP all in the same

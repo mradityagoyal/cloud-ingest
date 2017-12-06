@@ -21,6 +21,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/golang/mock/gomock"
 )
 
@@ -28,7 +29,7 @@ func TestReadListResultError(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	mockGcs.EXPECT().NewReader(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, storage.ErrObjectNotExist)
 
 	reader := NewGCSListingResultReader(mockGcs)
@@ -44,7 +45,7 @@ func TestReadListResultSuccess(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
 	src := NewStringReadCloser("line1\nline2\n")
 	mockGcs.EXPECT().

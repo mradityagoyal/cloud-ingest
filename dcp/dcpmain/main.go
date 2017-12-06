@@ -27,6 +27,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 )
 
 const (
@@ -94,7 +95,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Can not create spanner client, error %v.\n", err)
 		os.Exit(1)
 	}
-	spannerClient := dcp.NewSpannerClient(spannerGCloudClient)
+	spannerClient := gcloud.NewSpannerClient(spannerGCloudClient)
 	store := &dcp.SpannerStore{spannerClient}
 
 	storageClient, err := storage.NewClient(ctx)
@@ -102,7 +103,7 @@ func main() {
 		fmt.Fprintf(os.Stderr, "Can not create storage client, error: %v.\n", err)
 		os.Exit(1)
 	}
-	gcsClient := dcp.NewGCSClient(storageClient)
+	gcsClient := gcloud.NewGCSClient(storageClient)
 
 	metadataReader := dcp.NewGCSObjectMetadataReader(gcsClient)
 	listingReceiver := dcp.MessageReceiver{

@@ -25,6 +25,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/spanner"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/golang/mock/gomock"
 )
 
@@ -119,7 +120,7 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 	defer mockCtrl.Finish()
 	store := getTestingFakeStore(numLogsToFetchPerRun)
 	writer := mockWriterCloser{ioutil.Discard, 0}
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
 	// Verify starting conditions.
@@ -155,7 +156,7 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	defer mockCtrl.Finish()
 	store := getTestingFakeStore(3)
 	writer := mockWriterCloser{ioutil.Discard, 0}
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
 	// Verify starting conditions.
@@ -200,7 +201,7 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	defer mockCtrl.Finish()
 	store := getTestingFakeStore(3)
 	writer := mockWriterCloser{ioutil.Discard, 0}
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
 	// Verify starting conditions.
@@ -248,7 +249,7 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	defer mockCtrl.Finish()
 	store := getTestingFakeStore(3)
 	writer := mockWriterCloser{ioutil.Discard, 0}
-	mockGcs := NewMockGCS(mockCtrl)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
 	// Verify starting conditions.
