@@ -53,3 +53,19 @@ message TaskType {
     UPLOAD_GCS = 2;
   }
 }
+
+// Message to wrap the Job Status type. This is needed to create a scope that
+// does not conflict with other enums in this file.
+message JobRunStatus {
+  // Specifies the type of the Job Run status.
+  enum Type {
+    // Indicates that a job hasn't been started.
+    NOT_STARTED = 0;
+    // Indicates that the job has been started and is in progress.
+    IN_PROGRESS = 1;
+    // Indicates that the job has completed but it failed.
+    FAILED = 2;
+    // Indicates that the job has completed and it succeeded.
+    SUCCESS = 3;
+  }
+}

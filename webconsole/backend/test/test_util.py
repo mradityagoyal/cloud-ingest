@@ -4,10 +4,8 @@
 import unittest
 import json
 
-from spannerwrapper import SpannerWrapper
 from util import dict_has_values_recursively
 from util import dict_values_are_recursively
-from util import json_to_dictionary_in_field
 
 # pylint: disable=too-many-public-methods,invalid-name
 
@@ -70,13 +68,6 @@ class TestUtil(unittest.TestCase):
     """
     Contains unit tests for the utility module.
     """
-    def test_json_to_dictionary_in_field(self):
-        """
-        Tests the json_to_dictionary_in_field function.
-        """
-        actual_list = json_to_dictionary_in_field(FAKE_JOB_CONFIG_LIST,
-            SpannerWrapper.JOB_SPEC)
-        self.assertEqual(actual_list, FAKE_JOB_CONFIG_OBJ_LIST)
 
     def test_dict_values_are_recursively_true(self):
         """Tests dict_values_are_recursively method returns true."""

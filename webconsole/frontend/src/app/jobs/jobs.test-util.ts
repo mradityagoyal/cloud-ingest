@@ -2,7 +2,7 @@
  * This file contains fakes for the tests in the jobs directory.
  */
 import { TaskFailureType } from '../proto/tasks.js';
-import { JobConfigResponse, JobRun, JobSpec, Task } from './jobs.resources';
+import { JobConfigResponse, Job, JobSpec, Task } from './jobs.resources';
 
 
 export const FAKE_TASKS: Task[] = [
@@ -76,7 +76,7 @@ export const FAKE_JOB_CONFIGS: JobConfigResponse[] = [
   }
 ];
 
-export const FAKE_JOB_RUNS: JobRun[] = [
+export const FAKE_JOB_RUNS: Job[] = [
   {
     JobConfigId: 'fakeJobConfigId0',
     JobRunId: 'fakeJobRunId0',

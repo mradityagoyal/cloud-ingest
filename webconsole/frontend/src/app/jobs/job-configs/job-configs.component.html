@@ -59,6 +59,12 @@
           <mat-cell class="ingest-break-word" *matCellDef="let job"> {{ job.JobSpec.gcsBucket }} </mat-cell>
         </ng-container>
 
+        <!-- Status of the last job run  -->
+        <ng-container matColumnDef="Status">
+          <mat-header-cell *matHeaderCellDef> Status of the last run </mat-header-cell>
+          <mat-cell class="ingest-break-word" *matCellDef="let job"> {{ JOB_RUN_STATUS_TO_STRING_MAP[job.Status] }} </mat-cell>
+        </ng-container>
+
         <!-- The header, display the columns in the displayedColumns array -->
         <mat-header-row *matHeaderRowDef="displayedColumns"></mat-header-row>
         <mat-row *matRowDef="let row; columns: displayedColumns;"></mat-row>

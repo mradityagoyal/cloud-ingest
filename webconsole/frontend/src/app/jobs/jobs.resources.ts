@@ -1,7 +1,8 @@
+import { IJobRunStatus } from '../proto/tasks';
 import { DataSource } from '@angular/cdk/collections';
 import { Observable } from 'rxjs/Rx';
 
-import { TaskFailureType } from '../proto/tasks.js';
+import { TaskFailureType, JobRunStatus } from '../proto/tasks.js';
 
 export class JobConfigRequest {
   /**
@@ -34,13 +35,23 @@ export interface JobSpec {
   onPremSrcDirectory: string;
 }
 
-export interface JobRun {
+/**
+ * A Job contains infromation that describes a job configuration and the last
+ * job run.
+ */
+export interface Job {
+  // The job configuration id of the job.
   JobConfigId: string;
-  JobRunId: string;
-  JobCreationTime: string;
-  Status: number;
-  Counters: Counters;
+  // The job spec of the job configuration.
   JobSpec: JobSpec;
+  // The job run id of the last job run.
+  JobRunId: string;
+  // The time that last job run was created.
+  JobCreationTime: string;
+  // The status of the last job run.
+  Status: JobRunStatus.Type;
+  // The counters of the last job run.
+  Counters: Counters;
 }
 
 export interface Counters {
@@ -104,6 +115,12 @@ export const FAILURE_TYPE_TO_STRING_MAP = {
   5: 'File not found failure',
   6: 'Permission failure'
 };
+
+export const JOB_RUN_STATUS_TO_STRING_MAP = {};
+JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.NOT_STARTED] = 'Not started';
+JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.IN_PROGRESS] = 'In Progress',
+JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.FAILED] = 'Failed';
+JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.SUCCESS] = 'Sucess';
 
 export const DEFAULT_BACKEND_PAGESIZE = 25;
 

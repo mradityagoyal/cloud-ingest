@@ -29,7 +29,7 @@ from create_infra.job_utilities import TASK_TYPE_LIST
 from gaxerrordecorator import handle_common_gax_errors
 from proto.tasks_pb2 import TaskStatus
 
-def _get_params_and_param_types(config_id, run_id, num_tasks=None,
+def _get_params_and_param_types(config_id, run_id=None, num_tasks=None,
     task_status=None, last_modified_before=None, failure_type=None):
     """Gets the base parameters and parameter types used in most queries.
 
@@ -37,13 +37,14 @@ def _get_params_and_param_types(config_id, run_id, num_tasks=None,
         A tuple of params and param_types of the specified input parameters.
     """
     params = {
-        "run_id": run_id,
         "config_id": config_id
     }
     param_types = {
-        "run_id": type_pb2.Type(code=type_pb2.STRING),
         "config_id": type_pb2.Type(code=type_pb2.STRING)
     }
+    if run_id is not None:
+        params["run_id"] = run_id
+        param_types["run_id"] = type_pb2.Type(code=type_pb2.STRING)
     if num_tasks is not None:
         params["num_tasks"] = num_tasks
         param_types["task_status"] = type_pb2.Type(code=type_pb2.INT64)
@@ -275,6 +276,9 @@ class SpannerWrapper(object):
     WORKER_ID = "WorkerId"
     FAILURE_TYPE = "FailureType"
 
+    # The field names that are expected to be converted to json.
+    JSON_FIELDS = [JOB_SPEC, COUNTERS, TASK_SPEC]
+
     TASK_BY_STATUS_INDEX_NAME = "TasksByStatus"
     BY_FAILURE_TYPE_INDEX_NAME = "TasksByFailureType"
     TASKS_COLUMNS = [
@@ -311,14 +315,22 @@ class SpannerWrapper(object):
         self.session_pool.bind(self.database)
 
     def get_job_configs(self):
-        """Retrieves all job configs from Cloud Spanner.
+        """Retrieves all job configs from Cloud Spanner, along with the
+           information of the latest job run.
 
         Returns:
             A list containing the retrieved job configs in JSON format.
         """
-        query = "SELECT * FROM %s" % SpannerWrapper.JOB_CONFIGS_TABLE
-        list_query = self.list_query(query)
-        return util.json_to_dictionary_in_field(list_query, self.JOB_SPEC)
+        # This query assumes that the job creation time will be unique. If the
+        # job creation time is not unique, two rows might be returned with the
+        # same config id.
+        query = ('SELECT * FROM {0} JOIN {1} ON {0}.{2} = {1}.{2} WHERE {3} IN '
+                 '(SELECT MAX({3}) FROM {0} GROUP BY {2})').format(
+                   SpannerWrapper.JOB_RUNS_TABLE,
+                   SpannerWrapper.JOB_CONFIGS_TABLE,
+                   SpannerWrapper.JOB_CONFIG_ID,
+                   SpannerWrapper.JOB_CREATION_TIME)
+        return self.list_query(query)
 
     def create_new_job(self, config_id, jobspec):
         """
@@ -405,12 +417,7 @@ class SpannerWrapper(object):
         params, param_types = _get_params_and_param_types(run_id=run_id,
             config_id=config_id)
         job_run = self.single_result_query(query, params, param_types)
-        if job_run:
-            job_run[SpannerWrapper.COUNTERS] = json.loads(
-                job_run[SpannerWrapper.COUNTERS])
-            job_run[SpannerWrapper.JOB_SPEC] = json.loads(
-                job_run[SpannerWrapper.JOB_SPEC])
-            return job_run
+        return job_run
 
     def delete_job_configs(self, config_id_list):
         """Deletes a list of job configurations. Only deletes a job
@@ -502,7 +509,10 @@ class SpannerWrapper(object):
         """
         obj = {}
         for i, field in enumerate(fields):
-            obj[field.name] = result[i]
+            if field.name in SpannerWrapper.JSON_FIELDS:
+                obj[field.name] = json.loads(result[i])
+            else:
+                obj[field.name] = result[i]
             i += 1
 
         return obj

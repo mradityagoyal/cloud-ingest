@@ -10,7 +10,7 @@ import { Observable } from 'rxjs/Rx';
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
-import { JobConfigResponse, JobRun } from '../jobs.resources';
+import { JobConfigResponse, Job } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 
 const UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS = 10000;
@@ -21,7 +21,7 @@ const UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS = 10000;
   styleUrls: ['./job-run-details.component.css']
 })
 export class JobRunDetailsComponent implements OnInit, OnDestroy {
-  jobRun: JobRun;
+  jobRun: Job;
   errorTitle: string;
   errorMessage: string;
   showError: boolean;
@@ -66,7 +66,7 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
   private initialJobLoad() {
     // Combine the observables that get the job run and job config.
     this.jobService.getJobRun(this.jobConfigId)
-    .subscribe((response: JobRun) => {
+    .subscribe((response: Job) => {
       this.jobRun = response;
       this.showLoadingSpinner = false;
     }, (error: HttpErrorResponse) => {
@@ -80,7 +80,7 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
   private updateJobRun() {
     this.jobService.getJobRun(this.jobConfigId)
     .subscribe(
-      (response: JobRun) => {
+      (response: Job) => {
         this.jobRun = response;
       },
       (error: HttpErrorResponse) => {

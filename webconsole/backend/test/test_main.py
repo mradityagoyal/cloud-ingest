@@ -133,7 +133,7 @@ EXPECTED_FAKE_TASK1 = {
     SpannerWrapper.TASK_CREATION_TIME: str(FAKE_TIME1),
     SpannerWrapper.LAST_MODIFICATION_TIME: str(FAKE_TIME1),
     SpannerWrapper.STATUS: tasks_pb2.TaskStatus.UNQUEUED,
-    SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC1_JSON,
+    SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC1,
     SpannerWrapper.TASK_TYPE: tasks_pb2.TaskType.LIST
 }
 
@@ -169,7 +169,7 @@ EXPECTED_FAKE_TASK2 = {
     SpannerWrapper.TASK_CREATION_TIME: str(FAKE_TIME2),
     SpannerWrapper.LAST_MODIFICATION_TIME: str(FAKE_TIME2),
     SpannerWrapper.STATUS: tasks_pb2.TaskStatus.QUEUED,
-    SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC2_JSON,
+    SpannerWrapper.TASK_SPEC: FAKE_TASK_SPEC2,
     SpannerWrapper.TASK_TYPE: tasks_pb2.TaskType.LIST
 }
 
@@ -527,8 +527,9 @@ class TestMain(unittest.TestCase):
 
         sql_query = self.mock_snapshot.execute_sql.call_args[0][0]
 
-        # Assert it reads from job configs table.
-        assert 'FROM {0}'.format(SpannerWrapper.JOB_CONFIGS_TABLE) in sql_query
+        # Assert it reads from job configs table and job runs table.
+        assert SpannerWrapper.JOB_CONFIGS_TABLE in sql_query
+        assert SpannerWrapper.JOB_RUNS_TABLE in sql_query
 
         # Assert that both configs are returned.
         assert (response_json[0][SpannerWrapper.JOB_CONFIG_ID] ==

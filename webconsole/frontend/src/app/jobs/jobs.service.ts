@@ -8,7 +8,7 @@ import { Observable } from 'rxjs/Observable';
 
 import { environment } from '../../environments/environment';
 import { TaskFailureType } from '../proto/tasks.js';
-import { JobConfigRequest, JobConfigResponse, JobRun, Task } from './jobs.resources';
+import { JobConfigRequest, JobConfigResponse, Job, Task } from './jobs.resources';
 
 const POST_HEADERS = {
     headers: new HttpHeaders().set('Content-Type', 'application/json')
@@ -22,16 +22,23 @@ export class JobsService {
     this.project = route.queryParams.map(p => p.project);
   }
 
-  getJobConfigs(): Observable<JobConfigResponse[]> {
+  /**
+   * Get the list of job configurations along with the latest job run
+   * information as a list.
+   */
+  getJobConfigs(): Observable<Job[]> {
     return this.project.switchMap(projectId => {
-        return this.http.get<JobConfigResponse[]>(
+        return this.http.get<Job[]>(
             `${environment.apiUrl}/projects/${projectId}/jobconfigs`);
     });
   }
 
-  getJobRun(configId: string): Observable<JobRun> {
+  /**
+   * Get the job run information along with the job configuration information.
+   */
+  getJobRun(configId: string): Observable<Job> {
     return this.project.switchMap(projectId => {
-        return this.http.get<JobRun>(
+        return this.http.get<Job>(
             `${environment.apiUrl}/projects/${projectId}/jobrun/${configId}`
         );
     });

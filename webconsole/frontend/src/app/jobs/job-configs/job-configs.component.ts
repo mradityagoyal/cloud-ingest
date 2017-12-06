@@ -6,7 +6,7 @@ import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.compo
 import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
-import { JobConfigRequest, JobConfigResponse, SimpleDataSource } from '../jobs.resources';
+import { JobConfigRequest, JobConfigResponse, Job, SimpleDataSource, JOB_RUN_STATUS_TO_STRING_MAP } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 
 @Component({
@@ -21,6 +21,9 @@ export class JobConfigsComponent implements OnInit {
   errorTitle: string;
   displayErrorMessage = false;
   jobConfigs: JobConfigResponse[];
+
+  // Need to declare this variable here to use it in the template.
+  JOB_RUN_STATUS_TO_STRING_MAP = JOB_RUN_STATUS_TO_STRING_MAP;
 
   /**
    * A map of jobConfigId -> isChecked. Indicates if the box for a particular config id has been
@@ -40,7 +43,8 @@ export class JobConfigsComponent implements OnInit {
   startingJobConfig: JobConfigRequest = new JobConfigRequest(/*jobConfigId*/'',
       /*gcsBucket*/'', /*fileSystemDirectory*/'');
 
-  displayedColumns = ['JobConfigId', 'onPremSrcDirectory', 'gcsBucket'];
+  displayedColumns = ['JobConfigId', 'onPremSrcDirectory', 'gcsBucket',
+      'Status'];
 
   dataSource: SimpleDataSource<JobConfigResponse>;
 
@@ -56,7 +60,7 @@ export class JobConfigsComponent implements OnInit {
   private updateJobConfigs(): void {
     this.showLoadingSpinner = true;
     this.jobsService.getJobConfigs().subscribe(
-      (response: JobConfigResponse[]) => {
+      (response: Job[]) => {
         this.jobConfigs = response;
         this.showLoadingSpinner = false;
         if (response.length === 0) {
