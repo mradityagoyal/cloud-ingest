@@ -1,8 +1,7 @@
-import { IJobRunStatus } from '../proto/tasks';
 import { DataSource } from '@angular/cdk/collections';
 import { Observable } from 'rxjs/Rx';
 
-import { TaskFailureType, JobRunStatus } from '../proto/tasks.js';
+import { TaskFailureType, TaskType, JobRunStatus } from '../proto/tasks.js';
 
 export class JobConfigRequest {
   /**
@@ -100,22 +99,25 @@ export const TASK_STATUS = {
 /**
  * Maps task type integers to string representations.
  */
-export const TASK_TYPE_TO_STRING_MAP = {
-  1: 'List task',
-  2: 'GCS Upload',
-  3: 'Load to BigQuery',
-};
+export const TASK_TYPE_TO_STRING_MAP = {};
+TASK_TYPE_TO_STRING_MAP[TaskType.Type.LIST] = 'List task';
+TASK_TYPE_TO_STRING_MAP[TaskType.Type.UPLOAD_GCS] = 'GCS Upload';
 
-export const FAILURE_TYPE_TO_STRING_MAP = {
-  0: 'Unknown failure',
-  1: 'Unexpected failure',
-  2: 'File Modified failure',
-  3: 'MD5 mismatch failure',
-  4: 'Precondition failure',
-  5: 'File not found failure',
-  6: 'Permission failure'
-};
+/**
+ * Maps failure type enums to their string representations.
+ */
+export const FAILURE_TYPE_TO_STRING_MAP = {};
+FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.UNUSED] = 'Unknown failure';
+FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.UNKNOWN] = 'Unexpected failure';
+FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.FILE_MODIFIED_FAILURE] = 'File Modified failure';
+FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.MD5_MISMATCH_FAILURE] = 'MD5 mismatch failure';
+FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.PRECONDITION_FAILURE] = 'Precondition failure';
+FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.FILE_NOT_FOUND_FAILURE] = 'File not found failure';
+FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.PERMISSION_FAILURE] = 'Permission failure';
 
+/**
+ * Maps job run status enums to their string representations.
+ */
 export const JOB_RUN_STATUS_TO_STRING_MAP = {};
 JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.NOT_STARTED] = 'Not started';
 JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.IN_PROGRESS] = 'In Progress',
