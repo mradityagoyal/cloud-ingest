@@ -212,12 +212,9 @@ describe('JobRunDetailsComponent', () => {
       expect(infoList).not.toBeNull();
       const children = infoList.children;
       expect(children.length).toEqual(6);
-      expect(children[0].innerText).toEqual('Total Tasks');
-      expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasks));
-      expect(children[2].innerText).toEqual('Tasks Completed');
-      expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompleted));
-      expect(children[4].innerText).toEqual('Tasks Failed');
-      expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailed));
+      expect(compiled.innerText).toContain(jobRun.Counters.totalTasks);
+      expect(compiled.innerText).toContain(jobRun.Counters.tasksCompleted);
+      expect(compiled.innerText).toContain(jobRun.Counters.tasksFailed);
     });
   }));
 
@@ -237,22 +234,14 @@ describe('JobRunDetailsComponent', () => {
       expect(tabs[1].nativeElement.textContent).toEqual('Listing Progress');
       tabs[1].nativeElement.click();
       fixture.detectChanges();
-      const tabContents = compiled.querySelectorAll('.mat-tab-body-content');
-      expect(tabContents).not.toBeNull();
-      const infoList = tabContents[1].querySelector('dl');
-      expect(infoList).not.toBeNull();
-      const children = infoList.children;
-      expect(children.length).toEqual(10);
-      expect(children[0].innerText).toEqual('List Tasks');
-      expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasksList));
-      expect(children[2].innerText).toEqual('List Tasks Completed');
-      expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompletedList));
-      expect(children[4].innerText).toEqual('List Tasks Failed');
-      expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailedList));
-      expect(children[6].innerText).toEqual('Files Found');
-      expect(children[7].innerText).toEqual(String(jobRun.Counters.listFilesFound));
-      expect(children[8].innerText).toEqual('Bytes Found');
-      expect(children[9].innerText).toEqual(String(jobRun.Counters.listBytesFound));
+      fixture.whenStable().then(() => {
+        fixture.detectChanges();
+        expect(compiled.innerText).toContain(jobRun.Counters.totalTasksList);
+        expect(compiled.innerText).toContain(jobRun.Counters.tasksCompletedList);
+        expect(compiled.innerText).toContain(jobRun.Counters.tasksFailedList);
+        expect(compiled.innerText).toContain(jobRun.Counters.listFilesFound);
+        expect(compiled.innerText).toContain(jobRun.Counters.listBytesFound);
+      });
     });
   }));
 
@@ -272,20 +261,12 @@ describe('JobRunDetailsComponent', () => {
       expect(tabs[2].nativeElement.textContent).toEqual('Upload to GCS Progress');
       tabs[2].nativeElement.click();
       fixture.detectChanges();
-      const tabContents = compiled.querySelectorAll('.mat-tab-body-content');
-      expect(tabContents).not.toBeNull();
-      const infoList = tabContents[2].querySelector('dl');
-      expect(infoList).not.toBeNull();
-      const children = infoList.children;
-      expect(children.length).toEqual(8);
-      expect(children[0].innerText).toEqual('Total Files');
-      expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasksCopy));
-      expect(children[2].innerText).toEqual('Files Completed');
-      expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompletedCopy));
-      expect(children[4].innerText).toEqual('Files Failed');
-      expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailedCopy));
-      expect(children[6].innerText).toEqual('Bytes Copied');
-      expect(children[7].innerText).toEqual(String(jobRun.Counters.bytesCopied));
+      fixture.whenStable().then(() => {
+        expect(compiled.innerText).toContain(jobRun.Counters.totalTasksCopy);
+        expect(compiled.innerText).toContain(jobRun.Counters.tasksCompletedCopy);
+        expect(compiled.innerText).toContain(jobRun.Counters.tasksFailedCopy);
+        expect(compiled.innerText).toContain(jobRun.Counters.bytesCopied);
+      });
     });
   }));
 
@@ -305,18 +286,13 @@ describe('JobRunDetailsComponent', () => {
       expect(tabs[3].nativeElement.textContent).toEqual('Load into BigQuery Progress');
       tabs[3].nativeElement.click();
       fixture.detectChanges();
-      const tabContents = compiled.querySelectorAll('.mat-tab-body-content');
-      expect(tabContents).not.toBeNull();
-      const infoList = tabContents[3].querySelector('dl');
-      expect(infoList).not.toBeNull();
-      const children = infoList.children;
-      expect(children.length).toEqual(6);
-      expect(children[0].innerText).toEqual('Total Objects');
-      expect(children[1].innerText).toEqual(String(jobRun.Counters.totalTasksLoad));
-      expect(children[2].innerText).toEqual('Objects Completed');
-      expect(children[3].innerText).toEqual(String(jobRun.Counters.tasksCompletedLoad));
-      expect(children[4].innerText).toEqual('Objects Failed');
-      expect(children[5].innerText).toEqual(String(jobRun.Counters.tasksFailedLoad));
+      fixture.whenStable().then(() => {
+        const tabContents = compiled.querySelectorAll('.mat-tab-body-content');
+        expect(tabContents).not.toBeNull();
+        expect(compiled.innerText).toContain(jobRun.Counters.totalTasksLoad);
+        expect(compiled.innerText).toContain(jobRun.Counters.tasksCompletedLoad);
+        expect(compiled.innerText).toContain(jobRun.Counters.tasksFailedLoad);
+      });
     });
   }));
 
