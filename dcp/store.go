@@ -17,7 +17,6 @@ package dcp
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -579,16 +578,6 @@ func (s *SpannerStore) QueueTasks(n int, listTopic, processListTopic, copyTopic 
 		// TODO(b/63018625): Adjust the PubSub publish settings to control batching
 		// the messages and the timeout to publish any set of messages.
 		taskMsgJSON, err := constructPubSubTaskMsg(task)
-
-		// TODO(b/70795078) We should be consistent about encoding our PubSub messages.
-		//
-		// We don't base64 encode messages we send to the agent, but the agent does
-		// base64-encode messages it sends back. The receiver expects messages to
-		// be base-64 encoded. Since this message is being sent to a DCP from a
-		// DCP, we need to base-64 encode it so the receiver works.
-		if task.TaskType == processListTaskType {
-			taskMsgJSON = []byte(base64.StdEncoding.EncodeToString(taskMsgJSON))
-		}
 
 		if err != nil {
 			log.Printf("Unable to form task msg from task: %v with error: %v.",

@@ -5,6 +5,7 @@ FULL_OPI_BACKEND_VIRTUALENV_PATH = $(OPI_BACKEND_VIRTUALENV_PATH)/opi-virtualenv
 
 # Add new top-level Go packages here.
 GO_TARGETS = \
+	./agent/... \
 	./dcp/... \
 	./gcloud/... \
 	./helpers/... \

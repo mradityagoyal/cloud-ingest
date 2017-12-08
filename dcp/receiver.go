@@ -25,9 +25,7 @@ package dcp
 
 import (
 	"context"
-	"encoding/base64"
 	"log"
-	"strings"
 	"sync"
 
 	"cloud.google.com/go/pubsub"
@@ -98,25 +96,14 @@ func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
 	r.jobSpecsCache.Unlock()
 
 	err := r.Sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
-		// Node JS client library send the message with quotes, removing the quotes
-		// from the message if exists.
-		msgData := strings.Trim(string(msg.Data), "\"")
-
-		// Decode the base64 encoded message in the Pubsub queue.
-		decodedMsg, err := base64.StdEncoding.DecodeString(msgData)
-		if err != nil {
-			log.Printf("Error Decoding msg: %v, with error: %v.", msgData, err)
-			return
-		}
-
 		// TODO(b/63058868): Failed to handle a PubSub message will be keep
 		// redelivered by the PubSub for significant amount of time (1 week).
 		// Non-retriable errors should mark the task failed and ack the message.
-		log.Printf("Handling a message: %s.", string(decodedMsg))
-		taskCompletionMessage, err := TaskCompletionMessageFromJson(decodedMsg)
+		log.Printf("Handling a message: %s.", string(msg.Data))
+		taskCompletionMessage, err := TaskCompletionMessageFromJson(msg.Data)
 		if err != nil {
 			log.Printf("Error handling the message: %s with error: %v.",
-				string(decodedMsg), err)
+				string(msg.Data), err)
 			return
 		}
 		taskFullID, err := TaskFullIDFromStr(taskCompletionMessage.TaskFullIDStr)
@@ -136,7 +123,7 @@ func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
 		if err != nil {
 			log.Printf(
 				"Error handling the message: %s, with job spec: %v, and taskCompletionMessage: %v: %v",
-				string(decodedMsg), jobSpec, taskCompletionMessage, err)
+				string(msg.Data), jobSpec, taskCompletionMessage, err)
 			return
 		}
 

@@ -13,16 +13,27 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package helpers
+package agent
 
 import (
-	"io"
+	"fmt"
 
-	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
+	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 )
 
-type WriteCloserWithError interface {
-	io.WriteCloser
-	CloseWithError(err error) error
-	Attrs() *storage.ObjectAttrs
+type AgentError struct {
+	Msg         string
+	FailureType proto.TaskFailureType_Type
+}
+
+func (ae AgentError) Error() string {
+	return ae.Msg
+}
+
+func NewInvalidTaskParamsError(taskParams dcp.TaskParams) *AgentError {
+	return &AgentError{
+		Msg:         fmt.Sprintf("Invalid task params arguments: %+v", taskParams),
+		FailureType: proto.TaskFailureType_UNKNOWN,
+	}
 }
