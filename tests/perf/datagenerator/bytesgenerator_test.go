@@ -5,13 +5,14 @@ import (
 	"testing"
 	"unsafe"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 )
 
 func TestGetBytes(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	mockDistribution := NewMockDistribution(mockCtrl)
+	mockDistribution := helpers.NewMockDistribution(mockCtrl)
 
 	mockDistribution.EXPECT().Max().Return(100)
 	bg := NewBytesGenerator(mockDistribution)

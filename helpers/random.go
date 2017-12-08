@@ -1,6 +1,8 @@
-package datagenerator
+package helpers
 
-import "math/rand"
+import (
+	"math/rand"
+)
 
 // Distribution represents a random number distribution.
 type Distribution interface {

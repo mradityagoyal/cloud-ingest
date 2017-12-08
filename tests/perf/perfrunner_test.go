@@ -8,14 +8,18 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
+	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 )
 
 func TestCreateConfigsFileNotExist(t *testing.T) {
 	runner := PerfRunner{}
-	errs := runner.CreateConfigs("does-not-exist-file")
+	errs := runner.CreateConfigs(context.Background(), "does-not-exist-file")
 	if errs == nil || len(errs) != 1 {
 		t.Errorf("expected reading file error, but found errs is nil.")
 	}
@@ -28,7 +32,7 @@ func TestCreateConfigsProtoParseError(t *testing.T) {
 	tmpFile := dcp.CreateTmpFile("perfrunner-test-", "This is corrupted proto")
 	defer os.Remove(tmpFile) // clean up
 	runner := PerfRunner{}
-	errs := runner.CreateConfigs(tmpFile)
+	errs := runner.CreateConfigs(context.Background(), tmpFile)
 	if errs == nil || len(errs) != 1 {
 		t.Errorf("expected parsing proto error, but found errs is nil.")
 	}
@@ -62,12 +66,11 @@ config: {
 		jobService: mockJobService,
 	}
 
-	errs := runner.CreateConfigs(tmpFile)
+	errs := runner.CreateConfigs(context.Background(), tmpFile)
 	if errs == nil || len(errs) != 1 {
 		t.Errorf("expected 1 failure but found %v.", errs)
-	}
-	if errs[0] != expectedErr {
-		t.Errorf("expected err[0] to be: %v, but found: %v.", errs[0], expectedErr)
+	} else if errs[0] != expectedErr {
+		t.Errorf("expected err[0] to be: %v, but found: %v.", expectedErr, errs[0])
 	}
 }
 
@@ -81,6 +84,12 @@ config: {
 config: {
   sourceDir: "dir-2"
   destinationBucket: "bucket-2"
+}
+config: {
+  sourceDir: "dir-3"
+}
+config: {
+  sourceDir: "dir-4"
 }`)
 	defer os.Remove(tmpFile) // clean up
 
@@ -88,16 +97,171 @@ config: {
 	defer mockCtrl.Finish()
 	mockJobService := NewMockJobService(mockCtrl)
 
+	projectId := "project-id"
+	newBucket1 := "opi-test-bucket-2017-12-07-00-00-1234"
+	newBucket2 := "opi-test-bucket-2017-12-07-00-01-2345"
+
 	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-1", "bucket-1").Return(nil)
 	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-2", "bucket-2").Return(nil)
+	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-3", newBucket1).Return(nil)
+	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-4", newBucket2).Return(nil)
+
+	mockClock := helpers.NewMockClock(mockCtrl)
+	mockClock.EXPECT().Now().Return(time.Date(2017, time.December, 7, 0, 0, 45, 456, time.UTC))
+	mockClock.EXPECT().Now().Return(time.Date(2017, time.December, 7, 0, 1, 45, 456, time.UTC))
+
+	mockDistribution := helpers.NewMockDistribution(mockCtrl)
+	mockDistribution.EXPECT().GetNext().Return(1234)
+	mockDistribution.EXPECT().GetNext().Return(2345)
+
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
+	mockGcs.EXPECT().CreateBucket(gomock.Any(), projectId, newBucket1, nil).Return(nil)
+	mockGcs.EXPECT().CreateBucket(gomock.Any(), projectId, newBucket2, nil).Return(nil)
+	mockGcs.EXPECT().ListObjects(gomock.Any(), newBucket1, nil).Return(gcloud.NewObjectIterator(
+		&storage.ObjectAttrs{Name: "object1"},
+		&storage.ObjectAttrs{Name: "object2"},
+	))
+	mockGcs.EXPECT().DeleteObject(gomock.Any(), newBucket1, "object1").Return(nil)
+	mockGcs.EXPECT().DeleteObject(gomock.Any(), newBucket1, "object2").Return(nil)
+	mockGcs.EXPECT().DeleteBucket(gomock.Any(), newBucket1).Return(nil)
+	mockGcs.EXPECT().ListObjects(gomock.Any(), newBucket2, nil).Return(gcloud.NewObjectIterator())
+	mockGcs.EXPECT().DeleteBucket(gomock.Any(), newBucket2).Return(nil)
 
 	runner := PerfRunner{
-		jobService: mockJobService,
+		jobService:   mockJobService,
+		clock:        mockClock,
+		distribution: mockDistribution,
+		gcs:          mockGcs,
+		projectId:    projectId,
 	}
 
-	errs := runner.CreateConfigs(tmpFile)
+	errs := runner.CreateConfigs(context.Background(), tmpFile)
 	if len(errs) != 0 {
-		t.Errorf("expected success found errors: %v.", errs)
+		t.Errorf("expected config creation success found errors: %v.", errs)
+	}
+
+	errs = runner.CleanUp(context.Background())
+	if len(errs) != 0 {
+		t.Errorf("expected cleanup success found errors: %v.", errs)
+	}
+}
+
+func TestCreateConfigPartialBucketCreationFail(t *testing.T) {
+	tmpFile := dcp.CreateTmpFile("perfrunner-test-", `
+name: "dummy-perf-test"
+config: {
+  sourceDir: "dir-1"
+}
+config: {
+  sourceDir: "dir-2"
+}`)
+	defer os.Remove(tmpFile) // clean up
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockJobService := NewMockJobService(mockCtrl)
+
+	projectId := "project-id"
+	newBucket1 := "opi-test-bucket-2017-12-07-00-00-1234"
+	newBucket2 := "opi-test-bucket-2017-12-07-00-01-2345"
+
+	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-1", newBucket1).Return(nil)
+
+	mockClock := helpers.NewMockClock(mockCtrl)
+	mockClock.EXPECT().Now().Return(time.Date(2017, time.December, 7, 0, 0, 45, 456, time.UTC))
+	mockClock.EXPECT().Now().Return(time.Date(2017, time.December, 7, 0, 1, 45, 456, time.UTC))
+
+	mockDistribution := helpers.NewMockDistribution(mockCtrl)
+	mockDistribution.EXPECT().GetNext().Return(1234)
+	mockDistribution.EXPECT().GetNext().Return(2345)
+
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
+	expectedErr := fmt.Errorf("bucket creation error")
+	mockGcs.EXPECT().CreateBucket(gomock.Any(), projectId, newBucket1, nil).Return(nil)
+	mockGcs.EXPECT().CreateBucket(gomock.Any(), projectId, newBucket2, nil).Return(expectedErr)
+	mockGcs.EXPECT().ListObjects(gomock.Any(), newBucket1, nil).Return(gcloud.NewObjectIterator())
+	mockGcs.EXPECT().DeleteBucket(gomock.Any(), newBucket1).Return(nil)
+
+	runner := PerfRunner{
+		jobService:   mockJobService,
+		clock:        mockClock,
+		distribution: mockDistribution,
+		gcs:          mockGcs,
+		projectId:    projectId,
+	}
+
+	errs := runner.CreateConfigs(context.Background(), tmpFile)
+	if errs == nil || len(errs) != 1 {
+		t.Errorf("expected 1 failure but found %v.", errs)
+	} else if errs[0] != expectedErr {
+		t.Errorf("expected err[0] to be: %v, but found: %v.", expectedErr, errs[0])
+	}
+
+	runner.CleanUp(context.Background())
+}
+
+func TestCleanupPartialFail(t *testing.T) {
+	tmpFile := dcp.CreateTmpFile("perfrunner-test-", `
+name: "dummy-perf-test"
+config: {
+  sourceDir: "dir-1"
+}
+config: {
+  sourceDir: "dir-2"
+}`)
+	defer os.Remove(tmpFile) // clean up
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockJobService := NewMockJobService(mockCtrl)
+
+	projectId := "project-id"
+	newBucket1 := "opi-test-bucket-2017-12-07-00-00-1234"
+	newBucket2 := "opi-test-bucket-2017-12-07-00-01-2345"
+
+	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-1", newBucket1).Return(nil)
+	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-2", newBucket2).Return(nil)
+
+	mockClock := helpers.NewMockClock(mockCtrl)
+	mockClock.EXPECT().Now().Return(time.Date(2017, time.December, 7, 0, 0, 45, 456, time.UTC))
+	mockClock.EXPECT().Now().Return(time.Date(2017, time.December, 7, 0, 1, 45, 456, time.UTC))
+
+	mockDistribution := helpers.NewMockDistribution(mockCtrl)
+	mockDistribution.EXPECT().GetNext().Return(1234)
+	mockDistribution.EXPECT().GetNext().Return(2345)
+
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
+	bucketDelError := fmt.Errorf("bucket deletion error")
+	objectDelError := fmt.Errorf("object deletion error")
+	iterError := fmt.Errorf("iteration failed")
+	mockGcs.EXPECT().CreateBucket(gomock.Any(), projectId, newBucket1, nil).Return(nil)
+	mockGcs.EXPECT().CreateBucket(gomock.Any(), projectId, newBucket2, nil).Return(nil)
+	mockGcs.EXPECT().ListObjects(gomock.Any(), newBucket1, nil).Return(gcloud.NewObjectIterator(
+		&storage.ObjectAttrs{Name: "object1"}, // Delete fails
+		&storage.ObjectAttrs{Name: "object2"}, // Delete succeeds
+	))
+	mockGcs.EXPECT().DeleteObject(gomock.Any(), newBucket1, "object1").Return(objectDelError)
+	mockGcs.EXPECT().DeleteObject(gomock.Any(), newBucket1, "object2").Return(nil)
+	mockGcs.EXPECT().DeleteBucket(gomock.Any(), newBucket1).Return(bucketDelError)
+	mockGcs.EXPECT().ListObjects(gomock.Any(), newBucket2, nil).Return(gcloud.NewObjectIterator(
+		iterError, // Iterator fails, don't end up deleting anything
+		&storage.ObjectAttrs{Name: "object4"},
+	))
+	mockGcs.EXPECT().DeleteBucket(gomock.Any(), newBucket2).Return(nil)
+
+	runner := PerfRunner{
+		jobService:   mockJobService,
+		clock:        mockClock,
+		distribution: mockDistribution,
+		gcs:          mockGcs,
+		projectId:    projectId,
+	}
+
+	runner.CreateConfigs(context.Background(), tmpFile)
+	errs := runner.CleanUp(context.Background())
+	expectedErrors := []error{objectDelError, bucketDelError, iterError}
+	if !reflect.DeepEqual(errs, expectedErrors) {
+		t.Errorf("wanted errors %v, but got %v", expectedErrors, errs)
 	}
 }
 
@@ -281,7 +445,7 @@ func TestMonitorJobsTimeout(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockJobService := NewMockJobService(mockCtrl)
 
-	mockTicker := dcp.NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	runner := PerfRunner{
 		configIds:  []string{"config-1", "config-2"},
 		jobService: mockJobService,
@@ -318,7 +482,7 @@ func TestMonitorJobsCancelledContext(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockJobService := NewMockJobService(mockCtrl)
 
-	mockTicker := dcp.NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	runner := PerfRunner{
 		configIds:  []string{"config-1", "config-2"},
 		jobService: mockJobService,
@@ -364,7 +528,7 @@ func TestMonitorJobsSuccess(t *testing.T) {
 	aggregateCounters := dcp.JobCounters{}
 	aggregateCounters.Unmarshal(`{"counter-1": 20, "counter-2": 40, "counter-3": 50}`)
 
-	mockTicker := dcp.NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	runner := PerfRunner{
 		configIds:  []string{"config-1", "config-2"},
 		jobService: mockJobService,
@@ -432,13 +596,13 @@ config: {
 	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-1", "bucket-1").Return(nil)
 	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-2", "bucket-2").Return(nil)
 
-	mockTicker := dcp.NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	runner := PerfRunner{
 		jobService: mockJobService,
 		ticker:     mockTicker,
 	}
 
-	if errs := runner.CreateConfigs(tmpFile); len(errs) != 0 {
+	if errs := runner.CreateConfigs(context.Background(), tmpFile); len(errs) != 0 {
 		t.Errorf("expected success found errors: %v.", errs)
 	}
 

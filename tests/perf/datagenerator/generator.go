@@ -13,6 +13,7 @@ import (
 
 	"github.com/golang/protobuf/proto"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	pb "github.com/GoogleCloudPlatform/cloud-ingest/tests/perf/proto"
 	"golang.org/x/time/rate"
 )
@@ -182,9 +183,9 @@ func (g *Generator) generateFileSystemPathsHelper(
 	}
 }
 
-func getFileSizeDistribution(fs *pb.FileSystem) (Distribution, error) {
+func getFileSizeDistribution(fs *pb.FileSystem) (helpers.Distribution, error) {
 	if d := fs.GetUniformDistribution(); d != nil {
-		return NewUniformDistribution(int(d.Min), int(d.Max), 0), nil
+		return helpers.NewUniformDistribution(int(d.Min), int(d.Max), 0), nil
 	}
 	return nil, fmt.Errorf(
 		"FileSystem.FileSizeDistribution has not implemented type %T",

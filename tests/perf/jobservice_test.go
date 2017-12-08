@@ -145,7 +145,7 @@ func TestCreateJobConfigSuccess(t *testing.T) {
 		configId:          "dummy-config",
 		sourceDir:         "dummy-source",
 		destinationBucket: "dummy-bucket",
-		returnStatusCode:  http.StatusCreated,
+		returnStatusCode:  http.StatusOK,
 		t:                 t,
 	}
 

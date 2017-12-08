@@ -10,10 +10,14 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	pb "github.com/GoogleCloudPlatform/cloud-ingest/tests/perf/proto"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"google.golang.org/api/iterator"
+	"math"
 )
 
 const (
@@ -55,9 +59,17 @@ func (r PerfResult) String() string {
 
 // PerfRunner is a struct to create job run and monitor their statuses.
 type PerfRunner struct {
-	configIds  []string
-	jobService JobService
-	ticker     dcp.Ticker
+	configIds    []string
+	jobService   JobService
+	ticker       helpers.Ticker
+	clock        helpers.Clock
+	distribution helpers.Distribution
+	gcs          gcloud.GCS
+	projectId    string
+	newBuckets   struct {
+		sync.Mutex
+		val []string
+	}
 
 	// Holds the last status of the perf run.
 	currStatus struct {
@@ -68,7 +80,7 @@ type PerfRunner struct {
 
 // NewPerfRunner creates a new PerfRunner based on a projectId. Uses the default
 // project if the projectId is empty.
-func NewPerfRunner(projectId, apiEndpoint string) (*PerfRunner, error) {
+func NewPerfRunner(projectId, apiEndpoint string, gcs gcloud.GCS) (*PerfRunner, error) {
 	creds, err := google.FindDefaultCredentials(context.Background())
 	if err != nil {
 		log.Printf("Can not find default credentials, err: %v.", err)
@@ -80,13 +92,23 @@ func NewPerfRunner(projectId, apiEndpoint string) (*PerfRunner, error) {
 	return &PerfRunner{
 		jobService: NewIngestService(
 			projectId, apiEndpoint, oauth2.NewClient(context.Background(), creds.TokenSource)),
-		ticker: dcp.NewClockTicker(jobStatusPollingInterval),
+		ticker:       helpers.NewClockTicker(jobStatusPollingInterval),
+		clock:        helpers.NewClock(),
+		distribution: helpers.NewUniformDistribution(0, math.MaxInt32, time.Now().UnixNano()),
+		gcs:          gcs,
+		projectId:    projectId,
 	}, nil
+}
+
+func (p *PerfRunner) getRandomBucketName() string {
+	now := p.clock.Now()
+	return fmt.Sprintf("opi-test-bucket-%04d-%02d-%02d-%02d-%02d-%d",
+		now.Year(), now.Month(), now.Day(), now.Hour(), now.Minute(), p.distribution.GetNext())
 }
 
 // CreateConfigs reads a LoadTestingConfiguration message from filePath and
 // creates job configs based on that message.
-func (p *PerfRunner) CreateConfigs(filePath string) []error {
+func (p *PerfRunner) CreateConfigs(ctx context.Context, filePath string) []error {
 	data, err := ioutil.ReadFile(filePath)
 	if err != nil {
 		log.Printf("Error reading file %v", err)
@@ -103,6 +125,18 @@ func (p *PerfRunner) CreateConfigs(filePath string) []error {
 	var mu sync.Mutex // Protecting the errs and configIds array.
 	runTimeStamp := time.Now().UnixNano()
 	for i, jobConfig := range loadTestingConfig.Config {
+		// Create temporary bucket if one doesn't exist.
+		if jobConfig.DestinationBucket == "" {
+			jobConfig.DestinationBucket = p.getRandomBucketName()
+			err := p.gcs.CreateBucket(ctx, p.projectId, jobConfig.DestinationBucket, nil)
+			if err != nil {
+				errs = append(errs, err)
+				break
+			}
+			p.newBuckets.Lock()
+			p.newBuckets.val = append(p.newBuckets.val, jobConfig.DestinationBucket)
+			p.newBuckets.Unlock()
+		}
 		wg.Add(1)
 		go func(jobConfigId string, jobConfig *pb.JobConfig) {
 			defer wg.Done()
@@ -167,6 +201,39 @@ func (p *PerfRunner) MonitorJobs(ctx context.Context) (*PerfResult, error) {
 	p.currStatus.Lock()
 	defer p.currStatus.Unlock()
 	return p.currStatus.val, nil
+}
+
+// CleanUp performs any post-run cleanup tasks, like deleting temporary GCS buckets.
+func (p *PerfRunner) CleanUp(ctx context.Context) []error {
+	errs := []error{}
+	p.newBuckets.Lock()
+	defer p.newBuckets.Unlock()
+	for _, bucket := range p.newBuckets.val {
+		// Delete all contents. Consider doing this in parallel if this is slow.
+		iter := p.gcs.ListObjects(ctx, bucket, nil)
+		for {
+			objAttrs, err := iter.Next()
+			if err == iterator.Done {
+				break
+			} else if err != nil {
+				// Can't trust a broken iterator; bail here.
+				errs = append(errs, err)
+				break
+			}
+
+			err = p.gcs.DeleteObject(ctx, bucket, objAttrs.Name)
+			if err != nil {
+				errs = append(errs, err)
+			}
+		}
+
+		// Nuke the now empty bucket.
+		err := p.gcs.DeleteBucket(ctx, bucket)
+		if err != nil {
+			errs = append(errs, err)
+		}
+	}
+	return errs
 }
 
 // GetStatus gets the current status of the running perf.

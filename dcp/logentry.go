@@ -29,6 +29,7 @@ import (
 	"cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
 // This channel is used to notify the LogEntryProcessor that a job run changed
@@ -177,7 +178,7 @@ type LogEntryProcessor struct {
 // binary. We will need to revisit this triggering scheme when we figure out how to
 // support multiple DCPs for a single project.
 func (lep LogEntryProcessor) ProcessLogs() {
-	t := NewClockTicker(logEntryCountCheckInterval)
+	t := helpers.NewClockTicker(logEntryCountCheckInterval)
 	if JobRunStatusChangeNotificationChannel == nil {
 		// Buffer the channel so the sender doesn't block.
 		JobRunStatusChangeNotificationChannel = make(chan int, 10)
@@ -186,7 +187,7 @@ func (lep LogEntryProcessor) ProcessLogs() {
 }
 
 func (lep LogEntryProcessor) continuouslyProcessLogs(
-	ctx context.Context, t Ticker, jobrunChannel chan int, testChannel chan int) {
+	ctx context.Context, t helpers.Ticker, jobrunChannel chan int, testChannel chan int) {
 	periodicCheck := t.GetChannel()
 	var lastN, noProgressCount int64
 	for {

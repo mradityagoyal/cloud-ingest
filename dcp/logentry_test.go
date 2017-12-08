@@ -26,6 +26,7 @@ import (
 
 	"cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 )
 
@@ -135,7 +136,7 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
-	mockTicker := NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	testChannel := make(chan int)
 	go lep.continuouslyProcessLogs(context.Background(), mockTicker, nil, testChannel)
 	mockTicker.Tick()
@@ -170,7 +171,7 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
-	mockTicker := NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	testChannel := make(chan int)
 	go lep.continuouslyProcessLogs(context.Background(), mockTicker, nil, testChannel)
 	mockTicker.Tick()
@@ -215,7 +216,7 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
 		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
 
-	mockTicker := NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	jobrunChannel := make(chan int)
 	testChannel := make(chan int)
 	go lep.continuouslyProcessLogs(context.Background(), mockTicker, jobrunChannel, testChannel)

@@ -1,6 +1,8 @@
-package datagenerator
+package helpers
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestUniformGetNext(t *testing.T) {
 	d := NewUniformDistribution(0, 10, 1)

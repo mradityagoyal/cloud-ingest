@@ -75,7 +75,7 @@ func (s IngestService) CreateJobConfig(
 	}
 	defer res.Body.Close()
 
-	if res.StatusCode != http.StatusCreated {
+	if res.StatusCode != http.StatusOK {
 		body, _ := ioutil.ReadAll(res.Body)
 		return fmt.Errorf(
 			"unexpected response code for request: %s, with request body: %v, "+

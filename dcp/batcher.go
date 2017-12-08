@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
 const (
@@ -38,7 +39,7 @@ type taskUpdatesBatcher struct {
 	currUpdateSize      int
 	maxBatchSize        int
 	mu                  sync.Mutex
-	ticker              Ticker
+	ticker              helpers.Ticker
 	ackMessage          func(msg *pubsub.Message)
 }
 
@@ -116,10 +117,10 @@ func (b *taskUpdatesBatcher) commitUpdatesClosure() func() error {
 // initializeAndStart initializes the taskUpdateBatcher and starts a Go routine
 // to periodically commits the accumulated pending task updates.
 func (b *taskUpdatesBatcher) initializeAndStart(s Store) {
-	b.initializeAndStartInternal(s, NewClockTicker(batchingTimeInterval), nil)
+	b.initializeAndStartInternal(s, helpers.NewClockTicker(batchingTimeInterval), nil)
 }
 
-func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t Ticker, testChannel chan int) {
+func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t helpers.Ticker, testChannel chan int) {
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.started {

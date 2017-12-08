@@ -24,12 +24,32 @@ import (
 	"os"
 	"time"
 
+	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/tests/perf"
 )
 
 const (
 	defaultApiEndpoint = "https://api-dot-cloud-ingest-perf.appspot.com/"
 )
+
+func cleanupResources(skipCleanup bool, perfRunner *perf.PerfRunner) {
+	if skipCleanup {
+		log.Printf("No cleanup to perform; leaving any newly-created buckets intact.")
+		return
+	}
+
+	log.Printf("Cleaning up any newly-created buckets.")
+
+	// Fresh context, because the main one might have a timeout related to the actual test run.
+	errs := perfRunner.CleanUp(context.Background())
+	if len(errs) != 0 {
+		log.Printf("There are %d error(s) on cleanup: ", len(errs))
+		for _, err := range errs {
+			log.Println(err)
+		}
+	}
+}
 
 func main() {
 	protoMessagePath := flag.String("msg-file", "", "Path of the proto message file.")
@@ -44,6 +64,9 @@ func main() {
 	timeout := flag.Duration(
 		"timeout", 0,
 		"Timeout duration to run the tool. Default 0 means no timeout.")
+	skipCleanup := flag.Bool(
+		"skip-cleanup", false,
+		"Set to true to skip resource cleanup (e.g. test bucket deletion). Defaults to false.")
 	flag.Parse()
 
 	if *protoMessagePath == "" {
@@ -54,38 +77,57 @@ func main() {
 		os.Exit(1)
 	}
 
-	p, err := perf.NewPerfRunner(*projectId, *apiEndpoint)
+	ctx := context.Background()
+
+	// GCS Client Setup
+	storageClient, err := storage.NewClient(ctx)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Can not create storage client, error: %v.\n", err)
+		os.Exit(1)
+	}
+	gcsClient := gcloud.NewGCSClient(storageClient)
+
+	p, err := perf.NewPerfRunner(*projectId, *apiEndpoint, gcsClient)
 	if err != nil {
 		log.Printf("Failed to create perf runner with err: %v", err)
 		os.Exit(1)
 	}
 
-	log.Println("Creating Job configs...")
-	errs := p.CreateConfigs(*protoMessagePath)
-	if len(errs) != 0 {
-		log.Printf("There are %d error(s) on creating job configs: ", len(errs))
-		for _, err = range errs {
-			log.Println(err)
-		}
-	}
+	// Nesting this execution to make sure the deferred cleanup executes even when
+	// we've failed a test and are about to fatally exit.
+	result, err := func() (*perf.PerfResult, error) {
+		// Ensure we get things cleaned up before we exit.
+		defer cleanupResources(*skipCleanup, p)
 
-	log.Println("Monitoring created jobs...")
-
-	// Thread to poll for the status of perf run. This is useful to inform
-	// the user of what's going on.
-	ti := time.NewTicker(*updateInterval)
-	go func() {
-		for range ti.C {
-			log.Println("Current Status:", p.GetStatus())
+		log.Println("Creating Job configs...")
+		errs := p.CreateConfigs(ctx, *protoMessagePath)
+		if len(errs) != 0 {
+			log.Printf("There are %d error(s) on creating job configs: ", len(errs))
+			for _, err = range errs {
+				log.Println(err)
+			}
 		}
+
+		log.Println("Monitoring created jobs...")
+
+		// Thread to poll for the status of perf run. This is useful to inform
+		// the user of what's going on.
+		ti := time.NewTicker(*updateInterval)
+		go func() {
+			for range ti.C {
+				log.Println("Current Status:", p.GetStatus())
+			}
+		}()
+
+		if *timeout > 0 {
+			ctx, _ = context.WithTimeout(ctx, *timeout)
+		}
+		result, err := p.MonitorJobs(ctx)
+		ti.Stop()
+
+		return result, err
 	}()
 
-	ctx := context.Background()
-	if *timeout > 0 {
-		ctx, _ = context.WithTimeout(ctx, *timeout)
-	}
-	result, err := p.MonitorJobs(ctx)
-	ti.Stop()
 	if err != nil {
 		log.Fatalf("Perf Job run failed with err: %v.", err)
 	}

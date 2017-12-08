@@ -22,6 +22,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
 func initializePubSubMock() (map[string]bool, func(msg *pubsub.Message)) {
@@ -76,7 +77,7 @@ func TestBatcherWithOneUpdate(t *testing.T) {
 
 	msg := &pubsub.Message{ID: "dummy-msg"}
 
-	mockTicker := NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	testChannel := make(chan int)
 	batcher.initializeAndStartInternal(store, mockTicker, testChannel)
 	// Override Pub/Sub Ack function with a mock one.
@@ -105,7 +106,7 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 		tasks: map[string]*Task{},
 	}
 
-	mockTicker := NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	testChannel := make(chan int)
 	batcher.initializeAndStartInternal(store, mockTicker, testChannel)
 	// Setting the max batch size to exercise commits based on the batch size.
@@ -171,7 +172,7 @@ func TestBatcherMaxBatchSize(t *testing.T) {
 	msg1 := &pubsub.Message{ID: "dummy-msg-1"}
 	msg2 := &pubsub.Message{ID: "dummy-msg-2"}
 
-	mockTicker := NewMockTicker()
+	mockTicker := helpers.NewMockTicker()
 	testChannel := make(chan int)
 	batcher.initializeAndStartInternal(store, mockTicker, testChannel)
 	// Override Pub/Sub Ack function with a mock one.

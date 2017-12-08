@@ -1,15 +1,18 @@
 package datagenerator
 
-import "math/rand"
+import (
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"math/rand"
+)
 
 // BytesGenerator generates bytes based on a Distribution.
 type BytesGenerator struct {
-	d     Distribution
+	d     helpers.Distribution
 	bytes []byte
 }
 
 // NewBytesGenerator creates a BytesGenerator based on a distribution.
-func NewBytesGenerator(d Distribution) *BytesGenerator {
+func NewBytesGenerator(d helpers.Distribution) *BytesGenerator {
 	bytes := make([]byte, d.Max())
 	rand.Read(bytes)
 	return &BytesGenerator{d, bytes}
