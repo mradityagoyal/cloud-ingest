@@ -121,6 +121,18 @@ func (mr *MockGCSMockRecorder) NewWriter(ctx, bucketName, objectName interface{}
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewWriter", reflect.TypeOf((*MockGCS)(nil).NewWriter), ctx, bucketName, objectName)
 }
 
+// NewWriterWithCondition mocks base method
+func (m *MockGCS) NewWriterWithCondition(ctx context.Context, bucketName, objectName string, cond storage.Conditions) io.WriteCloser {
+	ret := m.ctrl.Call(m, "NewWriterWithCondition", ctx, bucketName, objectName, cond)
+	ret0, _ := ret[0].(io.WriteCloser)
+	return ret0
+}
+
+// NewWriterWithCondition indicates an expected call of NewWriterWithCondition
+func (mr *MockGCSMockRecorder) NewWriterWithCondition(ctx, bucketName, objectName, cond interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewWriterWithCondition", reflect.TypeOf((*MockGCS)(nil).NewWriterWithCondition), ctx, bucketName, objectName, cond)
+}
+
 // MockObjectIterator is a mock of ObjectIterator interface
 type MockObjectIterator struct {
 	ctrl     *gomock.Controller

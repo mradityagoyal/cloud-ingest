@@ -29,10 +29,12 @@ type GCS interface {
 	CreateBucket(ctx context.Context, projectId, bucketName string, attrs *storage.BucketAttrs) error
 	DeleteBucket(ctx context.Context, bucketName string) error
 	DeleteObject(ctx context.Context, bucketName string, objectName string) error
-	GetAttrs(ctx context.Context, bucketName string, objectName string) (*storage.ObjectAttrs, error)
+	GetAttrs(ctx context.Context, bucketName, objectName string) (*storage.ObjectAttrs, error)
 	ListObjects(ctx context.Context, bucketName string, query *storage.Query) ObjectIterator
-	NewRangeReader(ctx context.Context, bucketName string, objectName string, offset, length int64) (io.ReadCloser, error)
-	NewWriter(ctx context.Context, bucketName string, objectName string) io.WriteCloser
+	NewRangeReader(ctx context.Context, bucketName, objectName string, offset, length int64) (io.ReadCloser, error)
+	NewWriter(ctx context.Context, bucketName, objectName string) io.WriteCloser
+	NewWriterWithCondition(ctx context.Context, bucketName, objectName string,
+		cond storage.Conditions) io.WriteCloser
 }
 
 // Interface to abstract out the ObjectIterator type, which contains
@@ -63,7 +65,7 @@ func (gcs *GCSClient) DeleteObject(ctx context.Context, bucketName string, objec
 	return gcs.client.Bucket(bucketName).Object(objectName).Delete(ctx)
 }
 
-func (gcs *GCSClient) GetAttrs(ctx context.Context, bucketName string, objectName string) (*storage.ObjectAttrs, error) {
+func (gcs *GCSClient) GetAttrs(ctx context.Context, bucketName, objectName string) (*storage.ObjectAttrs, error) {
 	return gcs.client.Bucket(bucketName).Object(objectName).Attrs(ctx)
 }
 
@@ -71,12 +73,17 @@ func (gcs *GCSClient) ListObjects(ctx context.Context, bucketName string, query 
 	return gcs.client.Bucket(bucketName).Objects(ctx, query)
 }
 
-func (gcs *GCSClient) NewRangeReader(ctx context.Context, bucketName string, objectName string, offset, length int64) (io.ReadCloser, error) {
+func (gcs *GCSClient) NewRangeReader(ctx context.Context, bucketName, objectName string, offset, length int64) (io.ReadCloser, error) {
 	return gcs.client.Bucket(bucketName).Object(objectName).NewRangeReader(ctx, offset, length)
 }
 
-func (gcs *GCSClient) NewWriter(ctx context.Context, bucketName string, objectName string) io.WriteCloser {
+func (gcs *GCSClient) NewWriter(ctx context.Context, bucketName, objectName string) io.WriteCloser {
 	return gcs.client.Bucket(bucketName).Object(objectName).NewWriter(ctx)
+}
+
+func (gcs *GCSClient) NewWriterWithCondition(
+	ctx context.Context, bucketName, objectName string, cond storage.Conditions) io.WriteCloser {
+	return gcs.client.Bucket(bucketName).Object(objectName).If(cond).NewWriter(ctx)
 }
 
 // NewObjectIterator returns an in-memory instance of ObjectIterator. Prefer this approach
