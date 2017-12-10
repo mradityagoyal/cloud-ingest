@@ -46,9 +46,8 @@ func createDummyTask() *Task {
 func TestInsertLogEntryMutation(t *testing.T) {
 	listTask := createDummyTask()
 	previousStatus := Unqueued
-	logEntryData := make(map[string]interface{})
-	logEntryData["dummyKey"] = "dummyValue"
-	logEntry := NewLogEntry(logEntryData)
+	logEntry := make(LogEntry)
+	logEntry["dummyKey"] = "dummyValue"
 	timestamp := int64(1111)
 
 	mutations := []*spanner.Mutation{}

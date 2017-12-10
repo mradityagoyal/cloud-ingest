@@ -18,13 +18,14 @@ package dcp
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
 	"strconv"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 )
 
 const noGenNumTaskSpec string = `{"irrelevant": "foobar"}`
@@ -45,7 +46,7 @@ func getTestingTaskUpdate(expectedGenerationNum int, status int64, failureType p
 		},
 
 		// This is just to make sure it doesn't get altered.
-		LogEntry: NewLogEntry(map[string]interface{}{"foo": "bar"}),
+		LogEntry: LogEntry{"foo": "bar"},
 
 		OriginalTaskParams: TaskParams{},
 

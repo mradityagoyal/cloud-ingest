@@ -509,11 +509,10 @@ func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskType:    uploadGCSTaskType,
 	}
-	logEntryData := make(map[string]interface{})
-	logEntryData["files_found"] = json.Number("2")
-	logEntryData["bytes_found"] = json.Number("12345678")
-	logEntryData["file_stat_errors"] = json.Number("1")
-	logEntry := NewLogEntry(logEntryData)
+	logEntry := make(LogEntry)
+	logEntry["files_found"] = json.Number("2")
+	logEntry["bytes_found"] = json.Number("12345678")
+	logEntry["file_stat_errors"] = json.Number("1")
 	tu := &TaskUpdate{
 		Task:     updatedListTask,
 		LogEntry: logEntry,
@@ -589,9 +588,8 @@ func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
 		JobRunId:    fullJobId.JobRunId,
 		TaskType:    uploadGCSTaskType,
 	}
-	logEntryData := make(map[string]interface{})
-	logEntryData["src_bytes"] = json.Number("12345")
-	logEntry := NewLogEntry(logEntryData)
+	logEntry := make(LogEntry)
+	logEntry["src_bytes"] = json.Number("12345")
 	tu := &TaskUpdate{Task: updatedCopyTask, LogEntry: logEntry, NewTasks: []*Task{newLoadTask}}
 
 	var counters JobCountersCollection

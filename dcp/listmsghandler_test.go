@@ -23,11 +23,11 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
 	"github.com/golang/mock/gomock"
-	"strings"
 )
 
 var (
@@ -46,7 +46,7 @@ func listSuccessCompletionMessage() *TaskCompletionMessage {
 			"src_directory":           "dir",
 			"expected_generation_num": 0,
 		},
-		LogEntry: map[string]interface{}{"logkey": "logval"},
+		LogEntry: LogEntry{"logkey": "logval"},
 	}
 }
 
@@ -295,7 +295,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 
 	expectedTaskUpdate := &TaskUpdate{
 		Task:     listTask,
-		LogEntry: NewLogEntry(map[string]interface{}{"logkey": "logval"}),
+		LogEntry: LogEntry{"logkey": "logval"},
 		OriginalTaskParams: TaskParams{
 			"dst_list_result_bucket":  "bucket1",
 			"dst_list_result_object":  "object",

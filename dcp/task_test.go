@@ -17,10 +17,11 @@ package dcp
 
 import (
 	"encoding/json"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"reflect"
 	"strings"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 )
 
 /*******************************************************************************
@@ -345,11 +346,11 @@ func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 		Status:         "FAILED",
 		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 		FailureMessage: "Failure",
-		LogEntry: map[string]interface{}{
+		LogEntry: LogEntry{
 			"logkey1": "logval1",
 			"lognum":  json.Number("42"),
 		},
-		TaskParams: map[string]interface{}{
+		TaskParams: TaskParams{
 			"paramkey1": "paramval1",
 			"paramnum":  json.Number("42"),
 		},
@@ -380,10 +381,10 @@ func TestTaskCompletionMessageFromJsonSuccessMessage(t *testing.T) {
 	want := TaskCompletionMessage{
 		FullTaskId: "job_config_id_A:job_run_id_A:A",
 		Status:     "SUCCESS",
-		LogEntry: map[string]interface{}{
+		LogEntry: LogEntry{
 			"logkey1": "logval1",
 		},
-		TaskParams: map[string]interface{}{
+		TaskParams: TaskParams{
 			"paramkey1": "paramval1",
 		},
 	}
@@ -416,8 +417,8 @@ func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
 	taskCompletionMessage := TaskCompletionMessage{
 		FullTaskId: "job_config_id_A:job_run_id_A:A",
 		Status:     "SUCCESS",
-		LogEntry:   map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
-		TaskParams: map[string]interface{}{"paramkey1": "paramval1", "paramkey2": "paramval2"},
+		LogEntry:   LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
+		TaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
@@ -433,9 +434,7 @@ func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
 			TaskId:      "A",
 			Status:      Success,
 		},
-		LogEntry: &LogEntry{
-			data: map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
-		},
+		LogEntry:           LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
 		OriginalTaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 
@@ -452,8 +451,8 @@ func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 		Status:         "FAILED",
 		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 		FailureMessage: "Failure",
-		LogEntry:       map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
-		TaskParams:     map[string]interface{}{"paramkey1": "paramval1", "paramkey2": "paramval2"},
+		LogEntry:       LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
+		TaskParams:     TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
@@ -471,9 +470,7 @@ func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 			FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 			FailureMessage: "Failure",
 		},
-		LogEntry: &LogEntry{
-			data: map[string]interface{}{"logkey1": "logval1", "logkey2": "logval2"},
-		},
+		LogEntry:           LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
 		OriginalTaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 

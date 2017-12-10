@@ -17,12 +17,13 @@ package dcp
 
 import (
 	"errors"
-	"github.com/golang/mock/gomock"
 	"io/ioutil"
 	"log"
 	"os"
 	"strings"
 	"testing"
+
+	"github.com/golang/mock/gomock"
 )
 
 func copySuccessCompletionMessage() *TaskCompletionMessage {
@@ -35,7 +36,7 @@ func copySuccessCompletionMessage() *TaskCompletionMessage {
 			"dst_object":              "object",
 			"expected_generation_num": 1,
 		},
-		LogEntry: map[string]interface{}{"logkey": "logval"},
+		LogEntry: LogEntry{"logkey": "logval"},
 	}
 }
 
@@ -125,7 +126,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 
 	expectedTaskUpdate := &TaskUpdate{
 		Task:     uploadGCSTask,
-		LogEntry: NewLogEntry(map[string]interface{}{"logkey": "logval"}),
+		LogEntry: LogEntry{"logkey": "logval"},
 		OriginalTaskParams: TaskParams{
 			"src_file":                "file",
 			"dst_bucket":              "bucket",

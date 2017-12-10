@@ -20,8 +20,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"strings"
+
+	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 )
 
 const (
@@ -80,7 +81,7 @@ type TaskCompletionMessage struct {
 	Status         string                     `json:"status"`
 	FailureType    proto.TaskFailureType_Type `json:"failure_reason"`
 	FailureMessage string                     `json:"failure_message"`
-	LogEntry       map[string]interface{}     `json:"log_entry"`
+	LogEntry       LogEntry                   `json:"log_entry"`
 	TaskParams     TaskParams                 `json:"task_params"`
 }
 
@@ -98,7 +99,7 @@ type TaskUpdate struct {
 	Task *Task
 
 	// LogEntry that is associated with task update.
-	LogEntry *LogEntry
+	LogEntry LogEntry
 
 	// Parameters the original task was called with
 	OriginalTaskParams TaskParams
@@ -362,7 +363,7 @@ func TaskCompletionMessageToTaskUpdate(taskCompletionMessage *TaskCompletionMess
 
 	return &TaskUpdate{
 		Task:               task,
-		LogEntry:           &LogEntry{data: taskCompletionMessage.LogEntry},
+		LogEntry:           taskCompletionMessage.LogEntry,
 		OriginalTaskParams: taskCompletionMessage.TaskParams,
 	}, nil
 }

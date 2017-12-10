@@ -54,26 +54,14 @@ const (
 // *****************************************************************************
 // LogEntry
 // *****************************************************************************
-type LogEntry struct {
-	data map[string]interface{}
-}
-
-func NewLogEntry(data map[string]interface{}) *LogEntry {
-	logEntry := new(LogEntry)
-	logEntry.data = data
-	return logEntry
-}
+type LogEntry map[string]interface{}
 
 func (le LogEntry) val(key string) int64 {
-	value, err := le.data[key].(json.Number).Int64()
+	value, err := le[key].(json.Number).Int64()
 	if err != nil {
 		return int64(0)
 	}
 	return value
-}
-
-func (le LogEntry) String() string {
-	return fmt.Sprint(le.data)
 }
 
 // Returns an array of LogEntries table columns.
@@ -93,19 +81,19 @@ func getLogEntryInsertColumns() []string {
 }
 
 // Adds a mutation to 'mutations' which inserts a LogEntry for the given task.
-func insertLogEntryMutation(mutations *[]*spanner.Mutation, task *Task, previousStatus int64, logEntry *LogEntry, timestamp int64) {
+func insertLogEntryMutation(mutations *[]*spanner.Mutation, task *Task, previousStatus int64, logEntry LogEntry, timestamp int64) {
 	var logEntryString string
-	if logEntry != nil && logEntry.data != nil {
+	if logEntry != nil {
 		// Sort the logEntry's map's keys to ensure a stable order (something Go
 		// doesn't guarantee).
 		var keys []string
-		for k, _ := range logEntry.data {
+		for k, _ := range logEntry {
 			keys = append(keys, k)
 		}
 		sort.Strings(keys)
 		var kv []string
 		for _, k := range keys {
-			kv = append(kv, fmt.Sprintf("%v:%v", k, logEntry.data[k]))
+			kv = append(kv, fmt.Sprintf("%v:%v", k, logEntry[k]))
 		}
 		logEntryString = strings.Join(kv, " ")
 	}
