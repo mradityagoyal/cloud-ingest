@@ -25,8 +25,8 @@ from create_infra import constants
 from create_infra import compute_builder
 from create_infra import pubsub_builder
 from create_infra import spanner_builder
+from proto.tasks_pb2 import ResourceStatus
 
-from create_infra.resource_status import ResourceStatus
 import infra_util
 
 
