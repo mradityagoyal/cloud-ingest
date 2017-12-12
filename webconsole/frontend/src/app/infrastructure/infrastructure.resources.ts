@@ -1,21 +1,14 @@
+import { ResourceStatus } from '../proto/tasks.js';
+
 export interface InfrastructureStatus {
-  spannerStatus: string;
+  spannerStatus: ResourceStatus.Type;
   pubsubStatus: PubsubStatus;
-  dcpStatus: string;
+  dcpStatus: ResourceStatus.Type;
 }
 
 export interface PubsubStatus {
-  list: string;
-  listProgress: string;
-  uploadGCS: string;
-  uploadGCSProgress: string;
+  list: ResourceStatus.Type;
+  listProgress: ResourceStatus.Type;
+  uploadGCS: ResourceStatus.Type;
+  uploadGCSProgress: ResourceStatus.Type;
 }
-
-export const INFRA_STATUS = {
-  RUNNING : 'RUNNING',
-  NOT_FOUND: 'NOT_FOUND',
-  DEPLOYING: 'DEPLOYING',
-  DELETING: 'DELETING',
-  FAILED: 'FAILED',
-  UNKNOWN: 'UNKNOWN'
-};

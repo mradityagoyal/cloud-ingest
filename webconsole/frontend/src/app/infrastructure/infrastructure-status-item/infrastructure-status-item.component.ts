@@ -1,6 +1,6 @@
 import { Component, Input } from '@angular/core';
 
-import { INFRA_STATUS } from '../infrastructure.resources';
+import { ResourceStatus } from '../../proto/tasks.js';
 
 @Component({
   selector: 'app-infrastructure-status-item',
@@ -9,5 +9,7 @@ import { INFRA_STATUS } from '../infrastructure.resources';
 export class InfrastructureStatusItemComponent {
   @Input() public itemName: string;
   @Input() public itemStatus: string;
-  INFRA_STATUS = INFRA_STATUS;
+
+  // Needed to export this constant and use it in the template.
+  ResourceStatus = ResourceStatus;
 }

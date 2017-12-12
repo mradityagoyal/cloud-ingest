@@ -7,7 +7,7 @@ import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
 
 import { environment } from '../../environments/environment';
-import { INFRA_STATUS, InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
+import { InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
 import { InfrastructureService } from './infrastructure.service';
 import {
   FAKE_INFRA_STATUS_RUNNING,

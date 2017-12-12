@@ -5,7 +5,7 @@ export interface ITaskFailureType {
 }
 
 /** Represents a TaskFailureType. */
-export class TaskFailureType {
+export class TaskFailureType implements ITaskFailureType {
 
     /**
      * Constructs a new TaskFailureType.
@@ -103,7 +103,7 @@ export interface ITaskStatus {
 }
 
 /** Represents a TaskStatus. */
-export class TaskStatus {
+export class TaskStatus implements ITaskStatus {
 
     /**
      * Constructs a new TaskStatus.
@@ -198,7 +198,7 @@ export interface ITaskType {
 }
 
 /** Represents a TaskType. */
-export class TaskType {
+export class TaskType implements ITaskType {
 
     /**
      * Constructs a new TaskType.
@@ -292,7 +292,7 @@ export interface IJobRunStatus {
 }
 
 /** Represents a JobRunStatus. */
-export class JobRunStatus {
+export class JobRunStatus implements IJobRunStatus {
 
     /**
      * Constructs a new JobRunStatus.
@@ -379,5 +379,103 @@ export namespace JobRunStatus {
         IN_PROGRESS = 1,
         FAILED = 2,
         SUCCESS = 3
+    }
+}
+
+/** Properties of a ResourceStatus. */
+export interface IResourceStatus {
+}
+
+/** Represents a ResourceStatus. */
+export class ResourceStatus implements IResourceStatus {
+
+    /**
+     * Constructs a new ResourceStatus.
+     * @param [properties] Properties to set
+     */
+    constructor(properties?: IResourceStatus);
+
+    /**
+     * Creates a new ResourceStatus instance using the specified properties.
+     * @param [properties] Properties to set
+     * @returns ResourceStatus instance
+     */
+    public static create(properties?: IResourceStatus): ResourceStatus;
+
+    /**
+     * Encodes the specified ResourceStatus message. Does not implicitly {@link ResourceStatus.verify|verify} messages.
+     * @param message ResourceStatus message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encode(message: IResourceStatus, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Encodes the specified ResourceStatus message, length delimited. Does not implicitly {@link ResourceStatus.verify|verify} messages.
+     * @param message ResourceStatus message or plain object to encode
+     * @param [writer] Writer to encode to
+     * @returns Writer
+     */
+    public static encodeDelimited(message: IResourceStatus, writer?: $protobuf.Writer): $protobuf.Writer;
+
+    /**
+     * Decodes a ResourceStatus message from the specified reader or buffer.
+     * @param reader Reader or buffer to decode from
+     * @param [length] Message length if known beforehand
+     * @returns ResourceStatus
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decode(reader: ($protobuf.Reader|Uint8Array), length?: number): ResourceStatus;
+
+    /**
+     * Decodes a ResourceStatus message from the specified reader or buffer, length delimited.
+     * @param reader Reader or buffer to decode from
+     * @returns ResourceStatus
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    public static decodeDelimited(reader: ($protobuf.Reader|Uint8Array)): ResourceStatus;
+
+    /**
+     * Verifies a ResourceStatus message.
+     * @param message Plain object to verify
+     * @returns `null` if valid, otherwise the reason why it is not
+     */
+    public static verify(message: { [k: string]: any }): (string|null);
+
+    /**
+     * Creates a ResourceStatus message from a plain object. Also converts values to their respective internal types.
+     * @param object Plain object
+     * @returns ResourceStatus
+     */
+    public static fromObject(object: { [k: string]: any }): ResourceStatus;
+
+    /**
+     * Creates a plain object from a ResourceStatus message. Also converts values to other types if specified.
+     * @param message ResourceStatus
+     * @param [options] Conversion options
+     * @returns Plain object
+     */
+    public static toObject(message: ResourceStatus, options?: $protobuf.IConversionOptions): { [k: string]: any };
+
+    /**
+     * Converts this ResourceStatus to JSON.
+     * @returns JSON object
+     */
+    public toJSON(): { [k: string]: any };
+}
+
+export namespace ResourceStatus {
+
+    /** Type enum. */
+    enum Type {
+        TYPE_UNSPECIFIED = 0,
+        RUNNING = 1,
+        DEPLOYING = 2,
+        DELETING = 3,
+        FAILED = 4,
+        NOT_FOUND = 5,
+        UNKNOWN = 6
     }
 }

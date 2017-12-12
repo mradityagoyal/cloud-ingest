@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='proto/tasks.proto',
   package='',
   syntax='proto3',
-  serialized_pb=_b('\n\x11proto/tasks.proto\"\xb6\x01\n\x0fTaskFailureType\"\xa2\x01\n\x04Type\x12\n\n\x06UNUSED\x10\x00\x12\x0b\n\x07UNKNOWN\x10\x01\x12\x19\n\x15\x46ILE_MODIFIED_FAILURE\x10\x02\x12\x18\n\x14MD5_MISMATCH_FAILURE\x10\x03\x12\x18\n\x14PRECONDITION_FAILURE\x10\x04\x12\x1a\n\x16\x46ILE_NOT_FOUND_FAILURE\x10\x05\x12\x16\n\x12PERMISSION_FAILURE\x10\x06\"G\n\nTaskStatus\"9\n\x04Type\x12\x0c\n\x08UNQUEUED\x10\x00\x12\n\n\x06QUEUED\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"9\n\x08TaskType\"-\n\x04Type\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x08\n\x04LIST\x10\x01\x12\x0e\n\nUPLOAD_GCS\x10\x02\"Q\n\x0cJobRunStatus\"A\n\x04Type\x12\x0f\n\x0bNOT_STARTED\x10\x00\x12\x0f\n\x0bIN_PROGRESS\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\x42\x07Z\x05protob\x06proto3')
+  serialized_pb=_b('\n\x11proto/tasks.proto\"\xb6\x01\n\x0fTaskFailureType\"\xa2\x01\n\x04Type\x12\n\n\x06UNUSED\x10\x00\x12\x0b\n\x07UNKNOWN\x10\x01\x12\x19\n\x15\x46ILE_MODIFIED_FAILURE\x10\x02\x12\x18\n\x14MD5_MISMATCH_FAILURE\x10\x03\x12\x18\n\x14PRECONDITION_FAILURE\x10\x04\x12\x1a\n\x16\x46ILE_NOT_FOUND_FAILURE\x10\x05\x12\x16\n\x12PERMISSION_FAILURE\x10\x06\"G\n\nTaskStatus\"9\n\x04Type\x12\x0c\n\x08UNQUEUED\x10\x00\x12\n\n\x06QUEUED\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"9\n\x08TaskType\"-\n\x04Type\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x08\n\x04LIST\x10\x01\x12\x0e\n\nUPLOAD_GCS\x10\x02\"Q\n\x0cJobRunStatus\"A\n\x04Type\x12\x0f\n\x0bNOT_STARTED\x10\x00\x12\x0f\n\x0bIN_PROGRESS\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"\x80\x01\n\x0eResourceStatus\"n\n\x04Type\x12\x14\n\x10TYPE_UNSPECIFIED\x10\x00\x12\x0b\n\x07RUNNING\x10\x01\x12\r\n\tDEPLOYING\x10\x02\x12\x0c\n\x08\x44\x45LETING\x10\x03\x12\n\n\x06\x46\x41ILED\x10\x04\x12\r\n\tNOT_FOUND\x10\x05\x12\x0b\n\x07UNKNOWN\x10\x06\x42\x07Z\x05protob\x06proto3')
 )
 
 
@@ -152,6 +152,48 @@ _JOBRUNSTATUS_TYPE = _descriptor.EnumDescriptor(
 )
 _sym_db.RegisterEnumDescriptor(_JOBRUNSTATUS_TYPE)
 
+_RESOURCESTATUS_TYPE = _descriptor.EnumDescriptor(
+  name='Type',
+  full_name='ResourceStatus.Type',
+  filename=None,
+  file=DESCRIPTOR,
+  values=[
+    _descriptor.EnumValueDescriptor(
+      name='TYPE_UNSPECIFIED', index=0, number=0,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='RUNNING', index=1, number=1,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='DEPLOYING', index=2, number=2,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='DELETING', index=3, number=3,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='FAILED', index=4, number=4,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='NOT_FOUND', index=5, number=5,
+      options=None,
+      type=None),
+    _descriptor.EnumValueDescriptor(
+      name='UNKNOWN', index=6, number=6,
+      options=None,
+      type=None),
+  ],
+  containing_type=None,
+  options=None,
+  serialized_start=440,
+  serialized_end=550,
+)
+_sym_db.RegisterEnumDescriptor(_RESOURCESTATUS_TYPE)
+
 
 _TASKFAILURETYPE = _descriptor.Descriptor(
   name='TaskFailureType',
@@ -252,14 +294,41 @@ _JOBRUNSTATUS = _descriptor.Descriptor(
   serialized_end=419,
 )
 
+
+_RESOURCESTATUS = _descriptor.Descriptor(
+  name='ResourceStatus',
+  full_name='ResourceStatus',
+  filename=None,
+  file=DESCRIPTOR,
+  containing_type=None,
+  fields=[
+  ],
+  extensions=[
+  ],
+  nested_types=[],
+  enum_types=[
+    _RESOURCESTATUS_TYPE,
+  ],
+  options=None,
+  is_extendable=False,
+  syntax='proto3',
+  extension_ranges=[],
+  oneofs=[
+  ],
+  serialized_start=422,
+  serialized_end=550,
+)
+
 _TASKFAILURETYPE_TYPE.containing_type = _TASKFAILURETYPE
 _TASKSTATUS_TYPE.containing_type = _TASKSTATUS
 _TASKTYPE_TYPE.containing_type = _TASKTYPE
 _JOBRUNSTATUS_TYPE.containing_type = _JOBRUNSTATUS
+_RESOURCESTATUS_TYPE.containing_type = _RESOURCESTATUS
 DESCRIPTOR.message_types_by_name['TaskFailureType'] = _TASKFAILURETYPE
 DESCRIPTOR.message_types_by_name['TaskStatus'] = _TASKSTATUS
 DESCRIPTOR.message_types_by_name['TaskType'] = _TASKTYPE
 DESCRIPTOR.message_types_by_name['JobRunStatus'] = _JOBRUNSTATUS
+DESCRIPTOR.message_types_by_name['ResourceStatus'] = _RESOURCESTATUS
 _sym_db.RegisterFileDescriptor(DESCRIPTOR)
 
 TaskFailureType = _reflection.GeneratedProtocolMessageType('TaskFailureType', (_message.Message,), dict(
@@ -289,6 +358,13 @@ JobRunStatus = _reflection.GeneratedProtocolMessageType('JobRunStatus', (_messag
   # @@protoc_insertion_point(class_scope:JobRunStatus)
   ))
 _sym_db.RegisterMessage(JobRunStatus)
+
+ResourceStatus = _reflection.GeneratedProtocolMessageType('ResourceStatus', (_message.Message,), dict(
+  DESCRIPTOR = _RESOURCESTATUS,
+  __module__ = 'proto.tasks_pb2'
+  # @@protoc_insertion_point(class_scope:ResourceStatus)
+  ))
+_sym_db.RegisterMessage(ResourceStatus)
 
 
 DESCRIPTOR.has_options = True

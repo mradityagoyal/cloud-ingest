@@ -4,10 +4,11 @@ import { MatDialog, MatSnackBar } from '@angular/material';
 import { ActivatedRoute } from '@angular/router';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 
+import { ResourceStatus } from '../proto/tasks.js';
 import { ErrorDialogComponent } from '../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../util/error.resources';
-import { INFRA_STATUS, InfrastructureStatus } from './infrastructure.resources';
+import { InfrastructureStatus } from './infrastructure.resources';
 import { InfrastructureService } from './infrastructure.service';
 
 const UPDATE_STATUS_POLLING_INTERVAL_MILISECONDS = 10000;
@@ -35,8 +36,10 @@ export class InfrastructureComponent implements OnInit, OnDestroy {
   loadInfrastructureErrorTitle: string;
   loadInfrastructureErrorMessage: string;
   projectId: string;
-  overallInfrastructureStatus: string;
-  overallPubSubStatus: string;
+  // The overall status of the infrastructure inferred from the status of all the resources.
+  overallInfrastructureStatus: ResourceStatus.Type;
+  // The overall status of pubsub inferred from the status of each pub sub topic.
+  overallPubSubStatus: ResourceStatus.Type;
 
   /**
    * Whether this component is alive or not. Used to determine if it should keep polling the
@@ -143,22 +146,22 @@ export class InfrastructureComponent implements OnInit, OnDestroy {
     this.updateCreateTearDownButtons();
 
     switch (this.overallInfrastructureStatus) {
-      case INFRA_STATUS.RUNNING:
+      case ResourceStatus.Type.RUNNING:
         this.showInfrastructureStatusOk = true;
         break;
-      case INFRA_STATUS.NOT_FOUND:
+      case ResourceStatus.Type.NOT_FOUND:
         this.showInfrastructureNotFound = true;
         break;
-      case INFRA_STATUS.DEPLOYING:
+      case ResourceStatus.Type.DEPLOYING:
         this.showInfrastructureDeploying = true;
         break;
-      case INFRA_STATUS.DELETING:
+      case ResourceStatus.Type.DELETING:
         this.showInfrastructureDeleting = true;
         break;
-      case INFRA_STATUS.FAILED:
+      case ResourceStatus.Type.FAILED:
         this.showInfrastructureFailed = true;
         break;
-      case INFRA_STATUS.UNKNOWN:
+      case ResourceStatus.Type.UNKNOWN:
         this.showInfrastructureUnknown = true;
         break;
       default:
@@ -189,7 +192,7 @@ export class InfrastructureComponent implements OnInit, OnDestroy {
    * the overall infrastructure status.
    */
   private updateCreateTearDownButtons() {
-    if (this.overallInfrastructureStatus === INFRA_STATUS.NOT_FOUND) {
+    if (this.overallInfrastructureStatus === ResourceStatus.Type.NOT_FOUND) {
       this.createInfrastructureDisabled = false;
       this.tearDownDisabled = true;
     } else {

@@ -85,10 +85,11 @@ class PubsubBuilderTest(unittest.TestCase):
 
         expected_calls = [
             call('projects/myproject/subscriptions/sub1',
-                 'projects/myproject/topics/mytopic', ack_deadline_seconds=15),
+                 'projects/myproject/topics/mytopic', ack_deadline_seconds=30),
             call('projects/myproject/subscriptions/sub2',
-                 'projects/myproject/topics/mytopic', ack_deadline_seconds=15)
+                 'projects/myproject/topics/mytopic', ack_deadline_seconds=30)
         ]
+
         self.assertItemsEqual(
             expected_calls,
             self.sub_client_mock.create_subscription.mock_calls)

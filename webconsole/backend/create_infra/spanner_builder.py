@@ -17,7 +17,7 @@
 
 from google.cloud import spanner
 
-from resource_status import ResourceStatus
+from proto.tasks_pb2 import ResourceStatus
 
 class SpannerBuilder(object):
     """Manipulates creation/deletion of spanner instances/databases."""

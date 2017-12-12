@@ -17,13 +17,11 @@
 
 import unittest
 
-from google.cloud import pubsub
 from google.cloud import spanner
 from mock import MagicMock
 from mock import patch
 
 from create_infra import constants
-from create_infra import cloud_functions_builder
 from create_infra import compute_builder
 from create_infra import pubsub_builder
 from create_infra import spanner_builder
@@ -95,14 +93,14 @@ class InfraUtilTest(unittest.TestCase):
         compute_bldr.instance_status.return_value = ResourceStatus.UNKNOWN
 
         expected_status = {
-            "dcpStatus": ResourceStatus.UNKNOWN.name,
+            "dcpStatus": ResourceStatus.UNKNOWN,
             "pubsubStatus": {
-                "list": ResourceStatus.RUNNING.name,
-                "listProgress": ResourceStatus.UNKNOWN.name,
-                "uploadGCS": ResourceStatus.DELETING.name,
-                "uploadGCSProgress": ResourceStatus.RUNNING.name
+                "list": ResourceStatus.RUNNING,
+                "listProgress": ResourceStatus.UNKNOWN,
+                "uploadGCS": ResourceStatus.DELETING,
+                "uploadGCSProgress": ResourceStatus.RUNNING
             },
-            "spannerStatus": ResourceStatus.NOT_FOUND.name,
+            "spannerStatus": ResourceStatus.NOT_FOUND,
           }
 
         status = infra_util._infrastructure_status_from_bldrs(

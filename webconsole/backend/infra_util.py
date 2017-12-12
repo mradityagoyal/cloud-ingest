@@ -23,9 +23,10 @@ from create_infra import constants
 from create_infra import compute_builder
 from create_infra import pubsub_builder
 from create_infra import spanner_builder
-from create_infra.resource_status import ResourceStatus
 from util import dict_has_values_recursively
 from util import dict_values_are_recursively
+
+from proto.tasks_pb2 import ResourceStatus
 
 _CURRENT_DIR = path.dirname(path.realpath(__file__))
 
@@ -56,7 +57,7 @@ def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr, compute_bldr):
 
     Returns:
         A dictionary that contains all the infrastructure (spanner database, all
-        pub/sub topics and subscriptions, cloud function and DCP GCE instance)
+        pub/sub topics and subscriptions, and DCP GCE instance)
         deployment statuses. Each status is either a status string from one of
         the following values ('RUNNING', 'DEPLOYING', 'DELETING', 'FAILED',
         'NOT_FOUND', or 'UNKNOWN'), or a dictionary with that contains status
@@ -76,14 +77,14 @@ def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr, compute_bldr):
     pubsub_status = {}
     for key, topic_subscriptions in _TOPICS_SUBSCRIPTIONS.iteritems():
         pubsub_status[key] = pubsub_bldr.topic_and_subscriptions_status(
-            topic_subscriptions[0], topic_subscriptions[1]).name
+            topic_subscriptions[0], topic_subscriptions[1])
 
     statuses = {
         'spannerStatus': spanner_bldr.database_status(
-            constants.SPANNER_DATABASE).name,
+            constants.SPANNER_DATABASE),
         'pubsubStatus': pubsub_status,
         'dcpStatus': compute_bldr.instance_status(
-            constants.DCP_INSTANCE_NAME).name,
+            constants.DCP_INSTANCE_NAME),
     }
     return statuses
 # pylint: enable=invalid-name
@@ -141,9 +142,9 @@ def create_infrastructure(credentials, project_id, dcp_docker_image=None):
         spanner_bldr, pubsub_bldr, compute_bldr)
     # Make sure all infrastructure components are not found.
     if not dict_values_are_recursively(infra_statuses,
-                                       ResourceStatus.NOT_FOUND.name):
-        raise Conflict('All the infrastructure resource (Spanner, Pub/Sub, '
-                       'Cloud Functions, and DCP GCE instance) should not '
+                                       ResourceStatus.NOT_FOUND):
+        raise Conflict('All the infrastructure resource (Spanner, Pub/Sub, and '
+                       'DCP GCE instance) should not '
                        'exists before creating an infrastructure')
 
     # Create the spanner instance/database.
@@ -195,11 +196,11 @@ def tear_infrastructure(credentials, project_id):
         spanner_bldr, pubsub_bldr, compute_bldr)
     # Make sure all infrastructure components are not deploying or deleting.
     if dict_has_values_recursively(infra_statuses,
-                                   set([ResourceStatus.DEPLOYING.name,
-                                        ResourceStatus.DELETING.name])):
+                                   set([ResourceStatus.DEPLOYING,
+                                        ResourceStatus.DELETING])):
         raise PreconditionFailed(
-            'All the infrastructure resources (Spanner, Pub/Sub, Cloud '
-            'Functions, and DCP GCE instance) should not be deploying or '
+            'All the infrastructure resources (Spanner, Pub/Sub, and DCP GCE '
+            'instance) should not be deploying or '
             'deleting when tearing down infrastructure.')
 
     # Delete the spanner instance.

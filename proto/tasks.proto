@@ -69,3 +69,24 @@ message JobRunStatus {
     SUCCESS = 3;
   }
 }
+
+// Message to wrap the Resource status type. This is needed to create a scope
+// that does not conflict with other enums in this file.
+message ResourceStatus {
+  enum Type {
+    // Unspecified.
+    TYPE_UNSPECIFIED = 0;
+    // This resource is active and running as expected.
+    RUNNING = 1;
+    // This resource is in the process of deploying.
+    DEPLOYING = 2;
+    // This resource is in the process of deleting.
+    DELETING = 3;
+    // This resource is tried to deploy and failed.
+    FAILED = 4;
+    // This resource was not found.
+    NOT_FOUND = 5;
+    // Tried to retrieve the status of this resource but it is unknown.
+    UNKNOWN = 6;
+  }
+}

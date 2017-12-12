@@ -1,19 +1,19 @@
 <mat-list-item>
-  <mat-icon matListIcon *ngIf="itemStatus === INFRA_STATUS.RUNNING">check_circle</mat-icon>
-  <mat-icon matListIcon *ngIf="itemStatus === INFRA_STATUS.NOT_FOUND">warning</mat-icon>
-  <mat-icon matListIcon *ngIf="itemStatus === INFRA_STATUS.FAILED">error</mat-icon>
-  <mat-icon matListIcon *ngIf="itemStatus === INFRA_STATUS.UNKNOWN">help</mat-icon>
-  <mat-spinner matListIcon [diameter]="24" [strokeWidth]="3" *ngIf="itemStatus === INFRA_STATUS.DEPLOYING"></mat-spinner>
-  <mat-spinner matListIcon [diameter]="24" [strokeWidth]="3" [color]="'accent'" *ngIf="itemStatus === INFRA_STATUS.DELETING"></mat-spinner>
+  <mat-icon matListIcon *ngIf="itemStatus === ResourceStatus.Type.RUNNING">check_circle</mat-icon>
+  <mat-icon matListIcon *ngIf="itemStatus === ResourceStatus.Type.NOT_FOUND">warning</mat-icon>
+  <mat-icon matListIcon *ngIf="itemStatus === ResourceStatus.Type.FAILED">error</mat-icon>
+  <mat-icon matListIcon *ngIf="itemStatus === ResourceStatus.Type.UNKNOWN">help</mat-icon>
+  <mat-spinner matListIcon [diameter]="24" [strokeWidth]="3" *ngIf="itemStatus === ResourceStatus.Type.DEPLOYING"></mat-spinner>
+  <mat-spinner matListIcon [diameter]="24" [strokeWidth]="3" [color]="'accent'" *ngIf="itemStatus === ResourceStatus.Type.DELETING"></mat-spinner>
   <strong matLine> {{ itemName }} </strong>
   <p class="item-status" matLine>
     <ng-container [ngSwitch]="itemStatus">
-      <ng-container *ngSwitchCase="INFRA_STATUS.RUNNING">Ok</ng-container>
-      <ng-container *ngSwitchCase="INFRA_STATUS.NOT_FOUND">Not deployed</ng-container>
-      <ng-container *ngSwitchCase="INFRA_STATUS.FAILED">Failed</ng-container>
-      <ng-container *ngSwitchCase="INFRA_STATUS.UNKNOWN">Unknown: Could not retrieve status.</ng-container>
-      <ng-container *ngSwitchCase="INFRA_STATUS.DEPLOYING">Deploying...</ng-container>
-      <ng-container *ngSwitchCase="INFRA_STATUS.DELETING">Deleting...</ng-container>
+      <ng-container *ngSwitchCase="ResourceStatus.Type.RUNNING">Ok</ng-container>
+      <ng-container *ngSwitchCase="ResourceStatus.Type.NOT_FOUND">Not deployed</ng-container>
+      <ng-container *ngSwitchCase="ResourceStatus.Type.FAILED">Failed</ng-container>
+      <ng-container *ngSwitchCase="ResourceStatus.Type.UNKNOWN">Unknown: Could not retrieve status.</ng-container>
+      <ng-container *ngSwitchCase="ResourceStatus.Type.DEPLOYING">Deploying...</ng-container>
+      <ng-container *ngSwitchCase="ResourceStatus.Type.DELETING">Deleting...</ng-container>
     </ng-container>
   </p>
 </mat-list-item>

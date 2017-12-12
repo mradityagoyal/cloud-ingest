@@ -1,7 +1,7 @@
 import { async, TestBed } from '@angular/core/testing';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
-import { INFRA_STATUS } from '../infrastructure.resources';
+import { ResourceStatus } from '../../proto/tasks.js';
 import { InfrastructureStatusItemComponent } from './infrastructure-status-item.component';
 
 describe('InfrastructureStatusItemComponent', () => {
@@ -27,7 +27,7 @@ describe('InfrastructureStatusItemComponent', () => {
     const fixture = TestBed.createComponent(InfrastructureStatusItemComponent);
     const component = fixture.debugElement.componentInstance;
     component.itemName = 'Fake Name Title';
-    component.itemStatus = INFRA_STATUS.RUNNING;
+    component.itemStatus = ResourceStatus.Type.RUNNING;
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -40,7 +40,7 @@ describe('InfrastructureStatusItemComponent', () => {
     const fixture = TestBed.createComponent(InfrastructureStatusItemComponent);
     const component = fixture.debugElement.componentInstance;
     component.itemName = 'Fake Name Title';
-    component.itemStatus = INFRA_STATUS.RUNNING;
+    component.itemStatus = ResourceStatus.Type.RUNNING;
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -53,7 +53,7 @@ describe('InfrastructureStatusItemComponent', () => {
     const fixture = TestBed.createComponent(InfrastructureStatusItemComponent);
     const component = fixture.debugElement.componentInstance;
     component.itemName = 'Fake Name Title';
-    component.itemStatus = INFRA_STATUS.RUNNING;
+    component.itemStatus = ResourceStatus.Type.RUNNING;
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -66,7 +66,7 @@ describe('InfrastructureStatusItemComponent', () => {
     const fixture = TestBed.createComponent(InfrastructureStatusItemComponent);
     const component = fixture.debugElement.componentInstance;
     component.itemName = 'Fake Name Title';
-    component.itemStatus = INFRA_STATUS.RUNNING;
+    component.itemStatus = ResourceStatus.Type.RUNNING;
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();

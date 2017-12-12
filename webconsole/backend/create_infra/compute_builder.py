@@ -23,7 +23,7 @@ import time
 import googleapiclient.discovery
 import google.auth as googleauth
 
-from resource_status import ResourceStatus
+from proto.tasks_pb2 import ResourceStatus
 
 # Cloud config used to initialize the GCE vm and run K8 on it. Running K8
 # ensures that the container image is always running and re-spawns it if it's

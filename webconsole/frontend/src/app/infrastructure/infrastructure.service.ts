@@ -7,9 +7,11 @@ import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
 
 import { environment } from '../../environments/environment';
-import { INFRA_STATUS, InfrastructureStatus } from './infrastructure.resources';
+import { InfrastructureStatus } from './infrastructure.resources';
+import { ResourceStatus } from '../proto/tasks.js';
 
-function hasAtLeastOneOfStatus(infraStatusList: string[], status: string): boolean {
+
+function hasAtLeastOneOfStatus(infraStatusList: ResourceStatus.Type[], status: ResourceStatus.Type): boolean {
   for (const value of infraStatusList) {
     if (value === status) {
       return true;
@@ -18,7 +20,7 @@ function hasAtLeastOneOfStatus(infraStatusList: string[], status: string): boole
   return false;
 }
 
-function hasAllFieldsInStatusList(infraStatusList: string[], statusList: string[]): boolean {
+function hasAllFieldsInStatusList(infraStatusList: ResourceStatus.Type[], statusList: ResourceStatus.Type[]): boolean {
   for (const value of infraStatusList) {
     if (!statusList.includes(value)) {
       return false;
@@ -41,19 +43,21 @@ export class InfrastructureService {
    *
    * @param statusList The list of infrastructure status to infer the overall status from.
    */
-  static getOverallStatus(statusList: string[]): string | null {
-    if (hasAtLeastOneOfStatus(statusList, INFRA_STATUS.FAILED)) {
-      return INFRA_STATUS.FAILED;
-    } else if (hasAtLeastOneOfStatus(statusList, INFRA_STATUS.UNKNOWN)) {
-      return INFRA_STATUS.UNKNOWN;
-    } else if (hasAllFieldsInStatusList(statusList, [INFRA_STATUS.NOT_FOUND])) {
-      return INFRA_STATUS.NOT_FOUND;
-    } else if (hasAllFieldsInStatusList(statusList, [INFRA_STATUS.RUNNING])) {
-      return INFRA_STATUS.RUNNING;
-    } else if (hasAllFieldsInStatusList(statusList, [INFRA_STATUS.NOT_FOUND, INFRA_STATUS.DEPLOYING, INFRA_STATUS.RUNNING])) {
-      return INFRA_STATUS.DEPLOYING;
-    } else if (hasAllFieldsInStatusList(statusList, [INFRA_STATUS.RUNNING, INFRA_STATUS.DELETING, INFRA_STATUS.NOT_FOUND])) {
-      return INFRA_STATUS.DELETING;
+  static getOverallStatus(statusList: ResourceStatus.Type[]): ResourceStatus.Type | null {
+    if (hasAtLeastOneOfStatus(statusList, ResourceStatus.Type.FAILED)) {
+      return ResourceStatus.Type.FAILED;
+    } else if (hasAtLeastOneOfStatus(statusList, ResourceStatus.Type.UNKNOWN)) {
+      return ResourceStatus.Type.UNKNOWN;
+    } else if (hasAllFieldsInStatusList(statusList, [ResourceStatus.Type.NOT_FOUND])) {
+      return ResourceStatus.Type.NOT_FOUND;
+    } else if (hasAllFieldsInStatusList(statusList, [ResourceStatus.Type.RUNNING])) {
+      return ResourceStatus.Type.RUNNING;
+    } else if (hasAllFieldsInStatusList(statusList, [ResourceStatus.Type.NOT_FOUND, ResourceStatus.Type.DEPLOYING,
+        ResourceStatus.Type.RUNNING])) {
+      return ResourceStatus.Type.DEPLOYING;
+    } else if (hasAllFieldsInStatusList(statusList, [ResourceStatus.Type.RUNNING, ResourceStatus.Type.DELETING,
+        ResourceStatus.Type.NOT_FOUND])) {
+      return ResourceStatus.Type.DELETING;
     } else {
       // The overall status could not be determined.
       return null;

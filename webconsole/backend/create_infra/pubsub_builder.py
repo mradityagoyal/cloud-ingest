@@ -23,7 +23,7 @@ from google.gax import GaxError
 from google.gax import config
 from grpc import StatusCode
 
-from resource_status import ResourceStatus
+from proto.tasks_pb2 import ResourceStatus
 
 class PubSubBuilder(object):
     """Manipulates PubSub topics/subscriptions."""

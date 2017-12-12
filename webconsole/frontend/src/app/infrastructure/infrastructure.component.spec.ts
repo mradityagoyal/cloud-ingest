@@ -14,16 +14,15 @@ import { ErrorDialogComponent } from '../util/error-dialog/error-dialog.componen
 import { HttpErrorResponseFormatter } from '../util/error.resources';
 import { InfrastructureStatusItemComponent } from './infrastructure-status-item/infrastructure-status-item.component';
 import { InfrastructureComponent } from './infrastructure.component';
-import { INFRA_STATUS, InfrastructureStatus, PubsubStatus } from './infrastructure.resources';
 import { InfrastructureService } from './infrastructure.service';
 import {
-  FAKE_INFRA_STATUS_RUNNING,
-  FAKE_INFRA_STATUS_NOT_FOUND,
-  FAKE_INFRA_STATUS_UNKNOWN,
-  FAKE_INFRA_STATUS_FAILED,
-  FAKE_INFRA_STATUS_DEPLOYING,
   FAKE_INFRA_STATUS_DELETING,
-  FAKE_INFRA_STATUS_NOT_DETERMINED
+  FAKE_INFRA_STATUS_DEPLOYING,
+  FAKE_INFRA_STATUS_FAILED,
+  FAKE_INFRA_STATUS_NOT_DETERMINED,
+  FAKE_INFRA_STATUS_NOT_FOUND,
+  FAKE_INFRA_STATUS_RUNNING,
+  FAKE_INFRA_STATUS_UNKNOWN,
 } from './infrastructure.test-util';
 
 

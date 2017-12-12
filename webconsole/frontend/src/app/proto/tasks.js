@@ -21,6 +21,7 @@ $root.TaskFailureType = (function() {
      * Constructs a new TaskFailureType.
      * @exports TaskFailureType
      * @classdesc Represents a TaskFailureType.
+     * @implements ITaskFailureType
      * @constructor
      * @param {ITaskFailureType=} [properties] Properties to set
      */
@@ -167,6 +168,7 @@ $root.TaskFailureType = (function() {
 
     /**
      * Type enum.
+     * @name TaskFailureType.Type
      * @enum {string}
      * @property {number} UNUSED=0 UNUSED value
      * @property {number} UNKNOWN=1 UNKNOWN value
@@ -203,6 +205,7 @@ $root.TaskStatus = (function() {
      * Constructs a new TaskStatus.
      * @exports TaskStatus
      * @classdesc Represents a TaskStatus.
+     * @implements ITaskStatus
      * @constructor
      * @param {ITaskStatus=} [properties] Properties to set
      */
@@ -349,6 +352,7 @@ $root.TaskStatus = (function() {
 
     /**
      * Type enum.
+     * @name TaskStatus.Type
      * @enum {string}
      * @property {number} UNQUEUED=0 UNQUEUED value
      * @property {number} QUEUED=1 QUEUED value
@@ -379,6 +383,7 @@ $root.TaskType = (function() {
      * Constructs a new TaskType.
      * @exports TaskType
      * @classdesc Represents a TaskType.
+     * @implements ITaskType
      * @constructor
      * @param {ITaskType=} [properties] Properties to set
      */
@@ -525,6 +530,7 @@ $root.TaskType = (function() {
 
     /**
      * Type enum.
+     * @name TaskType.Type
      * @enum {string}
      * @property {number} UNKNOWN=0 UNKNOWN value
      * @property {number} LIST=1 LIST value
@@ -553,6 +559,7 @@ $root.JobRunStatus = (function() {
      * Constructs a new JobRunStatus.
      * @exports JobRunStatus
      * @classdesc Represents a JobRunStatus.
+     * @implements IJobRunStatus
      * @constructor
      * @param {IJobRunStatus=} [properties] Properties to set
      */
@@ -699,6 +706,7 @@ $root.JobRunStatus = (function() {
 
     /**
      * Type enum.
+     * @name JobRunStatus.Type
      * @enum {string}
      * @property {number} NOT_STARTED=0 NOT_STARTED value
      * @property {number} IN_PROGRESS=1 IN_PROGRESS value
@@ -715,6 +723,190 @@ $root.JobRunStatus = (function() {
     })();
 
     return JobRunStatus;
+})();
+
+$root.ResourceStatus = (function() {
+
+    /**
+     * Properties of a ResourceStatus.
+     * @exports IResourceStatus
+     * @interface IResourceStatus
+     */
+
+    /**
+     * Constructs a new ResourceStatus.
+     * @exports ResourceStatus
+     * @classdesc Represents a ResourceStatus.
+     * @implements IResourceStatus
+     * @constructor
+     * @param {IResourceStatus=} [properties] Properties to set
+     */
+    function ResourceStatus(properties) {
+        if (properties)
+            for (var keys = Object.keys(properties), i = 0; i < keys.length; ++i)
+                if (properties[keys[i]] != null)
+                    this[keys[i]] = properties[keys[i]];
+    }
+
+    /**
+     * Creates a new ResourceStatus instance using the specified properties.
+     * @function create
+     * @memberof ResourceStatus
+     * @static
+     * @param {IResourceStatus=} [properties] Properties to set
+     * @returns {ResourceStatus} ResourceStatus instance
+     */
+    ResourceStatus.create = function create(properties) {
+        return new ResourceStatus(properties);
+    };
+
+    /**
+     * Encodes the specified ResourceStatus message. Does not implicitly {@link ResourceStatus.verify|verify} messages.
+     * @function encode
+     * @memberof ResourceStatus
+     * @static
+     * @param {IResourceStatus} message ResourceStatus message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    ResourceStatus.encode = function encode(message, writer) {
+        if (!writer)
+            writer = $Writer.create();
+        return writer;
+    };
+
+    /**
+     * Encodes the specified ResourceStatus message, length delimited. Does not implicitly {@link ResourceStatus.verify|verify} messages.
+     * @function encodeDelimited
+     * @memberof ResourceStatus
+     * @static
+     * @param {IResourceStatus} message ResourceStatus message or plain object to encode
+     * @param {$protobuf.Writer} [writer] Writer to encode to
+     * @returns {$protobuf.Writer} Writer
+     */
+    ResourceStatus.encodeDelimited = function encodeDelimited(message, writer) {
+        return this.encode(message, writer).ldelim();
+    };
+
+    /**
+     * Decodes a ResourceStatus message from the specified reader or buffer.
+     * @function decode
+     * @memberof ResourceStatus
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @param {number} [length] Message length if known beforehand
+     * @returns {ResourceStatus} ResourceStatus
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    ResourceStatus.decode = function decode(reader, length) {
+        if (!(reader instanceof $Reader))
+            reader = $Reader.create(reader);
+        var end = length === undefined ? reader.len : reader.pos + length, message = new $root.ResourceStatus();
+        while (reader.pos < end) {
+            var tag = reader.uint32();
+            switch (tag >>> 3) {
+            default:
+                reader.skipType(tag & 7);
+                break;
+            }
+        }
+        return message;
+    };
+
+    /**
+     * Decodes a ResourceStatus message from the specified reader or buffer, length delimited.
+     * @function decodeDelimited
+     * @memberof ResourceStatus
+     * @static
+     * @param {$protobuf.Reader|Uint8Array} reader Reader or buffer to decode from
+     * @returns {ResourceStatus} ResourceStatus
+     * @throws {Error} If the payload is not a reader or valid buffer
+     * @throws {$protobuf.util.ProtocolError} If required fields are missing
+     */
+    ResourceStatus.decodeDelimited = function decodeDelimited(reader) {
+        if (!(reader instanceof $Reader))
+            reader = new $Reader(reader);
+        return this.decode(reader, reader.uint32());
+    };
+
+    /**
+     * Verifies a ResourceStatus message.
+     * @function verify
+     * @memberof ResourceStatus
+     * @static
+     * @param {Object.<string,*>} message Plain object to verify
+     * @returns {string|null} `null` if valid, otherwise the reason why it is not
+     */
+    ResourceStatus.verify = function verify(message) {
+        if (typeof message !== "object" || message === null)
+            return "object expected";
+        return null;
+    };
+
+    /**
+     * Creates a ResourceStatus message from a plain object. Also converts values to their respective internal types.
+     * @function fromObject
+     * @memberof ResourceStatus
+     * @static
+     * @param {Object.<string,*>} object Plain object
+     * @returns {ResourceStatus} ResourceStatus
+     */
+    ResourceStatus.fromObject = function fromObject(object) {
+        if (object instanceof $root.ResourceStatus)
+            return object;
+        return new $root.ResourceStatus();
+    };
+
+    /**
+     * Creates a plain object from a ResourceStatus message. Also converts values to other types if specified.
+     * @function toObject
+     * @memberof ResourceStatus
+     * @static
+     * @param {ResourceStatus} message ResourceStatus
+     * @param {$protobuf.IConversionOptions} [options] Conversion options
+     * @returns {Object.<string,*>} Plain object
+     */
+    ResourceStatus.toObject = function toObject() {
+        return {};
+    };
+
+    /**
+     * Converts this ResourceStatus to JSON.
+     * @function toJSON
+     * @memberof ResourceStatus
+     * @instance
+     * @returns {Object.<string,*>} JSON object
+     */
+    ResourceStatus.prototype.toJSON = function toJSON() {
+        return this.constructor.toObject(this, $protobuf.util.toJSONOptions);
+    };
+
+    /**
+     * Type enum.
+     * @name ResourceStatus.Type
+     * @enum {string}
+     * @property {number} TYPE_UNSPECIFIED=0 TYPE_UNSPECIFIED value
+     * @property {number} RUNNING=1 RUNNING value
+     * @property {number} DEPLOYING=2 DEPLOYING value
+     * @property {number} DELETING=3 DELETING value
+     * @property {number} FAILED=4 FAILED value
+     * @property {number} NOT_FOUND=5 NOT_FOUND value
+     * @property {number} UNKNOWN=6 UNKNOWN value
+     */
+    ResourceStatus.Type = (function() {
+        var valuesById = {}, values = Object.create(valuesById);
+        values[valuesById[0] = "TYPE_UNSPECIFIED"] = 0;
+        values[valuesById[1] = "RUNNING"] = 1;
+        values[valuesById[2] = "DEPLOYING"] = 2;
+        values[valuesById[3] = "DELETING"] = 3;
+        values[valuesById[4] = "FAILED"] = 4;
+        values[valuesById[5] = "NOT_FOUND"] = 5;
+        values[valuesById[6] = "UNKNOWN"] = 6;
+        return values;
+    })();
+
+    return ResourceStatus;
 })();
 
 module.exports = $root;

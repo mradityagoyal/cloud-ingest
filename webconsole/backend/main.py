@@ -440,8 +440,7 @@ def infrastructure_status(project_id):
     """Gets the ingest infrastructure status.
 
     Responds with a JSON object contains all the infrastructure component
-    statuses. Each status is a string from one of the following values
-    ('RUNNING', 'DEPLOYING', 'DELETING', 'FAILED', 'NOT_FOUND', or 'UNKNOWN')
+    statuses. Each status is a value of type ResourceStatus.
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
