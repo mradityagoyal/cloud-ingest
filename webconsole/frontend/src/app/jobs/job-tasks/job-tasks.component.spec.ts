@@ -9,8 +9,7 @@ import { Task } from 'protractor/built/taskScheduler';
 import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
-import { TaskFailureType } from '../../proto/tasks.js';
-import { TASK_STATUS } from '../jobs.resources';
+import { TaskFailureType, TaskStatus } from '../../proto/tasks.js';
 import { JobsService } from '../jobs.service';
 import { FAKE_TASKS } from '../jobs.test-util';
 import { FailuresTableComponent } from './failures-table/failures-table.component';
@@ -83,7 +82,7 @@ describe('JobTasksComponent', () => {
   it('should contain one tab per task status', () => {
     const compiled = fixture.debugElement.nativeElement;
     const mdTabs = compiled.querySelectorAll('mat-tab-body');
-    expect(mdTabs.length).toEqual(Object.getOwnPropertyNames(TASK_STATUS).length);
+    expect(mdTabs.length).toEqual(Object.getOwnPropertyNames(TaskStatus.Type).length);
   });
 
   it('should contain the tasks table component', () => {

@@ -89,13 +89,6 @@ export interface Task {
   FailureMessage: string;
 }
 
-export const TASK_STATUS = {
-  UNQUEUED: 0,
-  QUEUED: 1,
-  FAILED: 2,
-  SUCCESS: 3
-};
-
 /**
  * Maps task type integers to string representations.
  */

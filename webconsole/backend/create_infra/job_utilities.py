@@ -18,17 +18,9 @@
 import json
 import os
 import time
-
-TASK_STATUS_UNQUEUED = 0
-TASK_STATUS_QUEUED = 1
-TASK_STATUS_FAILED = 2
-TASK_STATUS_SUCCESS = 3
-
-TASK_TYPE_LIST = 1
-
-JOB_STATUS_IN_PROGRESS = 1
-
-
+from proto.tasks_pb2 import TaskStatus
+from proto.tasks_pb2 import JobRunStatus
+from proto.tasks_pb2 import TaskType
 
 def jobs_have_completed(database):
     """Check whether all jobs in the systems have completed."""
@@ -37,8 +29,8 @@ def jobs_have_completed(database):
     results = database.execute_sql(
         'SELECT COUNT(*) '
         'FROM Tasks@{FORCE_INDEX=TasksByStatus} '
-        'WHERE Status != %d AND Status != %d' % (TASK_STATUS_FAILED,
-                                                 TASK_STATUS_SUCCESS))
+        'WHERE Status != %d AND Status != %d' % (TaskStatus.FAILED,
+                                                 TaskStatus.SUCCESS))
     for row in results:
         print 'There are %d tasks still processing.' % row[0]
         return row[0] == 0
@@ -92,7 +84,7 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
                      'Status',
                      'Counters'),
             values=[(
-                config_name, run_name, timestamp, JOB_STATUS_IN_PROGRESS,
+                config_name, run_name, timestamp, JobRunStatus.IN_PROGRESS,
                 json.dumps(job_counters)
             )]
         )
@@ -123,8 +115,8 @@ def create_job(database, src_dir, dst_gcs_bucket, dst_gcs_dir,
                      run_name,
                      task_id,
                      json.dumps(task_spec).encode('utf-8'),
-                     TASK_TYPE_LIST,
-                     TASK_STATUS_UNQUEUED,
+                     TaskType.LIST,
+                     TaskStatus.UNQUEUED,
                      timestamp,
                      timestamp)])
 

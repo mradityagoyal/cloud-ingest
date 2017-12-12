@@ -6,8 +6,8 @@ import { HttpClient } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
-import { Task, TASK_STATUS } from './jobs.resources';
-import { TaskFailureType } from '../proto/tasks.js';
+import { Task } from './jobs.resources';
+import { TaskFailureType, TaskStatus } from '../proto/tasks.js';
 import 'rxjs/add/observable/of';
 
 let activatedRouteStub: ActivatedRoute;
@@ -34,14 +34,14 @@ describe('JobsService', () => {
   inject([HttpClient, HttpTestingController], (http: HttpClient, httpMock: HttpTestingController) => {
   const jobsService = new JobsService(http, activatedRouteStub);
   let actualTasks: Task[];
-  jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, TASK_STATUS.SUCCESS).subscribe(
+  jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, TaskStatus.Type.SUCCESS).subscribe(
     (response) => {
       actualTasks = response;
     },
     (error) => {
       // should not be called
     });
-  httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/status/${TASK_STATUS.SUCCESS}`)
+  httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/status/${TaskStatus.Type.SUCCESS}`)
       .flush(FAKE_TASKS);
   expect(actualTasks).toEqual(FAKE_TASKS);
   httpMock.verify();
@@ -51,14 +51,14 @@ describe('JobsService', () => {
     inject([HttpClient, HttpTestingController], (http: HttpClient, httpMock: HttpTestingController) => {
     const jobsService = new JobsService(http, activatedRouteStub);
     let actualTasks: Task[];
-    jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, TASK_STATUS.SUCCESS, FAKE_LAST_MODIFIED_TIME).subscribe(
+    jobsService.getTasksOfStatus(FAKE_JOBCONFIG1, TaskStatus.Type.SUCCESS, FAKE_LAST_MODIFIED_TIME).subscribe(
       (response) => {
         actualTasks = response;
       },
       (error) => {
         // should not be called
       });
-    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/status/${TASK_STATUS.SUCCESS}` +
+    httpMock.expectOne(`${environment.apiUrl}/projects/fakeProjectId/tasks/fakeJobConfigId1/status/${TaskStatus.Type.SUCCESS}` +
                        `?lastModifiedBefore=${FAKE_LAST_MODIFIED_TIME}`)
         .flush(FAKE_TASKS);
     expect(actualTasks).toEqual(FAKE_TASKS);

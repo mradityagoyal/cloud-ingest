@@ -1,8 +1,8 @@
 import { Component, OnInit } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import { TaskFailureType, TaskType } from '../../proto/tasks.js';
-import { Task, TASK_STATUS, FAILURE_TYPE_TO_STRING_MAP } from '../jobs.resources';
+import { TaskFailureType, TaskType, TaskStatus } from '../../proto/tasks.js';
+import { Task, FAILURE_TYPE_TO_STRING_MAP } from '../jobs.resources';
 
 @Component({
   selector: 'app-job-tasks',
@@ -10,7 +10,9 @@ import { Task, TASK_STATUS, FAILURE_TYPE_TO_STRING_MAP } from '../jobs.resources
   styleUrls: ['./job-tasks.component.css']
 })
 export class JobTasksComponent implements OnInit {
-  TASK_STATUS = TASK_STATUS;
+  // Export needed to be used in the template.
+  TaskStatus = TaskStatus;
+
   FAILURE_TYPE_TO_STRING_MAP = FAILURE_TYPE_TO_STRING_MAP;
   TaskFailureType = TaskFailureType;
   taskFailureTypes = Object.keys(TaskFailureType.Type);

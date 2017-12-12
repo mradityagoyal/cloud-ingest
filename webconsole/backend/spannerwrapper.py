@@ -23,11 +23,10 @@ from google.cloud import spanner
 from google.cloud.spanner_v1.proto import type_pb2
 
 import util
-from create_infra.job_utilities import JOB_STATUS_IN_PROGRESS
-from create_infra.job_utilities import TASK_STATUS_UNQUEUED
-from create_infra.job_utilities import TASK_TYPE_LIST
 from gaxerrordecorator import handle_common_gax_errors
 from proto.tasks_pb2 import TaskStatus
+from proto.tasks_pb2 import TaskType
+from proto.tasks_pb2 import JobRunStatus
 
 def _get_params_and_param_types(config_id, run_id=None, num_tasks=None,
     task_status=None, last_modified_before=None, failure_type=None):
@@ -237,12 +236,12 @@ def _create_new_job_transaction(transaction, config_id, job_spec):
     # new jobs should be inserted with a status of not started.
     transaction.insert(SpannerWrapper.JOB_RUNS_TABLE,
         columns=SpannerWrapper.JOB_RUNS_COLUMNS,
-        values=[(config_id, run_id, JOB_STATUS_IN_PROGRESS, current_time_nanos,
+        values=[(config_id, run_id, JobRunStatus.IN_PROGRESS, current_time_nanos,
         json.dumps(_INITIAL_COUNTERS_DICT))])
     transaction.insert(SpannerWrapper.TASKS_TABLE,
         columns=SpannerWrapper.TASKS_COLUMNS, values=[(config_id, run_id,
         _LIST_TASK_ID, current_time_nanos, current_time_nanos,
-        TASK_STATUS_UNQUEUED, task_spec_json, TASK_TYPE_LIST)])
+        TaskStatus.UNQUEUED, task_spec_json, TaskType.LIST)])
 
 class SpannerWrapper(object):
     """SpannerWrapper class handles all interactions with cloud Spanner.
