@@ -10,6 +10,7 @@ import { Observable } from 'rxjs/Observable';
 import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 
 import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
+import { ActivatedRouteStub, FAKE_HTTP_ERROR, MatDialogStub, MatSnackBarStub } from '../util/common.test-util';
 import { ErrorDialogComponent } from '../util/error-dialog/error-dialog.component';
 import { HttpErrorResponseFormatter } from '../util/error.resources';
 import { InfrastructureStatusItemComponent } from './infrastructure-status-item/infrastructure-status-item.component';
@@ -23,32 +24,8 @@ import {
   FAKE_INFRA_STATUS_NOT_FOUND,
   FAKE_INFRA_STATUS_RUNNING,
   FAKE_INFRA_STATUS_UNKNOWN,
+  InfrastructureServiceStub,
 } from './infrastructure.test-util';
-
-
-class InfrastructureServiceStub {
-  public getInfrastructureStatus = jasmine.createSpy('getInfrastructureStatus');
-  public postCreateInfrastructure = jasmine.createSpy('postCreateInfrastructure');
-  public postTearDownInfrastructure = jasmine.createSpy('postTearDownInfrastructure');
-}
-
-class ActivatedRouteStub {
-  snapshot = {
-    queryParams: {
-      project: 'fakeProjectId'
-    }
-  };
-}
-
-class MatSnackBarStub {
-  open = jasmine.createSpy('open');
-}
-
-class MatDialogStub {
-  open = jasmine.createSpy('open');
-}
-
-const FAKE_HTTP_ERROR = { error: {error: 'FakeError', message: 'Fake Error Message.'}};
 
 let intervalObservableCreateSpy: any;
 let windowConfirmSpy: any;

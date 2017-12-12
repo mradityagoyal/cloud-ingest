@@ -11,6 +11,7 @@ import { UserProfile } from './auth/auth.resources';
 import { NoopAnimationsModule} from '@angular/platform-browser/animations';
 import { ProjectSelectComponent } from './project-select/project-select.component';
 import { MatSnackBar } from '@angular/material';
+import { MatSnackBarStub } from './util/common.test-util';
 import 'rxjs/add/observable/of';
 
 const FAKE_USER = 'Fake User';
@@ -36,10 +37,6 @@ class MockAuthService extends AuthService {
   getCurrentUser(): UserProfile  {
     return this.fakeUser;
   }
-}
-
-class MatSnackBarStub {
-  open = jasmine.createSpy('open');
 }
 
 let activatedRouteStub: ActivatedRoute;

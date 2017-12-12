@@ -1,5 +1,3 @@
-import { TaskFailureType, TaskStatus } from '../../../proto/tasks';
-import { ErrorDialogComponent } from '../../../util/error-dialog/error-dialog.component';
 import 'rxjs/add/observable/never';
 import 'rxjs/add/observable/of';
 
@@ -8,19 +6,13 @@ import { MatDialog } from '@angular/material';
 import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../../angular-material-importer/angular-material-importer.module';
+import { TaskFailureType, TaskStatus } from '../../../proto/tasks';
+import { FAKE_HTTP_ERROR, MatDialogStub } from '../../../util/common.test-util';
+import { ErrorDialogComponent } from '../../../util/error-dialog/error-dialog.component';
 import { TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
 import { JobsService } from '../../jobs.service';
-import { EMPTY_TASK_ARRAY, FAKE_HTTP_ERROR, FAKE_TASKS, FAKE_TASKS2 } from '../../jobs.test-util';
+import { EMPTY_TASK_ARRAY, FAKE_TASKS, FAKE_TASKS2, JobsServiceStub } from '../../jobs.test-util';
 import { TasksTableComponent } from './tasks-table.component';
-
-class JobsServiceStub {
-  public getTasksOfStatus = jasmine.createSpy('getTasksOfStatus');
-  public getTasksOfFailureType = jasmine.createSpy('getTasksOfFailureType');
-}
-
-class MatDialogStub {
-  public open = jasmine.createSpy('open');
-}
 
 let jobsServiceStub: JobsServiceStub;
 let matDialogStub: MatDialogStub;

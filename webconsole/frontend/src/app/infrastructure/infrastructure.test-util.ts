@@ -94,3 +94,9 @@ export const FAKE_INFRA_STATUS_NOT_DETERMINED: InfrastructureStatus = {
   pubsubStatus: FAKE_PUBSUB_STATUS_NOT_DETERMINED,
   dcpStatus: ResourceStatus.Type.DELETING
 };
+
+export class InfrastructureServiceStub {
+  public getInfrastructureStatus = jasmine.createSpy('getInfrastructureStatus');
+  public postCreateInfrastructure = jasmine.createSpy('postCreateInfrastructure');
+  public postTearDownInfrastructure = jasmine.createSpy('postTearDownInfrastructure');
+}

@@ -193,6 +193,13 @@ export const FAKE_JOB_RUNS: Job[] = [
 
 export const EMPTY_TASK_ARRAY: Task[] = [];
 
-export const FAKE_HTTP_ERROR = {error : {error: 'FakeError', message: 'Fake Error Message.'}};
-
 export const FAKE_JOB_CONFIG_LIST = ['fakeconfigid1', 'fakeconfigid2', 'fakeconfigid3'];
+
+export class JobsServiceStub {
+  public getJobConfigs = jasmine.createSpy('getJobConfigs');
+  public deleteJobConfigs = jasmine.createSpy('deleteJobConfigs');
+  public postJobConfig = jasmine.createSpy('postJobConfig');
+  public getJobRun = jasmine.createSpy('getJobRun');
+  public getTasksOfStatus = jasmine.createSpy('getTasksOfStatus');
+  public getTasksOfFailureType = jasmine.createSpy('getTasksOfFailureType');
+}

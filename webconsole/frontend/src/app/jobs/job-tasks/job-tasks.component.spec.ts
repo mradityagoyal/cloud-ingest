@@ -10,32 +10,20 @@ import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { TaskFailureType, TaskStatus } from '../../proto/tasks.js';
+import { ActivatedRouteStub } from '../../util/common.test-util';
 import { JobsService } from '../jobs.service';
-import { FAKE_TASKS } from '../jobs.test-util';
+import { FAKE_TASKS, JobsServiceStub } from '../jobs.test-util';
 import { FailuresTableComponent } from './failures-table/failures-table.component';
 import { JobTasksComponent } from './job-tasks.component';
 import { TasksTableComponent } from './tasks-table/tasks-table.component';
-
-class ActivatedRouteStub {
-  snapshot = {
-    paramMap: {
-      get: jasmine.createSpy('get')
-    }
-  };
-}
-
-class JobsServiceStub {
-  getTasksOfStatus = jasmine.createSpy('getTasksOfStatus');
-  getTasksOfFailureType = jasmine.createSpy('getTasksOfFailureType');
-}
 
 const FAKE_PARAMS = {
   configId : 'fakeJobConfigId',
   runId: 'fakeRunId'
 };
 
-let activatedRouteStub: ActivatedRouteStub;
 let jobsServiceStub: JobsServiceStub;
+let activatedRouteStub: ActivatedRouteStub;
 
 describe('JobTasksComponent', () => {
   let component: JobTasksComponent;

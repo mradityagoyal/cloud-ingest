@@ -4,7 +4,7 @@ import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
 
 import { ErrorDialogComponent } from './error-dialog.component';
 
-class MatDialogRefStub {}
+import { MatDialogRefStub } from '../../util/common.test-util';
 
 let matDialogRefStub: MatDialogRefStub;
 const FAKE_ERROR_CONTENT: ErrorDialogContent = {

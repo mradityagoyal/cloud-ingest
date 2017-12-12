@@ -8,14 +8,9 @@ import { AngularMaterialImporterModule } from '../../../angular-material-importe
 import { TaskFailureType } from '../../../proto/tasks';
 import { TASK_TYPE_TO_STRING_MAP } from '../../jobs.resources';
 import { JobsService } from '../../jobs.service';
-import { FAKE_TASKS } from '../../jobs.test-util';
+import { FAKE_TASKS, JobsServiceStub } from '../../jobs.test-util';
 import { TasksTableComponent } from '../tasks-table/tasks-table.component';
 import { FailuresTableComponent } from './failures-table.component';
-
-
-class JobsServiceStub {
-  getTasksOfFailureType = jasmine.createSpy('getTasksOfFailureType');
-}
 
 let jobsServiceStub: JobsServiceStub;
 

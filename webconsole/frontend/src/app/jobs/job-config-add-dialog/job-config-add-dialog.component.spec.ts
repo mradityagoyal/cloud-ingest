@@ -1,30 +1,22 @@
+import { JobsServiceStub } from '../jobs.test-util';
 import 'rxjs/add/observable/of';
 
 import { async, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
-import { MatDialogRef, MAT_DIALOG_DATA } from '@angular/material';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
+import { FAKE_HTTP_ERROR, MatDialogRefStub } from '../../util/common.test-util';
 import { JobConfigRequest } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
-
-class JobsServiceStub {
-  public postJobConfig = jasmine.createSpy('postJobConfig');
-}
-
-class MatDialogRefStub {
-  public close = jasmine.createSpy('close');
-}
 
 let jobsServiceStub: JobsServiceStub;
 let matDialogRefStub: MatDialogRefStub;
 
 let fakeJobConfigModel: JobConfigRequest;
-
-const FAKE_HTTP_ERROR = {error : {error: 'FakeError', message: 'Fake Error Message.'}};
 
 const FAKE_JOB_CONFIG: JobConfigRequest = new JobConfigRequest(
   'fakeConfigId', 'fakeBucket', 'fakeFileSystemDir');

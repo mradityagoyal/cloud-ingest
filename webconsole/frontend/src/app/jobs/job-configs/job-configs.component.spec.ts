@@ -10,30 +10,16 @@ import { RouterTestingModule } from '@angular/router/testing';
 import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
+import { FAKE_HTTP_ERROR, MatDialogRefStub, MatDialogStub } from '../../util/common.test-util';
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { JobConfigRequest, JobConfigResponse } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
-import { FAKE_JOB_CONFIG_LIST, FAKE_JOB_CONFIGS } from '../jobs.test-util';
+import { FAKE_JOB_CONFIG_LIST, FAKE_JOB_CONFIGS, JobsServiceStub } from '../jobs.test-util';
 import { JobConfigsComponent } from './job-configs.component';
 
-class JobsServiceStub {
-  public getJobConfigs = jasmine.createSpy('getJobConfigs');
-  public deleteJobConfigs = jasmine.createSpy('deleteJobConfigs');
-}
-
-class MatDialogStub {
-  public open = jasmine.createSpy('open');
-}
-
-class MatDialogRefStub {
-  public afterClosed = jasmine.createSpy('afterClosed');
-}
-
 const EMPTY_JOB_CONFIG_ARR: JobConfigResponse[] = [];
-
-const FAKE_HTTP_ERROR = {error: 'fakeErrorText', message: 'Fake error message.'};
 
 let jobsServiceStub: JobsServiceStub;
 let matDialogStub: MatDialogStub;
