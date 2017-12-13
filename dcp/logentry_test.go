@@ -24,18 +24,17 @@ import (
 	"strings"
 	"testing"
 
-	"cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
+
+	"cloud.google.com/go/spanner"
 )
 
 func createDummyTask() *Task {
 	return &Task{
-		JobConfigId:          "config_A",
-		JobRunId:             "run_A",
-		TaskId:               "taskid_A",
-		TaskSpec:             "taskspec_A",
+		TaskFullID: *NewTaskFullID(
+			testProjectID, testJobConfigID, testJobRunID, testTaskID),
 		Status:               Queued,
 		CreationTime:         123,
 		LastModificationTime: 234,
@@ -59,9 +58,10 @@ func TestInsertLogEntryMutation(t *testing.T) {
 
 	test_mutation := spanner.Insert("LogEntries", getLogEntryInsertColumns(),
 		[]interface{}{
-			"config_A",
-			"run_A",
-			"taskid_A",
+			testProjectID,
+			testJobConfigID,
+			testJobRunID,
+			testTaskID,
 			int64(9206468313283562545),
 			timestamp,
 			Queued,
@@ -91,7 +91,7 @@ func (m *mockWriterCloser) Close() error {
 	return nil
 }
 
-func getTestingFakeStore(n int64) *FakeStore {
+func getTestingFakeStoreAndLogPath(n int64) (*FakeStore, string) {
 	fakestore := new(FakeStore)
 	*fakestore = FakeStore{
 		jobSpec: &JobSpec{
@@ -100,25 +100,28 @@ func getTestingFakeStore(n int64) *FakeStore {
 	}
 	// Create the bogus logEntryRows.
 	for i := int64(0); i < n; i++ {
+		taskFullID := NewTaskFullID(testProjectID, testJobConfigID,
+			fmt.Sprint(testJobRunID, i), fmt.Sprint(testTaskID, i))
 		fakestore.logEntryRows = append(fakestore.logEntryRows,
 			&LogEntryRow{
-				JobConfigId: "configID",
-				JobRunId:    fmt.Sprintf("jobRunID%v", i),
-				TaskId:      fmt.Sprintf("taskId%v", i),
-				LogEntryId:  i,
+				TaskFullID: *taskFullID,
+				LogEntryID: i,
 				// This time corresponds to the time
 				// 2009-11-10T15:00:00.000000000-08:00.
 				CreationTime: 1257894000000000000 + (i * 150),
 				Processed:    false,
 			})
 	}
-	return fakestore
+	logPath := fmt.Sprintf(
+		"logs/%s:%s/2009-11-10T15:00:00.000000000-08:00.log",
+		testProjectID, testJobConfigID)
+	return fakestore, logPath
 }
 
 func TestContinuouslyProcessLogsTicker(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	store := getTestingFakeStore(numLogsToFetchPerRun)
+	store, logPath := getTestingFakeStoreAndLogPath(numLogsToFetchPerRun)
 	writer := mockWriterCloser{ioutil.Discard, 0}
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
@@ -133,7 +136,7 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
-		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
+		logPath).Return(&writer)
 
 	mockTicker := helpers.NewMockTicker()
 	testChannel := make(chan int)
@@ -154,7 +157,7 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	store := getTestingFakeStore(3)
+	store, logPath := getTestingFakeStoreAndLogPath(3)
 	writer := mockWriterCloser{ioutil.Discard, 0}
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
@@ -168,7 +171,7 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
-		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
+		logPath).Return(&writer)
 
 	mockTicker := helpers.NewMockTicker()
 	testChannel := make(chan int)
@@ -199,7 +202,7 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	store := getTestingFakeStore(3)
+	store, logPath := getTestingFakeStoreAndLogPath(3)
 	writer := mockWriterCloser{ioutil.Discard, 0}
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
@@ -213,7 +216,7 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
-		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
+		logPath).Return(&writer)
 
 	mockTicker := helpers.NewMockTicker()
 	jobrunChannel := make(chan int)
@@ -247,7 +250,7 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 func TestSingleLogsProcessingRun(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	store := getTestingFakeStore(3)
+	store, logPath := getTestingFakeStoreAndLogPath(3)
 	writer := mockWriterCloser{ioutil.Discard, 0}
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
@@ -261,7 +264,7 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
-		"logs/configID/2009-11-10T15:00:00.000000000-08:00.log").Return(&writer)
+		logPath).Return(&writer)
 	lep.SingleLogsProcessingRun(context.Background(), 1) // Process a single log entry.
 
 	// Verify a single log entry has been processed.
@@ -273,7 +276,8 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
-		"logs/configID/2009-11-10T15:00:00.000000150-08:00.log").Return(&writer)
+		"logs/project_id_A:job_config_id_A/2009-11-10T15:00:00.000000150-08:00.log").
+		Return(&writer)
 	lep.SingleLogsProcessingRun(context.Background(), 100) // Process all (two) remaining log entries.
 
 	// Verify all remaining log entries have been processed.
@@ -294,11 +298,11 @@ func TestSanitizeFailureMessage(t *testing.T) {
 }
 
 func TestLogEntryRowStringer(t *testing.T) {
+	taskFullID := NewTaskFullID("UNUSED", "UNUSED", "UNUSED", "task_id")
+
 	l := LogEntryRow{
-		JobConfigId:    "UNUSED",
-		JobRunId:       "UNUSED",
-		TaskId:         "task_id",
-		LogEntryId:     0,
+		TaskFullID:     *taskFullID,
+		LogEntryID:     0,
 		CreationTime:   1257894000000000000,
 		CurrentStatus:  3,
 		PreviousStatus: 1,

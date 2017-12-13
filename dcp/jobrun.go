@@ -50,20 +50,14 @@ type JobCounters struct {
 }
 
 type JobCountersCollection struct {
-	deltas map[JobRunFullId]*JobCounters
+	deltas map[JobRunFullID]*JobCounters
 }
 
 type JobRun struct {
-	JobConfigId     string
-	JobRunId        string
+	JobRunFullID    JobRunFullID
 	JobCreationTime int64
 	Status          int64
 	Counters        string
-}
-
-type JobRunFullId struct {
-	JobConfigId string
-	JobRunId    string
 }
 
 func (j *JobCounters) Marshal() ([]byte, error) {
@@ -108,18 +102,18 @@ func (j *JobCounters) GetJobStatus() int64 {
 func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus int64) error {
 	// Initialize the deltas map if necessary.
 	if j.deltas == nil {
-		j.deltas = make(map[JobRunFullId]*JobCounters)
+		j.deltas = make(map[JobRunFullID]*JobCounters)
 	}
 
 	// Update an existing task (if applicable).
 	if tu.Task != nil && tu.Task.Status != oldStatus {
 		task := tu.Task
-		fullJobId := task.getJobRunFullId()
-		deltaObj, exists := j.deltas[fullJobId]
+		jobFullID := task.TaskFullID.JobRunFullID
+		deltaObj, exists := j.deltas[jobFullID]
 		if !exists {
 			deltaObj = new(JobCounters)
 			deltaObj.counter = make(map[string]int64)
-			j.deltas[fullJobId] = deltaObj
+			j.deltas[jobFullID] = deltaObj
 		}
 		suffix, err := CounterSuffix(task)
 		if err != nil {
@@ -178,12 +172,12 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 		if err != nil {
 			return err
 		}
-		fullJobId := task.getJobRunFullId()
-		deltaObj, exists := j.deltas[fullJobId]
+		jobFullID := task.TaskFullID.JobRunFullID
+		deltaObj, exists := j.deltas[jobFullID]
 		if !exists {
 			deltaObj = new(JobCounters)
 			deltaObj.counter = make(map[string]int64)
-			j.deltas[fullJobId] = deltaObj
+			j.deltas[jobFullID] = deltaObj
 		}
 		deltaObj.counter[KeyTotalTasks] += 1
 		deltaObj.counter[KeyTotalTasks+suffix] += 1

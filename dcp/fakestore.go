@@ -31,18 +31,17 @@ var (
 // purposes.
 type FakeStore struct {
 	jobSpec      *JobSpec
-	tasks        map[string]*Task
+	tasks        map[TaskFullID]*Task
 	logEntryRows []*LogEntryRow
 }
 
-func (s *FakeStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
+func (s *FakeStore) GetJobSpec(configFullID JobConfigFullID) (*JobSpec, error) {
 	return s.jobSpec, nil
 }
 
-func (s *FakeStore) GetTaskSpec(
-	jobConfigId string, jobRunId string, taskId string) (string, error) {
+func (s *FakeStore) GetTaskSpec(taskFullID TaskFullID) (string, error) {
 
-	task, ok := s.tasks[getTaskFullId(jobConfigId, jobRunId, taskId)]
+	task, ok := s.tasks[taskFullID]
 	if !ok {
 		return "", errTaskNotFound
 	}
@@ -54,22 +53,22 @@ func (s *FakeStore) InsertNewTasks(tasks []*Task) error {
 		return errInsertNewTasks
 	}
 	for _, task := range tasks {
-		s.tasks[task.getTaskFullId()] = task
+		s.tasks[task.TaskFullID] = task
 	}
 	return nil
 }
 
 func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) error {
 	for taskUpdate := range taskUpdates.GetTaskUpdates() {
-		s.tasks[taskUpdate.Task.getTaskFullId()] = taskUpdate.Task
+		s.tasks[taskUpdate.Task.TaskFullID] = taskUpdate.Task
 		for _, task := range taskUpdate.NewTasks {
-			s.tasks[task.getTaskFullId()] = task
+			s.tasks[task.TaskFullID] = task
 		}
 	}
 	return nil
 }
 
-func (s *FakeStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic) error {
+func (s *FakeStore) QueueTasks(n int, listTopic, copyTopic *pubsub.Topic) error {
 	return errors.New("QueueTasks: Not implemented.")
 }
 
@@ -100,8 +99,7 @@ func (s *FakeStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 	for _, l := range logEntryRows {
 		foundEntry := false
 		for _, sl := range s.logEntryRows {
-			if l.JobConfigId == sl.JobConfigId && l.JobRunId == sl.JobRunId &&
-				l.TaskId == sl.TaskId && l.LogEntryId == sl.LogEntryId {
+			if l.TaskFullID == sl.TaskFullID && l.LogEntryID == sl.LogEntryID {
 				sl.Processed = true
 				foundEntry = true
 				break

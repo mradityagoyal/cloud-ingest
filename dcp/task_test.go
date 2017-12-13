@@ -27,19 +27,16 @@ import (
 /*******************************************************************************
 TaskUpdateCollection Tests
 *******************************************************************************/
-
 func TestAddTaskUpdateEmptyCollection(t *testing.T) {
 	tc := &TaskUpdateCollection{}
 
 	expectedUpdate := &TaskUpdate{
 		Task: &Task{
-			JobConfigId: "dummy-config",
-			JobRunId:    "dummy-run",
-			TaskId:      "dummy-task",
+			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
 		},
 	}
 	tc.AddTaskUpdate(expectedUpdate)
-	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.getTaskFullId())
+	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.TaskFullID)
 	if retUpdate != expectedUpdate {
 		t.Errorf("task mismatch, expected: %v, returned: %v", expectedUpdate, retUpdate)
 	}
@@ -53,10 +50,8 @@ func TestAddTaskUpdateIgnoreTask(t *testing.T) {
 
 	expectedUpdate := &TaskUpdate{
 		Task: &Task{
-			JobConfigId: "dummy-config",
-			JobRunId:    "dummy-run",
-			TaskId:      "dummy-task",
-			Status:      Success,
+			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+			Status:     Success,
 		},
 	}
 	tc.AddTaskUpdate(expectedUpdate)
@@ -74,7 +69,7 @@ func TestAddTaskUpdateIgnoreTask(t *testing.T) {
 	}
 	tc.AddTaskUpdate(duplicateUpdate)
 
-	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.getTaskFullId())
+	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.TaskFullID)
 	if tc.Size() != 1 {
 		t.Errorf("expected 1 task update in the collection, found %v", tc.Size())
 	}
@@ -88,10 +83,8 @@ func TestAddTaskUpdateOverrideTask(t *testing.T) {
 
 	taskUpdate := &TaskUpdate{
 		Task: &Task{
-			JobConfigId: "dummy-config",
-			JobRunId:    "dummy-run",
-			TaskId:      "dummy-task",
-			Status:      Failed,
+			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+			Status:     Failed,
 		},
 	}
 	tc.AddTaskUpdate(taskUpdate)
@@ -103,7 +96,7 @@ func TestAddTaskUpdateOverrideTask(t *testing.T) {
 	}
 	tc.AddTaskUpdate(expectedUpdate)
 
-	retUpdate := tc.GetTaskUpdate(taskUpdate.Task.getTaskFullId())
+	retUpdate := tc.GetTaskUpdate(taskUpdate.Task.TaskFullID)
 	if tc.Size() != 1 {
 		t.Errorf("expected 1 task update in the colleection, found %v", tc.Size())
 	}
@@ -128,17 +121,13 @@ func TestGetTaskUpdates(t *testing.T) {
 
 	taskUpdate1 := &TaskUpdate{
 		Task: &Task{
-			JobConfigId: "dummy-config",
-			JobRunId:    "dummy-run",
-			TaskId:      "dummy-task-1",
+			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, "task-1"),
 		},
 	}
 
 	taskUpdate2 := &TaskUpdate{
 		Task: &Task{
-			JobConfigId: "dummy-config",
-			JobRunId:    "dummy-run",
-			TaskId:      "dummy-task-2",
+			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, "task-2"),
 		},
 	}
 
@@ -322,7 +311,7 @@ Task Methods Tests
 *******************************************************************************/
 func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 	msg := []byte(`{
-		"task_id": "job_config_id_A:job_run_id_A:A",
+		"task_id": "project_id_A:job_config_id_A:job_run_id_A:A",
 		"status": "FAILED",
 		"failure_reason": 5,
 		"failure_message": "Failure",
@@ -342,7 +331,7 @@ func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 	}
 
 	want := TaskCompletionMessage{
-		FullTaskId:     "job_config_id_A:job_run_id_A:A",
+		TaskFullIDStr:  "project_id_A:job_config_id_A:job_run_id_A:A",
 		Status:         "FAILED",
 		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 		FailureMessage: "Failure",
@@ -363,7 +352,7 @@ func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 
 func TestTaskCompletionMessageFromJsonSuccessMessage(t *testing.T) {
 	msg := []byte(`{
-		"task_id": "job_config_id_A:job_run_id_A:A",
+		"task_id": "project_id_A:job_config_id_A:job_run_id_A:A",
 		"status": "SUCCESS",
 		"log_entry": {
 			"logkey1": "logval1"
@@ -379,8 +368,8 @@ func TestTaskCompletionMessageFromJsonSuccessMessage(t *testing.T) {
 	}
 
 	want := TaskCompletionMessage{
-		FullTaskId: "job_config_id_A:job_run_id_A:A",
-		Status:     "SUCCESS",
+		TaskFullIDStr: "project_id_A:job_config_id_A:job_run_id_A:A",
+		Status:        "SUCCESS",
 		LogEntry: LogEntry{
 			"logkey1": "logval1",
 		},
@@ -403,7 +392,7 @@ func TestTaskCompletionMessageToTaskUpdateNilMessage(t *testing.T) {
 
 func TestTaskCompletionMessageToTaskUpdateBadTask(t *testing.T) {
 	taskCompletionMessage := TaskCompletionMessage{
-		FullTaskId: "invalid",
+		TaskFullIDStr: "invalid",
 	}
 
 	_, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
@@ -415,10 +404,10 @@ func TestTaskCompletionMessageToTaskUpdateBadTask(t *testing.T) {
 
 func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
 	taskCompletionMessage := TaskCompletionMessage{
-		FullTaskId: "job_config_id_A:job_run_id_A:A",
-		Status:     "SUCCESS",
-		LogEntry:   LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
-		TaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
+		TaskFullIDStr: testTaskFullIDStr,
+		Status:        "SUCCESS",
+		LogEntry:      LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
+		TaskParams:    TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
@@ -427,27 +416,26 @@ func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
 		t.Errorf("error converting completion msg JSON to TaskCompletionMessage: %v", err)
 	}
 
+	taskFullID := NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID)
 	want := TaskUpdate{
 		Task: &Task{
-			JobConfigId: "job_config_id_A",
-			JobRunId:    "job_run_id_A",
-			TaskId:      "A",
-			Status:      Success,
+			TaskFullID: *taskFullID,
+			Status:     Success,
 		},
 		LogEntry:           LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
 		OriginalTaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 
 	if taskUpdate == nil {
-		t.Errorf("taskUpdate is nil, but should be %v.", want)
+		t.Errorf("taskUpdate is nil, but should be %+v.", want)
 	} else if !reflect.DeepEqual(*taskUpdate, want) {
-		t.Errorf("result: %v, wanted: %v", *taskUpdate, want)
+		t.Errorf("result: %+v, wanted: %+v", *taskUpdate, want)
 	}
 }
 
 func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 	taskCompletionMessage := TaskCompletionMessage{
-		FullTaskId:     "job_config_id_A:job_run_id_A:A",
+		TaskFullIDStr:  testTaskFullIDStr,
 		Status:         "FAILED",
 		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 		FailureMessage: "Failure",
@@ -461,11 +449,10 @@ func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 		t.Errorf("error converting completion msg JSON to TaskCompletionMessage: %v", err)
 	}
 
+	taskFullID := NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID)
 	want := TaskUpdate{
 		Task: &Task{
-			JobConfigId:    "job_config_id_A",
-			JobRunId:       "job_run_id_A",
-			TaskId:         "A",
+			TaskFullID:     *taskFullID,
 			Status:         Failed,
 			FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 			FailureMessage: "Failure",
@@ -483,14 +470,12 @@ func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 
 func TestConstructPubSubTaskMsgSuccess(t *testing.T) {
 	task := &Task{
-		JobConfigId: "job_config",
-		JobRunId:    "job_run",
-		TaskId:      "task_id",
-		TaskSpec:    "{\"foo\": \"bar\", \"nest1\": {\"nest2\": \"nested_val\"}}",
+		TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+		TaskSpec:   "{\"foo\": \"bar\", \"nest1\": {\"nest2\": \"nested_val\"}}",
 	}
 
 	want := map[string]interface{}{
-		"task_id": "job_config:job_run:task_id",
+		"task_id": testTaskFullIDStr,
 		"task_params": map[string]interface{}{
 			"foo": "bar",
 			"nest1": map[string]interface{}{
@@ -519,10 +504,8 @@ func TestConstructPubSubTaskMsgSuccess(t *testing.T) {
 
 func TestConstructPubSubTaskMsgFailure(t *testing.T) {
 	task := &Task{
-		JobConfigId: "job_config",
-		JobRunId:    "job_run",
-		TaskId:      "task_id",
-		TaskSpec:    "{\"foo\": \"barBROOOOOOKEN!",
+		TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+		TaskSpec:   "{\"foo\": \"barBROOOOOOKEN!",
 	}
 
 	// Construct the message

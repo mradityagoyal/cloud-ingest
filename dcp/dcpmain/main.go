@@ -49,15 +49,15 @@ const (
 )
 
 var (
-	projectId    string
+	projectID    string
 	tasksToQueue int
 )
 
 func init() {
-	flag.StringVar(&projectId, "projectid", "", "The project id to associate with this DCP. Must be set!")
+	flag.StringVar(&projectID, "projectid", "", "The project id to associate with this DCP. Must be set!")
 	flag.IntVar(&tasksToQueue, "taskstoqueue", 100, "The number of tasks to queue at a time.")
 	flag.Parse()
-	if projectId == "" {
+	if projectID == "" {
 		fmt.Println("The projectid flag must be set. Run 'dcpmain -h' for more info about flags.")
 		os.Exit(1)
 	}
@@ -75,11 +75,11 @@ func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
 
 func main() {
 	database := fmt.Sprintf("projects/%s/instances/%s/databases/%s",
-		projectId, spannerInstance, spannerDatabase)
+		projectID, spannerInstance, spannerDatabase)
 
 	ctx := context.Background()
 
-	pubSubClient, err := pubsub.NewClient(ctx, projectId)
+	pubSubClient, err := pubsub.NewClient(ctx, projectID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can not create pubsub client, error: %v.\n", err)
 		os.Exit(1)

@@ -131,28 +131,24 @@ func assertOtherDeltaFieldsUnchangedForInsert(t *testing.T,
 }
 
 func TestUpdateForTaskUpdateOneInsertSingleJob(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	task := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		TaskType:    listTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		TaskType:   listTaskType,
 	}
 	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Unqueued)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	if delta.counter[KeyTotalTasks] != 1 {
 		t.Errorf("expected delta.counter[KeyTotalTasks] to be 1, found %d", delta.counter[KeyTotalTasks])
@@ -161,38 +157,32 @@ func TestUpdateForTaskUpdateOneInsertSingleJob(t *testing.T) {
 }
 
 func TestUpdateForTaskUpdateMultipleInsertsSingleJob(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	task1 := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		TaskType:    listTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		TaskType:   listTaskType,
 	}
 	task2 := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		TaskType:   uploadGCSTaskType,
 	}
 	task3 := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		TaskType:   uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task1, task2, task3}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Unqueued)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	if delta.counter[KeyTotalTasks] != 3 {
 		t.Errorf("expected delta.counter[KeyTotalTasks] to be 3, found %d", delta.counter[KeyTotalTasks])
@@ -201,61 +191,50 @@ func TestUpdateForTaskUpdateMultipleInsertsSingleJob(t *testing.T) {
 }
 
 func TestUpdateForTaskUpdateMultipleInsertsMultipleJobs(t *testing.T) {
-	id1 := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
-	id2 := JobRunFullId{
-		JobConfigId: "C",
-		JobRunId:    "B",
-	}
+	id1 := NewJobRunFullID("project", "A", "B")
+	id2 := NewJobRunFullID("project", "C", "B")
 	task1 := &Task{
-		JobConfigId: id1.JobConfigId,
-		JobRunId:    id1.JobRunId,
-		TaskType:    listTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *id1},
+		TaskType:   listTaskType,
 	}
 	task2 := &Task{
-		JobConfigId: id1.JobConfigId,
-		JobRunId:    id1.JobRunId,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *id1},
+		TaskType:   uploadGCSTaskType,
 	}
 	task3 := &Task{
-		JobConfigId: id1.JobConfigId,
-		JobRunId:    id1.JobRunId,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *id1},
+		TaskType:   uploadGCSTaskType,
 	}
 	task4 := &Task{
-		JobConfigId: id2.JobConfigId,
-		JobRunId:    id2.JobRunId,
-		TaskType:    listTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *id2},
+		TaskType:   listTaskType,
 	}
 	task5 := &Task{
-		JobConfigId: id2.JobConfigId,
-		JobRunId:    id2.JobRunId,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *id2},
+		TaskType:   uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task1, task2, task3, task4, task5}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Unqueued)
 
 	if len(counters.deltas) != 2 {
 		t.Errorf("expected counters.deltas to contain 2 deltas, found %d",
 			len(counters.deltas))
 	}
-	delta1, exists := counters.deltas[id1]
+	delta1, exists := counters.deltas[*id1]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", id1)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *id1)
 	}
 	if delta1.counter[KeyTotalTasks] != 3 {
 		t.Errorf("expected delta.counter[KeyTotalTasks] to be 3, found %d", delta1.counter[KeyTotalTasks])
 	}
 	assertOtherDeltaFieldsUnchangedForInsert(t, delta1)
 
-	delta2, exists := counters.deltas[id2]
+	delta2, exists := counters.deltas[*id2]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", id2)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *id2)
 	}
 	if delta2.counter[KeyTotalTasks] != 2 {
 		t.Errorf("expected delta.counter[KeyTotalTasks] to be 2, found %d", delta2.counter[KeyTotalTasks])
@@ -276,29 +255,25 @@ func assertOtherDeltaFieldsUnchangedForUpdate(t *testing.T,
 }
 
 func TestUpdateForTaskUpdateQueuedToSuccess(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	task := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		Status:      Success,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		Status:     Success,
+		TaskType:   uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Queued)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	if delta.counter[KeyTasksCompleted] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted] to be 1, found %d", delta.counter[KeyTasksCompleted])
@@ -310,29 +285,25 @@ func TestUpdateForTaskUpdateQueuedToSuccess(t *testing.T) {
 }
 
 func TestUpdateForTaskUpdateQueuedToSuccessDeltaObjAlreadyExists(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	task := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		Status:      Success,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		Status:     Success,
+		TaskType:   uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Queued)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	if delta.counter[KeyTasksCompleted] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted] to be 1, found %d", delta.counter[KeyTasksCompleted])
@@ -344,29 +315,25 @@ func TestUpdateForTaskUpdateQueuedToSuccessDeltaObjAlreadyExists(t *testing.T) {
 }
 
 func TestUpdateForTaskUpdateFailedToSuccess(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	task := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		Status:      Success,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		Status:     Success,
+		TaskType:   uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Failed)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	if delta.counter[KeyTasksCompleted] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted] to be 1, found %d", delta.counter[KeyTasksCompleted])
@@ -378,29 +345,25 @@ func TestUpdateForTaskUpdateFailedToSuccess(t *testing.T) {
 }
 
 func TestUpdateForTaskUpdateUnqueuedToSuccess(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	task := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		Status:      Success,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		Status:     Success,
+		TaskType:   uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Unqueued)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	if delta.counter[KeyTasksCompleted] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted] to be 1, found %d", delta.counter[KeyTasksCompleted])
@@ -415,29 +378,25 @@ func TestUpdateForTaskUpdateUnqueuedToSuccess(t *testing.T) {
 }
 
 func TestUpdateForTaskUpdateUnqueuedToFailed(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	task := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		Status:      Failed,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		Status:     Failed,
+		TaskType:   uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Unqueued)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	if delta.counter[KeyTasksCompleted] != 0 {
 		t.Errorf("expected delta.counter[KeyTasksCompleted] to be 0, found %d", delta.counter[KeyTasksCompleted])
@@ -452,29 +411,25 @@ func TestUpdateForTaskUpdateUnqueuedToFailed(t *testing.T) {
 }
 
 func TestUpdateForTaskUpdateUnqueuedToQueued(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	task := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		Status:      Queued,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		Status:     Queued,
+		TaskType:   uploadGCSTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Unqueued)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	if delta.counter[KeyTasksQueued] != 1 {
 		t.Errorf("expected delta.counter[KeyTasksQueued] to be 1, found %d", delta.counter[KeyTasksQueued])
@@ -489,25 +444,19 @@ updateForTaskUpdate tests, updating a task and inserting new tasks
 *******************************************************************************/
 
 func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	updatedListTask := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		Status:      Success,
-		TaskType:    listTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		Status:     Success,
+		TaskType:   listTaskType,
 	}
 	newCopyTask1 := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		TaskType:   uploadGCSTaskType,
 	}
 	newCopyTask2 := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		TaskType:   uploadGCSTaskType,
 	}
 	logEntry := make(LogEntry)
 	logEntry["files_found"] = json.Number("2")
@@ -520,16 +469,16 @@ func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
 	}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Queued)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	// Expect one completed list task.
 	if delta.counter[KeyTasksCompleted] != 1 {
@@ -573,36 +522,31 @@ func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
 }
 
 func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
-	fullJobId := JobRunFullId{
-		JobConfigId: "A",
-		JobRunId:    "B",
-	}
+	jobFullID := NewJobRunFullID("project", "A", "B")
 	updatedCopyTask := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		Status:      Success,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		Status:     Success,
+		TaskType:   uploadGCSTaskType,
 	}
 	newLoadTask := &Task{
-		JobConfigId: fullJobId.JobConfigId,
-		JobRunId:    fullJobId.JobRunId,
-		TaskType:    uploadGCSTaskType,
+		TaskFullID: TaskFullID{JobRunFullID: *jobFullID},
+		TaskType:   uploadGCSTaskType,
 	}
 	logEntry := make(LogEntry)
 	logEntry["src_bytes"] = json.Number("12345")
 	tu := &TaskUpdate{Task: updatedCopyTask, LogEntry: logEntry, NewTasks: []*Task{newLoadTask}}
 
 	var counters JobCountersCollection
-	counters.deltas = make(map[JobRunFullId]*JobCounters)
+	counters.deltas = make(map[JobRunFullID]*JobCounters)
 	counters.updateForTaskUpdate(tu, Failed)
 
 	if len(counters.deltas) != 1 {
 		t.Errorf("expected counters.deltas to contain 1 delta, found %d",
 			len(counters.deltas))
 	}
-	delta, exists := counters.deltas[fullJobId]
+	delta, exists := counters.deltas[*jobFullID]
 	if !exists {
-		t.Errorf("expected counters.deltas to contain a delta for id %+v", fullJobId)
+		t.Errorf("expected counters.deltas to contain a delta for id %+v", *jobFullID)
 	}
 	// Expect one completed copy task.
 	if delta.counter[KeyTasksCompleted] != 1 {

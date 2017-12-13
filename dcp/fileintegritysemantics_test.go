@@ -38,11 +38,9 @@ func getTestingTaskSpec(expectedGenerationNum int) string {
 func getTestingTaskUpdate(expectedGenerationNum int, status int64, failureType proto.TaskFailureType_Type, taskSpec string) *TaskUpdate {
 	taskUpdate := &TaskUpdate{
 		Task: &Task{
-			JobConfigId: "job_cfg_id",
-			JobRunId:    "job_run_id",
-			TaskId:      "task_id",
-			Status:      status,
-			TaskSpec:    taskSpec,
+			TaskFullID: *NewTaskFullID("prjct_id", "job_cfg_id", "job_run_id", "task_id"),
+			Status:     status,
+			TaskSpec:   taskSpec,
 		},
 
 		// This is just to make sure it doesn't get altered.
@@ -68,7 +66,7 @@ func getTestingTaskUpdate(expectedGenerationNum int, status int64, failureType p
 
 func DeepEqualCompare(msgPrefix string, want, got interface{}, t *testing.T) {
 	if !reflect.DeepEqual(want, got) {
-		t.Errorf("%s: Wanted %v; got %v", msgPrefix, want, got)
+		t.Errorf("%s: Wanted %+v; got %+v", msgPrefix, want, got)
 	}
 }
 

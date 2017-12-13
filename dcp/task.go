@@ -20,7 +20,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 )
@@ -30,8 +29,6 @@ const (
 	Queued   int64 = 1
 	Failed   int64 = 2
 	Success  int64 = 3
-
-	taskIdSeparator string = ":"
 
 	listTaskPrefix      string = "list"
 	uploadGCSTaskPrefix string = "uploadGCS"
@@ -61,9 +58,7 @@ type UploadGCSTaskSpec struct {
 }
 
 type Task struct {
-	JobConfigId          string
-	JobRunId             string
-	TaskId               string
+	TaskFullID           TaskFullID
 	TaskSpec             string
 	TaskType             int64
 	Status               int64
@@ -77,7 +72,7 @@ type TaskParams map[string]interface{}
 
 // TaskCompletionMessage is the response type we get back from any progress queue.
 type TaskCompletionMessage struct {
-	FullTaskId     string                     `json:"task_id"`
+	TaskFullIDStr  string                     `json:"task_id"`
 	Status         string                     `json:"status"`
 	FailureType    proto.TaskFailureType_Type `json:"failure_reason"`
 	FailureMessage string                     `json:"failure_message"`
@@ -114,12 +109,12 @@ type TaskUpdate struct {
 // TaskUpdateCollection is a collection of task updates to be committed to the
 // store.
 type TaskUpdateCollection struct {
-	// tasks is a map from full task id string to task update details.
-	tasks map[string]*TaskUpdate
+	// tasks is a map from task id to task update details.
+	tasks map[TaskFullID]*TaskUpdate
 }
 
 // AddTaskUpdate adds a taskUpdate into the collection. If there is a task in
-// the collection that has the same full task id as taskUpdate but with
+// the collection that has the same task id as taskUpdate but with
 // different status, the statuses will be compared and only the task with the
 // higher status (as defined by canChangeTaskStatus) will be added to the
 // collection.
@@ -128,50 +123,44 @@ type TaskUpdateCollection struct {
 //
 //	taskUpdateA := &TaskUpdate{
 //		Task: &Task{
-//			JobConfigId: "a",
-//			JobRunId:    "a",
-//			TaskId:      "list",
+//			TaskFullID:  *NewTaskFullID("project", "config", "run", "list"),
 //			Status:      Failed,
 //		},
 //	}
 //
 // 	taskUpdateB := &TaskUpdate{
 //		Task: &Task{
-//			JobConfigId: "a",
-//			JobRunId:    "a",
-//			TaskId:      "list",
+//			TaskFullID:  *NewTaskFullID("project", "config", "run", "list"),
 //			Status:      Success,
 //		},
 //		NewTasks: []*Task{
 //			&Task{
-//				JobConfigId: "a",
-//				JobRunId:    "a",
-//				TaskId:      "upload",
+//				TaskFullID:  *NewTaskFullID("project", "config", "run", "upload"),
 //				Status:      Unqueued,
 //			},
 //		},
 //	}
 //
 // Only one of taskUpdateA and taskUpdateB can exist in the collection since they
-// have the same full task IDs.  If taskUpdateA is already in the collection and
+// have the same task ID.  If taskUpdateA is already in the collection and
 // the caller tries to add taskUpdateB, taskUpdateA will be replaced in the
 // collection by taskUpdateB because canChangeTaskStatus(taskUpdateA.Task.Status,
 // taskUpdateB.Task.Status) is true (Failed -> Success).
 func (tc *TaskUpdateCollection) AddTaskUpdate(taskUpdate *TaskUpdate) {
 	if tc.tasks == nil {
-		tc.tasks = make(map[string]*TaskUpdate)
+		tc.tasks = make(map[TaskFullID]*TaskUpdate)
 	}
-	fullId := taskUpdate.Task.getTaskFullId()
+	taskFullID := taskUpdate.Task.TaskFullID
 
-	otherTaskUpdate, exists := tc.tasks[fullId]
+	otherTaskUpdate, exists := tc.tasks[taskFullID]
 	if !exists || canChangeTaskStatus(otherTaskUpdate.Task.Status, taskUpdate.Task.Status) {
-		// This is the only task so far with this full id or it is
-		// more recent than any other tasks seen so far with the same full id.
-		tc.tasks[fullId] = taskUpdate
+		// This is the only task so far with this id or it is
+		// more recent than any other tasks seen so far with the same id.
+		tc.tasks[taskFullID] = taskUpdate
 	}
 }
 
-func NewListTaskSpecFromMap(params map[string]interface{}) (*ListTaskSpec, error) {
+func NewListTaskSpecFromMap(params TaskParams) (*ListTaskSpec, error) {
 	dstBucket, ok1 := params["dst_list_result_bucket"]
 	dstObject, ok2 := params["dst_list_result_object"]
 	srcDir, ok3 := params["src_directory"]
@@ -193,7 +182,7 @@ func NewListTaskSpecFromMap(params map[string]interface{}) (*ListTaskSpec, error
 	return nil, fmt.Errorf("missing params in ListTaskSpec map: %v", params)
 }
 
-func NewUploadGCSTaskSpecFromMap(params map[string]interface{}) (*UploadGCSTaskSpec, error) {
+func NewUploadGCSTaskSpecFromMap(params TaskParams) (*UploadGCSTaskSpec, error) {
 	srcFile, ok1 := params["src_file"]
 	dstBucket, ok2 := params["dst_bucket"]
 	dstObject, ok3 := params["dst_object"]
@@ -218,8 +207,8 @@ func (tc TaskUpdateCollection) Size() int {
 	return len(tc.tasks)
 }
 
-func (tc TaskUpdateCollection) GetTaskUpdate(fullTaskId string) *TaskUpdate {
-	return tc.tasks[fullTaskId]
+func (tc TaskUpdateCollection) GetTaskUpdate(taskFullID TaskFullID) *TaskUpdate {
+	return tc.tasks[taskFullID]
 }
 
 func (tc TaskUpdateCollection) GetTaskUpdates() <-chan *TaskUpdate {
@@ -234,68 +223,15 @@ func (tc TaskUpdateCollection) GetTaskUpdates() <-chan *TaskUpdate {
 }
 
 func (tc *TaskUpdateCollection) Clear() {
-	tc.tasks = make(map[string]*TaskUpdate)
+	tc.tasks = make(map[TaskFullID]*TaskUpdate)
 }
 
-// getTaskFullId gets a unique task id  based on task (JobConfigId, JobRunId
-// and TaskId).
-func (t Task) getTaskFullId() string {
-	return getTaskFullId(t.JobConfigId, t.JobRunId, t.TaskId)
-}
-
-// getJobRunFullId gets a JobRunFullId for the job run of this task
-func (t Task) getJobRunFullId() JobRunFullId {
-	return JobRunFullId{t.JobConfigId, t.JobRunId}
-}
-
-// GetUploadGCSTaskId returns the task id of an uploadGCS type task for
+// GetUploadGCSTaskID returns the task id of an uploadGCS type task for
 // the given file.
-func GetUploadGCSTaskId(filePath string) string {
+func GetUploadGCSTaskID(filePath string) string {
 	// TODO(b/64038794): The task ids should be a hash of the filePath, the
 	// filePath might be too long and already duplicated in the task spec.
-	return uploadGCSTaskPrefix + taskIdSeparator + filePath
-}
-
-// getTaskFullId is a helper method that generates a unique task id based
-// on (JobConfigId, JobRunId, TaskId).
-func getTaskFullId(jobConfigId string, jobRunId string, taskId string) string {
-	return fmt.Sprintf(
-		"%s%s%s%s%s", jobConfigId, taskIdSeparator, jobRunId, taskIdSeparator, taskId)
-}
-
-func parseTaskIdComponents(fullTaskId string) ([]string, error) {
-	task_id_components := strings.SplitN(fullTaskId, taskIdSeparator, 3)
-	if len(task_id_components) != 3 {
-		return nil, errors.New(fmt.Sprintf(
-			"can not parse full task id: %s, expecting 3 strings separated by '%s'",
-			fullTaskId, taskIdSeparator))
-	}
-
-	return task_id_components, nil
-}
-
-func getJobConfigIdFromFullTaskId(fullTaskId string) (string, error) {
-	task_id_components, err := parseTaskIdComponents(fullTaskId)
-	if err != nil {
-		return "", err
-	}
-
-	return task_id_components[0], nil
-}
-
-// constructTaskFromFullTaskId constructs a task from a colon-separated full
-// task id "job_config_id:job_run_id:task_id"
-func constructTaskFromFullTaskId(fullTaskId string) (*Task, error) {
-	task_id_components, err := parseTaskIdComponents(fullTaskId)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Task{
-		JobConfigId: task_id_components[0],
-		JobRunId:    task_id_components[1],
-		TaskId:      task_id_components[2],
-	}, nil
+	return uploadGCSTaskPrefix + idSeparator + filePath
 }
 
 // canChangeTaskStatus checks whether a task can be moved from a fromStatus to
@@ -317,7 +253,7 @@ func canChangeTaskStatus(fromStatus int64, toStatus int64) bool {
 // constructPubSubTaskMsg constructs the Pub/Sub message for the passed task to
 // send to the worker agents.
 func constructPubSubTaskMsg(task *Task) ([]byte, error) {
-	taskParams := make(map[string]interface{})
+	taskParams := make(TaskParams)
 	if err := json.Unmarshal([]byte(task.TaskSpec), &taskParams); err != nil {
 		return nil, errors.New(fmt.Sprintf(
 			"error decoding JSON task spec string %s for task %v.",
@@ -325,7 +261,7 @@ func constructPubSubTaskMsg(task *Task) ([]byte, error) {
 	}
 
 	taskMsg := make(map[string]interface{})
-	taskMsg["task_id"] = task.getTaskFullId()
+	taskMsg["task_id"] = task.TaskFullID.String()
 	taskMsg["task_params"] = taskParams
 	return json.Marshal(taskMsg)
 }
@@ -349,9 +285,12 @@ func TaskCompletionMessageToTaskUpdate(taskCompletionMessage *TaskCompletionMess
 	}
 
 	// Construct task
-	task, err := constructTaskFromFullTaskId(taskCompletionMessage.FullTaskId)
+	taskFullID, err := TaskFullIDFromStr(taskCompletionMessage.TaskFullIDStr)
 	if err != nil {
 		return nil, err
+	}
+	task := &Task{
+		TaskFullID: *taskFullID,
 	}
 	if taskCompletionMessage.Status == "SUCCESS" {
 		task.Status = Success

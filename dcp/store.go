@@ -40,18 +40,17 @@ const (
 // Store provides an interface for the backing store that is used by the DCP.
 type Store interface {
 	// GetJobSpec retrieves the JobSpec from the store.
-	GetJobSpec(jobConfigId string) (*JobSpec, error)
+	GetJobSpec(configFullID JobConfigFullID) (*JobSpec, error)
 
-	// GetTaskSpec returns the task spec string for the task with the given
-	// (jobConfigId, jobRunId, taskId).
-	GetTaskSpec(jobConfigId string, jobRunId string, taskId string) (string, error)
+	// GetTaskSpec returns the task spec string for a Task.
+	GetTaskSpec(taskFullID TaskFullID) (string, error)
 
 	// QueueTasks retrieves at most n tasks from the unqueued tasks, sends PubSub
 	// messages to the corresponding topic, and updates the status of the task to
 	// queued.
 	// TODO(b/63015068): This method should be generic and should get arbitrary
 	// number of topics to publish to.
-	QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic) error
+	QueueTasks(n int, listTopic, copyTopic *pubsub.Topic) error
 
 	// GetNumUnprocessedLogs returns the number of rows in the LogEntries table
 	// with the 'Processed' column set to false. Any errors result in returning
@@ -102,6 +101,7 @@ func getTaskInsertColumns() []string {
 	// TODO(b/63100514): Define constants for spanner table names that can be
 	// shared across store and potentially infrastructure setup implementation.
 	return []string{
+		"ProjectId",
 		"JobConfigId",
 		"JobRunId",
 		"TaskId",
@@ -113,11 +113,11 @@ func getTaskInsertColumns() []string {
 	}
 }
 
-func (s *SpannerStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
+func (s *SpannerStore) GetJobSpec(configFullID JobConfigFullID) (*JobSpec, error) {
 	jobConfigRow, err := s.Spanner.Single().ReadRow(
 		context.Background(),
 		"JobConfigs",
-		spanner.Key{jobConfigId},
+		spanner.Key{configFullID.ProjectID, configFullID.JobConfigID},
 		[]string{"JobSpec"})
 	if err != nil {
 		return nil, err
@@ -132,13 +132,15 @@ func (s *SpannerStore) GetJobSpec(jobConfigId string) (*JobSpec, error) {
 	return jobSpec, nil
 }
 
-func (s *SpannerStore) GetTaskSpec(
-	jobConfigId string, jobRunId string, taskId string) (string, error) {
-
+func (s *SpannerStore) GetTaskSpec(taskFullID TaskFullID) (string, error) {
 	taskRow, err := s.Spanner.Single().ReadRow(
 		context.Background(),
 		"Tasks",
-		spanner.Key{jobConfigId, jobRunId, taskId},
+		spanner.Key{
+			taskFullID.ProjectID,
+			taskFullID.JobConfigID,
+			taskFullID.JobRunID,
+			taskFullID.TaskID},
 		[]string{"TaskSpec"})
 	if err != nil {
 		return "", err
@@ -165,16 +167,21 @@ func getCountersObjFromRow(row *spanner.Row) (*JobCounters, error) {
 	return counters, nil
 }
 
-// getFullIdFromJobRow returns a JobFullRunId created from the given row.
-func getFullIdFromJobRow(row *spanner.Row) (JobRunFullId, error) {
-	var fullId JobRunFullId
-	if err := row.ColumnByName("JobConfigId", &fullId.JobConfigId); err != nil {
-		return fullId, err
+// getJobRunFullIDFromJobRow returns a JobRunFullID created from the given row.
+func getJobRunFullIDFromJobRow(row *spanner.Row) (JobRunFullID, error) {
+	var runFullID JobRunFullID
+	if err := row.ColumnByName(
+		"ProjectId", &runFullID.ProjectID); err != nil {
+		return runFullID, err
 	}
-	if err := row.ColumnByName("JobRunId", &fullId.JobRunId); err != nil {
-		return fullId, err
+	if err := row.ColumnByName(
+		"JobConfigId", &runFullID.JobConfigID); err != nil {
+		return runFullID, err
 	}
-	return fullId, nil
+	if err := row.ColumnByName("JobRunId", &runFullID.JobRunID); err != nil {
+		return runFullID, err
+	}
+	return runFullID, nil
 }
 
 // writeJobCountersObjectUpdatesToBuffer uses the deltas stored in the given
@@ -189,6 +196,7 @@ func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
 
 	// Batch read the job counters strings to be updated
 	jobColumns := []string{
+		"ProjectId",
 		"JobConfigId",
 		"JobRunId",
 		"Counters",
@@ -196,9 +204,13 @@ func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
 	}
 
 	keys := spanner.KeySets()
-	for fullRunId, _ := range counters.deltas {
+	for runFullID, _ := range counters.deltas {
 		keys = spanner.KeySets(
-			keys, spanner.Key{fullRunId.JobConfigId, fullRunId.JobRunId})
+			keys, spanner.Key{
+				runFullID.ProjectID,
+				runFullID.JobConfigID,
+				runFullID.JobRunID,
+			})
 	}
 	iter := txn.Read(ctx, "JobRuns", keys, jobColumns)
 
@@ -210,7 +222,7 @@ func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
 		if err != nil {
 			return err
 		}
-		fullJobId, err := getFullIdFromJobRow(row)
+		jobFullID, err := getJobRunFullIDFromJobRow(row)
 		if err != nil {
 			return err
 		}
@@ -221,7 +233,7 @@ func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
 		}
 
 		// Update totalTasks and create mutation.
-		deltaObj := counters.deltas[fullJobId]
+		deltaObj := counters.deltas[jobFullID]
 		countersObj.ApplyDelta(deltaObj)
 		countersBytes, err := countersObj.Marshal()
 		if err != nil {
@@ -229,14 +241,16 @@ func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
 		}
 
 		jobInsertColumns := []string{
+			"ProjectId",
 			"JobConfigId",
 			"JobRunId",
 			"Counters",
 		}
 
 		jobInsertValues := []interface{}{
-			fullJobId.JobConfigId,
-			fullJobId.JobRunId,
+			jobFullID.ProjectID,
+			jobFullID.JobConfigID,
+			jobFullID.JobRunID,
 			string(countersBytes),
 		}
 
@@ -289,6 +303,7 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 			// TODO(b/63100514): Define constants for spanner table names that can be
 			// shared across store and potentially infrastructure setup implementation.
 			taskColumns := []string{
+				"ProjectId",
 				"JobConfigId",
 				"JobRunId",
 				"TaskId",
@@ -307,9 +322,10 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 				mutation[i] = spanner.Insert("Tasks",
 					taskColumns,
 					[]interface{}{
-						task.JobConfigId,
-						task.JobRunId,
-						task.TaskId,
+						task.TaskFullID.ProjectID,
+						task.TaskFullID.JobConfigID,
+						task.TaskFullID.JobRunID,
+						task.TaskFullID.TaskID,
 						task.TaskType,
 						task.TaskSpec,
 						Unqueued,
@@ -335,32 +351,27 @@ func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
 	return err
 }
 
-// getFullTaskIdFromRow returns the full task id constructed
-// from the JobConfigId, JobRunId, and TaskId values stored in the row.
-func getFullTaskIdFromRow(row *spanner.Row) (string, error) {
-	var jobConfigId string
-	var jobRunId string
-	var taskId string
+// getTaskFullIDFromRow returns the task id constructed from the ProjectID,
+// JobConfigID, JobRunID, and TaskID values stored in the row.
+func getTaskFullIDFromRow(row *spanner.Row) (TaskFullID, error) {
+	var taskFullID TaskFullID
+	runFullID, err := getJobRunFullIDFromJobRow(row)
+	if err != nil {
+		return taskFullID, err
+	}
+	taskFullID.JobRunFullID = runFullID
 
-	err := row.ColumnByName("JobConfigId", &jobConfigId)
+	err = row.ColumnByName("TaskId", &taskFullID.TaskID)
 	if err != nil {
-		return "", err
-	}
-	err = row.ColumnByName("JobRunId", &jobRunId)
-	if err != nil {
-		return "", err
-	}
-	err = row.ColumnByName("TaskId", &taskId)
-	if err != nil {
-		return "", err
+		return taskFullID, err
 	}
 
-	return getTaskFullId(jobConfigId, jobRunId, taskId), nil
+	return taskFullID, nil
 }
 
 // readTasksFromSpanner takes in a map from task full id to Task and
-// batch reads the tasks rows with the given full ids. Only JobConfigId,
-// JobRunId, TaskId, and Status columns are read. Returns a spanner.RowIterator
+// batch reads the tasks rows with the given full ids. Only ProjectID, JobConfigID,
+// JobRunID, TaskID, and Status columns are read. Returns a spanner.RowIterator
 // that can be used to iterate over the read rows. (Does not modify idToTask.)
 func readTasksFromSpanner(ctx context.Context,
 	txn gcloud.ReadWriteTransaction,
@@ -369,15 +380,18 @@ func readTasksFromSpanner(ctx context.Context,
 
 	// Create a KeySet for all the tasks to be updated
 	for taskUpdate := range taskUpdateCollection.GetTaskUpdates() {
+		taskFullID := taskUpdate.Task.TaskFullID
 		keys = spanner.KeySets(
 			keys, spanner.Key{
-				taskUpdate.Task.JobConfigId,
-				taskUpdate.Task.JobRunId,
-				taskUpdate.Task.TaskId})
+				taskFullID.ProjectID,
+				taskFullID.JobConfigID,
+				taskFullID.JobRunID,
+				taskFullID.TaskID})
 	}
 
 	// Read the previous state of the tasks to be updated
 	return txn.Read(ctx, "Tasks", keys, []string{
+		"ProjectId",
 		"JobConfigId",
 		"JobRunId",
 		"TaskId",
@@ -400,11 +414,13 @@ func getTaskUpdateAndInsertMutations(ctx context.Context,
 
 	// Insert the tasks associated with the update task.
 	for i, insertTask := range insertTasks {
+		taskFullID := insertTask.TaskFullID
 		mutations[i] = spanner.Insert("Tasks", getTaskInsertColumns(),
 			[]interface{}{
-				insertTask.JobConfigId,
-				insertTask.JobRunId,
-				insertTask.TaskId,
+				taskFullID.ProjectID,
+				taskFullID.JobConfigID,
+				taskFullID.JobRunID,
+				taskFullID.TaskID,
 				insertTask.TaskType,
 				insertTask.TaskSpec,
 				Unqueued,
@@ -429,13 +445,16 @@ func getTaskUpdateAndInsertMutations(ctx context.Context,
 func getTaskUpdateMutations(mutations []*spanner.Mutation, task *Task, timestamp int64) []*spanner.Mutation {
 	// TODO(b/63100514): Define constants for spanner table names that can be
 	// shared across store and potentially infrastructure setup implementation.
-	var updateInputMap = make(map[string]interface{})
-	updateInputMap["JobConfigId"] = task.JobConfigId
-	updateInputMap["JobRunId"] = task.JobRunId
-	updateInputMap["TaskId"] = task.TaskId
-	updateInputMap["Status"] = task.Status
-	updateInputMap["TaskSpec"] = task.TaskSpec
-	updateInputMap["LastModificationTime"] = timestamp
+	taskFullID := task.TaskFullID
+	var updateInputMap = map[string]interface{}{
+		"ProjectId":            taskFullID.ProjectID,
+		"JobConfigId":          taskFullID.JobConfigID,
+		"JobRunId":             taskFullID.JobRunID,
+		"TaskId":               taskFullID.TaskID,
+		"Status":               task.Status,
+		"TaskSpec":             task.TaskSpec,
+		"LastModificationTime": timestamp,
+	}
 	if task.Status == Failed {
 		updateInputMap["FailureMessage"] = task.FailureMessage
 		updateInputMap["FailureType"] = int64(task.FailureType)
@@ -474,7 +493,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 			// can be updated. If they can be updated, update the task and insert
 			// the associated tasks.
 			err := iter.Do(func(row *spanner.Row) error {
-				taskId, err := getFullTaskIdFromRow(row)
+				taskID, err := getTaskFullIDFromRow(row)
 
 				// Grab the task spec from the row as well. It contains information
 				// used by task-specific semantics, and is critical for correctly updating status.
@@ -483,7 +502,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 				if err != nil {
 					return err
 				}
-				taskUpdate := tasks.GetTaskUpdate(taskId)
+				taskUpdate := tasks.GetTaskUpdate(taskID)
 				taskUpdate.Task.TaskSpec = taskSpec
 
 				// If there are any task-specific semantics that need to be part of the transaction, do
@@ -497,7 +516,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 
 				// As a safeguard, any task that is now unqueued must not have any "next" tasks set.
 				if taskUpdate.Task.Status == Unqueued && len(taskUpdate.NewTasks) > 0 {
-					return fmt.Errorf("unqueued task %s has 'next' tasks.", taskId)
+					return fmt.Errorf("unqueued task %s has 'next' tasks.", taskID)
 				}
 
 				validUpdate, oldStatus, err := isValidUpdate(row, taskUpdate.Task)
@@ -506,7 +525,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 				}
 				if !validUpdate {
 					log.Printf("Ignore updating task %s from status %d to status %d.",
-						taskId, oldStatus, taskUpdate.Task.Status)
+						taskID, oldStatus, taskUpdate.Task.Status)
 					return nil
 				}
 
@@ -555,7 +574,7 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 		case uploadGCSTaskType:
 			topic = copyTopic
 		default:
-			return errors.New(fmt.Sprintf("unknown Task, task id: %s.", task.TaskId))
+			return errors.New(fmt.Sprintf("unknown Task, task id: %v.", task.TaskFullID))
 		}
 
 		// Publish the messages.
@@ -618,16 +637,12 @@ func (s *SpannerStore) GetUnprocessedLogs(n int64) ([]*LogEntryRow, error) {
 			return nil, err
 		}
 		ler := new(LogEntryRow)
-		if err := row.ColumnByName("JobConfigId", &ler.JobConfigId); err != nil {
+		taskFullID, err := getTaskFullIDFromRow(row)
+		if err != nil {
 			return nil, err
 		}
-		if err := row.ColumnByName("JobRunId", &ler.JobRunId); err != nil {
-			return nil, err
-		}
-		if err := row.ColumnByName("TaskId", &ler.TaskId); err != nil {
-			return nil, err
-		}
-		if err := row.ColumnByName("LogEntryId", &ler.LogEntryId); err != nil {
+
+		if err := row.ColumnByName("LogEntryId", &ler.LogEntryID); err != nil {
 			return nil, err
 		}
 		if err := row.ColumnByName("CreationTime", &ler.CreationTime); err != nil {
@@ -648,6 +663,7 @@ func (s *SpannerStore) GetUnprocessedLogs(n int64) ([]*LogEntryRow, error) {
 		if err := row.ColumnByName("Processed", &ler.Processed); err != nil {
 			return nil, err
 		}
+		ler.TaskFullID = taskFullID
 		logEntryRows = append(logEntryRows, ler)
 	}
 	return logEntryRows, nil
@@ -673,9 +689,11 @@ func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 			func(ctx context.Context, txn gcloud.ReadWriteTransaction) error {
 				mutations := make([]*spanner.Mutation, len(txnRows))
 				for i, l := range txnRows {
+					taskFullID := l.TaskFullID
 					mutations[i] = spanner.Update(
 						"LogEntries",
 						[]string{
+							"ProjectId",
 							"JobConfigId",
 							"JobRunId",
 							"TaskId",
@@ -683,10 +701,11 @@ func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 							"Processed",
 						},
 						[]interface{}{
-							l.JobConfigId,
-							l.JobRunId,
-							l.TaskId,
-							l.LogEntryId,
+							taskFullID.ProjectID,
+							taskFullID.JobConfigID,
+							taskFullID.JobRunID,
+							taskFullID.TaskID,
+							l.LogEntryID,
 							true, /* Processed.*/
 						})
 				}
@@ -703,7 +722,7 @@ func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
 	var tasks []*Task
 	stmt := spanner.Statement{
-		SQL: `SELECT JobConfigId, JobRunId, TaskId, TaskType, TaskSpec
+		SQL: `SELECT ProjectId, JobConfigId, JobRunId, TaskId, TaskType, TaskSpec
           FROM Tasks@{FORCE_INDEX=TasksByStatus}
           WHERE Status = @status LIMIT @maxtasks`,
 		Params: map[string]interface{}{
@@ -721,16 +740,11 @@ func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
 		if err != nil {
 			return nil, err
 		}
-		task := new(Task)
-		if err := row.ColumnByName("JobConfigId", &task.JobConfigId); err != nil {
+		taskFullID, err := getTaskFullIDFromRow(row)
+		if err != nil {
 			return nil, err
 		}
-		if err := row.ColumnByName("JobRunId", &task.JobRunId); err != nil {
-			return nil, err
-		}
-		if err := row.ColumnByName("TaskId", &task.TaskId); err != nil {
-			return nil, err
-		}
+		task := &Task{TaskFullID: taskFullID}
 		if err := row.ColumnByName("TaskType", &task.TaskType); err != nil {
 			return nil, err
 		}

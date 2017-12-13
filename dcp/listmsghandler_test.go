@@ -31,15 +31,18 @@ import (
 )
 
 var (
-	jobConfigId string = "job_config_id_A"
-	jobRunId    string = "job_run_id_A"
-	taskId      string = "task_id_A"
+	testProjectID     string = "project_id_A"
+	testJobConfigID   string = "job_config_id_A"
+	testJobRunID      string = "job_run_id_A"
+	testTaskID        string = "task_id_A"
+	testTaskFullIDStr string = NewTaskFullID(
+		testProjectID, testJobConfigID, testJobRunID, testTaskID).String()
 )
 
 func listSuccessCompletionMessage() *TaskCompletionMessage {
 	return &TaskCompletionMessage{
-		FullTaskId: jobConfigId + ":" + jobRunId + ":" + taskId,
-		Status:     "SUCCESS",
+		TaskFullIDStr: testTaskFullIDStr,
+		Status:        "SUCCESS",
 		TaskParams: map[string]interface{}{
 			"dst_list_result_bucket":  "bucket1",
 			"dst_list_result_object":  "object",
@@ -54,14 +57,16 @@ func TestListProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 	handler := ListProgressMessageHandler{}
 
 	taskCompletionMessage := listSuccessCompletionMessage()
-	taskCompletionMessage.FullTaskId = "garbage"
+	taskCompletionMessage.TaskFullIDStr = "garbage"
 	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
 	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
-		t.Error("error is nil, expected error: can not parse full task id...")
-	} else if !strings.Contains(err.Error(), "can not parse") {
-		t.Errorf("expected error: %s, found: %s.", "can not parse full task id", err.Error())
+		t.Error("error is nil, expected error: cannot parse task id...")
+	} else if !strings.Contains(err.Error(), "cannot parse task id") {
+		t.Errorf(
+			"expected error to contain %s, found: %s.", "cannot parse task id",
+			err.Error())
 	}
 }
 
@@ -153,7 +158,7 @@ func TestListProgressMessageHandlerEmptyChannel(t *testing.T) {
 	}
 
 	_, err := handler.HandleMessage(jobSpec, listSuccessCompletionMessage())
-	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "")
+	errorMsg := fmt.Sprintf(noTaskIDInListOutput, testTaskFullIDStr, "")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	} else if err.Error() != errorMsg {
@@ -187,7 +192,7 @@ func TestListProgressMessageHandlerMismatchedTask(t *testing.T) {
 	}
 
 	_, err := handler.HandleMessage(jobSpec, listSuccessCompletionMessage())
-	errorMsg := fmt.Sprintf(noTaskIdInListOutput, "job_config_id_A:job_run_id_A:task_id_A", "task_id_B")
+	errorMsg := fmt.Sprintf(noTaskIDInListOutput, testTaskFullIDStr, "task_id_B")
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	} else if err.Error() != errorMsg {
@@ -204,7 +209,7 @@ func TestListProgressMessageHandlerMetadataError(t *testing.T) {
 	c := make(chan string)
 	go func() {
 		defer close(c)
-		c <- "job_config_id_A:job_run_id_A:task_id_A"
+		c <- testTaskFullIDStr
 		c <- "dir/file0"
 	}()
 	mockListReader.EXPECT().ReadListResult(context.Background(), "bucket1", "object").Return(c, nil)
@@ -247,17 +252,16 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	c := make(chan string)
 	go func() {
 		defer close(c)
-		c <- "job_config_id_A:job_run_id_A:task_id_A"
+		c <- testTaskFullIDStr
 		c <- "dir/file0"
 		c <- "dir/file1"
 	}()
 	mockListReader.EXPECT().ReadListResult(context.Background(), "bucket1", "object").Return(c, nil)
 
+	taskFullID := NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID)
 	listTask := &Task{
-		JobConfigId: jobConfigId,
-		JobRunId:    jobRunId,
-		TaskId:      "task_id_A",
-		TaskType:    listTaskType,
+		TaskFullID: *taskFullID,
+		TaskType:   listTaskType,
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
@@ -330,10 +334,11 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 
 		// Add task (sans spec) to our expected update.
 		expectedNewTask := &Task{
-			JobConfigId: jobConfigId,
-			JobRunId:    jobRunId,
-			TaskType:    uploadGCSTaskType,
-			TaskId:      GetUploadGCSTaskId("dir/file" + strconv.Itoa(i)),
+			TaskFullID: TaskFullID{
+				JobRunFullID: taskFullID.JobRunFullID,
+				TaskID:       GetUploadGCSTaskID("dir/file" + strconv.Itoa(i)),
+			},
+			TaskType: uploadGCSTaskType,
 		}
 
 		expectedTaskUpdate.NewTasks = append(expectedTaskUpdate.NewTasks, expectedNewTask)

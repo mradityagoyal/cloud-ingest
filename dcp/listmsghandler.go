@@ -16,16 +16,17 @@ limitations under the License.
 package dcp
 
 import (
-	"cloud.google.com/go/storage"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"log"
+
+	"cloud.google.com/go/storage"
 )
 
 const (
-	noTaskIdInListOutput string = ("expected task ID %s in first line of list task output file, but got %s")
+	noTaskIDInListOutput string = ("expected task ID %s in first line of list task output file, but got %s")
 )
 
 type ListProgressMessageHandler struct {
@@ -89,15 +90,15 @@ func (h *ListProgressMessageHandler) HandleMessage(
 			listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject, err)
 		return nil, err
 	}
-	taskIdFromFile := <-filePaths
+	taskFullIDFromFile := <-filePaths
 
-	if taskIdFromFile != task.getTaskFullId() {
+	if taskFullIDFromFile != task.TaskFullID.String() {
 		return nil, errors.New(
-			fmt.Sprintf(noTaskIdInListOutput, task.getTaskFullId(), taskIdFromFile))
+			fmt.Sprintf(noTaskIDInListOutput, task.TaskFullID, taskFullIDFromFile))
 	}
 	var newTasks []*Task
 	for filePath := range filePaths {
-		uploadGCSTaskId := GetUploadGCSTaskId(filePath)
+		uploadGCSTaskID := GetUploadGCSTaskID(filePath)
 		dstObject := GetRelPathOsAgnostic(listTaskSpec.SrcDirectory, filePath)
 
 		generationNumber, err := h.retrieveGenerationNumber(ctx, jobSpec.GCSBucket, dstObject)
@@ -122,11 +123,9 @@ func (h *ListProgressMessageHandler) HandleMessage(
 			return nil, err
 		}
 		newTasks = append(newTasks, &Task{
-			JobConfigId: task.JobConfigId,
-			JobRunId:    task.JobRunId,
-			TaskId:      uploadGCSTaskId,
-			TaskType:    uploadGCSTaskType,
-			TaskSpec:    string(uploadGCSTaskSpecJson),
+			TaskFullID: TaskFullID{task.TaskFullID.JobRunFullID, uploadGCSTaskID},
+			TaskType:   uploadGCSTaskType,
+			TaskSpec:   string(uploadGCSTaskSpecJson),
 		})
 	}
 	taskUpdate.NewTasks = newTasks
