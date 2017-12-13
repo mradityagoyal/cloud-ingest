@@ -197,12 +197,12 @@ _INITIAL_COUNTERS_DICT = {
     'tasksUnqueuedCopy': 0
 }
 
-def _get_task_spec_first_list_task(job_spec_dict, config_id):
+def _get_task_spec_first_list_task(job_spec_dict, project_id, config_id):
     """
     Gets the task spec for the first list task from a job spec dictionary.
     """
-    list_result_object_name = 'list-task-output-%s-%s-%s' % (config_id,
-        _FIRST_JOB_RUN_ID, _LIST_TASK_ID)
+    list_result_object_name = 'list-task-output-%s-%s-%s-%s' % (project_id,
+        config_id, _FIRST_JOB_RUN_ID, _LIST_TASK_ID)
     task_spec = {
         'src_directory': job_spec_dict['onPremSrcDirectory'],
         'dst_list_result_bucket': job_spec_dict['gcsBucket'],
@@ -214,7 +214,7 @@ def _get_task_spec_first_list_task(job_spec_dict, config_id):
 # TODO(b/65943019): The web console should not schedule the job runs and
 # should not create the first task. Remove that after the functionality
 # is added to the DCP.
-def _create_new_job_transaction(transaction, config_id, job_spec):
+def _create_new_job_transaction(transaction, project_id, config_id, job_spec):
     """Creates a new job on the JobConfigs, JobRuns table and inserts the first
        list task on the tasks table.
 
@@ -225,22 +225,22 @@ def _create_new_job_transaction(transaction, config_id, job_spec):
     """
     run_id = _FIRST_JOB_RUN_ID
     task_spec_json = json.dumps(_get_task_spec_first_list_task(job_spec,
-        config_id))
+        project_id, config_id))
     job_spec_json = json.dumps(job_spec)
     current_time_nanos = util.get_unix_nano()
     transaction.insert(SpannerWrapper.JOB_CONFIGS_TABLE,
         columns=SpannerWrapper.JOB_CONFIGS_COLUMNS,
-        values=[(config_id, job_spec_json)])
+        values=[(project_id, config_id, job_spec_json)])
     # The job status is set to in counters because the first list
     # task is manually inserted. When the logic in the DCP is changed,
     # new jobs should be inserted with a status of not started.
     transaction.insert(SpannerWrapper.JOB_RUNS_TABLE,
         columns=SpannerWrapper.JOB_RUNS_COLUMNS,
-        values=[(config_id, run_id, JobRunStatus.IN_PROGRESS, current_time_nanos,
-        json.dumps(_INITIAL_COUNTERS_DICT))])
+        values=[(project_id, config_id, run_id, JobRunStatus.IN_PROGRESS,
+        current_time_nanos, json.dumps(_INITIAL_COUNTERS_DICT))])
     transaction.insert(SpannerWrapper.TASKS_TABLE,
-        columns=SpannerWrapper.TASKS_COLUMNS, values=[(config_id, run_id,
-        _LIST_TASK_ID, current_time_nanos, current_time_nanos,
+        columns=SpannerWrapper.TASKS_COLUMNS, values=[(project_id, config_id,
+        run_id, _LIST_TASK_ID, current_time_nanos, current_time_nanos,
         TaskStatus.UNQUEUED, task_spec_json, TaskType.LIST)])
 
 class SpannerWrapper(object):
@@ -253,17 +253,18 @@ class SpannerWrapper(object):
         Unauthorized - Not properly authorized
     """
     JOB_CONFIGS_TABLE = "JobConfigs"
+    PROJECT_ID = "ProjectId"
     JOB_CONFIG_ID = "JobConfigId"
     JOB_SPEC = "JobSpec"
-    JOB_CONFIGS_COLUMNS = [JOB_CONFIG_ID, JOB_SPEC]
+    JOB_CONFIGS_COLUMNS = [PROJECT_ID, JOB_CONFIG_ID, JOB_SPEC]
 
     JOB_RUNS_TABLE = "JobRuns"
     JOB_RUN_ID = "JobRunId"
     JOB_CREATION_TIME = "JobCreationTime"
     STATUS = "Status"
     COUNTERS = "Counters"
-    JOB_RUNS_COLUMNS = [JOB_CONFIG_ID, JOB_RUN_ID, STATUS, JOB_CREATION_TIME,
-                        COUNTERS]
+    JOB_RUNS_COLUMNS = [PROJECT_ID, JOB_CONFIG_ID, JOB_RUN_ID, STATUS,
+                        JOB_CREATION_TIME, COUNTERS]
 
     TASKS_TABLE = "Tasks"
     TASK_ID = "TaskId"
@@ -281,7 +282,7 @@ class SpannerWrapper(object):
     TASK_BY_STATUS_INDEX_NAME = "TasksByStatus"
     BY_FAILURE_TYPE_INDEX_NAME = "TasksByFailureType"
     TASKS_COLUMNS = [
-        JOB_CONFIG_ID, JOB_RUN_ID, TASK_ID, TASK_CREATION_TIME,
+        PROJECT_ID, JOB_CONFIG_ID, JOB_RUN_ID, TASK_ID, TASK_CREATION_TIME,
         LAST_MODIFICATION_TIME, STATUS, TASK_SPEC, TASK_TYPE]
 
     # Used to limit the number of rows to avoid OOM errors
@@ -341,7 +342,7 @@ class SpannerWrapper(object):
             job_spec: A dictionary representing the job spec to use for the job.
         """
         self.database.run_in_transaction(_create_new_job_transaction,
-            config_id, jobspec)
+            self.project_id, config_id, jobspec)
 
     def get_tasks_of_status(self, config_id, task_status,
         last_modified_before=None):

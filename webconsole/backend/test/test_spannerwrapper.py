@@ -31,6 +31,8 @@ from spannerwrapper import SpannerWrapper
 # is a relative import. Fix has been merged and will be included in
 # next version of pylint (current version 1.7.2).
 
+PROJECT_ID_1 = u'test-project1'
+PROJECT_ID_2 = u'test-project2'
 JOB_CONFIG_ID_1 = u'test-config1'
 JOB_CONFIG_ID_2 = u'test-config2'
 JOB_SPEC_1 = {u'srcDir': u'usr/home/'}
@@ -72,16 +74,19 @@ class TestSpannerWrapper(unittest.TestCase):
     def test_get_job_configs(self):
         """Asserts that two job configs are successfully returned."""
         result = MagicMock()
-        result.__iter__.return_value = [[JOB_CONFIG_ID_1, JOB_SPEC_STR_1],
-                                        [JOB_CONFIG_ID_2, JOB_SPEC_STR_2]]
+        result.__iter__.return_value = [
+            [PROJECT_ID_1, JOB_CONFIG_ID_1, JOB_SPEC_STR_1],
+            [PROJECT_ID_2, JOB_CONFIG_ID_2, JOB_SPEC_STR_2]]
         result.fields = self.get_fields_list(
             SpannerWrapper.JOB_CONFIGS_COLUMNS)
         self.snapshot.execute_sql.return_value = result
 
         actual = self.spanner_wrapper.get_job_configs()
-        expected = [{u'JobConfigId': JOB_CONFIG_ID_1,
+        expected = [{u'ProjectId': PROJECT_ID_1,
+                     u'JobConfigId': JOB_CONFIG_ID_1,
                      u'JobSpec': JOB_SPEC_1},
-                    {u'JobConfigId': JOB_CONFIG_ID_2,
+                    {u'ProjectId': PROJECT_ID_2,
+                     u'JobConfigId': JOB_CONFIG_ID_2,
                      u'JobSpec': JOB_SPEC_2}]
         self.assertEqual(actual, expected)
 
