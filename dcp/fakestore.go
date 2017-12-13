@@ -68,7 +68,7 @@ func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) erro
 	return nil
 }
 
-func (s *FakeStore) QueueTasks(n int, listTopic, copyTopic *pubsub.Topic) error {
+func (s *FakeStore) QueueTasks(n int, listTopic, processListTopic, copyTopic *pubsub.Topic) error {
 	return errors.New("QueueTasks: Not implemented.")
 }
 

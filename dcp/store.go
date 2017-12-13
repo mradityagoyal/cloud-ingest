@@ -17,6 +17,7 @@ package dcp
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -50,7 +51,7 @@ type Store interface {
 	// queued.
 	// TODO(b/63015068): This method should be generic and should get arbitrary
 	// number of topics to publish to.
-	QueueTasks(n int, listTopic, copyTopic *pubsub.Topic) error
+	QueueTasks(n int, listTopic, processListTopic, copyTopic *pubsub.Topic) error
 
 	// GetNumUnprocessedLogs returns the number of rows in the LogEntries table
 	// with the 'Processed' column set to false. Any errors result in returning
@@ -514,11 +515,6 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 					}
 				}
 
-				// As a safeguard, any task that is now unqueued must not have any "next" tasks set.
-				if taskUpdate.Task.Status == Unqueued && len(taskUpdate.NewTasks) > 0 {
-					return fmt.Errorf("unqueued task %s has 'next' tasks.", taskID)
-				}
-
 				validUpdate, oldStatus, err := isValidUpdate(row, taskUpdate.Task)
 				if err != nil {
 					return err
@@ -551,7 +547,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 	return err
 }
 
-func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pubsub.Topic) error {
+func (s *SpannerStore) QueueTasks(n int, listTopic, processListTopic, copyTopic *pubsub.Topic) error {
 	tasks, err := s.getUnqueuedTasks(n)
 	if err != nil {
 		return err
@@ -571,6 +567,8 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 		switch task.TaskType {
 		case listTaskType:
 			topic = listTopic
+		case processListTaskType:
+			topic = processListTopic
 		case uploadGCSTaskType:
 			topic = copyTopic
 		default:
@@ -581,6 +579,17 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 		// TODO(b/63018625): Adjust the PubSub publish settings to control batching
 		// the messages and the timeout to publish any set of messages.
 		taskMsgJSON, err := constructPubSubTaskMsg(task)
+
+		// TODO(b/70795078) We should be consistent about encoding our PubSub messages.
+		//
+		// We don't base64 encode messages we send to the agent, but the agent does
+		// base64-encode messages it sends back. The receiver expects messages to
+		// be base-64 encoded. Since this message is being sent to a DCP from a
+		// DCP, we need to base-64 encode it so the receiver works.
+		if task.TaskType == processListTaskType {
+			taskMsgJSON = []byte(base64.StdEncoding.EncodeToString(taskMsgJSON))
+		}
+
 		if err != nil {
 			log.Printf("Unable to form task msg from task: %v with error: %v.",
 				task, err)
@@ -593,6 +602,7 @@ func (s *SpannerStore) QueueTasks(n int, listTopic *pubsub.Topic, copyTopic *pub
 	}
 	for _, publishResult := range publishResults {
 		if _, err := publishResult.Get(context.Background()); err != nil {
+			log.Println("PubSub publish error:", err)
 			messagesPublished = false
 			break
 		}

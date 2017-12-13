@@ -97,6 +97,7 @@ class InfraUtilTest(unittest.TestCase):
             "pubsubStatus": {
                 "list": ResourceStatus.RUNNING,
                 "listProgress": ResourceStatus.UNKNOWN,
+                "processList": ResourceStatus.UNKNOWN,
                 "uploadGCS": ResourceStatus.DELETING,
                 "uploadGCSProgress": ResourceStatus.RUNNING
             },

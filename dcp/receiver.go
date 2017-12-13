@@ -135,8 +135,8 @@ func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
 		taskUpdate, err := r.Handler.HandleMessage(jobSpec, taskCompletionMessage)
 		if err != nil {
 			log.Printf(
-				"Error handling the message: %s, for with job spec: %v, and taskCompletionMessage: %v: %v",
-				string(msg.Data), jobSpec, taskCompletionMessage, err)
+				"Error handling the message: %s, with job spec: %v, and taskCompletionMessage: %v: %v",
+				string(decodedMsg), jobSpec, taskCompletionMessage, err)
 			return
 		}
 

@@ -33,15 +33,16 @@ func (m *MockListingResultReader) EXPECT() *MockListingResultReaderMockRecorder 
 	return m.recorder
 }
 
-// ReadListResult mocks base method
-func (m *MockListingResultReader) ReadListResult(ctx context.Context, bucketName, objectName string) (chan string, error) {
-	ret := m.ctrl.Call(m, "ReadListResult", ctx, bucketName, objectName)
-	ret0, _ := ret[0].(chan string)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+// ReadLines mocks base method
+func (m *MockListingResultReader) ReadLines(ctx context.Context, bucket, object string, offset, maxLines int64) ([]string, int64, error) {
+	ret := m.ctrl.Call(m, "ReadLines", ctx, bucket, object, offset, maxLines)
+	ret0, _ := ret[0].([]string)
+	ret1, _ := ret[1].(int64)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
-// ReadListResult indicates an expected call of ReadListResult
-func (mr *MockListingResultReaderMockRecorder) ReadListResult(ctx, bucketName, objectName interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadListResult", reflect.TypeOf((*MockListingResultReader)(nil).ReadListResult), ctx, bucketName, objectName)
+// ReadLines indicates an expected call of ReadLines
+func (mr *MockListingResultReaderMockRecorder) ReadLines(ctx, bucket, object, offset, maxLines interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadLines", reflect.TypeOf((*MockListingResultReader)(nil).ReadLines), ctx, bucket, object, offset, maxLines)
 }

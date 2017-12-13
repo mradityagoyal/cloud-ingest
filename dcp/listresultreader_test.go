@@ -17,7 +17,7 @@ package dcp
 
 import (
 	"context"
-	"reflect"
+	"io"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -30,11 +30,13 @@ func TestReadListResultError(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
-	mockGcs.EXPECT().NewReader(gomock.Any(), gomock.Any(), gomock.Any()).Return(nil, storage.ErrObjectNotExist)
+	mockGcs.EXPECT().
+		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(nil, storage.ErrObjectNotExist)
 
 	reader := NewGCSListingResultReader(mockGcs)
 
-	_, err := reader.ReadListResult(context.Background(), "bucket", "object")
+	_, _, err := reader.ReadLines(context.Background(), "bucket", "object", 0, 5)
 
 	if err == nil {
 		t.Errorf("Expected error '%v', but got <nil>", storage.ErrObjectNotExist)
@@ -47,27 +49,151 @@ func TestReadListResultSuccess(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := NewStringReadCloser("line1\nline2\n")
+	src := NewStringReadCloser("junkid\nline1\nline2\nline3\nline4")
 	mockGcs.EXPECT().
-		NewReader(gomock.Any(), gomock.Any(), gomock.Any()).
+		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
 
 	reader := NewGCSListingResultReader(mockGcs)
 
-	result, err := reader.ReadListResult(context.Background(), "bucket", "object")
-
+	startingOffset := int64(0)
+	lines, endingOffset, err := reader.ReadLines(context.Background(), "bucket", "object", startingOffset, 3)
 	if err != nil {
 		t.Errorf("Expected no error, but got '%v'", err)
 	}
 
-	lines := make([]string, 0)
-	for line := range result {
-		lines = append(lines, line)
+	expectedLines := []string{"line1", "line2", "line3"}
+	if len(expectedLines) != len(lines) {
+		t.Errorf("Wrong number of lines returned (actual %v vs expected %v)", len(lines), len(expectedLines))
+	} else {
+		for i := range lines {
+			if lines[i] != expectedLines[i] {
+				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, lines[i], expectedLines[i])
+			}
+		}
 	}
 
-	expected := []string{"line1", "line2"}
-	if !reflect.DeepEqual(expected, lines) {
-		t.Errorf("Expected %v, but got %v", expected, lines)
+	if endingOffset <= startingOffset {
+		t.Errorf("Expected endingOffset > startingOffset (endingOffset %v vs startingOffset %v)", endingOffset, startingOffset)
+	}
+
+	if !src.closed {
+		t.Error("Did not close the reader.")
+	}
+}
+
+func TestReadListResultNonzeroOffset(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
+
+	src := NewStringReadCloser("line2\nline3\nline4\nline5\bline6")
+	mockGcs.EXPECT().
+		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(src, nil)
+
+	reader := NewGCSListingResultReader(mockGcs)
+
+	// Note that since the StringReadCloser is mocked here, the "line2\nline3..." is what is
+	// returned as if the startingOffset was 12.
+	startingOffset := int64(12)
+	lines, endingOffset, err := reader.ReadLines(context.Background(), "bucket", "object", startingOffset, 3)
+	if err != nil {
+		t.Errorf("Expected no error, but got '%v'", err)
+	}
+
+	expectedLines := []string{"line2", "line3", "line4"}
+	if len(expectedLines) != len(lines) {
+		t.Errorf("Wrong number of lines returned (actual %v vs expected %v)", len(lines), len(expectedLines))
+	} else {
+		for i := range lines {
+			if lines[i] != expectedLines[i] {
+				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, lines[i], expectedLines[i])
+			}
+		}
+	}
+
+	if endingOffset <= startingOffset {
+		t.Errorf("Expected endingOffset > startingOffset (endingOffset %v vs startingOffset %v)", endingOffset, startingOffset)
+	}
+
+	if !src.closed {
+		t.Error("Did not close the reader.")
+	}
+}
+
+func TestReadListResultEOF(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
+
+	src := NewStringReadCloser("junkid\nline with spaces\nline2")
+	mockGcs.EXPECT().
+		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(src, nil)
+
+	reader := NewGCSListingResultReader(mockGcs)
+
+	startingOffset := int64(0)
+	lines, endingOffset, err := reader.ReadLines(context.Background(), "bucket", "object", startingOffset, 3)
+	if err != io.EOF {
+		t.Errorf("Expected io.EOF error, but got '%v'", err)
+	}
+
+	expectedLines := []string{"line with spaces", "line2"}
+	if len(expectedLines) != len(lines) {
+		t.Errorf("Wrong number of lines returned (actual %v vs expected %v)", len(lines), len(expectedLines))
+	} else {
+		for i := range lines {
+			if lines[i] != expectedLines[i] {
+				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, lines[i], expectedLines[i])
+			}
+		}
+	}
+
+	if endingOffset <= startingOffset {
+		t.Errorf("Expected endingOffset > startingOffset (endingOffset %v vs startingOffset %v)", endingOffset, startingOffset)
+	}
+
+	if !src.closed {
+		t.Error("Did not close the reader.")
+	}
+}
+
+func TestReadListResultMaxLinesEOF(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
+
+	src := NewStringReadCloser("some line\nthe last line")
+	mockGcs.EXPECT().
+		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		Return(src, nil)
+
+	reader := NewGCSListingResultReader(mockGcs)
+
+	startingOffset := int64(123)
+	lines, endingOffset, err := reader.ReadLines(context.Background(), "bucket", "object", startingOffset, 2)
+	if err != io.EOF {
+		t.Errorf("Expected io.EOF error, but got '%v'", err)
+	}
+
+	expectedLines := []string{"some line", "the last line"}
+	if len(expectedLines) != len(lines) {
+		t.Errorf("Wrong number of lines returned (actual %v vs expected %v)", len(lines), len(expectedLines))
+	} else {
+		for i := range lines {
+			if lines[i] != expectedLines[i] {
+				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, lines[i], expectedLines[i])
+			}
+		}
+	}
+
+	if endingOffset <= startingOffset {
+		t.Errorf("Expected endingOffset > startingOffset (endingOffset %v vs startingOffset %v)", endingOffset, startingOffset)
 	}
 
 	if !src.closed {

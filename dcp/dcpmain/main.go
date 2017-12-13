@@ -32,9 +32,11 @@ import (
 
 const (
 	listProgressSubscription string = "cloud-ingest-list-progress"
+	processListSubscription string = "cloud-ingest-process-list"
 	copyProgressSubscription string = "cloud-ingest-copy-progress"
 
 	listTopic string = "cloud-ingest-list"
+	processListTopic string = "cloud-ingest-process-list"
 	copyTopic string = "cloud-ingest-copy"
 
 	spannerInstance string = "cloud-ingest-spanner-instance"
@@ -66,10 +68,10 @@ func init() {
 // GetQueueTasksClosure returns a function that calls the function QueueTasks
 // on the given store with the given values as the parameters.
 func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
-	listTopic *pubsub.Topic, copyTopic *pubsub.Topic) func() error {
+	listTopic, processListTopic, copyTopic *pubsub.Topic) func() error {
 
 	return func() error {
-		return store.QueueTasks(num, listTopic, copyTopic)
+		return store.QueueTasks(num, listTopic, processListTopic, copyTopic)
 	}
 }
 
@@ -85,9 +87,11 @@ func main() {
 		os.Exit(1)
 	}
 	listProgressSub := pubSubClient.Subscription(listProgressSubscription)
+	processListSub := pubSubClient.Subscription(processListSubscription)
 	copyProgressSub := pubSubClient.Subscription(copyProgressSubscription)
 
 	listTopic := pubSubClient.Topic(listTopic)
+	processListTopic := pubSubClient.Topic(processListTopic)
 	copyTopic := pubSubClient.Topic(copyTopic)
 
 	spannerGCloudClient, err := spanner.NewClient(ctx, database)
@@ -110,8 +114,15 @@ func main() {
 		Sub:   listProgressSub,
 		Store: store,
 		Handler: &dcp.ListProgressMessageHandler{
-			ListingResultReader:  dcp.NewGCSListingResultReader(gcsClient),
 			ObjectMetadataReader: metadataReader,
+		},
+	}
+
+	processListReceiver := dcp.MessageReceiver{
+		Sub:   processListSub,
+		Store: store,
+		Handler: &dcp.ProcessListMessageHandler{
+			ListingResultReader:  dcp.NewGCSListingResultReader(gcsClient),
 		},
 	}
 
@@ -124,6 +135,7 @@ func main() {
 	}
 
 	go listingReceiver.ReceiveMessages(ctx)
+	go processListReceiver.ReceiveMessages(ctx)
 	go uploadGCSReceiver.ReceiveMessages(ctx)
 
 	// The LogEntryProcessor will continuously export logs from the "LogEntries"
@@ -138,7 +150,7 @@ func main() {
 			maxQueueTasksSleepTime,
 			maxNumFailures,
 			"QueueTasks",
-			GetQueueTasksClosure(store, tasksToQueue, listTopic, copyTopic),
+			GetQueueTasksClosure(store, tasksToQueue, listTopic, processListTopic, copyTopic),
 		)
 		if err != nil {
 			log.Printf("Error in queueing tasks: %v.", err)

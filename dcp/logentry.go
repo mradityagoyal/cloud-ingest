@@ -249,7 +249,7 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int6
 			jobSpec, err := lep.Store.GetJobSpec(jobConfigFullID)
 			if err != nil {
 				// TODO(b/69171696): We need to figure out how to
-				// grabefully handle this situation.
+				// gracefully handle this situation.
 				log.Println("Error getting JobSpec:", err)
 				return
 			}

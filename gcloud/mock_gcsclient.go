@@ -96,17 +96,17 @@ func (mr *MockGCSMockRecorder) ListObjects(ctx, bucketName, query interface{}) *
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListObjects", reflect.TypeOf((*MockGCS)(nil).ListObjects), ctx, bucketName, query)
 }
 
-// NewReader mocks base method
-func (m *MockGCS) NewReader(ctx context.Context, bucketName, objectName string) (io.ReadCloser, error) {
-	ret := m.ctrl.Call(m, "NewReader", ctx, bucketName, objectName)
+// NewRangeReader mocks base method
+func (m *MockGCS) NewRangeReader(ctx context.Context, bucketName, objectName string, offset, length int64) (io.ReadCloser, error) {
+	ret := m.ctrl.Call(m, "NewRangeReader", ctx, bucketName, objectName, offset, length)
 	ret0, _ := ret[0].(io.ReadCloser)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// NewReader indicates an expected call of NewReader
-func (mr *MockGCSMockRecorder) NewReader(ctx, bucketName, objectName interface{}) *gomock.Call {
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewReader", reflect.TypeOf((*MockGCS)(nil).NewReader), ctx, bucketName, objectName)
+// NewRangeReader indicates an expected call of NewRangeReader
+func (mr *MockGCSMockRecorder) NewRangeReader(ctx, bucketName, objectName, offset, length interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewRangeReader", reflect.TypeOf((*MockGCS)(nil).NewRangeReader), ctx, bucketName, objectName, offset, length)
 }
 
 // NewWriter mocks base method

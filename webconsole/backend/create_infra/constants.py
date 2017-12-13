@@ -25,7 +25,9 @@ LIST_TOPIC = 'cloud-ingest-list'
 LIST_SUBSCRIPTION = LIST_TOPIC
 LIST_PROGRESS_TOPIC = 'cloud-ingest-list-progress'
 LIST_PROGRESS_SUBSCRIPTION = LIST_PROGRESS_TOPIC
-
+PROCESS_LIST_TOPIC = 'cloud-ingest-process-list'
+PROCESS_LIST_SUBSCRIPTION = PROCESS_LIST_TOPIC
+# Note: There is no 'progress' topic/sub for list processing.
 UPLOAD_GCS_TOPIC = 'cloud-ingest-copy'
 UPLOAD_GCS_SUBSCRIPTION = UPLOAD_GCS_TOPIC
 UPLOAD_GCS_PROGRESS_TOPIC = 'cloud-ingest-copy-progress'

@@ -18,19 +18,12 @@ package dcp
 import (
 	"context"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"log"
 
 	"cloud.google.com/go/storage"
 )
 
-const (
-	noTaskIDInListOutput string = ("expected task ID %s in first line of list task output file, but got %s")
-)
-
 type ListProgressMessageHandler struct {
-	ListingResultReader  ListingResultReader
 	ObjectMetadataReader ObjectMetadataReader
 }
 
@@ -56,8 +49,8 @@ func (h *ListProgressMessageHandler) HandleMessage(
 		return nil, err
 	}
 
-	taskUpdate.Task.TaskType = listTaskType // Set the type first.
 	task := taskUpdate.Task
+	task.TaskType = listTaskType
 
 	listTaskSpec, err := NewListTaskSpecFromMap(taskUpdate.OriginalTaskParams)
 	if err != nil {
@@ -82,51 +75,27 @@ func (h *ListProgressMessageHandler) HandleMessage(
 		return taskUpdate, nil
 	}
 
-	filePaths, err := h.ListingResultReader.ReadListResult(
-		ctx, listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
+	// Create the "process list" task.
+	processListTaskSpec := ProcessListTaskSpec{
+		DstListResultBucket: listTaskSpec.DstListResultBucket,
+		DstListResultObject: listTaskSpec.DstListResultObject,
+		SrcDirectory: listTaskSpec.SrcDirectory,
+		ByteOffset: 0,
+	}
+	processListTaskSpecJson, err := json.Marshal(processListTaskSpec);
 	if err != nil {
-		log.Printf(
-			"Error reading the list task result, bucket/object: %v/%v, with error: %v.",
-			listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject, err)
+		log.Printf("Error encoding task spec to JSON string, task spec: %v, err: %v.",
+			processListTaskSpec, err)
 		return nil, err
 	}
-	taskFullIDFromFile := <-filePaths
-
-	if taskFullIDFromFile != task.TaskFullID.String() {
-		return nil, errors.New(
-			fmt.Sprintf(noTaskIDInListOutput, task.TaskFullID, taskFullIDFromFile))
-	}
-	var newTasks []*Task
-	for filePath := range filePaths {
-		uploadGCSTaskID := GetUploadGCSTaskID(filePath)
-		dstObject := GetRelPathOsAgnostic(listTaskSpec.SrcDirectory, filePath)
-
-		generationNumber, err := h.retrieveGenerationNumber(ctx, jobSpec.GCSBucket, dstObject)
-		if err != nil {
-			log.Printf(
-				"Error reading file metadata for %s:%s, err: %v.",
-				jobSpec.GCSBucket, filePath, err)
-			return nil, err
-		}
-
-		uploadGCSTaskSpec := UploadGCSTaskSpec{
-			SrcFile:               filePath,
-			DstBucket:             jobSpec.GCSBucket,
-			DstObject:             dstObject,
-			ExpectedGenerationNum: generationNumber,
-		}
-		uploadGCSTaskSpecJson, err := json.Marshal(uploadGCSTaskSpec)
-		if err != nil {
-			log.Printf(
-				"Error encoding task spec to JSON string, task spec: %v, err: %v.",
-				uploadGCSTaskSpec, err)
-			return nil, err
-		}
-		newTasks = append(newTasks, &Task{
-			TaskFullID: TaskFullID{task.TaskFullID.JobRunFullID, uploadGCSTaskID},
-			TaskType:   uploadGCSTaskType,
-			TaskSpec:   string(uploadGCSTaskSpecJson),
-		})
+	processListTaskId := GetProcessListTaskID(
+		listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
+	newTasks := []*Task{
+		&Task{
+			TaskFullID: TaskFullID{task.TaskFullID.JobRunFullID, processListTaskId},
+			TaskSpec:   string(processListTaskSpecJson),
+			TaskType:   processListTaskType,
+		},
 	}
 	taskUpdate.NewTasks = newTasks
 

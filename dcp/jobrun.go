@@ -35,6 +35,7 @@ const (
 	KeyTasksUnqueued  string = "tasksUnqueued"
 
 	KeySuffixList string = "List"
+	KeySuffixProcessList string = "ProcessList"
 	KeySuffixCopy string = "Copy"
 
 	// Keys for the log entry counters.
@@ -197,6 +198,8 @@ func CounterSuffix(task *Task) (string, error) {
 	switch task.TaskType {
 	case listTaskType:
 		return KeySuffixList, nil
+	case processListTaskType:
+		return KeySuffixProcessList, nil
 	case uploadGCSTaskType:
 		return KeySuffixCopy, nil
 	default:

@@ -18,16 +18,19 @@ package dcp
 import (
 	"bufio"
 	"context"
+	"io"
+
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 )
 
 // ListResultReader is the interface that reads the listing task results from a
 // GCS object.
 type ListingResultReader interface {
-	// ReadListResult reads the listing task result from the GCS object identified
-	// by bucketName and objectName. It returns a string channel that contains the
-	// listed objects.
-	ReadListResult(ctx context.Context, bucketName string, objectName string) (chan string, error)
+	// ReadLines reads the listing task result from the GCS object identified by
+	// bucket and object. It returns a slice of line entries (string) with maxLines or
+	// fewer entries, and the new byte offset. When there are no more lines to be read
+	// the error will io.EOF.
+	ReadLines(ctx context.Context, bucket, object string, offset, maxLines int64) ([]string, int64, error)
 }
 
 type GCSListingResultReader struct {
@@ -38,22 +41,42 @@ func NewGCSListingResultReader(gcs gcloud.GCS) *GCSListingResultReader {
 	return &GCSListingResultReader{gcs}
 }
 
-func (r *GCSListingResultReader) ReadListResult(ctx context.Context, bucketName string, objectName string) (chan string, error) {
-	c := make(chan string)
-
-	sr, err := r.gcs.NewReader(ctx, bucketName, objectName)
+func (r *GCSListingResultReader) ReadLines(ctx context.Context, bucket, object string, offset, maxLines int64) ([]string, int64, error) {
+	sr, err := r.gcs.NewRangeReader(ctx, bucket, object, offset, -1)
 	if err != nil {
-		return nil, err
+		return nil, offset, err
 	}
+	defer sr.Close()
 
-	go func() {
-		defer close(c)
-		defer sr.Close()
+	discardedFirstEntry := false
 
-		scanner := bufio.NewScanner(sr)
-		for scanner.Scan() {
-			c <- scanner.Text()
+	lines := make([]string, 0, maxLines)
+	scanner := bufio.NewScanner(sr)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		if offset == 0 && !discardedFirstEntry {
+			// TODO(b/70793941): Remove the unused first line from the GCS listing file.
+			discardedFirstEntry = true
+			offset += int64(len(line)) + 1 // Extra byte for the stripped \n.
+			continue
 		}
-	}()
-	return c, nil
+
+		offset += int64(len(line)) + 1 // Extra byte for the stripped \n.
+
+		lines = append(lines, scanner.Text())
+		if int64(len(lines)) >= maxLines {
+			// Check if this is the last line of the GCS listing file.
+			if !scanner.Scan() {
+				if err := scanner.Err(); err == nil {
+					return lines, offset, io.EOF
+				}
+			}
+			return lines, offset, nil
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, offset, err
+	}
+	return lines, offset, io.EOF
 }

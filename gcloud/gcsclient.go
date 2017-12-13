@@ -31,7 +31,7 @@ type GCS interface {
 	DeleteObject(ctx context.Context, bucketName string, objectName string) error
 	GetAttrs(ctx context.Context, bucketName string, objectName string) (*storage.ObjectAttrs, error)
 	ListObjects(ctx context.Context, bucketName string, query *storage.Query) ObjectIterator
-	NewReader(ctx context.Context, bucketName string, objectName string) (io.ReadCloser, error)
+	NewRangeReader(ctx context.Context, bucketName string, objectName string, offset, length int64) (io.ReadCloser, error)
 	NewWriter(ctx context.Context, bucketName string, objectName string) io.WriteCloser
 }
 
@@ -71,8 +71,8 @@ func (gcs *GCSClient) ListObjects(ctx context.Context, bucketName string, query 
 	return gcs.client.Bucket(bucketName).Objects(ctx, query)
 }
 
-func (gcs *GCSClient) NewReader(ctx context.Context, bucketName string, objectName string) (io.ReadCloser, error) {
-	return gcs.client.Bucket(bucketName).Object(objectName).NewReader(ctx)
+func (gcs *GCSClient) NewRangeReader(ctx context.Context, bucketName string, objectName string, offset, length int64) (io.ReadCloser, error) {
+	return gcs.client.Bucket(bucketName).Object(objectName).NewRangeReader(ctx, offset, length)
 }
 
 func (gcs *GCSClient) NewWriter(ctx context.Context, bucketName string, objectName string) io.WriteCloser {

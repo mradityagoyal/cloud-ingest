@@ -36,6 +36,8 @@ _TOPICS_SUBSCRIPTIONS = {
              [constants.LIST_SUBSCRIPTION], 30),
     'listProgress': (constants.LIST_PROGRESS_TOPIC,
                      [constants.LIST_PROGRESS_SUBSCRIPTION], 30),
+    'processList': (constants.PROCESS_LIST_TOPIC,
+                    [constants.PROCESS_LIST_SUBSCRIPTION], 30),
     'uploadGCS': (constants.UPLOAD_GCS_TOPIC,
                   [constants.UPLOAD_GCS_SUBSCRIPTION], 30),
     'uploadGCSProgress': (constants.UPLOAD_GCS_PROGRESS_TOPIC,
