@@ -38,7 +38,7 @@ from google.cloud.exceptions import Unauthorized
 from google.oauth2.credentials import Credentials
 from proto.tasks_pb2 import TaskFailureType
 from proto.tasks_pb2 import TaskStatus
-
+from googleapiclient import discovery
 
 import infra_util
 import util
@@ -166,6 +166,23 @@ _INVALID_TIMESTAMP_ERROR = {
     'message' : 'The timestamp must be between 0 and now.'
 }
 
+# An error returned to the user indicating that the provided credentials do not
+# have access to the project id provided.
+_NO_ACCESS_TO_PROJECT_ERROR = {
+    'error' : 'You do not have access to the project',
+    'message': ('The provided credentials do not have access to the requested '
+                'project.')
+}
+
+# Resource manager access control permissions for a resource. For more
+# information see:
+# https://cloud.google.com/resource-manager/docs/access-control-proj
+_RESOURCE_MANAGER_DELETE_PERMISSION = 'resourcemanager.projects.delete'
+_RESOURCE_MANAGER_GET_PERMISSION = 'resourcemanager.projects.get'
+_RESOURCE_MANAGER_UPDATE_PERMISSION = 'resourcemanager.projects.update'
+
+_PERMISSIONS = 'permissions'
+
 def _get_credentials():
     """Gets OAuth2 credentials from request Authorization headers."""
     auth_header = request.headers.get('Authorization')
@@ -276,6 +293,34 @@ def _convert_time_to_str(task_list):
             task[SpannerWrapper.TASK_CREATION_TIME])
     return task_list
 
+def _user_has_permission_to_project(credentials, project_id):
+    """Checks if the input credentials have access to a given project_id.
+
+      Returns:
+          A boolean indicating if the provided credentials give access to the
+          project_id.
+    """
+    service = discovery.build('cloudresourcemanager', 'v1',
+                              credentials=credentials)
+    resource = project_id
+    test_iam_permissions_req = {
+        _PERMISSIONS: [
+            _RESOURCE_MANAGER_DELETE_PERMISSION,
+            _RESOURCE_MANAGER_GET_PERMISSION,
+            _RESOURCE_MANAGER_UPDATE_PERMISSION
+        ],
+    }
+    # Disable is required here because the discovery resource adds its functions
+    # dynamically.
+    # pylint: disable=no-member
+    service_request = service.projects().testIamPermissions(resource=resource,
+        body=test_iam_permissions_req)
+    response = service_request.execute()
+    return (_PERMISSIONS in response and
+            _RESOURCE_MANAGER_DELETE_PERMISSION in response[_PERMISSIONS] and
+            _RESOURCE_MANAGER_GET_PERMISSION in response[_PERMISSIONS] and
+            _RESOURCE_MANAGER_UPDATE_PERMISSION in response[_PERMISSIONS])
+
 @APP.route('/projects/<project_id>/jobconfigs/delete',
            methods=['OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
@@ -284,12 +329,16 @@ def delete_job_configs(project_id):
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    credentials = _get_credentials()
+    if not _user_has_permission_to_project(credentials=credentials,
+        project_id=project_id):
+        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
     if request.method == 'POST':
         content = request.json
         error = _get_delete_job_configs_error(content)
         if error:
             return jsonify(error), httplib.BAD_REQUEST
-        spanner_wrapper = SpannerWrapper(_get_credentials(),
+        spanner_wrapper = SpannerWrapper(credentials,
                                     project_id,
                                     APP.config['SPANNER_INSTANCE'],
                                     APP.config['SPANNER_DATABASE'])
@@ -315,7 +364,11 @@ def job_configs(project_id):
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
+    credentials = _get_credentials()
+    if not _user_has_permission_to_project(credentials=credentials,
+        project_id=project_id):
+        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
+    spanner_wrapper = SpannerWrapper(credentials,
                                     project_id,
                                     APP.config['SPANNER_INSTANCE'],
                                     APP.config['SPANNER_DATABASE'])
@@ -352,9 +405,13 @@ def get_job_run(project_id, config_id):
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    credentials = _get_credentials()
+    if not _user_has_permission_to_project(credentials=credentials,
+        project_id=project_id):
+        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
     if not _CONFIG_ID_PATTERN.match(config_id):
         return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
+    spanner_wrapper = SpannerWrapper(credentials,
                                      project_id,
                                      APP.config['SPANNER_INSTANCE'],
                                      APP.config['SPANNER_DATABASE'])
@@ -382,6 +439,10 @@ def get_tasks_of_status(project_id, config_id, task_status):
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    credentials = _get_credentials()
+    if not _user_has_permission_to_project(credentials=credentials,
+        project_id=project_id):
+        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
     if not _CONFIG_ID_PATTERN.match(config_id):
         return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
     last_modified_before = _get_int_param(request, 'lastModifiedBefore')
@@ -390,7 +451,7 @@ def get_tasks_of_status(project_id, config_id, task_status):
         task_status_int)
     if error:
         return jsonify(error), httplib.BAD_REQUEST
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
+    spanner_wrapper = SpannerWrapper(credentials,
                                     project_id,
                                     APP.config['SPANNER_INSTANCE'],
                                     APP.config['SPANNER_DATABASE'])
@@ -417,6 +478,10 @@ def get_tasks_of_failure_type(project_id, config_id, failure_type):
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    credentials = _get_credentials()
+    if not _user_has_permission_to_project(credentials=credentials,
+        project_id=project_id):
+        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
     if not _CONFIG_ID_PATTERN.match(config_id):
         return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
     last_modified_before = _get_int_param(request, 'lastModifiedBefore')
@@ -425,7 +490,7 @@ def get_tasks_of_failure_type(project_id, config_id, failure_type):
         failure_type_int)
     if error:
         return jsonify(error), httplib.BAD_REQUEST
-    spanner_wrapper = SpannerWrapper(_get_credentials(),
+    spanner_wrapper = SpannerWrapper(credentials,
                                      project_id,
                                      APP.config['SPANNER_INSTANCE'],
                                      APP.config['SPANNER_DATABASE'])
@@ -444,9 +509,13 @@ def infrastructure_status(project_id):
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    credentials = _get_credentials()
+    if not _user_has_permission_to_project(credentials=credentials,
+        project_id=project_id):
+        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
     # TODO(b/65586429): Getting the infrastructure status API may take the
     # resources (in the request body) to query for.
-    return jsonify(infra_util.infrastructure_status(_get_credentials(),
+    return jsonify(infra_util.infrastructure_status(credentials,
                                                     project_id))
 
 @APP.route('/projects/<project_id>/create-infrastructure',
@@ -457,6 +526,10 @@ def create_infrastructure(project_id):
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    credentials = _get_credentials()
+    if not _user_has_permission_to_project(credentials=credentials,
+        project_id=project_id):
+        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
     # TODO(b/65754348): Creating the infrastructure API may take the resources
     # (in the request body) to create.
     dcp_docker_image = (None if APP.config.get('SKIP_RUNNING_DCP', False) else
@@ -468,7 +541,7 @@ def create_infrastructure(project_id):
         raise ServerError('Internal Server Error')
 
     infra_util.create_infrastructure(
-        _get_credentials(), project_id, dcp_docker_image)
+        credentials, project_id, dcp_docker_image)
     return jsonify({})
 
 @APP.route('/projects/<project_id>/tear-down-infrastructure',
@@ -479,9 +552,13 @@ def tear_infrastructure(project_id):
     """
     if not _PROJECT_ID_PATTERN.match(project_id):
         return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
+    credentials = _get_credentials()
+    if not _user_has_permission_to_project(credentials=credentials,
+        project_id=project_id):
+        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
     # TODO(b/65754348): Tearing the infrastructure API may take the resources
     # (in the request body) to tear down.
-    infra_util.tear_infrastructure(_get_credentials(), project_id)
+    infra_util.tear_infrastructure(credentials, project_id)
     return jsonify({})
 
 def _get_int_param(get_request, param_name):

@@ -38,6 +38,7 @@ from google.cloud.spanner_v1.streamed import StreamedResultSet
 from google.cloud.spanner_v1.transaction import Transaction
 from mock import MagicMock
 from mock import patch
+from googleapiclient import discovery
 
 import main
 from proto import tasks_pb2
@@ -181,6 +182,16 @@ _EMPTY_MOCK_STREAMED_RESULT = MagicMock(spec=StreamedResultSet)
 _EMPTY_MOCK_STREAMED_RESULT.__iter__.return_value = []
 _EMPTY_MOCK_STREAMED_RESULT.fields = []
 
+# A testIamPermissions response from a cloudresourcemanager resource indicating
+# that it has all permissions.
+_ALL_PERMISSIONS_RESPONSE = {
+    'permissions' : [
+        'resourcemanager.projects.delete',
+        'resourcemanager.projects.get',
+        'resourcemanager.projects.update'
+    ]
+}
+
 def _get_fields_list(names):
     """Gets a list of mock StrucType.Field from a list of names to populate
     these Fields with.
@@ -243,6 +254,22 @@ class TestMain(unittest.TestCase):
         (self.
          get_credentials_mock_patcher) = patch.object(main, '_get_credentials')
         self.get_credentials_mock = self.get_credentials_mock_patcher.start()
+        # Start discovery patcher
+        self.discovery_patcher = patch.object(main, 'discovery',
+            spec=discovery)
+        self.discovery_mock = self.discovery_patcher.start()
+        # Make a cloudresource manager discovery.Resource object
+        self.resource_mock = MagicMock(spec=['projects'])
+        self.discovery_mock.build.return_value = self.resource_mock
+        self.resource_mock_projects = MagicMock(spec=['testIamPermissions'])
+        self.mock_projects_request = MagicMock(spec=['execute'])
+        (self.resource_mock_projects.testIamPermissions.
+         return_value) = self.mock_projects_request
+        (self.resource_mock.projects.
+         return_value) = self.resource_mock_projects
+        # Return that the user has all permissions.
+        (self.mock_projects_request.execute.
+         return_value) = _ALL_PERMISSIONS_RESPONSE
         # Set up the client and pool
         self.spanner_mock.Client.return_value = self.mock_client
         self.spanner_mock.BurstyPool.return_value = self.mock_bursty_pool
@@ -604,7 +631,6 @@ class TestMain(unittest.TestCase):
                              content_type='application/json')
 
         response_json = json.loads(response.data)
-
         assert response.status_code == httplib.BAD_REQUEST
         assert response_json['error'] is not None
 
@@ -813,10 +839,21 @@ class TestMain(unittest.TestCase):
         assert response.status_code == httplib.BAD_REQUEST
         assert response_json['error'] is not None
 
+    def test_doesnt_have_permissions(self):
+        """
+        Tests that the user receives an error when the Project.exists function
+        throws an error.
+        """
+        # Return that there are no permissions for the project.
+        self.mock_projects_request.execute.return_value = {}
+        response = self.app.get('/projects/fakeprojectid/jobconfigs')
+        assert response.status_code == httplib.FORBIDDEN
+
     def tearDown(self):
         # Stop patchers.
         self.spanner_mock_patcher.stop()
         self.get_credentials_mock_patcher.stop()
+        self.discovery_patcher.stop()
 
 if __name__ == '__main__':
     unittest.main()
