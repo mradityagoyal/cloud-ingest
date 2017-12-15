@@ -91,6 +91,10 @@ func (m *mockWriterCloser) Close() error {
 	return nil
 }
 
+func (m *mockWriterCloser) CloseWithError(err error) error {
+	return nil
+}
+
 func getTestingFakeStoreAndLogPath(n int64) (*FakeStore, string) {
 	fakestore := new(FakeStore)
 	*fakestore = FakeStore{

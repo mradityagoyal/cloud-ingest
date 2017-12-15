@@ -7,6 +7,7 @@ package gcloud
 import (
 	storage "cloud.google.com/go/storage"
 	context "context"
+	helpers "github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	gomock "github.com/golang/mock/gomock"
 	io "io"
 	reflect "reflect"
@@ -110,9 +111,9 @@ func (mr *MockGCSMockRecorder) NewRangeReader(ctx, bucketName, objectName, offse
 }
 
 // NewWriter mocks base method
-func (m *MockGCS) NewWriter(ctx context.Context, bucketName, objectName string) io.WriteCloser {
+func (m *MockGCS) NewWriter(ctx context.Context, bucketName, objectName string) helpers.WriteCloserWithError {
 	ret := m.ctrl.Call(m, "NewWriter", ctx, bucketName, objectName)
-	ret0, _ := ret[0].(io.WriteCloser)
+	ret0, _ := ret[0].(helpers.WriteCloserWithError)
 	return ret0
 }
 
@@ -122,9 +123,9 @@ func (mr *MockGCSMockRecorder) NewWriter(ctx, bucketName, objectName interface{}
 }
 
 // NewWriterWithCondition mocks base method
-func (m *MockGCS) NewWriterWithCondition(ctx context.Context, bucketName, objectName string, cond storage.Conditions) io.WriteCloser {
+func (m *MockGCS) NewWriterWithCondition(ctx context.Context, bucketName, objectName string, cond storage.Conditions) helpers.WriteCloserWithError {
 	ret := m.ctrl.Call(m, "NewWriterWithCondition", ctx, bucketName, objectName, cond)
-	ret0, _ := ret[0].(io.WriteCloser)
+	ret0, _ := ret[0].(helpers.WriteCloserWithError)
 	return ret0
 }
 
