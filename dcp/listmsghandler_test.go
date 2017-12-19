@@ -23,6 +23,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 )
 
@@ -163,7 +164,7 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 		"byte_offset":            0
 	}`
 
-	if !AreEqualJSON(expectedNewTaskSpec, taskUpdate.NewTasks[0].TaskSpec) {
+	if !helpers.AreEqualJSON(expectedNewTaskSpec, taskUpdate.NewTasks[0].TaskSpec) {
 		t.Errorf("expected task spec: %s, found: %s",
 			expectedNewTaskSpec, taskUpdate.NewTasks[0].TaskSpec)
 	}

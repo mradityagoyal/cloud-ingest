@@ -27,6 +27,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 )
 
@@ -156,7 +157,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 				"src_file": "dir/file%d"
 			}`, i, i)
 
-		if !AreEqualJSON(expectedNewTaskSpec, taskUpdate.NewTasks[i].TaskSpec) {
+		if !helpers.AreEqualJSON(expectedNewTaskSpec, taskUpdate.NewTasks[i].TaskSpec) {
 			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, taskUpdate.NewTasks[i].TaskSpec)
 		}
 

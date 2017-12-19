@@ -79,10 +79,10 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	processListTaskSpec := ProcessListTaskSpec{
 		DstListResultBucket: listTaskSpec.DstListResultBucket,
 		DstListResultObject: listTaskSpec.DstListResultObject,
-		SrcDirectory: listTaskSpec.SrcDirectory,
-		ByteOffset: 0,
+		SrcDirectory:        listTaskSpec.SrcDirectory,
+		ByteOffset:          0,
 	}
-	processListTaskSpecJson, err := json.Marshal(processListTaskSpec);
+	processListTaskSpecJson, err := json.Marshal(processListTaskSpec)
 	if err != nil {
 		log.Printf("Error encoding task spec to JSON string, task spec: %v, err: %v.",
 			processListTaskSpec, err)

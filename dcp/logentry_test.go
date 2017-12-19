@@ -18,7 +18,6 @@ package dcp
 import (
 	"context"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"reflect"
 	"strings"
@@ -77,24 +76,6 @@ func TestInsertLogEntryMutation(t *testing.T) {
 	}
 }
 
-type mockWriterCloser struct {
-	Writer       io.Writer
-	WrittenLines int64
-}
-
-func (m *mockWriterCloser) Write(p []byte) (int, error) {
-	m.WrittenLines++
-	return m.Writer.Write(p)
-}
-
-func (m *mockWriterCloser) Close() error {
-	return nil
-}
-
-func (m *mockWriterCloser) CloseWithError(err error) error {
-	return nil
-}
-
 func getTestingFakeStoreAndLogPath(n int64) (*FakeStore, string) {
 	fakestore := new(FakeStore)
 	*fakestore = FakeStore{
@@ -126,7 +107,7 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	store, logPath := getTestingFakeStoreAndLogPath(numLogsToFetchPerRun)
-	writer := mockWriterCloser{ioutil.Discard, 0}
+	writer := helpers.LinesWriterCloser{ioutil.Discard, 0}
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
@@ -162,7 +143,7 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	store, logPath := getTestingFakeStoreAndLogPath(3)
-	writer := mockWriterCloser{ioutil.Discard, 0}
+	writer := helpers.LinesWriterCloser{ioutil.Discard, 0}
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
@@ -207,7 +188,7 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	store, logPath := getTestingFakeStoreAndLogPath(3)
-	writer := mockWriterCloser{ioutil.Discard, 0}
+	writer := helpers.LinesWriterCloser{ioutil.Discard, 0}
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
@@ -255,7 +236,7 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	store, logPath := getTestingFakeStoreAndLogPath(3)
-	writer := mockWriterCloser{ioutil.Discard, 0}
+	writer := helpers.LinesWriterCloser{ioutil.Discard, 0}
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 

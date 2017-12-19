@@ -22,6 +22,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 )
 
@@ -49,7 +50,7 @@ func TestReadListResultSuccess(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := NewStringReadCloser("junkid\nline1\nline2\nline3\nline4")
+	src := helpers.NewStringReadCloser("junkid\nline1\nline2\nline3\nline4")
 	mockGcs.EXPECT().
 		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
@@ -77,7 +78,7 @@ func TestReadListResultSuccess(t *testing.T) {
 		t.Errorf("Expected endingOffset > startingOffset (endingOffset %v vs startingOffset %v)", endingOffset, startingOffset)
 	}
 
-	if !src.closed {
+	if !src.Closed {
 		t.Error("Did not close the reader.")
 	}
 }
@@ -88,7 +89,7 @@ func TestReadListResultNonzeroOffset(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := NewStringReadCloser("line2\nline3\nline4\nline5\bline6")
+	src := helpers.NewStringReadCloser("line2\nline3\nline4\nline5\bline6")
 	mockGcs.EXPECT().
 		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
@@ -118,7 +119,7 @@ func TestReadListResultNonzeroOffset(t *testing.T) {
 		t.Errorf("Expected endingOffset > startingOffset (endingOffset %v vs startingOffset %v)", endingOffset, startingOffset)
 	}
 
-	if !src.closed {
+	if !src.Closed {
 		t.Error("Did not close the reader.")
 	}
 }
@@ -129,7 +130,7 @@ func TestReadListResultEOF(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := NewStringReadCloser("junkid\nline with spaces\nline2")
+	src := helpers.NewStringReadCloser("junkid\nline with spaces\nline2")
 	mockGcs.EXPECT().
 		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
@@ -157,7 +158,7 @@ func TestReadListResultEOF(t *testing.T) {
 		t.Errorf("Expected endingOffset > startingOffset (endingOffset %v vs startingOffset %v)", endingOffset, startingOffset)
 	}
 
-	if !src.closed {
+	if !src.Closed {
 		t.Error("Did not close the reader.")
 	}
 }
@@ -168,7 +169,7 @@ func TestReadListResultMaxLinesEOF(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := NewStringReadCloser("some line\nthe last line")
+	src := helpers.NewStringReadCloser("some line\nthe last line")
 	mockGcs.EXPECT().
 		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
@@ -196,7 +197,7 @@ func TestReadListResultMaxLinesEOF(t *testing.T) {
 		t.Errorf("Expected endingOffset > startingOffset (endingOffset %v vs startingOffset %v)", endingOffset, startingOffset)
 	}
 
-	if !src.closed {
+	if !src.Closed {
 		t.Error("Did not close the reader.")
 	}
 }

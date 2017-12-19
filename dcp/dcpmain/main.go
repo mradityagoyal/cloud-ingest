@@ -28,16 +28,17 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
 const (
 	listProgressSubscription string = "cloud-ingest-list-progress"
-	processListSubscription string = "cloud-ingest-process-list"
+	processListSubscription  string = "cloud-ingest-process-list"
 	copyProgressSubscription string = "cloud-ingest-copy-progress"
 
-	listTopic string = "cloud-ingest-list"
+	listTopic        string = "cloud-ingest-list"
 	processListTopic string = "cloud-ingest-process-list"
-	copyTopic string = "cloud-ingest-copy"
+	copyTopic        string = "cloud-ingest-copy"
 
 	spannerInstance string = "cloud-ingest-spanner-instance"
 	spannerDatabase string = "cloud-ingest-database"
@@ -122,7 +123,7 @@ func main() {
 		Sub:   processListSub,
 		Store: store,
 		Handler: &dcp.ProcessListMessageHandler{
-			ListingResultReader:  dcp.NewGCSListingResultReader(gcsClient),
+			ListingResultReader: dcp.NewGCSListingResultReader(gcsClient),
 		},
 	}
 
@@ -145,7 +146,7 @@ func main() {
 
 	// Loop indefinitely to queue tasks.
 	for {
-		err := dcp.RetryWithExponentialBackoff(
+		err := helpers.RetryWithExponentialBackoff(
 			queueTasksSleepTime,
 			maxQueueTasksSleepTime,
 			maxNumFailures,

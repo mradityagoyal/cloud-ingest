@@ -64,7 +64,7 @@ func (b *taskUpdatesBatcher) addTaskUpdate(
 func (b *taskUpdatesBatcher) commitUpdates() {
 	// TODO(b/69788003): RetryWithExponentialBackoff should should only retry on
 	// re-triable error.
-	err := RetryWithExponentialBackoff(
+	err := helpers.RetryWithExponentialBackoff(
 		time.Second,              // Initial sleep time.
 		30*time.Second,           // Max sleep time.
 		10,                       // Max number of failures

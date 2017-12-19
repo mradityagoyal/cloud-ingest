@@ -26,6 +26,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
 const noGenNumTaskSpec string = `{"irrelevant": "foobar"}`
@@ -72,7 +73,7 @@ func DeepEqualCompare(msgPrefix string, want, got interface{}, t *testing.T) {
 
 func compareTaskUpdates(want, got *TaskUpdate, t *testing.T) {
 	// Deal with json first
-	if !AreEqualJSON(want.Task.TaskSpec, got.Task.TaskSpec) {
+	if !helpers.AreEqualJSON(want.Task.TaskSpec, got.Task.TaskSpec) {
 		t.Errorf("taskSpec: wanted %v but got %v", want.Task.TaskSpec, got.Task.TaskSpec)
 	}
 	want.Task.TaskSpec = ""

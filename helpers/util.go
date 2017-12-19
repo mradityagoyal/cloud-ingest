@@ -13,55 +13,19 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package dcp
+package helpers
 
 import (
 	"encoding/json"
 	"fmt"
-	"io"
-	"io/ioutil"
 	"log"
 	"path/filepath"
-	"reflect"
 	"strings"
 	"time"
 	"unicode"
+
+	"cloud.google.com/go/storage"
 )
-
-type stringReadCloser struct {
-	reader io.Reader
-	closed bool
-}
-
-func (src *stringReadCloser) Read(p []byte) (int, error) {
-	return src.reader.Read(p)
-}
-
-func (src *stringReadCloser) Close() error {
-	src.closed = true
-	return nil
-}
-
-func NewStringReadCloser(s string) *stringReadCloser {
-	return &stringReadCloser{strings.NewReader(s), false}
-}
-
-// AreEqualJson checkes if strings s1 and s2 are identical JSON represention
-// for the same JSON objects.
-// TODO(b/63159302): Add unit tests for util class.
-func AreEqualJSON(s1, s2 string) bool {
-	var o1 interface{}
-	var o2 interface{}
-
-	if err := json.Unmarshal([]byte(s1), &o1); err != nil {
-		return false
-	}
-	if err := json.Unmarshal([]byte(s2), &o2); err != nil {
-		return false
-	}
-
-	return reflect.DeepEqual(o1, o2)
-}
 
 // RetryWithExponentialBackoff tries the given function until it succeeds,
 // using exponential back off when errors occur. When a failure occurs,
@@ -107,39 +71,6 @@ func RetryWithExponentialBackoff(sleepTime time.Duration,
 		}
 	}
 	return nil
-}
-
-// ToInt64 takes an arbitrary value known to be an integer, and
-// converts it to an int64.
-func ToInt64(val interface{}) (int64, error) {
-	switch v := val.(type) {
-	case int64:
-		return v, nil
-	case int:
-		return int64(v), nil
-	case json.Number:
-		return v.Int64()
-	default:
-		return 0, fmt.Errorf("invalid int64 value %v (%T)", val, val)
-	}
-}
-
-// CreateTmpFile creates a temp file in the os temp directory with a prefix and
-// content string. This method will panic in case of failure writing the file.
-func CreateTmpFile(filePrefix string, content string) string {
-	tmpfile, err := ioutil.TempFile("", filePrefix)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	if _, err := tmpfile.Write([]byte(content)); err != nil {
-		log.Fatal(err)
-	}
-
-	if err := tmpfile.Close(); err != nil {
-		log.Fatal(err)
-	}
-	return tmpfile.Name()
 }
 
 // GetRelPathOsAgnostic wraps the path/filepath package's Rel function, and does some
@@ -188,4 +119,26 @@ func GetRelPathOsAgnostic(root, file string) string {
 
 	relPath, _ := filepath.Rel(root, file)
 	return relPath
+}
+
+// ToInt64 takes an arbitrary value known to be an integer, and
+// converts it to an int64.
+func ToInt64(val interface{}) (int64, error) {
+	switch v := val.(type) {
+	case int64:
+		return v, nil
+	case int:
+		return int64(v), nil
+	case json.Number:
+		return v.Int64()
+	default:
+		return 0, fmt.Errorf("invalid int64 value %v (%T)", val, val)
+	}
+}
+
+func GetGCSGenerationNumCondition(generationNum int64) storage.Conditions {
+	if generationNum == 0 {
+		return storage.Conditions{DoesNotExist: true}
+	}
+	return storage.Conditions{GenerationMatch: generationNum}
 }

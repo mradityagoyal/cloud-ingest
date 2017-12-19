@@ -11,6 +11,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
 const (
@@ -58,7 +59,7 @@ func (w serviceTestWrapper) mockHTTPPost(
 	requestBodyBuf.ReadFrom(body)
 	requestBody := requestBodyBuf.String()
 
-	if !dcp.AreEqualJSON(requestBody, string(expectedRequest)) {
+	if !helpers.AreEqualJSON(requestBody, string(expectedRequest)) {
 		w.t.Errorf("expected request body to be %s, found %s", string(expectedRequest), requestBody)
 	}
 
@@ -67,7 +68,7 @@ func (w serviceTestWrapper) mockHTTPPost(
 	}
 	return &http.Response{
 		StatusCode: w.returnStatusCode,
-		Body:       dcp.NewStringReadCloser(w.returnResponseBody),
+		Body:       helpers.NewStringReadCloser(w.returnResponseBody),
 	}, nil
 }
 
@@ -84,7 +85,7 @@ func (w serviceTestWrapper) mockHTTPGet(url string) (resp *http.Response, err er
 	}
 	return &http.Response{
 		StatusCode: w.returnStatusCode,
-		Body:       dcp.NewStringReadCloser(w.returnResponseBody),
+		Body:       helpers.NewStringReadCloser(w.returnResponseBody),
 	}, nil
 }
 

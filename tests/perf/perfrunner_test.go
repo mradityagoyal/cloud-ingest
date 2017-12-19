@@ -29,7 +29,7 @@ func TestCreateConfigsFileNotExist(t *testing.T) {
 }
 
 func TestCreateConfigsProtoParseError(t *testing.T) {
-	tmpFile := dcp.CreateTmpFile("perfrunner-test-", "This is corrupted proto")
+	tmpFile := helpers.CreateTmpFile("perfrunner-test-", "This is corrupted proto")
 	defer os.Remove(tmpFile) // clean up
 	runner := PerfRunner{}
 	errs := runner.CreateConfigs(context.Background(), tmpFile)
@@ -42,7 +42,7 @@ func TestCreateConfigsProtoParseError(t *testing.T) {
 }
 
 func TestCreateConfigsPartialFail(t *testing.T) {
-	tmpFile := dcp.CreateTmpFile("perfrunner-test-", `
+	tmpFile := helpers.CreateTmpFile("perfrunner-test-", `
 name: "dummy-perf-test"
 config: {
   sourceDir: "dir-1"
@@ -75,7 +75,7 @@ config: {
 }
 
 func TestCreateConfigsSuccess(t *testing.T) {
-	tmpFile := dcp.CreateTmpFile("perfrunner-test-", `
+	tmpFile := helpers.CreateTmpFile("perfrunner-test-", `
 name: "dummy-perf-test"
 config: {
   sourceDir: "dir-1"
@@ -147,7 +147,7 @@ config: {
 }
 
 func TestCreateConfigPartialBucketCreationFail(t *testing.T) {
-	tmpFile := dcp.CreateTmpFile("perfrunner-test-", `
+	tmpFile := helpers.CreateTmpFile("perfrunner-test-", `
 name: "dummy-perf-test"
 config: {
   sourceDir: "dir-1"
@@ -201,7 +201,7 @@ config: {
 }
 
 func TestCleanupPartialFail(t *testing.T) {
-	tmpFile := dcp.CreateTmpFile("perfrunner-test-", `
+	tmpFile := helpers.CreateTmpFile("perfrunner-test-", `
 name: "dummy-perf-test"
 config: {
   sourceDir: "dir-1"
@@ -577,7 +577,7 @@ func TestMonitorJobsSuccess(t *testing.T) {
 }
 
 func TestCreateJobsAndMonitorJobsSuccess(t *testing.T) {
-	tmpFile := dcp.CreateTmpFile("perfrunner-test-", `
+	tmpFile := helpers.CreateTmpFile("perfrunner-test-", `
 name: "dummy-perf-test"
 config: {
   sourceDir: "dir-1"

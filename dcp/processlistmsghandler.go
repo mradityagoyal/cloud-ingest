@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
 type ProcessListMessageHandler struct {
@@ -35,7 +36,6 @@ const (
 	maxLinesToProcess     int64  = 1000
 	expectedByteOffsetKey string = "byte_offset"
 )
-
 
 // ProcessListingFileSemantics implements the TaskTransactionalSemantics interface (see
 // task.go) to ensure two things:
@@ -62,7 +62,7 @@ func (plfs ProcessListingFileSemantics) Apply(taskUpdate *TaskUpdate) error {
 	if !ok {
 		return errors.New("byte_offset missing from spanner Task Spec")
 	}
-	spannerByteOffset, err := ToInt64(spannerByteOffsetJSONNumber)
+	spannerByteOffset, err := helpers.ToInt64(spannerByteOffsetJSONNumber)
 	if err != nil {
 		return err
 	}
@@ -125,7 +125,7 @@ func (h *ProcessListMessageHandler) HandleMessage(
 	var newTasks []*Task
 	for _, filePath := range lines {
 		uploadGCSTaskID := GetUploadGCSTaskID(filePath)
-		dstObject := GetRelPathOsAgnostic(spec.SrcDirectory, filePath)
+		dstObject := helpers.GetRelPathOsAgnostic(spec.SrcDirectory, filePath)
 		// TODO(b/69319257): Amend this logic when we implement synchronization.
 		uploadGCSTaskSpec := UploadGCSTaskSpec{
 			SrcFile:               filePath,

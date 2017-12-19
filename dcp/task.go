@@ -22,6 +22,7 @@ import (
 	"fmt"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
 const (
@@ -176,7 +177,7 @@ func NewListTaskSpecFromMap(params TaskParams) (*ListTaskSpec, error) {
 	genNum, ok4 := params["expected_generation_num"]
 
 	if ok1 && ok2 && ok3 && ok4 {
-		genNum, err := ToInt64(genNum)
+		genNum, err := helpers.ToInt64(genNum)
 		if err != nil {
 			return nil, err
 		}
@@ -198,7 +199,7 @@ func NewProcessListTaskSpecFromMap(params map[string]interface{}) (*ProcessListT
 	byteOffset, ok4 := params["byte_offset"]
 
 	if ok1 && ok2 && ok3 && ok4 {
-		byteOffset, err := ToInt64(byteOffset)
+		byteOffset, err := helpers.ToInt64(byteOffset)
 		if err != nil {
 			return nil, err
 		}
@@ -219,7 +220,7 @@ func NewUploadGCSTaskSpecFromMap(params map[string]interface{}) (*UploadGCSTaskS
 	dstObject, ok3 := params["dst_object"]
 	genNum, ok4 := params["expected_generation_num"]
 	if ok1 && ok2 && ok3 && ok4 {
-		genNum, err := ToInt64(genNum)
+		genNum, err := helpers.ToInt64(genNum)
 		if err != nil {
 			return nil, err
 		}
