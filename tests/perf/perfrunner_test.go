@@ -2,6 +2,7 @@ package perf
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"reflect"
@@ -16,6 +17,13 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 )
+
+const (
+	fakeValidatorName = "fake validation"
+	testConfigId      = "job-config-id"
+)
+
+var errFail error = errors.New("some error occurred")
 
 func TestCreateConfigsFileNotExist(t *testing.T) {
 	runner := PerfRunner{}
@@ -43,15 +51,15 @@ func TestCreateConfigsProtoParseError(t *testing.T) {
 
 func TestCreateConfigsPartialFail(t *testing.T) {
 	tmpFile := helpers.CreateTmpFile("", "perfrunner-test-", `
-name: "dummy-perf-test"
-config: {
-  sourceDir: "dir-1"
-  destinationBucket: "bucket-1"
-}
-config: {
-  sourceDir: "dir-2"
-  destinationBucket: "bucket-2"
-}`)
+		name: "dummy-perf-test"
+		config: {
+		  sourceDir: "dir-1"
+		  destinationBucket: "bucket-1"
+		}
+		config: {
+		  sourceDir: "dir-2"
+		  destinationBucket: "bucket-2"
+		}`)
 	defer os.Remove(tmpFile) // clean up
 
 	mockCtrl := gomock.NewController(t)
@@ -76,21 +84,21 @@ config: {
 
 func TestCreateConfigsSuccess(t *testing.T) {
 	tmpFile := helpers.CreateTmpFile("", "perfrunner-test-", `
-name: "dummy-perf-test"
-config: {
-  sourceDir: "dir-1"
-  destinationBucket: "bucket-1"
-}
-config: {
-  sourceDir: "dir-2"
-  destinationBucket: "bucket-2"
-}
-config: {
-  sourceDir: "dir-3"
-}
-config: {
-  sourceDir: "dir-4"
-}`)
+		name: "dummy-perf-test"
+		config: {
+		  sourceDir: "dir-1"
+		  destinationBucket: "bucket-1"
+		}
+		config: {
+		  sourceDir: "dir-2"
+		  destinationBucket: "bucket-2"
+		}
+		config: {
+		  sourceDir: "dir-3"
+		}
+		config: {
+		  sourceDir: "dir-4"
+		}`)
 	defer os.Remove(tmpFile) // clean up
 
 	mockCtrl := gomock.NewController(t)
@@ -146,15 +154,82 @@ config: {
 	}
 }
 
+func TestCreateConfigValidators(t *testing.T) {
+	tmpFile := helpers.CreateTmpFile("", "perfrunner-test-", `
+		name: "dummy-perf-test"
+		config: {
+		  sourceDir: "dir-1"
+		  destinationBucket: "bucket-1"
+		  validators: [
+			METADATA_VALIDATOR,
+			DEEP_COMPARISON_VALIDATOR
+		  ]
+		}
+		config: {
+		  sourceDir: "dir-2"
+		  destinationBucket: "bucket-2"
+		}`)
+	defer os.Remove(tmpFile) // clean up
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockJobService := NewMockJobService(mockCtrl)
+
+	projectId := "project-id"
+
+	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-1", "bucket-1").Return(nil)
+	mockJobService.EXPECT().CreateJobConfig(gomock.Any(), "dir-2", "bucket-2").Return(nil)
+	mockGcs := gcloud.NewMockGCS(mockCtrl)
+
+	runner := PerfRunner{
+		jobService: mockJobService,
+		gcs:        mockGcs,
+		projectId:  projectId,
+	}
+
+	errs := runner.CreateConfigs(context.Background(), tmpFile)
+	if len(errs) != 0 {
+		t.Errorf("expected config creation success found errors: %v.", errs)
+	}
+
+	if len(runner.configs) == 2 {
+		// Results are appended by separate goroutines here, so ordering is not guaranteed.
+		// We make sure to set the resulting array into a consistent order, for testing.
+		// The IDs used have a trailing "-0" or "-1" that are consistent.
+		if runner.configs[0].id[len(runner.configs[0].id)-1:] != "0" {
+			runner.configs = []runConfig{runner.configs[1], runner.configs[0]}
+		}
+
+		// 2 validators for dir-1
+		expectedValidators := []Validator{
+			NewMetadataValidator(mockGcs, "dir-1", "bucket-1"),
+			NewDeepComparisonValidator(mockGcs, "dir-1", "bucket-1"),
+		}
+		if !reflect.DeepEqual(runner.configs[0].validators, expectedValidators) {
+			t.Errorf("expected %T %v, got %T: %v",
+				expectedValidators, expectedValidators,
+				runner.configs[0].validators, runner.configs[0].validators)
+		}
+
+		// no validators for dir-2
+		if len(runner.configs[1].validators) != 0 {
+			t.Errorf("expected no validators, got %T: %v",
+				runner.configs[1].validators, runner.configs[1].validators)
+		}
+	} else {
+		t.Errorf("expected two configs loaded, found %v.", runner.configs)
+	}
+}
+
 func TestCreateConfigPartialBucketCreationFail(t *testing.T) {
 	tmpFile := helpers.CreateTmpFile("", "perfrunner-test-", `
-name: "dummy-perf-test"
-config: {
-  sourceDir: "dir-1"
-}
-config: {
-  sourceDir: "dir-2"
-}`)
+		name: "dummy-perf-test"
+		config: {
+		  sourceDir: "dir-1"
+		}
+		config: {
+		  sourceDir: "dir-2"
+		}`)
 	defer os.Remove(tmpFile) // clean up
 
 	mockCtrl := gomock.NewController(t)
@@ -202,13 +277,13 @@ config: {
 
 func TestCleanupPartialFail(t *testing.T) {
 	tmpFile := helpers.CreateTmpFile("", "perfrunner-test-", `
-name: "dummy-perf-test"
-config: {
-  sourceDir: "dir-1"
-}
-config: {
-  sourceDir: "dir-2"
-}`)
+		name: "dummy-perf-test"
+		config: {
+		  sourceDir: "dir-1"
+		}
+		config: {
+		  sourceDir: "dir-2"
+		}`)
 	defer os.Remove(tmpFile) // clean up
 
 	mockCtrl := gomock.NewController(t)
@@ -270,9 +345,9 @@ func TestGetJobStatusJobsTerminated(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockJobService := NewMockJobService(mockCtrl)
 
-	configs := []string{"config-1", "config-2", "config-3"}
+	configs := []runConfig{{id: "config-1"}, {id: "config-2"}, {id: "config-3"}}
 	runner := PerfRunner{
-		configIds:  configs,
+		configs:    configs,
 		jobService: mockJobService,
 	}
 	expectedStatuses := []*JobRunStatus{
@@ -282,7 +357,7 @@ func TestGetJobStatusJobsTerminated(t *testing.T) {
 	}
 
 	for i := range expectedStatuses {
-		mockJobService.EXPECT().GetJobStatus(configs[i], defaultRunId).Return(
+		mockJobService.EXPECT().GetJobStatus(configs[i].id, defaultRunId).Return(
 			expectedStatuses[i], nil)
 	}
 	statuses, terminated := runner.getJobsStatus()
@@ -300,9 +375,9 @@ func TestGetJobStatusJobsNotTerminated(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockJobService := NewMockJobService(mockCtrl)
 
-	configs := []string{"config-1", "config-2", "config-3"}
+	configs := []runConfig{{id: "config-1"}, {id: "config-2"}, {id: "config-3"}}
 	runner := PerfRunner{
-		configIds:  configs,
+		configs:    configs,
 		jobService: mockJobService,
 	}
 	expectedStatuses := []*JobRunStatus{
@@ -312,7 +387,7 @@ func TestGetJobStatusJobsNotTerminated(t *testing.T) {
 	}
 
 	for i := range expectedStatuses {
-		mockJobService.EXPECT().GetJobStatus(configs[i], defaultRunId).Return(
+		mockJobService.EXPECT().GetJobStatus(configs[i].id, defaultRunId).Return(
 			expectedStatuses[i], nil)
 	}
 	statuses, terminated := runner.getJobsStatus()
@@ -331,7 +406,7 @@ func TestGetJobStatusJobsErrorGettingJobStatus(t *testing.T) {
 	mockJobService := NewMockJobService(mockCtrl)
 
 	runner := PerfRunner{
-		configIds:  []string{"config-1", "config-2"},
+		configs:    []runConfig{{id: "config-1"}, {id: "config-2"}},
 		jobService: mockJobService,
 	}
 	expectedStatuses := []*JobRunStatus{
@@ -447,7 +522,7 @@ func TestMonitorJobsTimeout(t *testing.T) {
 
 	mockTicker := helpers.NewMockTicker()
 	runner := PerfRunner{
-		configIds:  []string{"config-1", "config-2"},
+		configs:    []runConfig{{id: "config-1"}, {id: "config-2"}},
 		jobService: mockJobService,
 		ticker:     mockTicker,
 	}
@@ -484,7 +559,7 @@ func TestMonitorJobsCancelledContext(t *testing.T) {
 
 	mockTicker := helpers.NewMockTicker()
 	runner := PerfRunner{
-		configIds:  []string{"config-1", "config-2"},
+		configs:    []runConfig{{id: "config-1"}, {id: "config-2"}},
 		jobService: mockJobService,
 		ticker:     mockTicker,
 	}
@@ -530,7 +605,7 @@ func TestMonitorJobsSuccess(t *testing.T) {
 
 	mockTicker := helpers.NewMockTicker()
 	runner := PerfRunner{
-		configIds:  []string{"config-1", "config-2"},
+		configs:    []runConfig{{id: "config-1"}, {id: "config-2"}},
 		jobService: mockJobService,
 		ticker:     mockTicker,
 	}
@@ -576,17 +651,68 @@ func TestMonitorJobsSuccess(t *testing.T) {
 	wg.Wait()
 }
 
+type fakeValidator struct {
+	result ValidationResult
+}
+
+func (v *fakeValidator) Validate(ctx context.Context) ValidationResult {
+	return v.result
+}
+
+func newFakeValidator(result ValidationResult) Validator {
+	return &fakeValidator{result: result}
+}
+
+func TestValidateResults(t *testing.T) {
+	successResult := ValidationResult{Name: fakeValidatorName, Success: true, FailureMessage: "", Err: nil}
+	failureResult := ValidationResult{Name: fakeValidatorName, Success: false, FailureMessage: "failed", Err: nil}
+	errorResult := ValidationResult{Name: fakeValidatorName, Success: false, FailureMessage: "", Err: errFail}
+	runner := PerfRunner{
+		configs: []runConfig{
+			{id: testConfigId, validators: []Validator{}},
+			{id: testConfigId, validators: []Validator{newFakeValidator(successResult)}},
+			{id: testConfigId, validators: []Validator{newFakeValidator(failureResult)}},
+			{id: testConfigId, validators: []Validator{newFakeValidator(errorResult)}},
+			{id: testConfigId, validators: []Validator{newFakeValidator(successResult), newFakeValidator(successResult)}},
+			{
+				id:         testConfigId,
+				validators: []Validator{newFakeValidator(successResult), newFakeValidator(failureResult), newFakeValidator(successResult)},
+			},
+			{
+				id:         testConfigId,
+				validators: []Validator{newFakeValidator(successResult), newFakeValidator(errorResult), newFakeValidator(successResult)},
+			},
+		},
+	}
+
+	want := []ConfigValidationResult{
+		{ConfigId: testConfigId, Success: true},
+		{ConfigId: testConfigId, Success: true, Results: []ValidationResult{successResult}},
+		{ConfigId: testConfigId, Success: false, Results: []ValidationResult{failureResult}},
+		{ConfigId: testConfigId, Success: false, Results: []ValidationResult{errorResult}},
+		{ConfigId: testConfigId, Success: true, Results: []ValidationResult{successResult, successResult}},
+		{ConfigId: testConfigId, Success: false, Results: []ValidationResult{successResult, failureResult}},
+		{ConfigId: testConfigId, Success: false, Results: []ValidationResult{successResult, errorResult}},
+	}
+
+	got := runner.ValidateResults(context.Background())
+
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("got %v, wanted %v", got, want)
+	}
+}
+
 func TestCreateJobsAndMonitorJobsSuccess(t *testing.T) {
 	tmpFile := helpers.CreateTmpFile("", "perfrunner-test-", `
-name: "dummy-perf-test"
-config: {
-  sourceDir: "dir-1"
-  destinationBucket: "bucket-1"
-}
-config: {
-  sourceDir: "dir-2"
-  destinationBucket: "bucket-2"
-}`)
+		name: "dummy-perf-test"
+		config: {
+		  sourceDir: "dir-1"
+		  destinationBucket: "bucket-1"
+		}
+		config: {
+		  sourceDir: "dir-2"
+		  destinationBucket: "bucket-2"
+		}`)
 	defer os.Remove(tmpFile) // clean up
 
 	mockCtrl := gomock.NewController(t)
@@ -637,13 +763,13 @@ config: {
 	}()
 
 	// Get through intermediate state. One job failed and one job in progress.
-	mockJobService.EXPECT().GetJobStatus(runner.configIds[0], defaultRunId).Return(
+	mockJobService.EXPECT().GetJobStatus(runner.configs[0].id, defaultRunId).Return(
 		&JobRunStatus{
 			Status:       dcp.JobInProgress,
 			CreationTime: 5,
 		}, nil)
 
-	mockJobService.EXPECT().GetJobStatus(runner.configIds[1], defaultRunId).Return(
+	mockJobService.EXPECT().GetJobStatus(runner.configs[1].id, defaultRunId).Return(
 		&JobRunStatus{
 			Status:       dcp.JobFailed,
 			CreationTime: 6,
@@ -653,7 +779,7 @@ config: {
 	mockTicker.Tick()
 
 	// Transition the in progress job to success.
-	mockJobService.EXPECT().GetJobStatus(runner.configIds[0], defaultRunId).Return(
+	mockJobService.EXPECT().GetJobStatus(runner.configs[0].id, defaultRunId).Return(
 		&JobRunStatus{
 			Status:       dcp.JobSuccess,
 			CreationTime: 5,
@@ -661,7 +787,7 @@ config: {
 			Counters:     counters1,
 		}, nil)
 
-	mockJobService.EXPECT().GetJobStatus(runner.configIds[1], defaultRunId).Return(
+	mockJobService.EXPECT().GetJobStatus(runner.configs[1].id, defaultRunId).Return(
 		&JobRunStatus{
 			Status:       dcp.JobFailed,
 			CreationTime: 6,

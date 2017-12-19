@@ -59,7 +59,7 @@ func (r PerfResult) String() string {
 
 // PerfRunner is a struct to create job run and monitor their statuses.
 type PerfRunner struct {
-	configIds    []string
+	configs      []runConfig
 	jobService   JobService
 	ticker       helpers.Ticker
 	clock        helpers.Clock
@@ -76,6 +76,11 @@ type PerfRunner struct {
 		sync.Mutex
 		val *PerfResult
 	}
+}
+
+type runConfig struct {
+	id         string
+	validators []Validator
 }
 
 // NewPerfRunner creates a new PerfRunner based on a projectId. Uses the default
@@ -122,7 +127,7 @@ func (p *PerfRunner) CreateConfigs(ctx context.Context, filePath string) []error
 
 	var wg sync.WaitGroup
 	var errs []error
-	var mu sync.Mutex // Protecting the errs and configIds array.
+	var mu sync.Mutex // Protecting the errs and configs array.
 	runTimeStamp := time.Now().UnixNano()
 	for i, jobConfig := range loadTestingConfig.Config {
 		// Create temporary bucket if one doesn't exist.
@@ -149,7 +154,7 @@ func (p *PerfRunner) CreateConfigs(ctx context.Context, filePath string) []error
 			}
 			mu.Lock()
 			defer mu.Unlock()
-			p.configIds = append(p.configIds, jobConfigId)
+			p.configs = append(p.configs, runConfig{id: jobConfigId, validators: p.getValidators(jobConfig)})
 		}(fmt.Sprintf("%s-%d-%d", loadTestingConfig.Name, runTimeStamp, i), jobConfig)
 	}
 	// Wait for all the requests to be triggered.
@@ -158,12 +163,28 @@ func (p *PerfRunner) CreateConfigs(ctx context.Context, filePath string) []error
 	return errs
 }
 
+func (p *PerfRunner) getValidators(jobConfig *pb.JobConfig) []Validator {
+	validators := []Validator{}
+	for _, v := range jobConfig.Validators {
+		switch v {
+		case pb.JobConfig_METADATA_VALIDATOR:
+			validators = append(validators, NewMetadataValidator(
+				p.gcs, jobConfig.SourceDir, jobConfig.DestinationBucket))
+		case pb.JobConfig_DEEP_COMPARISON_VALIDATOR:
+			validators = append(validators, NewDeepComparisonValidator(
+				p.gcs, jobConfig.SourceDir, jobConfig.DestinationBucket))
+		}
+	}
+
+	return validators
+}
+
 // MonitorJobs monitors the running jobs until either all the jobs are
 // terminated or no progress has occurred in any of the running jobs for a
 // timeout duration. After all jobs have terminated, it returns the PerfResult
 // object with performance run results.
 func (p *PerfRunner) MonitorJobs(ctx context.Context) (*PerfResult, error) {
-	jobs := make([]*JobRunStatus, len(p.configIds))
+	jobs := make([]*JobRunStatus, len(p.configs))
 	done := false
 	noProgressCount := 0
 	for !done {
@@ -201,6 +222,32 @@ func (p *PerfRunner) MonitorJobs(ctx context.Context) (*PerfResult, error) {
 	p.currStatus.Lock()
 	defer p.currStatus.Unlock()
 	return p.currStatus.val, nil
+}
+
+type ConfigValidationResult struct {
+	ConfigId string
+	Success  bool
+	Results  []ValidationResult
+}
+
+// ValidateResults runs all validators for all tests.
+func (p *PerfRunner) ValidateResults(ctx context.Context) []ConfigValidationResult {
+	results := make([]ConfigValidationResult, 0, len(p.configs))
+	for _, config := range p.configs {
+		configResult := ConfigValidationResult{ConfigId: config.id, Success: true}
+		for _, validator := range config.validators {
+			validationResult := validator.Validate(ctx)
+			configResult.Results = append(configResult.Results, validationResult)
+			if validationResult.Err != nil || !validationResult.Success {
+				// Stop running validators for a config as soon as we find a failure.
+				configResult.Success = false
+				break
+			}
+		}
+		results = append(results, configResult)
+	}
+
+	return results
 }
 
 // CleanUp performs any post-run cleanup tasks, like deleting temporary GCS buckets.
@@ -247,9 +294,9 @@ func (p *PerfRunner) GetStatus() *PerfResult {
 // all the jobs terminated.
 func (p PerfRunner) getJobsStatus() ([]*JobRunStatus, bool) {
 	jobsTerminated := true
-	jobs := make([]*JobRunStatus, len(p.configIds))
-	for i, configId := range p.configIds {
-		j, err := p.jobService.GetJobStatus(configId, defaultRunId)
+	jobs := make([]*JobRunStatus, len(p.configs))
+	for i, config := range p.configs {
+		j, err := p.jobService.GetJobStatus(config.id, defaultRunId)
 		if err != nil {
 			j = nil
 		}

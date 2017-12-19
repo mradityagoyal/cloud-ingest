@@ -250,6 +250,8 @@ func (m *JobRunStatus) String() string            { return proto1.CompactTextStr
 func (*JobRunStatus) ProtoMessage()               {}
 func (*JobRunStatus) Descriptor() ([]byte, []int) { return fileDescriptor0, []int{3} }
 
+// Message to wrap the Resource status type. This is needed to create a scope
+// that does not conflict with other enums in this file.
 type ResourceStatus struct {
 }
 

@@ -3,11 +3,20 @@ package pb_perf;
 
 // A job config for the load testing.
 message JobConfig {
+  // Possible validators to use.
+  enum TestRunValidator {
+    METADATA_VALIDATOR = 0;
+    DEEP_COMPARISON_VALIDATOR = 1;
+  }
+
   // On premise source directory.
   string sourceDir = 1;
 
   // GCS bucket, will create a random bucket if empty.
   string destinationBucket = 2;
+
+  // Validators for testing. An empty list of validators will always result in a 'valid' result.
+  repeated TestRunValidator validators = 3;
 }
 
 message LoadTestingConfiguration {

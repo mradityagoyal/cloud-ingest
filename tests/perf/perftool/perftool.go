@@ -51,6 +51,36 @@ func cleanupResources(skipCleanup bool, perfRunner *perf.PerfRunner) {
 	}
 }
 
+func printAndEvaluateResults(validationResults []perf.ConfigValidationResult) bool {
+	log.Printf("Validation Results: %+v\n", validationResults)
+
+	// Pretty print results to stdout.
+	success := true
+	fmt.Println("Validation Results:")
+	for _, result := range validationResults {
+		fmt.Printf("Job %s: ", result.ConfigId)
+		if len(result.Results) == 0 {
+			fmt.Println("<no validation>")
+		} else {
+			fmt.Println()
+			for _, v := range result.Results {
+				fmt.Printf("- %s: ", v.Name)
+				if v.Err != nil {
+					fmt.Printf("ERROR: %v\n", v.Err)
+					success = false
+				} else if !v.Success {
+					fmt.Printf("TEST FAILURE: %s\n", v.FailureMessage)
+					success = false
+				} else {
+					fmt.Println("Success!")
+				}
+			}
+		}
+	}
+
+	return success
+}
+
 func main() {
 	protoMessagePath := flag.String("msg-file", "", "Path of the proto message file.")
 	projectId := flag.String(
@@ -95,7 +125,7 @@ func main() {
 
 	// Nesting this execution to make sure the deferred cleanup executes even when
 	// we've failed a test and are about to fatally exit.
-	result, err := func() (*perf.PerfResult, error) {
+	result, validationResults, err := func() (*perf.PerfResult, []perf.ConfigValidationResult, error) {
 		// Ensure we get things cleaned up before we exit.
 		defer cleanupResources(*skipCleanup, p)
 
@@ -125,12 +155,22 @@ func main() {
 		result, err := p.MonitorJobs(ctx)
 		ti.Stop()
 
-		return result, err
+		// Validate without re-using a context that's timing out.
+		validationResult := p.ValidateResults(context.Background())
+
+		return result, validationResult, err
 	}()
 
 	if err != nil {
 		log.Fatalf("Perf Job run failed with err: %v.", err)
 	}
 
-	log.Println("The perf run completed successfully. The run result:", *result)
+	log.Println("Perf run completed, with run result:", *result)
+	log.Printf("Validation Results: %+v\n", validationResults)
+	success := printAndEvaluateResults(validationResults)
+
+	// Unsuccessful exit code for any test failure/error.
+	if !success {
+		log.Fatal("Not all tests have completed successfully!")
+	}
 }

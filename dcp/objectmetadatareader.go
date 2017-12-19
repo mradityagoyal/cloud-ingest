@@ -17,8 +17,11 @@ package dcp
 
 import (
 	"context"
-	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"errors"
 	"strconv"
+
+	"cloud.google.com/go/storage"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 )
 
 const MTIME_ATTR_NAME string = "goog-reserved-file-mtime"
@@ -28,6 +31,7 @@ type ObjectMetadata struct {
 	Size             int64
 	Mtime            int64
 	GenerationNumber int64
+	MD5              []byte
 }
 
 // ObjectMetadataReader is a simple interface around reading object metadata from GCS objects.
@@ -44,6 +48,24 @@ func NewGCSObjectMetadataReader(gcs gcloud.GCS) *GCSObjectMetadataReader {
 	return &GCSObjectMetadataReader{gcs}
 }
 
+func GCSAttrToObjectMetadata(attrs *storage.ObjectAttrs) (*ObjectMetadata, error) {
+	if attrs == nil {
+		return nil, errors.New("nil object attributes passed")
+	}
+
+	mtimeStr, ok := attrs.Metadata[MTIME_ATTR_NAME]
+	var mtime int64
+	if ok {
+		var err error
+		mtime, err = strconv.ParseInt(mtimeStr, 10, 64)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	return &ObjectMetadata{Size: attrs.Size, GenerationNumber: attrs.Generation, Mtime: mtime, MD5: attrs.MD5}, nil
+}
+
 // GetMetadata retrieves metadata for an object.
 // When an object does not exist, the "not found" error is propagated, as with all GCS errors.
 func (r *GCSObjectMetadataReader) GetMetadata(ctx context.Context, bucketName string, objectName string) (*ObjectMetadata, error) {
@@ -52,14 +74,5 @@ func (r *GCSObjectMetadataReader) GetMetadata(ctx context.Context, bucketName st
 		return nil, err
 	}
 
-	mtimeStr, ok := attr.Metadata[MTIME_ATTR_NAME]
-	var mtime int64
-	if ok {
-		mtime, err = strconv.ParseInt(mtimeStr, 10, 64)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	return &ObjectMetadata{Size: attr.Size, GenerationNumber: attr.Generation, Mtime: mtime}, nil
+	return GCSAttrToObjectMetadata(attr)
 }

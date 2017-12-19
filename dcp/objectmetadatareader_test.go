@@ -18,6 +18,7 @@ package dcp
 import (
 	"context"
 	"errors"
+	"reflect"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -61,7 +62,7 @@ func TestMtimeMissing(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Error should be nil, but was %v", err)
-	} else if *expected != *result {
+	} else if !reflect.DeepEqual(*expected, *result) {
 		t.Errorf("Wrong result: wanted %v, but got %v", expected, result)
 	}
 }
@@ -96,9 +97,10 @@ func TestSuccess(t *testing.T) {
 		Size:       123,
 		Generation: 234,
 		Metadata:   map[string]string{MTIME_ATTR_NAME: "345"},
+		MD5:        []byte("foo"),
 	}
 
-	expected := &ObjectMetadata{Size: 123, Mtime: 345, GenerationNumber: 234}
+	expected := &ObjectMetadata{Size: 123, Mtime: 345, GenerationNumber: 234, MD5: []byte("foo")}
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	mockGcs.EXPECT().GetAttrs(gomock.Any(), gomock.Any(), gomock.Any()).Return(&attr, nil)
@@ -109,7 +111,7 @@ func TestSuccess(t *testing.T) {
 
 	if err != nil {
 		t.Errorf("Error should be nil, but was %v", err)
-	} else if *expected != *result {
+	} else if !reflect.DeepEqual(*expected, *result) {
 		t.Errorf("Wrong result: wanted %v, but got %v", expected, result)
 	}
 }
