@@ -113,10 +113,13 @@ func AreEqualJSON(s1, s2 string) bool {
 	return reflect.DeepEqual(o1, o2)
 }
 
-// CreateTmpFile creates a temp file in the os temp directory with a prefix and
-// content string. This method will panic in case of failure writing the file.
-func CreateTmpFile(filePrefix string, content string) string {
-	tmpfile, err := ioutil.TempFile("", filePrefix)
+// CreateTmpFile creates a new temporary file in the directory dir with a name
+// beginning with prefix, and a content string. If dir is the empty string,
+// CreateTmpFile uses the default directory for temporary files (see os.TempDir).
+// This method will return the path of the created file. It will panic in case
+// of failure creating or writing to the file.
+func CreateTmpFile(dir, filePrefix, content string) string {
+	tmpfile, err := ioutil.TempFile(dir, filePrefix)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -129,4 +132,16 @@ func CreateTmpFile(filePrefix string, content string) string {
 		log.Fatal(err)
 	}
 	return tmpfile.Name()
+}
+
+// CreateTmpDir creates a new temporary directory in the directory dir with a
+// name beginning with prefix and returns the path of the new directory. If dir
+// is the empty string, CreateTmpDir uses the default directory for temporary
+// files (see os.TempDir).
+func CreateTmpDir(dir, prefix string) string {
+	tmpDir, err := ioutil.TempDir(dir, prefix)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return tmpDir
 }

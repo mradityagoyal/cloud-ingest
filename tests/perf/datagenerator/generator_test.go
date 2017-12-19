@@ -12,14 +12,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
-func createTmpDir() string {
-	tmpDir, err := ioutil.TempDir("", "generator-test-")
-	if err != nil {
-		log.Fatal(err)
-	}
-	return tmpDir
-}
-
 func TestNewGeneratorFromProtoFileNotExist(t *testing.T) {
 	_, err := NewGeneratorFromProtoFile("does-not-exist-file")
 	if err == nil {
@@ -31,7 +23,7 @@ func TestNewGeneratorFromProtoFileNotExist(t *testing.T) {
 }
 
 func TestNewGeneratorFromProtoFileFailure(t *testing.T) {
-	tmpFile := helpers.CreateTmpFile("generator-test-", "This is corrupted proto")
+	tmpFile := helpers.CreateTmpFile("", "generator-test-", "This is corrupted proto")
 	defer os.Remove(tmpFile) // clean up
 	if _, err := NewGeneratorFromProtoFile(tmpFile); err == nil {
 		t.Errorf("expected parsing proto error, but found err is nil.")
@@ -39,7 +31,7 @@ func TestNewGeneratorFromProtoFileFailure(t *testing.T) {
 }
 
 func TestGeneratorNoFileSystemInProto(t *testing.T) {
-	tmpFile := helpers.CreateTmpFile("generator-test-", "")
+	tmpFile := helpers.CreateTmpFile("", "generator-test-", "")
 	defer os.Remove(tmpFile) // clean up
 	g, err := NewGeneratorFromProtoFile(tmpFile)
 	if err != nil {
@@ -56,7 +48,7 @@ func TestGeneratorNoFileSystemInProto(t *testing.T) {
 }
 
 func TestGeneratorNoDistributionInProto(t *testing.T) {
-	tmpFile := helpers.CreateTmpFile("generator-test-", `
+	tmpFile := helpers.CreateTmpFile("", "generator-test-", `
 fileSystem: {
   dir: {
     path: "path"
@@ -101,8 +93,8 @@ func checkDirectoryFiles(
 }
 
 func TestGeneratorSingleDir(t *testing.T) {
-	tmpDir := createTmpDir()
-	tmpFile := helpers.CreateTmpFile("generator-test-", fmt.Sprintf(`
+	tmpDir := helpers.CreateTmpDir("", "generator-test-")
+	tmpFile := helpers.CreateTmpFile("", "generator-test-", fmt.Sprintf(`
 fileSystem: {
   dir: {
     path: "%s"
@@ -131,8 +123,8 @@ fileSystem: {
 }
 
 func TestGeneratorFullTree(t *testing.T) {
-	tmpDir := createTmpDir()
-	tmpFile := helpers.CreateTmpFile("generator-test-", fmt.Sprintf(`
+	tmpDir := helpers.CreateTmpDir("", "generator-test-")
+	tmpFile := helpers.CreateTmpFile("", "generator-test-", fmt.Sprintf(`
 fileSystem: {
   dir: {
     path: "%s"
@@ -168,8 +160,8 @@ fileSystem: {
 }
 
 func TestGeneratorSubDirs(t *testing.T) {
-	tmpDir := createTmpDir()
-	tmpFile := helpers.CreateTmpFile("generator-test-", fmt.Sprintf(`
+	tmpDir := helpers.CreateTmpDir("", "generator-test-")
+	tmpFile := helpers.CreateTmpFile("", "generator-test-", fmt.Sprintf(`
 fileSystem: {
   dir: {
     path: "%s"
@@ -213,8 +205,8 @@ fileSystem: {
 }
 
 func TestGeneratorErrorWritingFiles(t *testing.T) {
-	tmpDir := createTmpDir()
-	tmpFile := helpers.CreateTmpFile("generator-test-", fmt.Sprintf(`
+	tmpDir := helpers.CreateTmpDir("", "generator-test-")
+	tmpFile := helpers.CreateTmpFile("", "generator-test-", fmt.Sprintf(`
 fileSystem: {
   dir: {
     path: "%s"
@@ -250,8 +242,8 @@ fileSystem: {
 }
 
 func TestGeneratorErrorWritingDirs(t *testing.T) {
-	tmpDir := createTmpDir()
-	tmpFile := helpers.CreateTmpFile("generator-test-", fmt.Sprintf(`
+	tmpDir := helpers.CreateTmpDir("", "generator-test-")
+	tmpFile := helpers.CreateTmpFile("", "generator-test-", fmt.Sprintf(`
 fileSystem: {
   dir: {
     path: "%s"
@@ -325,8 +317,8 @@ func getMaxMinHeightAndCount(
 
 func TestGeneratorBalancedDir(t *testing.T) {
 	for i := 1; i <= 30; i++ {
-		tmpDir := createTmpDir()
-		tmpFile := helpers.CreateTmpFile("generator-test-", fmt.Sprintf(`
+		tmpDir := helpers.CreateTmpDir("", "generator-test-")
+		tmpFile := helpers.CreateTmpFile("", "generator-test-", fmt.Sprintf(`
 fileSystem: {
   dir: {
     path: "%s"
