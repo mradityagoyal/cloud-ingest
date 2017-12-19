@@ -18,7 +18,6 @@ package dcp
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"reflect"
 	"strings"
 	"testing"
@@ -107,7 +106,7 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	store, logPath := getTestingFakeStoreAndLogPath(numLogsToFetchPerRun)
-	writer := helpers.LinesWriterCloser{ioutil.Discard, 0}
+	var writer helpers.StringWriteCloser
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
@@ -116,8 +115,8 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 		t.Errorf("Expected %v unprocessed logs, found %d",
 			numLogsToFetchPerRun, c)
 	}
-	if writer.WrittenLines != 0 {
-		t.Errorf("Expected 0 written lines, found %d", writer.WrittenLines)
+	if writer.NumberLines() != 0 {
+		t.Errorf("Expected 0 written lines, found %d", writer.NumberLines())
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
@@ -133,9 +132,9 @@ func TestContinuouslyProcessLogsTicker(t *testing.T) {
 	if c, _ := store.GetNumUnprocessedLogs(); c != 0 {
 		t.Errorf("Expected 0 unprocessed logs, found %d", c)
 	}
-	if writer.WrittenLines != numLogsToFetchPerRun {
+	if writer.NumberLines() != numLogsToFetchPerRun {
 		t.Errorf("Expected %v written lines, found %d",
-			numLogsToFetchPerRun, writer.WrittenLines)
+			numLogsToFetchPerRun, writer.NumberLines())
 	}
 }
 
@@ -143,7 +142,7 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	store, logPath := getTestingFakeStoreAndLogPath(3)
-	writer := helpers.LinesWriterCloser{ioutil.Discard, 0}
+	var writer helpers.StringWriteCloser
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
@@ -151,8 +150,8 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	if c, _ := store.GetNumUnprocessedLogs(); c != 3 {
 		t.Errorf("Expected 3 unprocessed logs, found %d", c)
 	}
-	if writer.WrittenLines != 0 {
-		t.Errorf("Expected 0 written lines, found %d", writer.WrittenLines)
+	if writer.NumberLines() != 0 {
+		t.Errorf("Expected 0 written lines, found %d", writer.NumberLines())
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
@@ -179,8 +178,8 @@ func TestContinuouslyProcessLogsNoProgress(t *testing.T) {
 	if c, _ := store.GetNumUnprocessedLogs(); c != 0 {
 		t.Errorf("Expected 0 unprocessed logs, found %d", c)
 	}
-	if writer.WrittenLines != 3 {
-		t.Errorf("Expected 3 written lines, found %d", writer.WrittenLines)
+	if writer.NumberLines() != 3 {
+		t.Errorf("Expected 3 written lines, found %d", writer.NumberLines())
 	}
 }
 
@@ -188,7 +187,7 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	store, logPath := getTestingFakeStoreAndLogPath(3)
-	writer := helpers.LinesWriterCloser{ioutil.Discard, 0}
+	var writer helpers.StringWriteCloser
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
@@ -196,8 +195,8 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	if c, _ := store.GetNumUnprocessedLogs(); c != 3 {
 		t.Errorf("Expected 3 unprocessed logs, found %d", c)
 	}
-	if writer.WrittenLines != 0 {
-		t.Errorf("Expected 0 written lines, found %d", writer.WrittenLines)
+	if writer.NumberLines() != 0 {
+		t.Errorf("Expected 0 written lines, found %d", writer.NumberLines())
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
@@ -227,8 +226,8 @@ func TestContinuouslyProcessLogsJobRunNotification(t *testing.T) {
 	if c, _ := store.GetNumUnprocessedLogs(); c != 0 {
 		t.Errorf("Expected 0 unprocessed logs, found %d", c)
 	}
-	if writer.WrittenLines != 3 {
-		t.Errorf("Expected 3 written lines, found %d", writer.WrittenLines)
+	if writer.NumberLines() != 3 {
+		t.Errorf("Expected 3 written lines, found %d", writer.NumberLines())
 	}
 }
 
@@ -236,7 +235,7 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	store, logPath := getTestingFakeStoreAndLogPath(3)
-	writer := helpers.LinesWriterCloser{ioutil.Discard, 0}
+	var writer helpers.StringWriteCloser
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 	lep := LogEntryProcessor{mockGcs, store}
 
@@ -244,8 +243,8 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	if c, _ := store.GetNumUnprocessedLogs(); c != 3 {
 		t.Errorf("Expected 3 unprocessed logs, found %d", c)
 	}
-	if writer.WrittenLines != 0 {
-		t.Errorf("Expected 0 written lines, found %d", writer.WrittenLines)
+	if writer.NumberLines() != 0 {
+		t.Errorf("Expected 0 written lines, found %d", writer.NumberLines())
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
@@ -256,8 +255,8 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	if c, _ := store.GetNumUnprocessedLogs(); c != 2 {
 		t.Errorf("Expected 2 unprocessed logs, found %d", c)
 	}
-	if writer.WrittenLines != 1 {
-		t.Errorf("Expected 1 written line, found %d", writer.WrittenLines)
+	if writer.NumberLines() != 1 {
+		t.Errorf("Expected 1 written line, found %d", writer.NumberLines())
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
@@ -269,8 +268,8 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	if c, _ := store.GetNumUnprocessedLogs(); c != 0 {
 		t.Errorf("Expected 0 unprocessed logs, found %d", c)
 	}
-	if writer.WrittenLines != 3 {
-		t.Errorf("Expected 3 written lines, found %d", writer.WrittenLines)
+	if writer.NumberLines() != 3 {
+		t.Errorf("Expected 3 written lines, found %d", writer.NumberLines())
 	}
 }
 

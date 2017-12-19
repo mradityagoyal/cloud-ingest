@@ -16,6 +16,7 @@ limitations under the License.
 package helpers
 
 import (
+	"bytes"
 	"encoding/json"
 	"io"
 	"io/ioutil"
@@ -44,26 +45,55 @@ func NewStringReadCloser(s string) *stringReadCloser {
 	return &stringReadCloser{strings.NewReader(s), false}
 }
 
-type LinesWriterCloser struct {
-	Writer       io.Writer
-	WrittenLines int64
+// StringWriteCloser implements WriteCloser interface for faking storage.Writer.
+type StringWriteCloser struct {
+	buffer bytes.Buffer
+	closed bool
+
+	// attrs fakes the storage object attributes generated after write completion.
+	attrs *storage.ObjectAttrs
 }
 
-func (m *LinesWriterCloser) Write(p []byte) (int, error) {
-	m.WrittenLines++
-	return m.Writer.Write(p)
+func NewStringWriteCloser(attrs *storage.ObjectAttrs) *StringWriteCloser {
+	return &StringWriteCloser{attrs: attrs}
 }
 
-func (m *LinesWriterCloser) Close() error {
+func (m *StringWriteCloser) Write(p []byte) (int, error) {
+	return m.buffer.Write(p)
+}
+
+func (m *StringWriteCloser) Close() error {
+	m.closed = true
 	return nil
 }
 
-func (m *LinesWriterCloser) CloseWithError(err error) error {
+func (m *StringWriteCloser) CloseWithError(err error) error {
 	return nil
 }
 
-func (m *LinesWriterCloser) Attrs() *storage.ObjectAttrs {
+func (m *StringWriteCloser) Attrs() *storage.ObjectAttrs {
+	if m.closed {
+		return m.attrs
+	}
 	return nil
+}
+
+func (m *StringWriteCloser) WrittenString() string {
+	if m.closed {
+		return m.buffer.String()
+	}
+	return ""
+}
+
+func (m *StringWriteCloser) NumberLines() int64 {
+	if m.closed {
+		return CountLines(m.buffer.String())
+	}
+	return int64(0)
+}
+
+func CountLines(s string) int64 {
+	return int64(len(strings.Split(strings.Trim(s, "\n"), "\n")))
 }
 
 // AreEqualJson checkes if strings s1 and s2 are identical JSON represention
