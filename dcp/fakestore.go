@@ -23,7 +23,6 @@ import (
 
 var (
 	errTaskNotFound             = errors.New("task not found")
-	errInsertNewTasks           = errors.New("inserting new tasks")
 	errInvalidCompletionMessage = errors.New("invalid task completion message")
 )
 
@@ -46,16 +45,6 @@ func (s *FakeStore) GetTaskSpec(taskFullID TaskFullID) (string, error) {
 		return "", errTaskNotFound
 	}
 	return task.TaskSpec, nil
-}
-
-func (s *FakeStore) InsertNewTasks(tasks []*Task) error {
-	if s.tasks == nil {
-		return errInsertNewTasks
-	}
-	for _, task := range tasks {
-		s.tasks[task.TaskFullID] = task
-	}
-	return nil
 }
 
 func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) error {

@@ -69,17 +69,6 @@ type Store interface {
 	// Any error means that none of the rows will be updated.
 	MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error
 
-	// TODO(b/67453832): Deprecate InsertNewTasks, this method is not used in the
-	// DCP logic. It should be removed after handling large listing tasks.
-	// InsertNewTasks should only be used for tasks that you are certain
-	// do not already exist in the store. Calling this method with tasks already
-	// in the store WILL result in an error being returned. If you are inserting
-	// tasks as a result of receiving a PubSub message, use UpdateAndInsertTasks
-	// instead.
-	// InsertNewTasks adds the passed tasks to the store. Also updates the
-	// totalTasks field in the relevant job run counters string.
-	InsertNewTasks(tasks []*Task) error
-
 	// UpdateAndInsertTasks updates and insert news tasks provided in the passed
 	// TaskUpdateCollection object. It also inserts the log entries associated
 	// with the task updates.
@@ -275,80 +264,6 @@ func writeJobCountersObjectUpdatesToBuffer(ctx context.Context,
 			jobInsertValues,
 		)})
 	})
-}
-
-// TODO(akaiser): Deprecate this function in favor of using UpdateAndInsertTasks with
-// a TaskUpdate with a nil updated-task.
-//
-// CAUTION: Call only with tasks that do not already exist in the store.
-// Calling this method with tasks that already exist will result in an error
-// being returned. If inserting tasks as a result of receiving a PubSub message,
-// use UpdateAndInsertTasks instead.
-func (s *SpannerStore) InsertNewTasks(tasks []*Task) error {
-	// TODO(b/65546216): Better error handling, especially for duplicate inserts
-	if len(tasks) == 0 {
-		return nil
-	}
-
-	var counters JobCountersCollection
-	err := counters.updateForTaskUpdate(&TaskUpdate{Task: nil, LogEntry: nil, NewTasks: tasks}, 0)
-	if err != nil {
-		return err
-	}
-
-	_, err = s.Spanner.ReadWriteTransaction(
-		context.Background(),
-		func(ctx context.Context, txn gcloud.ReadWriteTransaction) error {
-			// Insert the new tasks
-			// TODO(b/63100514): Define constants for spanner table names that can be
-			// shared across store and potentially infrastructure setup implementation.
-			taskColumns := []string{
-				"ProjectId",
-				"JobConfigId",
-				"JobRunId",
-				"TaskId",
-				"TaskType",
-				"TaskSpec",
-				"Status",
-				"CreationTime",
-				"LastModificationTime",
-			}
-
-			mutation := make([]*spanner.Mutation, len(tasks))
-			timestamp := time.Now().UnixNano()
-
-			for i, task := range tasks {
-				// Create a mutation to insert the task
-				mutation[i] = spanner.Insert("Tasks",
-					taskColumns,
-					[]interface{}{
-						task.TaskFullID.ProjectID,
-						task.TaskFullID.JobConfigID,
-						task.TaskFullID.JobRunID,
-						task.TaskFullID.TaskID,
-						task.TaskType,
-						task.TaskSpec,
-						Unqueued,
-						timestamp,
-						timestamp,
-					})
-			}
-
-			// Store the task insertion mutations in the transaction write buffer
-			err := txn.BufferWrite(mutation)
-			if err != nil {
-				return err
-			}
-
-			// Create and store the job counters update mutations in the
-			// transaction write buffer.
-			return writeJobCountersObjectUpdatesToBuffer(
-				ctx,
-				txn,
-				counters,
-			)
-		})
-	return err
 }
 
 // getTaskFullIDFromRow returns the task id constructed from the ProjectID,
