@@ -34,9 +34,9 @@ const (
 	KeyTasksQueued    string = "tasksQueued"
 	KeyTasksUnqueued  string = "tasksUnqueued"
 
-	KeySuffixList string = "List"
+	KeySuffixList        string = "List"
 	KeySuffixProcessList string = "ProcessList"
-	KeySuffixCopy string = "Copy"
+	KeySuffixCopy        string = "Copy"
 
 	// Keys for the log entry counters.
 	KeyListFilesFound     string = "listFilesFound"
