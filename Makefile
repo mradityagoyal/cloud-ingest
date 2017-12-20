@@ -99,12 +99,14 @@ build-backend: lint-backend test-backend ## Check and test backend code.
 .PHONY: build-frontend
 build-frontend: lint-frontend test-frontend ## Check and test frontend code.
 
+# rmdir ... ;true ignores errors if dir does not exist - according to GNU make
+# documentation, prefixing the line with - should accomplish this, but it doesn't work.
 .PHONY: clean
 clean: ## Blow away all compiled artifacts and installed dependencies.
 	go clean -i $(GO_TARGETS)
 	rm -rf $(FRONTEND_DIR)/node_modules
 	rm -rf $(FULL_OPI_BACKEND_VIRTUALENV_PATH)
-	rmdir --ignore-fail-on-non-empty $(OPI_BACKEND_VIRTUALENV_PATH)
+	rmdir --ignore-fail-on-non-empty $(OPI_BACKEND_VIRTUALENV_PATH); true
 
 .PHONY: setup
 setup: setup-go setup-backend setup-frontend ## Run full setup of dependencies and environment.
