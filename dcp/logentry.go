@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"hash/fnv"
 	"io"
-	"log"
 	"sort"
 	"strings"
 	"time"
@@ -30,6 +29,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/golang/glog"
 )
 
 // This channel is used to notify the LogEntryProcessor that a job run changed
@@ -184,7 +184,7 @@ func (lep LogEntryProcessor) continuouslyProcessLogs(
 			// Dumps logs when enough have accumulated.
 			n, err := lep.Store.GetNumUnprocessedLogs()
 			if err != nil {
-				log.Println("Error getting numUnprocessedLogs:", err)
+				glog.Errorln("Error getting numUnprocessedLogs:", err)
 				continue
 			}
 			if n >= numLogsToFetchPerRun {
@@ -209,7 +209,7 @@ func (lep LogEntryProcessor) continuouslyProcessLogs(
 			// This should take care of the tail of logs at the end of a job.
 			n, err := lep.Store.GetNumUnprocessedLogs()
 			if err != nil {
-				log.Println("Error getting numUnprocessedLogs:", err)
+				glog.Errorln("Error getting numUnprocessedLogs:", err)
 				continue
 			}
 			if n > 0 {
@@ -229,11 +229,11 @@ func (lep LogEntryProcessor) continuouslyProcessLogs(
 func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int64) {
 	logs, err := lep.Store.GetUnprocessedLogs(n)
 	if err != nil {
-		log.Println("Error fetching unprocessed logs:", err)
+		glog.Errorln("Error fetching unprocessed logs:", err)
 		return
 	}
 	if len(logs) == 0 {
-		log.Println("Found no logs to process.")
+		glog.Infoln("Found no logs to process.")
 		return
 	}
 
@@ -250,7 +250,7 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int6
 			if err != nil {
 				// TODO(b/69171696): We need to figure out how to
 				// gracefully handle this situation.
-				log.Println("Error getting JobSpec:", err)
+				glog.Errorln("Error getting JobSpec:", err)
 				return
 			}
 			bucketName := jobSpec.GCSBucket
@@ -264,7 +264,7 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int6
 		}
 		_, err := fmt.Fprintln(gcsLogFile, logEntryRow)
 		if err != nil {
-			log.Println("Error writing to the GCS log file:", err)
+			glog.Errorln("Error writing to the GCS log file:", err)
 			return
 		}
 	}
@@ -272,7 +272,7 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int6
 	// Close all the open files so the logs get written to GCS.
 	for _, gcsLogFile := range gcsLogFiles {
 		if err := gcsLogFile.Close(); err != nil {
-			log.Println("Error closing GCS object:", err)
+			glog.Errorln("Error closing GCS object:", err)
 			return
 		}
 	}
@@ -280,6 +280,6 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int6
 	// Mark the logs as processed.
 	err = lep.Store.MarkLogsAsProcessed(logs)
 	if err != nil {
-		log.Println("Error marking logs as processed:", err)
+		glog.Errorln("Error marking logs as processed:", err)
 	}
 }

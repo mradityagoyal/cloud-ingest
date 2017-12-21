@@ -20,12 +20,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log"
 	"time"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/spanner"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/golang/glog"
 	"google.golang.org/api/iterator"
 )
 
@@ -448,7 +448,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 					return err
 				}
 				if !validUpdate {
-					log.Printf("Ignore updating task %s from status %d to status %d.",
+					glog.Infof("Ignore updating task %s from status %d to status %d.",
 						taskID, oldStatus, taskUpdate.Task.Status)
 					return nil
 				}
@@ -557,7 +557,7 @@ func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processLis
 		taskMsgJSON, err := constructPubSubTaskMsg(task)
 
 		if err != nil {
-			log.Printf("Unable to form task msg from task: %v with error: %v.",
+			glog.Errorf("Unable to form task msg from task: %v with error: %v.",
 				task, err)
 			return err
 		}
@@ -568,7 +568,7 @@ func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processLis
 	}
 	for _, publishResult := range publishResults {
 		if _, err := publishResult.Get(context.Background()); err != nil {
-			log.Println("PubSub publish error:", err)
+			glog.Errorf("PubSub publish error:", err)
 			messagesPublished = false
 			break
 		}

@@ -21,11 +21,11 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"log"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/golang/glog"
 )
 
 type ProcessListMessageHandler struct {
@@ -90,7 +90,7 @@ func (h *ProcessListMessageHandler) HandleMessage(
 	ctx := context.Background()
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(taskCompletionMessage)
 	if err != nil {
-		log.Printf(
+		glog.Errorf(
 			"Error extracting taskCompletionMessage %v: %v",
 			taskCompletionMessage, err)
 		return nil, err
@@ -109,7 +109,7 @@ func (h *ProcessListMessageHandler) HandleMessage(
 	if err == io.EOF {
 		task.Status = Success
 	} else if err != nil {
-		log.Printf(
+		glog.Errorf(
 			"Error reading the listing file, bucket/object: %v/%v, with error: %v.",
 			spec.DstListResultBucket, spec.DstListResultObject, err)
 		return nil, err
@@ -135,7 +135,7 @@ func (h *ProcessListMessageHandler) HandleMessage(
 		}
 		uploadGCSTaskSpecJson, err := json.Marshal(uploadGCSTaskSpec)
 		if err != nil {
-			log.Printf(
+			glog.Errorf(
 				"Error encoding task spec to JSON string, task spec: %v, err: %v.",
 				uploadGCSTaskSpec, err)
 			return nil, err

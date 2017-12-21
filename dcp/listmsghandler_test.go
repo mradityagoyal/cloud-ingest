@@ -17,9 +17,6 @@ package dcp
 
 import (
 	"errors"
-	"io/ioutil"
-	"log"
-	"os"
 	"strings"
 	"testing"
 
@@ -55,9 +52,7 @@ func TestListProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 
 	taskCompletionMessage := listSuccessCompletionMessage()
 	taskCompletionMessage.TaskRRName = "garbage"
-	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
-	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Error("error is nil, expected error: cannot parse task...")
 	} else if !strings.Contains(err.Error(), "cannot parse task") {
@@ -95,9 +90,7 @@ func TestListProgressMessageHandlerFailReadingGenNum(t *testing.T) {
 		ObjectMetadataReader: mockObjectMetadataReader,
 	}
 
-	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, listSuccessCompletionMessage())
-	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	} else if err.Error() != errorMsg {

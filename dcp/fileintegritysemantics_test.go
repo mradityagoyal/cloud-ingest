@@ -18,9 +18,6 @@ package dcp
 import (
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
-	"log"
-	"os"
 	"reflect"
 	"strconv"
 	"testing"
@@ -87,9 +84,6 @@ func compareTaskUpdates(want, got *TaskUpdate, t *testing.T) {
 
 func TestFileIntegritySemantics_FailedReissue(t *testing.T) {
 	// Task failed in a way that requires reissuing (e.g. MD5)
-	log.SetOutput(ioutil.Discard) // Temporarily suppress logging.
-	defer log.SetOutput(os.Stdout)
-
 	taskUpdate := getTestingTaskUpdate(
 		0, Failed, proto.TaskFailureType_MD5_MISMATCH_FAILURE, getTestingTaskSpec(0))
 
@@ -128,9 +122,6 @@ func TestFileIntegritySemantics_FailedNoReissue(t *testing.T) {
 func TestFileIntegritySemantics_SuccessBadGenerationNum(t *testing.T) {
 	// Task succeeded, but the generation number it was called with does not match that of the
 	// task in spanner, so we have to update and re-issue.
-	log.SetOutput(ioutil.Discard) // Temporarily suppress logging.
-	defer log.SetOutput(os.Stdout)
-
 	taskUpdate := getTestingTaskUpdate(0, Success, 0, getTestingTaskSpec(123))
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
@@ -178,9 +169,6 @@ func TestFileIntegritySemantics_InvalidTaskSpec(t *testing.T) {
 
 func TestFileIntegritySemantics_MissingGenNumSpec(t *testing.T) {
 	// Verifies that we reissue when task spec is missing generation number.
-	log.SetOutput(ioutil.Discard) // Temporarily suppress logging.
-	defer log.SetOutput(os.Stdout)
-
 	taskUpdate := getTestingTaskUpdate(123, Success, 0, noGenNumTaskSpec)
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
@@ -199,9 +187,6 @@ func TestFileIntegritySemantics_MissingGenNumSpec(t *testing.T) {
 
 func TestFileIntegritySemantics_MissingGenNumParams(t *testing.T) {
 	// Verifies that we reissue when params are missing generation number.
-	log.SetOutput(ioutil.Discard) // Temporarily suppress logging.
-	defer log.SetOutput(os.Stdout)
-
 	taskUpdate := getTestingTaskUpdate(0, Success, 0, getTestingTaskSpec(123))
 	taskUpdate.OriginalTaskParams = TaskParams{}
 
@@ -222,9 +207,6 @@ func TestFileIntegritySemantics_MissingGenNumParams(t *testing.T) {
 
 func TestFileIntegritySemantics_MissingGenNumSpecAndParams(t *testing.T) {
 	// Verifies that we reissue when neither params nor spec have generation number.
-	log.SetOutput(ioutil.Discard) // Temporarily suppress logging.
-	defer log.SetOutput(os.Stdout)
-
 	taskUpdate := getTestingTaskUpdate(0, Success, 0, noGenNumTaskSpec)
 	taskUpdate.OriginalTaskParams = TaskParams{}
 

@@ -19,7 +19,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
@@ -29,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/golang/glog"
 )
 
 const (
@@ -75,6 +75,7 @@ func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
 }
 
 func main() {
+	defer glog.Flush()
 	database := fmt.Sprintf("projects/%s/instances/%s/databases/%s",
 		projectID, spannerInstance, spannerDatabase)
 
@@ -150,8 +151,7 @@ func main() {
 			GetQueueTasksClosure(store, tasksToQueue, processListTopic, projectID),
 		)
 		if err != nil {
-			log.Printf("Error in queueing tasks: %v.", err)
-			os.Exit(1)
+			glog.Fatalf("Error in queueing tasks: %v.", err)
 		}
 		time.Sleep(queueTasksSleepTime)
 	}

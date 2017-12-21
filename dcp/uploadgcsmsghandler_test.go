@@ -17,9 +17,6 @@ package dcp
 
 import (
 	"errors"
-	"io/ioutil"
-	"log"
-	"os"
 	"strings"
 	"testing"
 
@@ -46,9 +43,7 @@ func TestUploadGCSProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 	jobSpec := &JobSpec{}
 	taskCompletionMessage := copySuccessCompletionMessage()
 	taskCompletionMessage.TaskRRName = "garbage"
-	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(jobSpec, taskCompletionMessage)
-	defer log.SetOutput(os.Stdout) // Reenable logging.
 
 	if err == nil {
 		t.Errorf("error is nil, expected error: %v.", errInvalidCompletionMessage)

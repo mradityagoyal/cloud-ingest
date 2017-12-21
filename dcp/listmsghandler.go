@@ -18,9 +18,9 @@ package dcp
 import (
 	"context"
 	"encoding/json"
-	"log"
 
 	"cloud.google.com/go/storage"
+	"github.com/golang/glog"
 )
 
 type ListProgressMessageHandler struct {
@@ -45,7 +45,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	ctx := context.Background()
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(taskCompletionMessage)
 	if err != nil {
-		log.Printf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
+		glog.Errorf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
 		return nil, err
 	}
 
@@ -84,7 +84,7 @@ func (h *ListProgressMessageHandler) HandleMessage(
 	}
 	processListTaskSpecJson, err := json.Marshal(processListTaskSpec)
 	if err != nil {
-		log.Printf("Error encoding task spec to JSON string, task spec: %v, err: %v.",
+		glog.Errorf("Error encoding task spec to JSON string, task spec: %v, err: %v.",
 			processListTaskSpec, err)
 		return nil, err
 	}

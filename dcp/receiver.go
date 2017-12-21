@@ -25,10 +25,10 @@ package dcp
 
 import (
 	"context"
-	"log"
 	"sync"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/golang/glog"
 	"github.com/golang/groupcache/lru"
 )
 
@@ -75,7 +75,7 @@ func (r *MessageReceiver) getJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobS
 	// cache the job spec, and all the other tasks are dependent on it.
 
 	// Get the job spec from the store and add it to the cache.
-	log.Printf("Did not find Job Spec for (%s) in the cache, querying the store",
+	glog.Infof("Did not find Job Spec for (%s) in the cache, querying the store",
 		jobConfigRRStruct)
 	storeJobSpec, err := r.Store.GetJobSpec(jobConfigRRStruct)
 	if err != nil {
@@ -99,29 +99,29 @@ func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
 		// TODO(b/63058868): Failed to handle a PubSub message will be keep
 		// redelivered by the PubSub for significant amount of time (1 week).
 		// Non-retriable errors should mark the task failed and ack the message.
-		log.Printf("Handling a message: %s.", string(msg.Data))
+		glog.Infof("Handling a message: %s.", string(msg.Data))
 		taskCompletionMessage, err := TaskCompletionMessageFromJson(msg.Data)
 		if err != nil {
-			log.Printf("Error handling the message: %s with error: %v.",
+			glog.Errorf("Error handling the message: %s with error: %v.",
 				string(msg.Data), err)
 			return
 		}
 		taskRRStruct, err := TaskRRStructFromTaskRRName(taskCompletionMessage.TaskRRName)
 		if err != nil {
-			log.Printf("Error getting JobConfigID from TaskIDStr %s: %v",
+			glog.Errorf("Error getting JobConfigID from TaskIDStr %s: %v",
 				taskCompletionMessage.TaskRRName, err)
 			return
 		}
 		jobSpec, err := r.getJobSpec(taskRRStruct.JobConfigRRStruct)
 		if err != nil {
-			log.Printf("Error in getting JobSpec of JobConfig: %v, with error: %v.",
+			glog.Errorf("Error in getting JobSpec of JobConfig: %v, with error: %v.",
 				taskRRStruct.JobConfigRRStruct, err)
 			return
 		}
 
 		taskUpdate, err := r.Handler.HandleMessage(jobSpec, taskCompletionMessage)
 		if err != nil {
-			log.Printf(
+			glog.Errorf(
 				"Error handling the message: %s, with job spec: %v, and taskCompletionMessage: %v: %v",
 				string(msg.Data), jobSpec, taskCompletionMessage, err)
 			return
@@ -131,7 +131,7 @@ func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
 	})
 
 	if ctx.Err() != nil {
-		log.Printf(
+		glog.Warningf(
 			"Error receiving messages for subscription %v, with context error: %v.",
 			r.Sub, ctx.Err())
 	}
@@ -139,10 +139,9 @@ func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
 	// The Pub/Sub client libraries already retries on retriable errors. Panic
 	// here on non-retriable errors.
 	if err != nil {
-		log.Printf("Error receiving messages for subscription %v, with error: %v.",
-			r.Sub, err)
 		// TODO(b/69918304): We should not panic in the managed service. Instead,
 		// we should have an alerting technique for non-retriable errors.
-		panic(err)
+		glog.Fatalf("Error receiving messages for subscription %v, with error: %v.",
+			r.Sub, err)
 	}
 }

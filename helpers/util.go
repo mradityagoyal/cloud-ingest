@@ -18,13 +18,13 @@ package helpers
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"path/filepath"
 	"strings"
 	"time"
 	"unicode"
 
 	"cloud.google.com/go/storage"
+	"github.com/golang/glog"
 )
 
 // RetryWithExponentialBackoff tries the given function until it succeeds,
@@ -52,7 +52,7 @@ func RetryWithExponentialBackoff(sleepTime time.Duration,
 	failures := 0
 	for err := function(); err != nil; {
 		failures++
-		log.Printf("Error occurred in %s: %v.", functionName, err)
+		glog.Warningf("Error occurred in %s: %v.", functionName, err)
 
 		if maxFails > 0 && failures >= maxFails {
 			// Has failed maxFails times in a row, return with error
@@ -60,7 +60,7 @@ func RetryWithExponentialBackoff(sleepTime time.Duration,
 				functionName, maxFails)
 		}
 
-		log.Printf("Retrying in %v.", sleepTime)
+		glog.Infof("Retrying in %v.", sleepTime)
 		time.Sleep(sleepTime)
 
 		if sleepTime > maxSleepTime/2 {

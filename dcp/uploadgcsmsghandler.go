@@ -17,7 +17,8 @@ package dcp
 
 import (
 	"context"
-	"log"
+
+	"github.com/golang/glog"
 
 	"cloud.google.com/go/storage"
 )
@@ -48,7 +49,7 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(
 	ctx := context.Background()
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(taskCompletionMessage)
 	if err != nil {
-		log.Printf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
+		glog.Errorf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
 		return nil, err
 	}
 	taskUpdate.Task.TaskType = uploadGCSTaskType

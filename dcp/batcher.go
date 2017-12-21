@@ -16,12 +16,12 @@ limitations under the License.
 package dcp
 
 import (
-	"log"
 	"sync"
 	"time"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/golang/glog"
 )
 
 const (
@@ -93,7 +93,7 @@ func (b *taskUpdatesBatcher) commitUpdatesClosure() func() error {
 		// other receivers will be blocked for Spanner transaction or Pub/Sub server
 		// calls to complete.
 		if err := b.store.UpdateAndInsertTasks(b.pendingTasksToStore); err != nil {
-			log.Printf("Error on UpdateAndInsertTasks: %v.", err)
+			glog.Errorf("Error on UpdateAndInsertTasks: %v.", err)
 			return err
 		}
 
@@ -124,7 +124,7 @@ func (b *taskUpdatesBatcher) initializeAndStartInternal(s Store, t helpers.Ticke
 	b.mu.Lock()
 	defer b.mu.Unlock()
 	if b.started {
-		log.Println("taskUpdatesBatcher already started, ignoring this start call.")
+		glog.Infoln("taskUpdatesBatcher already started, ignoring this start call.")
 		return
 	}
 	b.started = true

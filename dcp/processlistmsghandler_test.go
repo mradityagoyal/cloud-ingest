@@ -20,9 +20,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
-	"log"
-	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -50,9 +47,7 @@ func TestProcessListMessageHandlerInvalidCompletionMessage(t *testing.T) {
 
 	taskCompletionMessage := processListCompletionMessage()
 	taskCompletionMessage.TaskRRName = "garbage"
-	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil, taskCompletionMessage)
-	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Error("error is nil, expected error: can not parse full task id...")
 	} else if !strings.Contains(err.Error(), "cannot parse") {
@@ -74,9 +69,7 @@ func TestProcessListMessageHandlerFailReadingListResult(t *testing.T) {
 		ListingResultReader: mockListReader,
 	}
 
-	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil, processListCompletionMessage())
-	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
 		t.Errorf("error is nil, expected error: %s.", errorMsg)
 	} else if err.Error() != errorMsg {

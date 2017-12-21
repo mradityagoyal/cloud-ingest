@@ -16,9 +16,6 @@ limitations under the License.
 package dcp
 
 import (
-	"io/ioutil"
-	"log"
-	"os"
 	"reflect"
 	"testing"
 
@@ -26,9 +23,6 @@ import (
 )
 
 func TestGetJobSpecFromCache(t *testing.T) {
-	log.SetOutput(ioutil.Discard) // Temporarily suppress logging.
-	defer log.SetOutput(os.Stdout)
-
 	initialJobSpec := &JobSpec{
 		OnpremSrcDirectory: "dummy-src",
 		GCSBucket:          "dummy-bucket",
@@ -63,9 +57,6 @@ func TestGetJobSpecFromCache(t *testing.T) {
 }
 
 func TestGetJobSpecThatRemovedFromCache(t *testing.T) {
-	log.SetOutput(ioutil.Discard) // Temporarily suppress logging.
-	defer log.SetOutput(os.Stdout)
-
 	initialJobSpec := &JobSpec{
 		OnpremSrcDirectory: "dummy-src",
 		GCSBucket:          "dummy-bucket",
