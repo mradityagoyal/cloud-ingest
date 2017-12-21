@@ -18,12 +18,12 @@ package main
 import (
 	"context"
 	"flag"
-	"log"
 	"time"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent"
+	"github.com/golang/glog"
 	"google.golang.org/api/option"
 )
 
@@ -60,6 +60,7 @@ func init() {
 }
 
 func main() {
+	defer glog.Flush()
 	ctx := context.Background()
 
 	var pubSubErr, storageErr error
@@ -76,11 +77,11 @@ func main() {
 	}
 
 	if pubSubErr != nil {
-		log.Fatalf("Can not create Pub/Sub client, error: %+v.\n", pubSubErr)
+		glog.Fatalf("Can not create Pub/Sub client, error: %+v.\n", pubSubErr)
 	}
 
 	if storageErr != nil {
-		log.Fatalf("Can not create storage client, error: %+v.\n", storageErr)
+		glog.Fatalf("Can not create storage client, error: %+v.\n", storageErr)
 	}
 
 	listSub := pubSubClient.Subscription(listSubscription)

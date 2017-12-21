@@ -22,6 +22,7 @@ import (
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
+	"github.com/golang/glog"
 	"google.golang.org/api/googleapi"
 )
 
@@ -59,6 +60,7 @@ func buildTaskCompletionMessage(taskRRName string, taskParams dcp.TaskParams,
 		msg.Status = "FAILURE"
 		msg.FailureType = getFailureTypeFromError(err)
 		msg.FailureMessage = fmt.Sprint(err)
+		glog.Warningf("Encountered error in processing msg: %+v.", msg)
 	} else {
 		msg.Status = "SUCCESS"
 	}

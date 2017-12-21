@@ -20,11 +20,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"os"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
+	"github.com/golang/glog"
 )
 
 var workerID string
@@ -32,7 +32,7 @@ var workerID string
 func init() {
 	hostname, err := os.Hostname()
 	if err != nil {
-		log.Fatal("Initialization failed, cannot get host name.")
+		glog.Fatal("Initialization failed, cannot get host name.")
 	}
 	workerID = fmt.Sprintf("%s-%d", hostname, os.Getpid())
 }
@@ -53,7 +53,7 @@ type WorkProcessor struct {
 }
 
 func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
-	log.Printf("Handling message: %s.", string(msg.Data))
+	glog.Infof("Handling message: %s.", string(msg.Data))
 
 	msgMap := make(map[string]interface{})
 	decoder := json.NewDecoder(bytes.NewReader(msg.Data))
@@ -62,9 +62,7 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 	// TODO(b/70812612): Define the work messages in a struct instead of
 	// map[string]interface{}.
 	if err := decoder.Decode(&msgMap); err != nil {
-		// TODO(b/70730998): Implement different levels of logs. Should have an
-		// alerts on getting here.
-		log.Printf("error decoding JSON msg string %s with error %v.",
+		glog.Errorf("error decoding JSON msg string %s with error %v.",
 			string(msg.Data), err)
 		// Non-recoverable error. Will Ack the message to avoid delivering again.
 		msg.Ack()
@@ -72,9 +70,7 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 	}
 	taskRRName, ok := msgMap["task_id"].(string)
 	if !ok {
-		// TODO(b/70730998): Implement different levels of logs. Should have an
-		// alerts on getting here.
-		log.Printf("Can not get the full task id from message %s.", string(msg.Data))
+		glog.Errorf("Can not get the full task id from message %s.", string(msg.Data))
 		// Here the taskRRName is unknown. Will Ack the message to avoid delivering again.
 		msg.Ack()
 		return
@@ -85,14 +81,14 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 
 	progressMsgJSON, err := json.Marshal(progressMsg)
 	if err != nil {
-		log.Printf("Cannot marshal json %+v with err %v", progressMsg, err)
+		glog.Errorf("Cannot marshal json %+v with err %v", progressMsg, err)
 		// This may be a transient error, will not Ack the messages to retry again
 		// when the message redelivered.
 		return
 	}
 	pubResult := wp.ProgressTopic.Publish(ctx, &pubsub.Message{Data: progressMsgJSON})
 	if _, err := pubResult.Get(ctx); err != nil {
-		log.Println("Can not publish list progress message with err: %v", err)
+		glog.Errorf("Can not publish list progress message with err: %v", err)
 		// Will not Ack the messages to retry again when the message redelivered.
 		return
 	}
@@ -119,7 +115,7 @@ func (wp *WorkProcessor) Process(ctx context.Context) {
 	err := wp.WorkSub.Receive(ctx, wp.processMessage)
 
 	if ctx.Err() != nil {
-		log.Printf(
+		glog.Warningf(
 			"Error receiving work messages for subscription %v, with context error: %v.",
 			wp.WorkSub, ctx.Err())
 	}
@@ -127,10 +123,7 @@ func (wp *WorkProcessor) Process(ctx context.Context) {
 	// The Pub/Sub client libraries already retries on retriable errors. Panic
 	// here on non-retriable errors.
 	if err != nil {
-		log.Printf("Error receiving work messages for subscription %v, with error: %v.",
+		glog.Fatalf("Error receiving work messages for subscription %v, with error: %v.",
 			wp.WorkSub, err)
-		// TODO(b/69918304): We should not panic in the managed service. Instead,
-		// we should have an alerting technique for non-retriable errors.
-		panic(err)
 	}
 }
