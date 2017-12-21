@@ -58,7 +58,7 @@ func checkForFileChanges(beforeStats os.FileInfo, f *os.File) error {
 	return nil
 }
 
-func (h *CopyHandler) Do(ctx context.Context, fullTaskID string,
+func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 	taskParams dcp.TaskParams) dcp.TaskCompletionMessage {
 
 	srcPath, srcPathOK := taskParams["src_file"].(string)
@@ -75,7 +75,7 @@ func (h *CopyHandler) Do(ctx context.Context, fullTaskID string,
 
 	if !srcPathOK || !bucketNameOK || !objectNameOK || err != nil {
 		return buildTaskCompletionMessage(
-			fullTaskID, taskParams, logEntry, NewInvalidTaskParamsError(taskParams))
+			taskRRName, taskParams, logEntry, NewInvalidTaskParamsError(taskParams))
 	}
 
 	// TODO(b/70808741): Preserve the POSIX mtime of the file as GCS metadata
@@ -90,12 +90,12 @@ func (h *CopyHandler) Do(ctx context.Context, fullTaskID string,
 
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
-		return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 	}
 	defer srcFile.Close()
 	stats, err := srcFile.Stat()
 	if err != nil {
-		return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 	}
 	logEntry["src_bytes"] = stats.Size()
 	logEntry["src_modified_time"] = stats.ModTime()
@@ -109,27 +109,27 @@ func (h *CopyHandler) Do(ctx context.Context, fullTaskID string,
 				break
 			}
 			w.CloseWithError(err)
-			return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 		}
 		_, err = w.Write(buffer[:n])
 		if err != nil {
 			w.CloseWithError(err)
-			return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 		}
 
 		_, err = hash.Write(buffer[:n])
 		if err != nil {
 			w.CloseWithError(err)
-			return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 		}
 	}
 
 	if err := w.Close(); err != nil {
-		return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 	}
 
 	if err := checkForFileChanges(stats, srcFile); err != nil {
-		return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 	}
 
 	srcMD5 := hash.Sum(nil)
@@ -148,7 +148,7 @@ func (h *CopyHandler) Do(ctx context.Context, fullTaskID string,
 				srcPath, srcMD5, dstPath, attrs.MD5),
 			FailureType: proto.TaskFailureType_MD5_MISMATCH_FAILURE,
 		}
-		return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 	}
-	return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, nil)
+	return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, nil)
 }

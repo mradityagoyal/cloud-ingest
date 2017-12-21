@@ -89,9 +89,9 @@ func TestListSuccessEmptyDir(t *testing.T) {
 
 	writer := &helpers.StringWriteCloser{}
 
-	fullTaskID := "task"
+	taskRRName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	expectedListResult.WriteString(fmt.Sprintln(fullTaskID))
+	expectedListResult.WriteString(fmt.Sprintln(taskRRName))
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
@@ -107,8 +107,8 @@ func TestListSuccessEmptyDir(t *testing.T) {
 		"src_directory":           tmpDir,
 		"expected_generation_num": 0,
 	}
-	msg := h.Do(context.Background(), fullTaskID, taskParams)
-	checkSuccessMsg(fullTaskID, msg, t)
+	msg := h.Do(context.Background(), taskRRName, taskParams)
+	checkSuccessMsg(taskRRName, msg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -128,9 +128,9 @@ func TestListSuccessFlatDir(t *testing.T) {
 
 	writer := &helpers.StringWriteCloser{}
 
-	fullTaskID := "task"
+	taskRRName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	expectedListResult.WriteString(fmt.Sprintln(fullTaskID))
+	expectedListResult.WriteString(fmt.Sprintln(taskRRName))
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
@@ -157,8 +157,8 @@ func TestListSuccessFlatDir(t *testing.T) {
 		"src_directory":           tmpDir,
 		"expected_generation_num": 0,
 	}
-	msg := h.Do(context.Background(), fullTaskID, taskParams)
-	checkSuccessMsg(fullTaskID, msg, t)
+	msg := h.Do(context.Background(), taskRRName, taskParams)
+	checkSuccessMsg(taskRRName, msg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -178,9 +178,9 @@ func TestListSuccessNestedDir(t *testing.T) {
 
 	writer := &helpers.StringWriteCloser{}
 
-	fullTaskID := "task"
+	taskRRName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	expectedListResult.WriteString(fmt.Sprintln(fullTaskID))
+	expectedListResult.WriteString(fmt.Sprintln(taskRRName))
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
@@ -213,8 +213,8 @@ func TestListSuccessNestedDir(t *testing.T) {
 		"src_directory":           tmpDir,
 		"expected_generation_num": 0,
 	}
-	msg := h.Do(context.Background(), fullTaskID, taskParams)
-	checkSuccessMsg(fullTaskID, msg, t)
+	msg := h.Do(context.Background(), taskRRName, taskParams)
+	checkSuccessMsg(taskRRName, msg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())

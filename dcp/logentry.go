@@ -106,10 +106,10 @@ func insertLogEntryMutation(mutations *[]*spanner.Mutation, task *Task, previous
 
 	*mutations = append(*mutations, spanner.Insert("LogEntries", getLogEntryInsertColumns(),
 		[]interface{}{
-			task.TaskFullID.ProjectID,
-			task.TaskFullID.JobConfigID,
-			task.TaskFullID.JobRunID,
-			task.TaskFullID.TaskID,
+			task.TaskRRStruct.ProjectID,
+			task.TaskRRStruct.JobConfigID,
+			task.TaskRRStruct.JobRunID,
+			task.TaskRRStruct.TaskID,
 			logEntryID,
 			timestamp,
 			task.Status,
@@ -125,7 +125,7 @@ func insertLogEntryMutation(mutations *[]*spanner.Mutation, task *Task, previous
 // *****************************************************************************
 
 type LogEntryRow struct {
-	TaskFullID     TaskFullID
+	TaskRRStruct   TaskRRStruct
 	LogEntryID     int64
 	CreationTime   int64
 	CurrentStatus  int64
@@ -151,7 +151,7 @@ func sanitizeFailureMessage(s string) string {
 func (l LogEntryRow) String() string {
 	timebytes := time.Unix(0, l.CreationTime).Format(logTimeFormat)
 	return fmt.Sprintf("%v %v %v->%v FailureMessage:'%v' WorkerLog:'%v'",
-		string(timebytes), l.TaskFullID.TaskID,
+		string(timebytes), l.TaskRRStruct.TaskID,
 		proto.TaskStatus_Type_name[int32(l.PreviousStatus)],
 		proto.TaskStatus_Type_name[int32(l.CurrentStatus)],
 		sanitizeFailureMessage(l.FailureMessage), l.LogEntry)
@@ -237,16 +237,16 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int6
 		return
 	}
 
-	// Map of JobConfigFullID to the corresponding GCS log file.
-	gcsLogFiles := make(map[JobConfigFullID]io.WriteCloser)
+	// Map of JobConfigRRStruct to the corresponding GCS log file.
+	gcsLogFiles := make(map[JobConfigRRStruct]io.WriteCloser)
 
 	// TODO(b/69123303): Investigate different file grouping schemes.
 	// Write the logs to their respective files.
 	for _, logEntryRow := range logs {
-		jobConfigFullID := logEntryRow.TaskFullID.JobConfigFullID
-		gcsLogFile, ok := gcsLogFiles[jobConfigFullID]
+		jobConfigRRStruct := logEntryRow.TaskRRStruct.JobConfigRRStruct
+		gcsLogFile, ok := gcsLogFiles[jobConfigRRStruct]
 		if !ok {
-			jobSpec, err := lep.Store.GetJobSpec(jobConfigFullID)
+			jobSpec, err := lep.Store.GetJobSpec(jobConfigRRStruct)
 			if err != nil {
 				// TODO(b/69171696): We need to figure out how to
 				// gracefully handle this situation.
@@ -257,9 +257,10 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int6
 			timebytes := time.Unix(0, logEntryRow.CreationTime).Format(logTimeFormat)
 			// Note that the timestamp is in nanoseconds, so collisions are
 			// nearly impossible (two subsequent Go timestamps are ~50ns apart).
-			objectName := fmt.Sprintf("logs/%v/%v.log", jobConfigFullID, string(timebytes))
+			objectName := fmt.Sprintf("logs/%v/%v.log",
+				jobConfigRRStruct.JobConfigID, string(timebytes))
 			gcsLogFile = lep.Gcs.NewWriter(ctx, bucketName, objectName)
-			gcsLogFiles[jobConfigFullID] = gcsLogFile
+			gcsLogFiles[jobConfigRRStruct] = gcsLogFile
 		}
 		_, err := fmt.Fprintln(gcsLogFile, logEntryRow)
 		if err != nil {

@@ -48,12 +48,12 @@ func getFailureTypeFromError(err error) proto.TaskFailureType_Type {
 	return proto.TaskFailureType_UNKNOWN
 }
 
-func buildTaskCompletionMessage(fullTaskID string, taskParams dcp.TaskParams,
+func buildTaskCompletionMessage(taskRRName string, taskParams dcp.TaskParams,
 	logEntry dcp.LogEntry, err error) dcp.TaskCompletionMessage {
 	msg := dcp.TaskCompletionMessage{
-		TaskFullIDStr: fullTaskID,
-		TaskParams:    taskParams,
-		LogEntry:      logEntry,
+		TaskRRName: taskRRName,
+		TaskParams: taskParams,
+		LogEntry:   logEntry,
 	}
 	if err != nil {
 		msg.Status = "FAILURE"

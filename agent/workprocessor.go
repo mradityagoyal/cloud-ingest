@@ -39,8 +39,8 @@ func init() {
 
 // WorkHandler is an interface to handle different task types.
 type WorkHandler interface {
-	// Do handles the task with fullTaskID and taskParams.
-	Do(ctx context.Context, fullTaskID string, taskParams dcp.TaskParams) dcp.TaskCompletionMessage
+	// Do handles the task with taskRRName and taskParams.
+	Do(ctx context.Context, taskRRName string, taskParams dcp.TaskParams) dcp.TaskCompletionMessage
 }
 
 // WorkProcessor processes tasks of a certain type. It listens to subscription
@@ -70,18 +70,18 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		msg.Ack()
 		return
 	}
-	fullTaskID, ok := msgMap["task_id"].(string)
+	taskRRName, ok := msgMap["task_id"].(string)
 	if !ok {
 		// TODO(b/70730998): Implement different levels of logs. Should have an
 		// alerts on getting here.
 		log.Printf("Can not get the full task id from message %s.", string(msg.Data))
-		// Here the fullTaskID is unknown. Will Ack the message to avoid delivering again.
+		// Here the taskRRName is unknown. Will Ack the message to avoid delivering again.
 		msg.Ack()
 		return
 	}
 	taskParams := msgMap["task_params"].(map[string]interface{})
 
-	progressMsg := wp.Handler.Do(ctx, fullTaskID, taskParams)
+	progressMsg := wp.Handler.Do(ctx, taskRRName, taskParams)
 
 	progressMsgJSON, err := json.Marshal(progressMsg)
 	if err != nil {

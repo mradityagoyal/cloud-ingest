@@ -141,9 +141,9 @@ func (h *ProcessListMessageHandler) HandleMessage(
 			return nil, err
 		}
 		newTasks = append(newTasks, &Task{
-			TaskFullID: TaskFullID{task.TaskFullID.JobRunFullID, uploadGCSTaskID},
-			TaskType:   uploadGCSTaskType,
-			TaskSpec:   string(uploadGCSTaskSpecJson),
+			TaskRRStruct: TaskRRStruct{task.TaskRRStruct.JobRunRRStruct, uploadGCSTaskID},
+			TaskType:     uploadGCSTaskType,
+			TaskSpec:     string(uploadGCSTaskSpecJson),
 		})
 	}
 	taskUpdate.NewTasks = newTasks

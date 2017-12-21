@@ -68,7 +68,7 @@ func listDirectory(ctx context.Context, srcDir string) <-chan FileInfo {
 	return c
 }
 
-func (h *ListHandler) Do(ctx context.Context, fullTaskID string,
+func (h *ListHandler) Do(ctx context.Context, taskRRName string,
 	taskParams dcp.TaskParams) dcp.TaskCompletionMessage {
 
 	bucketName, bucketNameOK := taskParams["dst_list_result_bucket"].(string)
@@ -83,7 +83,7 @@ func (h *ListHandler) Do(ctx context.Context, fullTaskID string,
 
 	if !bucketNameOK || !objectNameOK || !srcDirectoryOK || err != nil {
 		return buildTaskCompletionMessage(
-			fullTaskID, taskParams, logEntry, NewInvalidTaskParamsError(taskParams))
+			taskRRName, taskParams, logEntry, NewInvalidTaskParamsError(taskParams))
 	}
 
 	w := h.gcs.NewWriterWithCondition(ctx, bucketName, objectName,
@@ -94,9 +94,9 @@ func (h *ListHandler) Do(ctx context.Context, fullTaskID string,
 		t.ChunkSize = h.resumableChunkSize
 	}
 
-	if _, err := fmt.Fprintln(w, fullTaskID); err != nil {
+	if _, err := fmt.Fprintln(w, taskRRName); err != nil {
 		w.CloseWithError(err)
-		return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 	}
 
 	var bytesFound, filesFound int64
@@ -105,23 +105,23 @@ func (h *ListHandler) Do(ctx context.Context, fullTaskID string,
 		if file.err != nil {
 			cancelFn()
 			w.CloseWithError(file.err)
-			return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, file.err)
+			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, file.err)
 		}
 		if _, err := fmt.Fprintln(w, file.fullPath); err != nil {
 			cancelFn()
 			w.CloseWithError(err)
-			return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 		}
 		filesFound++
 		bytesFound += file.Size()
 	}
 
 	if err := w.Close(); err != nil {
-		return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, err)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 	}
 
 	logEntry["files_found"] = filesFound
 	logEntry["bytes_found"] = bytesFound
 
-	return buildTaskCompletionMessage(fullTaskID, taskParams, logEntry, nil)
+	return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, nil)
 }

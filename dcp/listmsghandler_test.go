@@ -28,18 +28,18 @@ import (
 )
 
 var (
-	testProjectID     string = "project_id_A"
-	testJobConfigID   string = "job_config_id_A"
-	testJobRunID      string = "job_run_id_A"
-	testTaskID        string = "task_id_A"
-	testTaskFullIDStr string = NewTaskFullID(
+	testProjectID   string = "project_id_A"
+	testJobConfigID string = "job_config_id_A"
+	testJobRunID    string = "job_run_id_A"
+	testTaskID      string = "task_id_A"
+	testTaskRRName  string = NewTaskRRStruct(
 		testProjectID, testJobConfigID, testJobRunID, testTaskID).String()
 )
 
 func listSuccessCompletionMessage() *TaskCompletionMessage {
 	return &TaskCompletionMessage{
-		TaskFullIDStr: testTaskFullIDStr,
-		Status:        "SUCCESS",
+		TaskRRName: testTaskRRName,
+		Status:     "SUCCESS",
 		TaskParams: map[string]interface{}{
 			"dst_list_result_bucket":  "bucket1",
 			"dst_list_result_object":  "object",
@@ -54,13 +54,13 @@ func TestListProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 	handler := ListProgressMessageHandler{}
 
 	taskCompletionMessage := listSuccessCompletionMessage()
-	taskCompletionMessage.TaskFullIDStr = "garbage"
+	taskCompletionMessage.TaskRRName = "garbage"
 	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil /* jobSpec */, taskCompletionMessage)
 	defer log.SetOutput(os.Stdout) // Reenable logging.
 	if err == nil {
-		t.Error("error is nil, expected error: cannot parse task id...")
-	} else if !strings.Contains(err.Error(), "cannot parse task id") {
+		t.Error("error is nil, expected error: cannot parse task...")
+	} else if !strings.Contains(err.Error(), "cannot parse task") {
 		t.Errorf(
 			"expected error to contain %s, found: %s.", "cannot parse task id",
 			err.Error())
@@ -109,10 +109,10 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	taskFullID := NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID)
+	taskRRStruct := NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID)
 	listTask := &Task{
-		TaskFullID: *taskFullID,
-		TaskType:   listTaskType,
+		TaskRRStruct: *taskRRStruct,
+		TaskType:     listTaskType,
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
@@ -173,9 +173,9 @@ func TestListProgressMessageHandlerSuccess(t *testing.T) {
 
 	// Add task (sans spec) to our expected update.
 	expectedNewTask := &Task{
-		TaskFullID: TaskFullID{
-			JobRunFullID: taskFullID.JobRunFullID,
-			TaskID:       GetProcessListTaskID("bucket1", "object"),
+		TaskRRStruct: TaskRRStruct{
+			JobRunRRStruct: taskRRStruct.JobRunRRStruct,
+			TaskID:         GetProcessListTaskID("bucket1", "object"),
 		},
 		TaskType: processListTaskType,
 	}

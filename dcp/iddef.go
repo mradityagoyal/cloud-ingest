@@ -16,63 +16,74 @@ limitations under the License.
 package dcp
 
 import (
-	"errors"
 	"fmt"
 	"strings"
 )
 
-const (
-	idSeparator string = ":"
-)
-
-type JobConfigFullID struct {
+// The relative resource structs.
+type JobConfigRRStruct struct {
 	ProjectID   string
 	JobConfigID string
 }
 
-func (j JobConfigFullID) String() string {
-	return fmt.Sprint(j.ProjectID, idSeparator, j.JobConfigID)
-}
-
-type JobRunFullID struct {
-	JobConfigFullID
+type JobRunRRStruct struct {
+	JobConfigRRStruct
 	JobRunID string
 }
 
-func NewJobRunFullID(projectID, configID, runID string) *JobRunFullID {
-	return &JobRunFullID{
-		JobConfigFullID: JobConfigFullID{projectID, configID},
-		JobRunID:        runID,
-	}
-}
-
-func (j JobRunFullID) String() string {
-	return fmt.Sprint(j.JobConfigFullID, idSeparator, j.JobRunID)
-}
-
-type TaskFullID struct {
-	JobRunFullID
+type TaskRRStruct struct {
+	JobRunRRStruct
 	TaskID string
 }
 
-func NewTaskFullID(projectID, configID, runID, taskID string) *TaskFullID {
-	return &TaskFullID{
-		JobRunFullID: *NewJobRunFullID(projectID, configID, runID),
-		TaskID:       taskID,
-	}
+// Their String() functions.
+func (j JobConfigRRStruct) String() string {
+	return fmt.Sprint("projects/", j.ProjectID, "/jobConfigs/", j.JobConfigID)
 }
 
-func TaskFullIDFromStr(s string) (*TaskFullID, error) {
-	components := strings.SplitN(s, idSeparator, 4)
-	if len(components) != 4 {
-		return nil, errors.New(fmt.Sprintf(
-			"cannot parse task id: %s, expecting 4 strings separated by '%s'",
-			s, idSeparator))
-	}
-	return NewTaskFullID(
-		components[0], components[1], components[2], components[3]), nil
+func (j JobRunRRStruct) String() string {
+	return fmt.Sprint(j.JobConfigRRStruct, "/jobRuns/", j.JobRunID)
 }
 
-func (t TaskFullID) String() string {
-	return fmt.Sprint(t.JobRunFullID, idSeparator, t.TaskID)
+func (t TaskRRStruct) String() string {
+	return fmt.Sprint(t.JobRunRRStruct, "/tasks/", t.TaskID)
+}
+
+// Some convenience constructors.
+func NewJobConfigRRStruct(projectID, configID string) *JobConfigRRStruct {
+	return &JobConfigRRStruct{projectID, configID}
+}
+
+func NewJobRunRRStruct(projectID, configID, runID string) *JobRunRRStruct {
+	return &JobRunRRStruct{JobConfigRRStruct{projectID, configID}, runID}
+}
+
+func NewTaskRRStruct(projectID, configID, runID, taskID string) *TaskRRStruct {
+	return &TaskRRStruct{JobRunRRStruct{JobConfigRRStruct{projectID, configID}, runID}, taskID}
+}
+
+func TaskRRStructFromTaskRRName(taskRRName string) (*TaskRRStruct, error) {
+	components := strings.SplitN(taskRRName, "/", 8)
+	if len(components) != 8 {
+		return nil, fmt.Errorf(
+			"cannot parse taskRelativeResourceName: %s, expecting 8 strings separated by '/'",
+			taskRRName)
+	}
+	if components[0] != "projects" {
+		return nil, fmt.Errorf("expected collection ID of 'projects', instead got: %s for %s",
+			components[0], taskRRName)
+	}
+	if components[2] != "jobConfigs" {
+		return nil, fmt.Errorf("expected collection ID of 'jobConfigs', instead got: %s for %s",
+			components[2], taskRRName)
+	}
+	if components[4] != "jobRuns" {
+		return nil, fmt.Errorf("expected collection ID of 'jobRuns', instead got: %s for %s",
+			components[4], taskRRName)
+	}
+	if components[6] != "tasks" {
+		return nil, fmt.Errorf("expected collection ID of 'tasks', instead got: %s for %s",
+			components[6], taskRRName)
+	}
+	return NewTaskRRStruct(components[1], components[3], components[5], components[7]), nil
 }

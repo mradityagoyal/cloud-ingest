@@ -92,9 +92,9 @@ func (h *ListProgressMessageHandler) HandleMessage(
 		listTaskSpec.DstListResultBucket, listTaskSpec.DstListResultObject)
 	newTasks := []*Task{
 		&Task{
-			TaskFullID: TaskFullID{task.TaskFullID.JobRunFullID, processListTaskId},
-			TaskSpec:   string(processListTaskSpecJson),
-			TaskType:   processListTaskType,
+			TaskRRStruct: TaskRRStruct{task.TaskRRStruct.JobRunRRStruct, processListTaskId},
+			TaskSpec:     string(processListTaskSpecJson),
+			TaskType:     processListTaskType,
 		},
 	}
 	taskUpdate.NewTasks = newTasks

@@ -86,7 +86,7 @@ func (fis *FileIntegritySemantics) Apply(taskUpdate *TaskUpdate) error {
 				// The semantics struct will be carrying with it the latest and greatest, computed
 				// before the transaction.
 				log.Printf("Re-issuing task %s: spanner taskSpec generation number (%d) differs from "+
-					"original task param generation number (%d).", taskUpdate.Task.TaskFullID,
+					"original task param generation number (%d).", taskUpdate.Task.TaskRRStruct,
 					spannerGenNum, paramGenNum)
 				err := stageTaskForReissue(taskUpdate.Task, ts, fis.ExpectedGenerationNum)
 				if err != nil {
@@ -94,7 +94,7 @@ func (fis *FileIntegritySemantics) Apply(taskUpdate *TaskUpdate) error {
 				}
 			}
 		} else {
-			log.Printf("Re-issuing task %s: %v", taskUpdate.Task.TaskFullID, taskUpdate.Task.FailureType)
+			log.Printf("Re-issuing task %s: %v", taskUpdate.Task.TaskRRStruct, taskUpdate.Task.FailureType)
 			err := stageTaskForReissue(taskUpdate.Task, ts, fis.ExpectedGenerationNum)
 			if err != nil {
 				return err

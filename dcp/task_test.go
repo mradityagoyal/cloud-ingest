@@ -32,11 +32,11 @@ func TestAddTaskUpdateEmptyCollection(t *testing.T) {
 
 	expectedUpdate := &TaskUpdate{
 		Task: &Task{
-			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+			TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID),
 		},
 	}
 	tc.AddTaskUpdate(expectedUpdate)
-	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.TaskFullID)
+	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.TaskRRStruct)
 	if retUpdate != expectedUpdate {
 		t.Errorf("task mismatch, expected: %v, returned: %v", expectedUpdate, retUpdate)
 	}
@@ -50,8 +50,8 @@ func TestAddTaskUpdateIgnoreTask(t *testing.T) {
 
 	expectedUpdate := &TaskUpdate{
 		Task: &Task{
-			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
-			Status:     Success,
+			TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+			Status:       Success,
 		},
 	}
 	tc.AddTaskUpdate(expectedUpdate)
@@ -69,7 +69,7 @@ func TestAddTaskUpdateIgnoreTask(t *testing.T) {
 	}
 	tc.AddTaskUpdate(duplicateUpdate)
 
-	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.TaskFullID)
+	retUpdate := tc.GetTaskUpdate(expectedUpdate.Task.TaskRRStruct)
 	if tc.Size() != 1 {
 		t.Errorf("expected 1 task update in the collection, found %v", tc.Size())
 	}
@@ -83,8 +83,8 @@ func TestAddTaskUpdateOverrideTask(t *testing.T) {
 
 	taskUpdate := &TaskUpdate{
 		Task: &Task{
-			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
-			Status:     Failed,
+			TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+			Status:       Failed,
 		},
 	}
 	tc.AddTaskUpdate(taskUpdate)
@@ -96,7 +96,7 @@ func TestAddTaskUpdateOverrideTask(t *testing.T) {
 	}
 	tc.AddTaskUpdate(expectedUpdate)
 
-	retUpdate := tc.GetTaskUpdate(taskUpdate.Task.TaskFullID)
+	retUpdate := tc.GetTaskUpdate(taskUpdate.Task.TaskRRStruct)
 	if tc.Size() != 1 {
 		t.Errorf("expected 1 task update in the colleection, found %v", tc.Size())
 	}
@@ -121,13 +121,13 @@ func TestGetTaskUpdates(t *testing.T) {
 
 	taskUpdate1 := &TaskUpdate{
 		Task: &Task{
-			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, "task-1"),
+			TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, "task-1"),
 		},
 	}
 
 	taskUpdate2 := &TaskUpdate{
 		Task: &Task{
-			TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, "task-2"),
+			TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, "task-2"),
 		},
 	}
 
@@ -331,7 +331,7 @@ func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 	}
 
 	want := TaskCompletionMessage{
-		TaskFullIDStr:  "project_id_A:job_config_id_A:job_run_id_A:A",
+		TaskRRName:     "project_id_A:job_config_id_A:job_run_id_A:A",
 		Status:         "FAILED",
 		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 		FailureMessage: "Failure",
@@ -368,8 +368,8 @@ func TestTaskCompletionMessageFromJsonSuccessMessage(t *testing.T) {
 	}
 
 	want := TaskCompletionMessage{
-		TaskFullIDStr: "project_id_A:job_config_id_A:job_run_id_A:A",
-		Status:        "SUCCESS",
+		TaskRRName: "project_id_A:job_config_id_A:job_run_id_A:A",
+		Status:     "SUCCESS",
 		LogEntry: LogEntry{
 			"logkey1": "logval1",
 		},
@@ -392,7 +392,7 @@ func TestTaskCompletionMessageToTaskUpdateNilMessage(t *testing.T) {
 
 func TestTaskCompletionMessageToTaskUpdateBadTask(t *testing.T) {
 	taskCompletionMessage := TaskCompletionMessage{
-		TaskFullIDStr: "invalid",
+		TaskRRName: "invalid",
 	}
 
 	_, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
@@ -404,10 +404,10 @@ func TestTaskCompletionMessageToTaskUpdateBadTask(t *testing.T) {
 
 func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
 	taskCompletionMessage := TaskCompletionMessage{
-		TaskFullIDStr: testTaskFullIDStr,
-		Status:        "SUCCESS",
-		LogEntry:      LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
-		TaskParams:    TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
+		TaskRRName: testTaskRRName,
+		Status:     "SUCCESS",
+		LogEntry:   LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
+		TaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
 	}
 
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(&taskCompletionMessage)
@@ -416,11 +416,11 @@ func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
 		t.Errorf("error converting completion msg JSON to TaskCompletionMessage: %v", err)
 	}
 
-	taskFullID := NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID)
+	taskRRStruct := NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID)
 	want := TaskUpdate{
 		Task: &Task{
-			TaskFullID: *taskFullID,
-			Status:     Success,
+			TaskRRStruct: *taskRRStruct,
+			Status:       Success,
 		},
 		LogEntry:           LogEntry{"logkey1": "logval1", "logkey2": "logval2"},
 		OriginalTaskParams: TaskParams{"paramkey1": "paramval1", "paramkey2": "paramval2"},
@@ -435,7 +435,7 @@ func TestTaskCompletionMessageToTaskUpdateSuccessMessage(t *testing.T) {
 
 func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 	taskCompletionMessage := TaskCompletionMessage{
-		TaskFullIDStr:  testTaskFullIDStr,
+		TaskRRName:     testTaskRRName,
 		Status:         "FAILED",
 		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 		FailureMessage: "Failure",
@@ -449,10 +449,10 @@ func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 		t.Errorf("error converting completion msg JSON to TaskCompletionMessage: %v", err)
 	}
 
-	taskFullID := NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID)
+	taskRRStruct := NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID)
 	want := TaskUpdate{
 		Task: &Task{
-			TaskFullID:     *taskFullID,
+			TaskRRStruct:   *taskRRStruct,
 			Status:         Failed,
 			FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 			FailureMessage: "Failure",
@@ -470,12 +470,12 @@ func TestTaskCompletionMessageToTaskUpdateFailureMessage(t *testing.T) {
 
 func TestConstructPubSubTaskMsgSuccess(t *testing.T) {
 	task := &Task{
-		TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
-		TaskSpec:   "{\"foo\": \"bar\", \"nest1\": {\"nest2\": \"nested_val\"}}",
+		TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+		TaskSpec:     "{\"foo\": \"bar\", \"nest1\": {\"nest2\": \"nested_val\"}}",
 	}
 
 	want := map[string]interface{}{
-		"task_id": testTaskFullIDStr,
+		"task_id": testTaskRRName,
 		"task_params": map[string]interface{}{
 			"foo": "bar",
 			"nest1": map[string]interface{}{
@@ -504,8 +504,8 @@ func TestConstructPubSubTaskMsgSuccess(t *testing.T) {
 
 func TestConstructPubSubTaskMsgFailure(t *testing.T) {
 	task := &Task{
-		TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
-		TaskSpec:   "{\"foo\": \"barBROOOOOOKEN!",
+		TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+		TaskSpec:     "{\"foo\": \"barBROOOOOOKEN!",
 	}
 
 	// Construct the message

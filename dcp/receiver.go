@@ -61,10 +61,10 @@ type MessageReceiver struct {
 	}
 }
 
-func (r *MessageReceiver) getJobSpec(configFullID JobConfigFullID) (*JobSpec, error) {
+func (r *MessageReceiver) getJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobSpec, error) {
 	// Try to find the job from the cache.
 	r.jobSpecsCache.RLock()
-	jobSpec, ok := r.jobSpecsCache.c.Get(configFullID)
+	jobSpec, ok := r.jobSpecsCache.c.Get(jobConfigRRStruct)
 	r.jobSpecsCache.RUnlock()
 	if ok {
 		return jobSpec.(*JobSpec), nil
@@ -76,13 +76,13 @@ func (r *MessageReceiver) getJobSpec(configFullID JobConfigFullID) (*JobSpec, er
 
 	// Get the job spec from the store and add it to the cache.
 	log.Printf("Did not find Job Spec for (%s) in the cache, querying the store",
-		configFullID)
-	storeJobSpec, err := r.Store.GetJobSpec(configFullID)
+		jobConfigRRStruct)
+	storeJobSpec, err := r.Store.GetJobSpec(jobConfigRRStruct)
 	if err != nil {
 		return nil, err
 	}
 	r.jobSpecsCache.Lock()
-	r.jobSpecsCache.c.Add(configFullID, storeJobSpec)
+	r.jobSpecsCache.c.Add(jobConfigRRStruct, storeJobSpec)
 	r.jobSpecsCache.Unlock()
 	return storeJobSpec, nil
 }
@@ -106,16 +106,16 @@ func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
 				string(msg.Data), err)
 			return
 		}
-		taskFullID, err := TaskFullIDFromStr(taskCompletionMessage.TaskFullIDStr)
+		taskRRStruct, err := TaskRRStructFromTaskRRName(taskCompletionMessage.TaskRRName)
 		if err != nil {
 			log.Printf("Error getting JobConfigID from TaskIDStr %s: %v",
-				taskCompletionMessage.TaskFullIDStr, err)
+				taskCompletionMessage.TaskRRName, err)
 			return
 		}
-		jobSpec, err := r.getJobSpec(taskFullID.JobConfigFullID)
+		jobSpec, err := r.getJobSpec(taskRRStruct.JobConfigRRStruct)
 		if err != nil {
 			log.Printf("Error in getting JobSpec of JobConfig: %v, with error: %v.",
-				taskFullID.JobConfigFullID, err)
+				taskRRStruct.JobConfigRRStruct, err)
 			return
 		}
 

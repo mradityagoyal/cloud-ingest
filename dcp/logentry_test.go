@@ -31,7 +31,7 @@ import (
 
 func createDummyTask() *Task {
 	return &Task{
-		TaskFullID: *NewTaskFullID(
+		TaskRRStruct: *NewTaskRRStruct(
 			testProjectID, testJobConfigID, testJobRunID, testTaskID),
 		Status:               Queued,
 		CreationTime:         123,
@@ -84,12 +84,12 @@ func getTestingFakeStoreAndLogPath(n int64) (*FakeStore, string) {
 	}
 	// Create the bogus logEntryRows.
 	for i := int64(0); i < n; i++ {
-		taskFullID := NewTaskFullID(testProjectID, testJobConfigID,
+		taskRRStruct := NewTaskRRStruct(testProjectID, testJobConfigID,
 			fmt.Sprint(testJobRunID, i), fmt.Sprint(testTaskID, i))
 		fakestore.logEntryRows = append(fakestore.logEntryRows,
 			&LogEntryRow{
-				TaskFullID: *taskFullID,
-				LogEntryID: i,
+				TaskRRStruct: *taskRRStruct,
+				LogEntryID:   i,
 				// This time corresponds to the time
 				// 2009-11-10T15:00:00.000000000-08:00.
 				CreationTime: 1257894000000000000 + (i * 150),
@@ -97,8 +97,7 @@ func getTestingFakeStoreAndLogPath(n int64) (*FakeStore, string) {
 			})
 	}
 	logPath := fmt.Sprintf(
-		"logs/%s:%s/2009-11-10T15:00:00.000000000-08:00.log",
-		testProjectID, testJobConfigID)
+		"logs/%s/2009-11-10T15:00:00.000000000-08:00.log", testJobConfigID)
 	return fakestore, logPath
 }
 
@@ -260,7 +259,7 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
-		"logs/project_id_A:job_config_id_A/2009-11-10T15:00:00.000000150-08:00.log").
+		"logs/job_config_id_A/2009-11-10T15:00:00.000000150-08:00.log").
 		Return(&writer)
 	lep.SingleLogsProcessingRun(context.Background(), 100) // Process all (two) remaining log entries.
 
@@ -282,10 +281,10 @@ func TestSanitizeFailureMessage(t *testing.T) {
 }
 
 func TestLogEntryRowStringer(t *testing.T) {
-	taskFullID := NewTaskFullID("UNUSED", "UNUSED", "UNUSED", "task_id")
+	taskRRStruct := NewTaskRRStruct("UNUSED", "UNUSED", "UNUSED", "task_id")
 
 	l := LogEntryRow{
-		TaskFullID:     *taskFullID,
+		TaskRRStruct:   *taskRRStruct,
 		LogEntryID:     0,
 		CreationTime:   1257894000000000000,
 		CurrentStatus:  3,

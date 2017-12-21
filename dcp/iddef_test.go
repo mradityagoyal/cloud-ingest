@@ -19,19 +19,19 @@ import (
 	"testing"
 )
 
-func TestJobConfigFullIDString(t *testing.T) {
-	j := JobConfigFullID{
+func TestJobConfigRRName(t *testing.T) {
+	j := JobConfigRRStruct{
 		ProjectID:   "project",
 		JobConfigID: "config",
 	}
-	if j.String() != "project:config" {
+	if j.String() != "projects/project/jobConfigs/config" {
 		t.Errorf("expected job config string id to be: (%s), but found: (%s)",
-			"project:config", j)
+			"projects/project/jobConfigs/config", j)
 	}
 }
 
-func TestJobRunFullID(t *testing.T) {
-	j := NewJobRunFullID("project", "config", "run")
+func TestJobRunRRStruct(t *testing.T) {
+	j := NewJobRunRRStruct("project", "config", "run")
 	if j.ProjectID != "project" {
 		t.Errorf("expected job run project id to be: (%s), but found: (%s)",
 			"project", j.ProjectID)
@@ -46,106 +46,132 @@ func TestJobRunFullID(t *testing.T) {
 	}
 }
 
-func TestJobRunFullIDString(t *testing.T) {
-	j := NewJobRunFullID("project", "config", "run")
-	if j.String() != "project:config:run" {
+func TestJobRunRRName(t *testing.T) {
+	j := NewJobRunRRStruct("project", "config", "run")
+	if j.String() != "projects/project/jobConfigs/config/jobRuns/run" {
 		t.Errorf("expected job run string id to be: (%s), but found: (%s)",
-			"project:config:run", j)
+			"projects/project/jobConfigs/config/jobRuns/run", j)
 	}
 }
 
-func TestTaskFullID(t *testing.T) {
-	taskFullID := NewTaskFullID("project", "config", "run", "task")
-	if taskFullID.ProjectID != "project" {
+func TestTaskRRStruct(t *testing.T) {
+	taskRRStruct := NewTaskRRStruct("project", "config", "run", "task")
+	if taskRRStruct.ProjectID != "project" {
 		t.Errorf("expected task project id to be: (%s), but found: (%s)",
-			"project", taskFullID.ProjectID)
+			"project", taskRRStruct.ProjectID)
 	}
-	if taskFullID.JobConfigID != "config" {
+	if taskRRStruct.JobConfigID != "config" {
 		t.Errorf("expected task config id to be: (%s), but found: (%s)",
-			"config", taskFullID.JobConfigID)
+			"config", taskRRStruct.JobConfigID)
 	}
-	if taskFullID.JobRunID != "run" {
+	if taskRRStruct.JobRunID != "run" {
 		t.Errorf("expected task run id to be: (%s), but found: (%s)",
-			"run", taskFullID.JobRunID)
+			"run", taskRRStruct.JobRunID)
 	}
-	if taskFullID.TaskID != "task" {
-		t.Errorf("expected task id to be: (%s), but found: (%s)",
-			"task", taskFullID.TaskID)
+	if taskRRStruct.TaskID != "task" {
+		t.Errorf("expected task ID to be: (%s), but found: (%s)",
+			"task", taskRRStruct.TaskID)
 	}
 }
 
-func TestTaskIDFromStrSuccess(t *testing.T) {
-	taskStr := "project:config:run:task"
-	taskFullID, err := TaskFullIDFromStr(taskStr)
+func TaskRRStructFromTaskRRNameSuccess(t *testing.T) {
+	taskRRName := "projects/project/jobConfigs/config/jobRuns/run/tasks/task"
+	taskRRStruct, err := TaskRRStructFromTaskRRName(taskRRName)
 	if err != nil {
-		t.Errorf("expected no error is parsing task %s but found err: %v", taskStr, err)
+		t.Errorf("expected no error in parsing task %s but found err: %v", taskRRName, err)
 	}
-	if taskFullID.ProjectID != "project" {
+	if taskRRStruct.ProjectID != "project" {
 		t.Errorf("expected task project id to be: (%s), but found: (%s)",
-			"project", taskFullID.ProjectID)
+			"project", taskRRStruct.ProjectID)
 	}
-	if taskFullID.JobConfigID != "config" {
+	if taskRRStruct.JobConfigID != "config" {
 		t.Errorf("expected task config id to be: (%s), but found: (%s)",
-			"config", taskFullID.JobConfigID)
+			"config", taskRRStruct.JobConfigID)
 	}
-	if taskFullID.JobRunID != "run" {
+	if taskRRStruct.JobRunID != "run" {
 		t.Errorf("expected task run id to be: (%s), but found: (%s)",
-			"run", taskFullID.JobRunID)
+			"run", taskRRStruct.JobRunID)
 	}
-	if taskFullID.TaskID != "task" {
-		t.Errorf("expected task id to be: (%s), but found: (%s)",
-			"task", taskFullID.TaskID)
+	if taskRRStruct.TaskID != "task" {
+		t.Errorf("expected task ID to be: (%s), but found: (%s)",
+			"task", taskRRStruct.TaskID)
 	}
-	if taskFullID.String() != taskStr {
-		t.Errorf("expected task id string id to be: (%s), but found: (%s)",
-			taskStr, *taskFullID)
+	if taskRRStruct.String() != taskRRName {
+		t.Errorf("expected task ID string id to be: (%s), but found: (%s)",
+			taskRRName, *taskRRStruct)
 	}
 }
 
-func TestTaskIDFromStrIDHasSeparator(t *testing.T) {
-	taskStr := "project:config:run:list:file1"
-	taskFullID, err := TaskFullIDFromStr(taskStr)
+func TaskRRStructFromTaskRRNameHasSeparator(t *testing.T) {
+	taskRRName := "projects/project/jobConfigs/config/jobRuns/run/tasks/list/file1"
+	taskRRStruct, err := TaskRRStructFromTaskRRName(taskRRName)
 	if err != nil {
-		t.Errorf("expected no error is parsing task %s but found err: %v", taskStr, err)
+		t.Errorf("expected no error in parsing task %s but found err: %v", taskRRName, err)
 	}
-	if taskFullID.ProjectID != "project" {
+	if taskRRStruct.ProjectID != "project" {
 		t.Errorf("expected task project id to be: (%s), but found: (%s)",
-			"project", taskFullID.ProjectID)
+			"project", taskRRStruct.ProjectID)
 	}
-	if taskFullID.JobConfigID != "config" {
+	if taskRRStruct.JobConfigID != "config" {
 		t.Errorf("expected task config id to be: (%s), but found: (%s)",
-			"config", taskFullID.JobConfigID)
+			"config", taskRRStruct.JobConfigID)
 	}
-	if taskFullID.JobRunID != "run" {
+	if taskRRStruct.JobRunID != "run" {
 		t.Errorf("expected task run id to be: (%s), but found: (%s)",
-			"run", taskFullID.JobRunID)
+			"run", taskRRStruct.JobRunID)
 	}
-	if taskFullID.TaskID != "list:file1" {
-		t.Errorf("expected task id to be: (%s), but found: (%s)",
-			"list:file1", taskFullID.TaskID)
+	if taskRRStruct.TaskID != "list/file1" {
+		t.Errorf("expected task ID to be: (%s), but found: (%s)",
+			"list:file1", taskRRStruct.TaskID)
 	}
-	if taskFullID.String() != taskStr {
-		t.Errorf("expected task id string id to be: (%s), but found: (%s)",
-			taskStr, *taskFullID)
-	}
-}
-
-func TestTaskIDFromStrFail(t *testing.T) {
-	taskStr := "project:config:run"
-	if _, err := TaskFullIDFromStr(taskStr); err == nil {
-		t.Errorf("expected error in parsing task id %s but found err is nil", taskStr)
-	}
-
-	taskStr = "notID"
-	if _, err := TaskFullIDFromStr(taskStr); err == nil {
-		t.Errorf("expected error in parsing task id %s but found err is nil", taskStr)
+	if taskRRStruct.String() != taskRRName {
+		t.Errorf("expected task ID string id to be: (%s), but found: (%s)",
+			taskRRName, *taskRRStruct)
 	}
 }
 
-func TestTaskIDString(t *testing.T) {
-	taskFullID := NewTaskFullID("project", "config", "run", "task")
-	if taskFullID.String() != "project:config:run:task" {
-		t.Errorf("expected task id string id to be: (%s), but found: (%s)",
-			"project:config:run:task", *taskFullID)
+func TaskRRStructFromTaskRRNameFail(t *testing.T) {
+	// Missing taskID.
+	taskRRName := "projects/project/jobConfigs/config/jobRuns/run"
+	if _, err := TaskRRStructFromTaskRRName(taskRRName); err == nil {
+		t.Errorf("expected error in parsing task ID %s but found err is nil", taskRRName)
+	}
+
+	// Garbage taskRRName.
+	taskRRName = "notID"
+	if _, err := TaskRRStructFromTaskRRName(taskRRName); err == nil {
+		t.Errorf("expected error in parsing task ID %s but found err is nil", taskRRName)
+	}
+
+	// Malformed 'projects' collection ID.
+	taskRRName = "schmojects/project/jobConfigs/config/jobRuns/run/tasks/list/file1"
+	if _, err := TaskRRStructFromTaskRRName(taskRRName); err == nil {
+		t.Errorf("expected error in parsing task ID %s but found err is nil", taskRRName)
+	}
+
+	// Malformed 'jobConfigs' collection ID.
+	taskRRName = "projects/project/jobKlonfigs/config/jobRuns/run/tasks/list/file1"
+	if _, err := TaskRRStructFromTaskRRName(taskRRName); err == nil {
+		t.Errorf("expected error in parsing task ID %s but found err is nil", taskRRName)
+	}
+
+	// Malformed 'jobRuns' collection ID.
+	taskRRName = "projects/project/jobConfigs/config/jerrrbuns/run/tasks/list/file1"
+	if _, err := TaskRRStructFromTaskRRName(taskRRName); err == nil {
+		t.Errorf("expected error in parsing task ID %s but found err is nil", taskRRName)
+	}
+
+	// Malformed 'tasks' collection ID.
+	taskRRName = "projects/project/jobConfigs/config/jobRuns/run/tuttuts/list/file1"
+	if _, err := TaskRRStructFromTaskRRName(taskRRName); err == nil {
+		t.Errorf("expected error in parsing task ID %s but found err is nil", taskRRName)
+	}
+}
+
+func TestTaskRRStructString(t *testing.T) {
+	taskRRStruct := NewTaskRRStruct("project", "config", "run", "task")
+	if taskRRStruct.String() != "projects/project/jobConfigs/config/jobRuns/run/tasks/task" {
+		t.Errorf("expected task ID string id to be: (%s), but found: (%s)",
+			"projects/project/jobConfigs/config/jobRuns/run/tasks/task", *taskRRStruct)
 	}
 }

@@ -39,8 +39,8 @@ func initializePubSubMock() (map[string]bool, func(msg *pubsub.Message)) {
 func createTaskAndTaskUpdate(
 	configID string, numberNewTasks int) (*Task, *TaskUpdate) {
 	task := Task{
-		TaskFullID: *NewTaskFullID("dummy-project", configID, "dummy-run", "dummy-task"),
-		Status:     Queued,
+		TaskRRStruct: *NewTaskRRStruct("dummy-project", configID, "dummy-run", "dummy-task"),
+		Status:       Queued,
 	}
 
 	updatedTask := task
@@ -53,9 +53,9 @@ func createTaskAndTaskUpdate(
 	}
 	for i := 0; i < numberNewTasks; i++ {
 		taskUpdate.NewTasks[i] = &Task{
-			TaskFullID: TaskFullID{
-				JobRunFullID: task.TaskFullID.JobRunFullID,
-				TaskID:       fmt.Sprintf("dummy-new-task-%d", i),
+			TaskRRStruct: TaskRRStruct{
+				JobRunRRStruct: task.TaskRRStruct.JobRunRRStruct,
+				TaskID:         fmt.Sprintf("dummy-new-task-%d", i),
 			},
 		}
 	}
@@ -69,8 +69,8 @@ func TestBatcherWithOneUpdate(t *testing.T) {
 	task, taskUpdate := createTaskAndTaskUpdate("dummy-config", 2)
 
 	store := &FakeStore{
-		tasks: map[TaskFullID]*Task{
-			task.TaskFullID: task,
+		tasks: map[TaskRRStruct]*Task{
+			task.TaskRRStruct: task,
 		},
 	}
 
@@ -88,9 +88,9 @@ func TestBatcherWithOneUpdate(t *testing.T) {
 	if len(store.tasks) != 3 {
 		t.Errorf("expected 3 tasks in the store, found %v.", len(store.tasks))
 	}
-	if store.tasks[task.TaskFullID].Status != Success {
+	if store.tasks[task.TaskRRStruct].Status != Success {
 		t.Errorf("expected task %v to be updated success status.",
-			store.tasks[task.TaskFullID])
+			store.tasks[task.TaskRRStruct])
 	}
 	if !ackedMessages[msg.ID] {
 		t.Errorf("message %v should be ack'ed but it's not.", msg.ID)
@@ -102,7 +102,7 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 	var batcher taskUpdatesBatcher
 
 	store := &FakeStore{
-		tasks: map[TaskFullID]*Task{},
+		tasks: map[TaskRRStruct]*Task{},
 	}
 
 	mockTicker := helpers.NewMockTicker()
@@ -122,7 +122,7 @@ func TestBatcherWithMultiASyncUpdates(t *testing.T) {
 	for i := 0; i < numberOfTasks; i++ {
 		tasks[i], taskUpdates[i] = createTaskAndTaskUpdate(
 			fmt.Sprintf("dummy-config-%d", i), i%2)
-		store.tasks[tasks[i].TaskFullID] = tasks[i]
+		store.tasks[tasks[i].TaskRRStruct] = tasks[i]
 	}
 
 	var wg sync.WaitGroup
@@ -162,9 +162,9 @@ func TestBatcherMaxBatchSize(t *testing.T) {
 	task2, taskUpdate2 := createTaskAndTaskUpdate("dummy-config-2", 0)
 
 	store := &FakeStore{
-		tasks: map[TaskFullID]*Task{
-			task1.TaskFullID: task1,
-			task2.TaskFullID: task2,
+		tasks: map[TaskRRStruct]*Task{
+			task1.TaskRRStruct: task1,
+			task2.TaskRRStruct: task2,
 		},
 	}
 
@@ -185,9 +185,9 @@ func TestBatcherMaxBatchSize(t *testing.T) {
 	if len(store.tasks) != 4 {
 		t.Errorf("expected 4 tasks in the store, found %v.", len(store.tasks))
 	}
-	if store.tasks[task1.TaskFullID].Status != Success {
+	if store.tasks[task1.TaskRRStruct].Status != Success {
 		t.Errorf("expected task %v to be updated success status.",
-			store.tasks[task1.TaskFullID])
+			store.tasks[task1.TaskRRStruct])
 	}
 	if !ackedMessages[msg1.ID] {
 		t.Errorf("message %v should be ack'ed but it's not.", msg1.ID)

@@ -39,9 +39,9 @@ func getTestingTaskSpec(expectedGenerationNum int) string {
 func getTestingTaskUpdate(expectedGenerationNum int, status int64, failureType proto.TaskFailureType_Type, taskSpec string) *TaskUpdate {
 	taskUpdate := &TaskUpdate{
 		Task: &Task{
-			TaskFullID: *NewTaskFullID("prjct_id", "job_cfg_id", "job_run_id", "task_id"),
-			Status:     status,
-			TaskSpec:   taskSpec,
+			TaskRRStruct: *NewTaskRRStruct("prjct_id", "job_cfg_id", "job_run_id", "task_id"),
+			Status:       status,
+			TaskSpec:     taskSpec,
 		},
 
 		// This is just to make sure it doesn't get altered.

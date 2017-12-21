@@ -28,8 +28,8 @@ import (
 
 func copySuccessCompletionMessage() *TaskCompletionMessage {
 	return &TaskCompletionMessage{
-		TaskFullIDStr: testTaskFullIDStr,
-		Status:        "SUCCESS",
+		TaskRRName: testTaskRRName,
+		Status:     "SUCCESS",
 		TaskParams: map[string]interface{}{
 			"src_file":                "file",
 			"dst_bucket":              "bucket",
@@ -45,7 +45,7 @@ func TestUploadGCSProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 
 	jobSpec := &JobSpec{}
 	taskCompletionMessage := copySuccessCompletionMessage()
-	taskCompletionMessage.TaskFullIDStr = "garbage"
+	taskCompletionMessage.TaskRRName = "garbage"
 	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(jobSpec, taskCompletionMessage)
 	defer log.SetOutput(os.Stdout) // Reenable logging.
@@ -95,9 +95,9 @@ func TestUploadGCSProgressMessageHandlerFailReadingGenNum(t *testing.T) {
 
 func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 	uploadGCSTask := &Task{
-		TaskFullID: *NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID),
-		TaskType:   uploadGCSTaskType,
-		Status:     Success,
+		TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID),
+		TaskType:     uploadGCSTaskType,
+		Status:       Success,
 	}
 
 	mockCtrl := gomock.NewController(t)

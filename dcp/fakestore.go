@@ -30,17 +30,17 @@ var (
 // purposes.
 type FakeStore struct {
 	jobSpec      *JobSpec
-	tasks        map[TaskFullID]*Task
+	tasks        map[TaskRRStruct]*Task
 	logEntryRows []*LogEntryRow
 }
 
-func (s *FakeStore) GetJobSpec(configFullID JobConfigFullID) (*JobSpec, error) {
+func (s *FakeStore) GetJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobSpec, error) {
 	return s.jobSpec, nil
 }
 
-func (s *FakeStore) GetTaskSpec(taskFullID TaskFullID) (string, error) {
+func (s *FakeStore) GetTaskSpec(taskRRStruct TaskRRStruct) (string, error) {
 
-	task, ok := s.tasks[taskFullID]
+	task, ok := s.tasks[taskRRStruct]
 	if !ok {
 		return "", errTaskNotFound
 	}
@@ -49,9 +49,9 @@ func (s *FakeStore) GetTaskSpec(taskFullID TaskFullID) (string, error) {
 
 func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) error {
 	for taskUpdate := range taskUpdates.GetTaskUpdates() {
-		s.tasks[taskUpdate.Task.TaskFullID] = taskUpdate.Task
+		s.tasks[taskUpdate.Task.TaskRRStruct] = taskUpdate.Task
 		for _, task := range taskUpdate.NewTasks {
-			s.tasks[task.TaskFullID] = task
+			s.tasks[task.TaskRRStruct] = task
 		}
 	}
 	return nil
@@ -88,7 +88,7 @@ func (s *FakeStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 	for _, l := range logEntryRows {
 		foundEntry := false
 		for _, sl := range s.logEntryRows {
-			if l.TaskFullID == sl.TaskFullID && l.LogEntryID == sl.LogEntryID {
+			if l.TaskRRStruct == sl.TaskRRStruct && l.LogEntryID == sl.LogEntryID {
 				sl.Processed = true
 				foundEntry = true
 				break

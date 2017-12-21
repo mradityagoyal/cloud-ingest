@@ -33,8 +33,8 @@ import (
 
 func processListCompletionMessage() *TaskCompletionMessage {
 	return &TaskCompletionMessage{
-		TaskFullIDStr: testTaskFullIDStr,
-		Status:        "SUCCESS",
+		TaskRRName: testTaskRRName,
+		Status:     "SUCCESS",
 		TaskParams: map[string]interface{}{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
@@ -49,7 +49,7 @@ func TestProcessListMessageHandlerInvalidCompletionMessage(t *testing.T) {
 	handler := ProcessListMessageHandler{}
 
 	taskCompletionMessage := processListCompletionMessage()
-	taskCompletionMessage.TaskFullIDStr = "garbage"
+	taskCompletionMessage.TaskRRName = "garbage"
 	log.SetOutput(ioutil.Discard) // Suppress the log spam.
 	_, err := handler.HandleMessage(nil, taskCompletionMessage)
 	defer log.SetOutput(os.Stdout) // Reenable logging.
@@ -96,10 +96,10 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 		context.Background(), "bucket1", "object", int64(0), maxLinesToProcess).
 		Return(lines, newBytesProcessed, io.EOF)
 
-	taskFullID := NewTaskFullID(testProjectID, testJobConfigID, testJobRunID, testTaskID)
+	taskRRStruct := NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID)
 	processListTask := &Task{
-		TaskFullID: *taskFullID,
-		TaskType:   processListTaskType,
+		TaskRRStruct: *taskRRStruct,
+		TaskType:     processListTaskType,
 		TaskSpec: `{
 			"dst_list_result_bucket": "bucket1",
 			"dst_list_result_object": "object",
@@ -166,9 +166,9 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 
 		// Add task (sans spec) to our expected update.
 		expectedNewTask := &Task{
-			TaskFullID: TaskFullID{
-				JobRunFullID: taskFullID.JobRunFullID,
-				TaskID:       GetUploadGCSTaskID("dir/file" + strconv.Itoa(i)),
+			TaskRRStruct: TaskRRStruct{
+				JobRunRRStruct: taskRRStruct.JobRunRRStruct,
+				TaskID:         GetUploadGCSTaskID("dir/file" + strconv.Itoa(i)),
 			},
 			TaskType: uploadGCSTaskType,
 		}

@@ -38,6 +38,8 @@ const (
 	listTaskType        int64 = 1
 	processListTaskType int64 = 2
 	uploadGCSTaskType   int64 = 3
+
+	idSeparator string = ":"
 )
 
 type JobSpec struct {
@@ -68,7 +70,7 @@ type UploadGCSTaskSpec struct {
 }
 
 type Task struct {
-	TaskFullID           TaskFullID
+	TaskRRStruct         TaskRRStruct
 	TaskSpec             string
 	TaskType             int64
 	Status               int64
@@ -82,7 +84,7 @@ type TaskParams map[string]interface{}
 
 // TaskCompletionMessage is the response type we get back from any progress queue.
 type TaskCompletionMessage struct {
-	TaskFullIDStr  string                     `json:"task_id"`
+	TaskRRName     string                     `json:"task_id"`
 	Status         string                     `json:"status"`
 	FailureType    proto.TaskFailureType_Type `json:"failure_reason"`
 	FailureMessage string                     `json:"failure_message"`
@@ -120,7 +122,7 @@ type TaskUpdate struct {
 // store.
 type TaskUpdateCollection struct {
 	// tasks is a map from task id to task update details.
-	tasks map[TaskFullID]*TaskUpdate
+	tasks map[TaskRRStruct]*TaskUpdate
 }
 
 // AddTaskUpdate adds a taskUpdate into the collection. If there is a task in
@@ -133,20 +135,20 @@ type TaskUpdateCollection struct {
 //
 //	taskUpdateA := &TaskUpdate{
 //		Task: &Task{
-//			TaskFullID:  *NewTaskFullID("project", "config", "run", "list"),
-//			Status:      Failed,
+//			TaskRRStruct: *NewTaskRRStruct("project", "config", "run", "list"),
+//			Status:       Failed,
 //		},
 //	}
 //
 // 	taskUpdateB := &TaskUpdate{
 //		Task: &Task{
-//			TaskFullID:  *NewTaskFullID("project", "config", "run", "list"),
-//			Status:      Success,
+//			TaskRRStruct: *NewTaskRRStruct("project", "config", "run", "list"),
+//			Status:       Success,
 //		},
 //		NewTasks: []*Task{
 //			&Task{
-//				TaskFullID:  *NewTaskFullID("project", "config", "run", "upload"),
-//				Status:      Unqueued,
+//				TaskRRStruct: *NewTaskRRStruct("project", "config", "run", "upload"),
+//				Status:       Unqueued,
 //			},
 //		},
 //	}
@@ -158,15 +160,15 @@ type TaskUpdateCollection struct {
 // taskUpdateB.Task.Status) is true (Failed -> Success).
 func (tc *TaskUpdateCollection) AddTaskUpdate(taskUpdate *TaskUpdate) {
 	if tc.tasks == nil {
-		tc.tasks = make(map[TaskFullID]*TaskUpdate)
+		tc.tasks = make(map[TaskRRStruct]*TaskUpdate)
 	}
-	taskFullID := taskUpdate.Task.TaskFullID
+	taskRRStruct := taskUpdate.Task.TaskRRStruct
 
-	otherTaskUpdate, exists := tc.tasks[taskFullID]
+	otherTaskUpdate, exists := tc.tasks[taskRRStruct]
 	if !exists || canChangeTaskStatus(otherTaskUpdate.Task.Status, taskUpdate.Task.Status) {
 		// This is the only task so far with this id or it is
 		// more recent than any other tasks seen so far with the same id.
-		tc.tasks[taskFullID] = taskUpdate
+		tc.tasks[taskRRStruct] = taskUpdate
 	}
 }
 
@@ -239,8 +241,8 @@ func (tc TaskUpdateCollection) Size() int {
 	return len(tc.tasks)
 }
 
-func (tc TaskUpdateCollection) GetTaskUpdate(taskFullID TaskFullID) *TaskUpdate {
-	return tc.tasks[taskFullID]
+func (tc TaskUpdateCollection) GetTaskUpdate(taskRRStruct TaskRRStruct) *TaskUpdate {
+	return tc.tasks[taskRRStruct]
 }
 
 func (tc TaskUpdateCollection) GetTaskUpdates() <-chan *TaskUpdate {
@@ -255,7 +257,7 @@ func (tc TaskUpdateCollection) GetTaskUpdates() <-chan *TaskUpdate {
 }
 
 func (tc *TaskUpdateCollection) Clear() {
-	tc.tasks = make(map[TaskFullID]*TaskUpdate)
+	tc.tasks = make(map[TaskRRStruct]*TaskUpdate)
 }
 
 // GetProcessListTaskID returns the task id of an processList type task for
@@ -299,7 +301,7 @@ func constructPubSubTaskMsg(task *Task) ([]byte, error) {
 	}
 
 	taskMsg := make(map[string]interface{})
-	taskMsg["task_id"] = task.TaskFullID.String()
+	taskMsg["task_id"] = task.TaskRRStruct.String()
 	taskMsg["task_params"] = taskParams
 	return json.Marshal(taskMsg)
 }
@@ -322,13 +324,13 @@ func TaskCompletionMessageToTaskUpdate(taskCompletionMessage *TaskCompletionMess
 		return nil, errors.New("received nil taskCompletionMessage")
 	}
 
-	// Construct task
-	taskFullID, err := TaskFullIDFromStr(taskCompletionMessage.TaskFullIDStr)
+	// Construct the task.
+	taskRRStruct, err := TaskRRStructFromTaskRRName(taskCompletionMessage.TaskRRName)
 	if err != nil {
 		return nil, err
 	}
 	task := &Task{
-		TaskFullID: *taskFullID,
+		TaskRRStruct: *taskRRStruct,
 	}
 	if taskCompletionMessage.Status == "SUCCESS" {
 		task.Status = Success

@@ -42,8 +42,8 @@ func TestGetJobSpecFromCache(t *testing.T) {
 	r.jobSpecsCache.c = lru.New(1)
 
 	// The first call to getJobSepc puts the job spec in the cache.
-	configFullID := JobConfigFullID{"dummy-project", "dummy-config"}
-	jobSpec, _ := r.getJobSpec(configFullID)
+	jobConfigRRStruct := JobConfigRRStruct{"dummy-project", "dummy-config"}
+	jobSpec, _ := r.getJobSpec(jobConfigRRStruct)
 	if !reflect.DeepEqual(jobSpec, initialJobSpec) {
 		t.Errorf("expected getting job spec %v, but got %v", initialJobSpec, jobSpec)
 	}
@@ -56,7 +56,7 @@ func TestGetJobSpecFromCache(t *testing.T) {
 	}
 
 	// The second call should get the job spec from the cache.
-	jobSpec, _ = r.getJobSpec(configFullID)
+	jobSpec, _ = r.getJobSpec(jobConfigRRStruct)
 	if !reflect.DeepEqual(jobSpec, initialJobSpec) {
 		t.Errorf("expected getting job spec %v, but got %v", initialJobSpec, jobSpec)
 	}
@@ -79,15 +79,15 @@ func TestGetJobSpecThatRemovedFromCache(t *testing.T) {
 	r.jobSpecsCache.c = lru.New(1)
 
 	// The first call to getJobSepc puts the job spec in the cache.
-	configFullID1 := JobConfigFullID{"dummy-project", "dummy-config-1"}
-	jobSpec, _ := r.getJobSpec(configFullID1)
+	jobConfigRRStruct1 := JobConfigRRStruct{"dummy-project", "dummy-config-1"}
+	jobSpec, _ := r.getJobSpec(jobConfigRRStruct1)
 	if !reflect.DeepEqual(jobSpec, initialJobSpec) {
 		t.Errorf("expected getting job spec %v, but got %v", initialJobSpec, jobSpec)
 	}
 
 	// Add another item in the cache so the first one got removed.
-	configFullID2 := JobConfigFullID{"dummy-project", "dummy-config-2"}
-	r.getJobSpec(configFullID2)
+	jobConfigRRStruct2 := JobConfigRRStruct{"dummy-project", "dummy-config-2"}
+	r.getJobSpec(jobConfigRRStruct2)
 
 	// Change the stored job from the cached spec and make sure the
 	// MessageReceiver gets it from cache.
@@ -98,7 +98,7 @@ func TestGetJobSpecThatRemovedFromCache(t *testing.T) {
 	store.jobSpec = storedJobSpec
 
 	// Reading the removed job spec should come from the store, not the cache.
-	jobSpec, _ = r.getJobSpec(configFullID1)
+	jobSpec, _ = r.getJobSpec(jobConfigRRStruct1)
 	if !reflect.DeepEqual(jobSpec, storedJobSpec) {
 		t.Errorf("expected getting job spec %v, but got %v", initialJobSpec, jobSpec)
 	}
