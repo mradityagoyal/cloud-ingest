@@ -35,6 +35,9 @@ import (
 const (
 	MarkLogsAsProcessedBatchSize int = 2000
 	// TODO(b/69808978): Determine and implement other transaction limits.
+
+	fallbackListTopicID string = "cloud-ingest-list"
+	fallbackCopyTopicID string = "cloud-ingest-copy"
 )
 
 // Store provides an interface for the backing store that is used by the DCP.
@@ -45,12 +48,16 @@ type Store interface {
 	// GetTaskSpec returns the task spec string for a Task.
 	GetTaskSpec(taskFullID TaskFullID) (string, error)
 
-	// QueueTasks retrieves at most n tasks from the unqueued tasks, sends PubSub
-	// messages to the corresponding topic, and updates the status of the task to
+	// RoundRobinQueueTasks iterates over all projects, getting at most n tasks
+	// from the unqueued tasks for each project. It sends PubSub messages to the
+	// corresponding topic, and updates the status of the task to
 	// queued.
-	// TODO(b/63015068): This method should be generic and should get arbitrary
-	// number of topics to publish to.
-	QueueTasks(n int, listTopic, processListTopic, copyTopic *pubsub.Topic) error
+	// If there is any error in retrieving topics for projects, or no projects are
+	// populated in Spanner, this function falls back to using default topic
+	// names in the fallback project ID.
+	// TODO (b/70989356): Remove fallback logic once project IDs and topics are
+	// populated by webconsole.
+	RoundRobinQueueTasks(n int, processListTopic *pubsub.Topic, fallbackProjectID string) error
 
 	// GetNumUnprocessedLogs returns the number of rows in the LogEntries table
 	// with the 'Processed' column set to false. Any errors result in returning
@@ -82,6 +89,13 @@ type Store interface {
 // SpannerStore is a Google Cloud Spanner implementation of the Store interface.
 type SpannerStore struct {
 	Spanner gcloud.Spanner
+	PubSub  *pubsub.Client
+}
+
+// Helper struct for passing around topics associated with a project.
+type PubSubTopics struct {
+	ListTopicID string
+	CopyTopicID string
 }
 
 // getTaskInsertColumns returns an array of the columns necessary for task
@@ -461,8 +475,56 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 	return err
 }
 
-func (s *SpannerStore) QueueTasks(n int, listTopic, processListTopic, copyTopic *pubsub.Topic) error {
-	tasks, err := s.getUnqueuedTasks(n)
+func (s *SpannerStore) RoundRobinQueueTasks(n int, processListTopic *pubsub.Topic, fallbackProjectID string) error {
+	m, err := s.getProjectTopicsMap()
+	if err != nil || len(m) == 0 {
+		// Fallback to default topics and project.
+		m = map[string]PubSubTopics{
+			fallbackProjectID: PubSubTopics{fallbackListTopicID, fallbackCopyTopicID},
+		}
+	}
+	for projectID, pst := range m {
+		// TODO (b/70989550): Maintain references to Topics in a map to avoid repeated
+		// setup/teardown of Topics.
+		listTopic := s.PubSub.TopicInProject(projectID, pst.ListTopicID)
+		defer listTopic.Stop()
+		copyTopic := s.PubSub.TopicInProject(projectID, pst.CopyTopicID)
+		defer copyTopic.Stop()
+		if err := s.queueTasks(n, projectID, listTopic, processListTopic, copyTopic); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *SpannerStore) getProjectTopicsMap() (map[string]PubSubTopics, error) {
+	stmt := spanner.NewStatement("SQL: `SELECT ProjectId, ListTopicId, CopyTopicId FROM Projects")
+	iter := s.Spanner.Single().Query(context.Background(), stmt)
+	defer iter.Stop()
+	m := make(map[string]PubSubTopics)
+	err := iter.Do(func(row *spanner.Row) error {
+		var projectID string
+		if err := row.ColumnByName("ProjectId", &projectID); err != nil {
+			return err
+		}
+		var pst PubSubTopics
+		if err := row.ColumnByName("ListTopicId", &pst.ListTopicID); err != nil {
+			return err
+		}
+		if err := row.ColumnByName("CopyTopicId", &pst.CopyTopicID); err != nil {
+			return err
+		}
+		m[projectID] = pst
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
+}
+
+func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processListTopic, copyTopic *pubsub.Topic) error {
+	tasks, err := s.getUnqueuedTasks(n, projectID)
 	if err != nil {
 		return err
 	}
@@ -632,15 +694,16 @@ func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 	return nil
 }
 
-// getUnqueuedTasks retrieves at most n unqueued tasks from the store.
-func (s *SpannerStore) getUnqueuedTasks(n int) ([]*Task, error) {
+// getUnqueuedTasks retrieves at most n unqueued tasks for projectID from the store.
+func (s *SpannerStore) getUnqueuedTasks(n int, projectID string) ([]*Task, error) {
 	var tasks []*Task
 	stmt := spanner.Statement{
 		SQL: `SELECT ProjectId, JobConfigId, JobRunId, TaskId, TaskType, TaskSpec
           FROM Tasks@{FORCE_INDEX=TasksByStatus}
-          WHERE Status = @status LIMIT @maxtasks`,
+          WHERE Status = @status AND ProjectId = @pid LIMIT @maxtasks`,
 		Params: map[string]interface{}{
 			"status":   Unqueued,
+			"pid":      projectID,
 			"maxtasks": n,
 		},
 	}

@@ -32,13 +32,11 @@ import (
 )
 
 const (
+	processListTopic string = "cloud-ingest-process-list"
+
 	listProgressSubscription string = "cloud-ingest-list-progress"
 	processListSubscription  string = "cloud-ingest-process-list"
 	copyProgressSubscription string = "cloud-ingest-copy-progress"
-
-	listTopic        string = "cloud-ingest-list"
-	processListTopic string = "cloud-ingest-process-list"
-	copyTopic        string = "cloud-ingest-copy"
 
 	spannerInstance string = "cloud-ingest-spanner-instance"
 	spannerDatabase string = "cloud-ingest-database"
@@ -69,10 +67,10 @@ func init() {
 // GetQueueTasksClosure returns a function that calls the function QueueTasks
 // on the given store with the given values as the parameters.
 func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
-	listTopic, processListTopic, copyTopic *pubsub.Topic) func() error {
+	processListTopic *pubsub.Topic, fallbackProjectID string) func() error {
 
 	return func() error {
-		return store.QueueTasks(num, listTopic, processListTopic, copyTopic)
+		return store.RoundRobinQueueTasks(num, processListTopic, fallbackProjectID)
 	}
 }
 
@@ -91,9 +89,7 @@ func main() {
 	processListSub := pubSubClient.Subscription(processListSubscription)
 	copyProgressSub := pubSubClient.Subscription(copyProgressSubscription)
 
-	listTopic := pubSubClient.Topic(listTopic)
 	processListTopic := pubSubClient.Topic(processListTopic)
-	copyTopic := pubSubClient.Topic(copyTopic)
 
 	spannerGCloudClient, err := spanner.NewClient(ctx, database)
 	if err != nil {
@@ -101,7 +97,7 @@ func main() {
 		os.Exit(1)
 	}
 	spannerClient := gcloud.NewSpannerClient(spannerGCloudClient)
-	store := &dcp.SpannerStore{spannerClient}
+	store := &dcp.SpannerStore{spannerClient, pubSubClient}
 
 	storageClient, err := storage.NewClient(ctx)
 	if err != nil {
@@ -151,7 +147,7 @@ func main() {
 			maxQueueTasksSleepTime,
 			maxNumFailures,
 			"QueueTasks",
-			GetQueueTasksClosure(store, tasksToQueue, listTopic, processListTopic, copyTopic),
+			GetQueueTasksClosure(store, tasksToQueue, processListTopic, projectID),
 		)
 		if err != nil {
 			log.Printf("Error in queueing tasks: %v.", err)

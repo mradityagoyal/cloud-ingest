@@ -57,8 +57,8 @@ func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) erro
 	return nil
 }
 
-func (s *FakeStore) QueueTasks(n int, listTopic, processListTopic, copyTopic *pubsub.Topic) error {
-	return errors.New("QueueTasks: Not implemented.")
+func (s *FakeStore) RoundRobinQueueTasks(n int, processListTopic *pubsub.Topic, fallbackProjectID string) error {
+	return errors.New("RoundRobinQueueTasks: Not implemented.")
 }
 
 func (s *FakeStore) GetNumUnprocessedLogs() (int64, error) {
