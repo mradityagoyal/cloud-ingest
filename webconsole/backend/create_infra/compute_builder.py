@@ -109,16 +109,31 @@ class ComputeBuilder(object):
             "apiVersion": "v1",
             "kind": "Pod",
             "metadata": {
-                "name": "%s"
+                "name": "%(name)s"
             },
             "spec": {
                 "containers": [
                   {
-                      "name": "%s",
-                      "image": "%s",
+                      "name": "%(name)s",
+                      "image": "%(container_image)s",
                       "imagePullPolicy": "Always",
-                      "command": ["%s"],
-                      "args": %s
+                      "command": ["%(cmd)s"],
+                      "args": %(cmd_args)s,
+                      "volumeMounts": [
+                        {
+                            "mountPath": "%(volume_mount)s",
+                            "name": "logs-volume"
+                        }
+                      ]
+                  }
+                ],
+                "volumes": [
+                  {
+                      "name": "logs-volume",
+                      "hostPath": {
+                            "path": "%(volume_mount)s",
+                            "type": "DirectoryOrCreate"
+                      }
                   }
                 ]
             }
@@ -183,7 +198,7 @@ class ComputeBuilder(object):
 
     # pylint: disable=too-many-arguments,too-many-locals
     def create_instance_async(self, name, container_image, cmd, cmd_args,
-                              zone='us-central1-f',
+                              volume_mount, zone='us-central1-f',
                               machine_type='n1-standard-1'):
         """Async create of a GCE instance running a container image. It does not
         wait for the instance create operation to complete.
@@ -194,6 +209,8 @@ class ComputeBuilder(object):
             cmd: Command line to run in the deployed container.
             cmd_args: Array of params to be passed to the command that runs in
                 the deployed container.
+            volume_mount: directory to mount to the deployed container on this
+                GCE instance.
             zone: Zone of the GCE instance.
             machine_type: The instance machine type,
                 https://cloud.google.com/compute/docs/machine-types lists
@@ -203,8 +220,9 @@ class ComputeBuilder(object):
             The GCE insert operation.
         """
         args_json_str = '[%s]' % (','.join('"%s"' % x for x in cmd_args))
-        container_spec = self.container_spec_template % (
-            name, name, container_image, cmd, args_json_str)
+        container_spec = self.container_spec_template % {
+            'name': name, 'container_image': container_image, 'cmd': cmd,
+            'cmd_args': args_json_str, 'volume_mount': volume_mount}
 
         config = copy.deepcopy(self.config_template)
         config['name'] = name

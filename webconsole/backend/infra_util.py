@@ -30,6 +30,9 @@ from proto.tasks_pb2 import ResourceStatus
 
 _CURRENT_DIR = path.dirname(path.realpath(__file__))
 
+# DCP logs directory.
+_DCP_LOGS_DIR = "/var/log/cloud-ingest-dcp"
+
 # The cloud ingest pre-defined topics and subscriptions.
 _TOPICS_SUBSCRIPTIONS = {
     'list': (constants.LIST_TOPIC,
@@ -168,7 +171,9 @@ def create_infrastructure(credentials, project_id, dcp_docker_image=None):
     if dcp_docker_image:
         compute_bldr.create_instance_async(
             constants.DCP_INSTANCE_NAME, dcp_docker_image,
-            constants.DCP_INSTANCE_CMD_LINE, ["-projectid="+project_id])
+            constants.DCP_INSTANCE_CMD_LINE,
+            ["-projectid=%s" % project_id, "-log_dir=%s" % _DCP_LOGS_DIR],
+            _DCP_LOGS_DIR)
 
 def tear_infrastructure(credentials, project_id):
     """Tears the ingest infrastructure. Makes sure that all the infrastructure
