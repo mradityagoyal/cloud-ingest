@@ -67,7 +67,7 @@ func init() {
 // GetQueueTasksClosure returns a function that calls the function QueueTasks
 // on the given store with the given values as the parameters.
 func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
-	processListTopic *pubsub.Topic, fallbackProjectID string) func() error {
+	processListTopic gcloud.PSTopic, fallbackProjectID string) func() error {
 
 	return func() error {
 		return store.RoundRobinQueueTasks(num, processListTopic, fallbackProjectID)
@@ -81,7 +81,8 @@ func main() {
 
 	ctx := context.Background()
 
-	pubSubClient, err := pubsub.NewClient(ctx, projectID)
+	pubSubGCloudClient, err := pubsub.NewClient(ctx, projectID)
+	pubSubClient := gcloud.NewPubSubClient(pubSubGCloudClient)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can not create pubsub client, error: %v.\n", err)
 		os.Exit(1)

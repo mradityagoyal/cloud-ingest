@@ -28,6 +28,7 @@ import (
 	"sync"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/golang/glog"
 	"github.com/golang/groupcache/lru"
 )
@@ -50,7 +51,7 @@ type MessageHandler interface {
 // passes the result to the batcher to perform transactional updates and ack the message.
 // TODO(b/63014764): Add unit tests for MessageReceiver.
 type MessageReceiver struct {
-	Sub     *pubsub.Subscription
+	Sub     gcloud.PSSubscription
 	Store   Store
 	Handler MessageHandler
 

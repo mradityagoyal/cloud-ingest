@@ -18,7 +18,7 @@ package dcp
 import (
 	"errors"
 
-	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 )
 
 var (
@@ -57,7 +57,7 @@ func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) erro
 	return nil
 }
 
-func (s *FakeStore) RoundRobinQueueTasks(n int, processListTopic *pubsub.Topic, fallbackProjectID string) error {
+func (s *FakeStore) RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic, fallbackProjectID string) error {
 	return errors.New("RoundRobinQueueTasks: Not implemented.")
 }
 

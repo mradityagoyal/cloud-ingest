@@ -16,6 +16,7 @@ FILES_TO_MOCK = \
 	dcp/listresultreader.go \
 	dcp/objectmetadatareader.go \
 	gcloud/gcsclient.go \
+	gcloud/pubsubclient.go \
 	gcloud/spannerclient.go \
 	helpers/clock.go \
 	helpers/random.go \

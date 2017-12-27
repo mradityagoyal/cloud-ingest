@@ -57,7 +57,7 @@ type Store interface {
 	// names in the fallback project ID.
 	// TODO (b/70989356): Remove fallback logic once project IDs and topics are
 	// populated by webconsole.
-	RoundRobinQueueTasks(n int, processListTopic *pubsub.Topic, fallbackProjectID string) error
+	RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic, fallbackProjectID string) error
 
 	// GetNumUnprocessedLogs returns the number of rows in the LogEntries table
 	// with the 'Processed' column set to false. Any errors result in returning
@@ -89,7 +89,7 @@ type Store interface {
 // SpannerStore is a Google Cloud Spanner implementation of the Store interface.
 type SpannerStore struct {
 	Spanner gcloud.Spanner
-	PubSub  *pubsub.Client
+	PubSub  gcloud.PS
 }
 
 // Helper struct for passing around topics associated with a project.
@@ -475,7 +475,7 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 	return err
 }
 
-func (s *SpannerStore) RoundRobinQueueTasks(n int, processListTopic *pubsub.Topic, fallbackProjectID string) error {
+func (s *SpannerStore) RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic, fallbackProjectID string) error {
 	m, err := s.getProjectTopicsMap()
 	if err != nil || len(m) == 0 {
 		// Fallback to default topics and project.
@@ -523,7 +523,7 @@ func (s *SpannerStore) getProjectTopicsMap() (map[string]PubSubTopics, error) {
 	return m, nil
 }
 
-func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processListTopic, copyTopic *pubsub.Topic) error {
+func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processListTopic, copyTopic gcloud.PSTopic) error {
 	tasks, err := s.getUnqueuedTasks(n, projectID)
 	if err != nil {
 		return err
@@ -539,7 +539,7 @@ func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processLis
 	var publishResults []*pubsub.PublishResult
 	messagesPublished := true
 	for i, task := range tasks {
-		var topic *pubsub.Topic
+		var topic gcloud.PSTopic
 		switch task.TaskType {
 		case listTaskType:
 			topic = listTopic
