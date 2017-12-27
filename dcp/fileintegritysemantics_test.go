@@ -88,10 +88,8 @@ func TestFileIntegritySemantics_FailedReissue(t *testing.T) {
 		0, Failed, proto.TaskFailureType_MD5_MISMATCH_FAILURE, getTestingTaskSpec(0))
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
-	err := semantics.Apply(taskUpdate)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+	if proceed, err := semantics.Apply(taskUpdate); err != nil || !proceed {
+		t.Errorf("expected to proceed with no error, proceed: %v, err: %v", proceed, err)
 	}
 
 	expectedTaskUpdate := getTestingTaskUpdate(0, Unqueued, 0, getTestingTaskSpec(1000))
@@ -106,10 +104,8 @@ func TestFileIntegritySemantics_FailedNoReissue(t *testing.T) {
 		0, Failed, proto.TaskFailureType_PERMISSION_FAILURE, getTestingTaskSpec(123))
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
-	err := semantics.Apply(taskUpdate)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+	if proceed, err := semantics.Apply(taskUpdate); err != nil || !proceed {
+		t.Errorf("expected to proceed with no error, proceed: %v, err: %v", proceed, err)
 	}
 
 	expectedTaskUpdate := getTestingTaskUpdate(
@@ -125,10 +121,8 @@ func TestFileIntegritySemantics_SuccessBadGenerationNum(t *testing.T) {
 	taskUpdate := getTestingTaskUpdate(0, Success, 0, getTestingTaskSpec(123))
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
-	err := semantics.Apply(taskUpdate)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+	if proceed, err := semantics.Apply(taskUpdate); err != nil || !proceed {
+		t.Errorf("expected to proceed with no error, proceed: %v, err: %v", proceed, err)
 	}
 
 	// Unqueued, with updated generation number.
@@ -144,10 +138,8 @@ func TestFileIntegritySemantics_Success(t *testing.T) {
 	taskUpdate := getTestingTaskUpdate(123, Success, 0, getTestingTaskSpec(123))
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
-	err := semantics.Apply(taskUpdate)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+	if proceed, err := semantics.Apply(taskUpdate); err != nil || !proceed {
+		t.Errorf("expected to proceed with no error, proceed: %v, err: %v", proceed, err)
 	}
 
 	// Unqueued, with updated generation number.
@@ -160,9 +152,7 @@ func TestFileIntegritySemantics_InvalidTaskSpec(t *testing.T) {
 	taskUpdate := getTestingTaskUpdate(123, Success, 0, "not a legit task spec")
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
-	err := semantics.Apply(taskUpdate)
-
-	if err == nil {
+	if _, err := semantics.Apply(taskUpdate); err == nil {
 		t.Error("expected json parsing error")
 	}
 }
@@ -172,10 +162,8 @@ func TestFileIntegritySemantics_MissingGenNumSpec(t *testing.T) {
 	taskUpdate := getTestingTaskUpdate(123, Success, 0, noGenNumTaskSpec)
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
-	err := semantics.Apply(taskUpdate)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+	if proceed, err := semantics.Apply(taskUpdate); err != nil || !proceed {
+		t.Errorf("expected to proceed with no error, proceed: %v, err: %v", proceed, err)
 	}
 
 	// Unqueued, with updated generation number.
@@ -191,10 +179,8 @@ func TestFileIntegritySemantics_MissingGenNumParams(t *testing.T) {
 	taskUpdate.OriginalTaskParams = TaskParams{}
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
-	err := semantics.Apply(taskUpdate)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+	if proceed, err := semantics.Apply(taskUpdate); err != nil || !proceed {
+		t.Errorf("expected to proceed with no error, proceed: %v, err: %v", proceed, err)
 	}
 
 	// Unqueued, with updated generation number.
@@ -211,10 +197,8 @@ func TestFileIntegritySemantics_MissingGenNumSpecAndParams(t *testing.T) {
 	taskUpdate.OriginalTaskParams = TaskParams{}
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
-	err := semantics.Apply(taskUpdate)
-
-	if err != nil {
-		t.Errorf("expected no error, got %v", err)
+	if proceed, err := semantics.Apply(taskUpdate); err != nil || !proceed {
+		t.Errorf("expected to proceed with no error, proceed: %v, err: %v", proceed, err)
 	}
 
 	// Unqueued, with updated generation number.

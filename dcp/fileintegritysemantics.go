@@ -64,7 +64,7 @@ func stageTaskForReissue(task *Task, taskSpec map[string]interface{}, expectedGe
 	return nil
 }
 
-func (fis *FileIntegritySemantics) Apply(taskUpdate *TaskUpdate) error {
+func (fis *FileIntegritySemantics) Apply(taskUpdate *TaskUpdate) (bool, error) {
 
 	if NeedGenerationNumCheck(taskUpdate.Task) {
 
@@ -74,7 +74,7 @@ func (fis *FileIntegritySemantics) Apply(taskUpdate *TaskUpdate) error {
 		decoder := json.NewDecoder(strings.NewReader(taskUpdate.Task.TaskSpec))
 		decoder.UseNumber()
 		if err := decoder.Decode(&ts); err != nil {
-			return err
+			return false, err
 		}
 
 		if taskUpdate.Task.Status == Success {
@@ -90,14 +90,14 @@ func (fis *FileIntegritySemantics) Apply(taskUpdate *TaskUpdate) error {
 					spannerGenNum, paramGenNum)
 				err := stageTaskForReissue(taskUpdate.Task, ts, fis.ExpectedGenerationNum)
 				if err != nil {
-					return err
+					return false, err
 				}
 			}
 		} else {
 			glog.Warningf("Re-issuing task %s: %v", taskUpdate.Task.TaskRRStruct, taskUpdate.Task.FailureType)
 			err := stageTaskForReissue(taskUpdate.Task, ts, fis.ExpectedGenerationNum)
 			if err != nil {
-				return err
+				return false, err
 			}
 		}
 	}
@@ -107,5 +107,5 @@ func (fis *FileIntegritySemantics) Apply(taskUpdate *TaskUpdate) error {
 		taskUpdate.NewTasks = nil
 	}
 
-	return nil
+	return true, nil
 }

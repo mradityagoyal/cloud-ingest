@@ -19,7 +19,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"strings"
 
@@ -50,38 +49,41 @@ type ProcessListingFileSemantics struct {
 	ByteOffsetForNextIteration int64
 }
 
-func (plfs ProcessListingFileSemantics) Apply(taskUpdate *TaskUpdate) error {
+func (plfs ProcessListingFileSemantics) Apply(taskUpdate *TaskUpdate) (bool, error) {
 	// Parse the task spec.
 	var ts map[string]interface{}
 	decoder := json.NewDecoder(strings.NewReader(taskUpdate.Task.TaskSpec))
 	decoder.UseNumber()
 	if err := decoder.Decode(&ts); err != nil {
-		return err
+		return false, err
 	}
 	spannerByteOffsetJSONNumber, ok := ts[expectedByteOffsetKey]
 	if !ok {
-		return errors.New("byte_offset missing from spanner Task Spec")
+		return false, errors.New("byte_offset missing from spanner Task Spec")
 	}
 	spannerByteOffset, err := helpers.ToInt64(spannerByteOffsetJSONNumber)
 	if err != nil {
-		return err
+		return false, err
 	}
 	if spannerByteOffset != plfs.ExpectedByteOffset {
-		return fmt.Errorf("ByteOffset doesn't match expectation, spannerByteOffset:%v, paramByteOffset:%v",
-			spannerByteOffset, plfs.ExpectedByteOffset)
+		glog.Warningf(
+			"ByteOffset doesn't match expectation, spannerByteOffset:%v, "+
+				"paramByteOffset:%v. Will skip update task %s",
+			spannerByteOffset, plfs.ExpectedByteOffset, taskUpdate.Task.TaskRRStruct)
+		return false, nil
 	}
 
 	// Update the TaskSpec's ByteOffset field.
 	ts[expectedByteOffsetKey] = plfs.ByteOffsetForNextIteration
 	newTaskSpec, err := json.Marshal(ts)
 	if err != nil {
-		return err
+		return false, err
 	}
 	task := taskUpdate.Task
 	task.TaskSpec = string(newTaskSpec)
 	task.FailureType = proto.TaskFailureType_UNUSED
 	task.FailureMessage = ""
-	return nil
+	return true, nil
 }
 
 func (h *ProcessListMessageHandler) HandleMessage(

@@ -437,8 +437,8 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 				// If there are any task-specific semantics that need to be part of the transaction, do
 				// them here.
 				if taskUpdate.TransactionalSemantics != nil {
-					err := taskUpdate.TransactionalSemantics.Apply(taskUpdate)
-					if err != nil {
+					if proceed, err := taskUpdate.TransactionalSemantics.Apply(
+						taskUpdate); err != nil || !proceed {
 						return err
 					}
 				}

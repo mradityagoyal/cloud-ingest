@@ -96,7 +96,10 @@ type TaskCompletionMessage struct {
 // performed transactionally as part of a task update. This is the hook into the heart of the
 // transaction.
 type TaskTransactionalSemantics interface {
-	Apply(taskUpdate *TaskUpdate) error
+	// Apply applies the taskUpdate transaction semantic, it returns bool of
+	// whether that task update should be processed, and error if any errors
+	// occurred.
+	Apply(taskUpdate *TaskUpdate) (bool, error)
 }
 
 // TaskUpdate represents a task to be updated, with it's log entry and new tasks
