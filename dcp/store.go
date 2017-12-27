@@ -486,9 +486,9 @@ func (s *SpannerStore) RoundRobinQueueTasks(n int, processListTopic *pubsub.Topi
 	for projectID, pst := range m {
 		// TODO (b/70989550): Maintain references to Topics in a map to avoid repeated
 		// setup/teardown of Topics.
-		listTopic := s.PubSub.TopicInProject(projectID, pst.ListTopicID)
+		listTopic := s.PubSub.TopicInProject(pst.ListTopicID, projectID)
 		defer listTopic.Stop()
-		copyTopic := s.PubSub.TopicInProject(projectID, pst.CopyTopicID)
+		copyTopic := s.PubSub.TopicInProject(pst.CopyTopicID, projectID)
 		defer copyTopic.Stop()
 		if err := s.queueTasks(n, projectID, listTopic, processListTopic, copyTopic); err != nil {
 			return err

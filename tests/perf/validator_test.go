@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/md5"
 	"errors"
-	"io/ioutil"
 	"log"
 	"os"
 	"reflect"
@@ -53,22 +52,17 @@ func localMD5(content string) []byte {
 // It's the caller's responsibility to delete this when done.
 func createTestFileFarm() (string, string, string, string, string) {
 	// Top level directory.
-	dir, err := ioutil.TempDir("", "validator-test")
-	if err != nil {
-		log.Fatalf("Failed to create temp directory: %v\n", err)
-	}
+	dir := helpers.CreateTmpDir("", "validator-test")
 
 	// Subdirectory for some of the files.
-	subdir, err := ioutil.TempDir(dir, "subdir")
-	if err != nil {
-		log.Fatalf("Failed to create temp directory: %v\n", err)
-	}
+	subdir := helpers.CreateTmpDir(dir, "subdir")
 
-	// Create files.
-	file1 := helpers.CreateTmpFile(dir, "test-file-1", file1Contents)
-	file2 := helpers.CreateTmpFile(dir, "test-file-2", file2Contents)
+	// Create files. Put the directory between the first and last files, to better ensure
+	// we are not making incorrect assumptions about lexicographical order in Walk.
+	file1 := helpers.CreateTmpFile(dir, "a-test-file-1", file1Contents)
+	file2 := helpers.CreateTmpFile(subdir, "test-file-2", file2Contents)
 	file3 := helpers.CreateTmpFile(subdir, "test-file-3", file3Contents)
-	file4 := helpers.CreateTmpFile(subdir, "test-file-4", file4Contents)
+	file4 := helpers.CreateTmpFile(dir, "z-test-file-4", file4Contents)
 
 	// Set times.
 	os.Chtimes(file1, file1Time, file1Time)
@@ -102,6 +96,9 @@ func newObjectAttrs(name string, size int64, time time.Time, md5 []byte) *storag
 }
 
 func TestMetadataValidator_GCSError(t *testing.T) {
+	dir, _, _, _, _ := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -109,7 +106,7 @@ func TestMetadataValidator_GCSError(t *testing.T) {
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(expectedErr))
 
-	validator := NewMetadataValidator(mockGCS, "", bucketName)
+	validator := NewMetadataValidator(mockGCS, dir, bucketName)
 	got := validator.Validate(context.Background())
 
 	want := ValidationResult{
@@ -341,6 +338,9 @@ func TestMetadataValidator_FileWrongTimeFailure(t *testing.T) {
 }
 
 func TestDeepComparisonValidator_GCSError(t *testing.T) {
+	dir, _, _, _, _ := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
@@ -348,7 +348,7 @@ func TestDeepComparisonValidator_GCSError(t *testing.T) {
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(expectedErr))
 
-	validator := NewDeepComparisonValidator(mockGCS, "", bucketName)
+	validator := NewDeepComparisonValidator(mockGCS, dir, bucketName)
 	got := validator.Validate(context.Background())
 
 	want := ValidationResult{
@@ -475,4 +475,256 @@ func TestDeepComparisonValidator_WrongMD5Failure(t *testing.T) {
 	if !reflect.DeepEqual(want, got) {
 		t.Errorf("wanted %v, got %v", want, got)
 	}
+}
+
+// Pass-through validator that always returns true. This can be used to more deeply
+// test the list iteration logic.
+type passThroughValidator struct {
+	gcs        gcloud.GCS
+	sourceDir  string
+	bucketName string
+}
+
+func newPassThroughValidator(gcs gcloud.GCS, sourceDir, bucketName string) Validator {
+	return &passThroughValidator{
+		gcs:        gcs,
+		sourceDir:  sourceDir,
+		bucketName: bucketName,
+	}
+}
+
+func (v *passThroughValidator) Validate(ctx context.Context) ValidationResult {
+	result := gcsListingBasedValidation(ctx, v.gcs, v.sourceDir, v.bucketName,
+		func(path, relPath string, objectMetadata *dcp.ObjectMetadata, info os.FileInfo) (bool, string, error) {
+			return true, "", nil
+		})
+
+	return result
+}
+
+func TestListIteration_SameFiles(t *testing.T) {
+	dir, file1, file2, file3, file4 := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(
+		newObjectAttrs(file1, 1, file1Time, file1MD5),
+		newObjectAttrs(file2, 2, file2Time, file2MD5),
+		newObjectAttrs(file3, 3, file3Time, file3MD5),
+		newObjectAttrs(file4, 4, file4Time, file4MD5),
+	))
+
+	validator := newPassThroughValidator(mockGCS, dir, bucketName)
+	got := validator.Validate(context.Background())
+
+	want := ValidationResult{Success: true}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted %v, got %v", want, got)
+	}
+}
+
+func TestListIteration_EmptyDir(t *testing.T) {
+	dir := helpers.CreateTmpDir("", "validator-test")
+	defer deleteTestFileFarm(dir)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator())
+
+	validator := newPassThroughValidator(mockGCS, dir, bucketName)
+	got := validator.Validate(context.Background())
+
+	want := ValidationResult{Success: true}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted %v, got %v", want, got)
+	}
+}
+
+func TestListIteration_GCSError(t *testing.T) {
+	dir, file1, file2, file3, file4 := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	expectedErr := errors.New("gcs listing error")
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(
+		newObjectAttrs(file1, 1, file1Time, file1MD5),
+		newObjectAttrs(file2, 2, file2Time, file2MD5),
+		newObjectAttrs(file3, 3, file3Time, file3MD5),
+		expectedErr, // Error during listing iteration
+		newObjectAttrs(file4, 4, file4Time, file4MD5),
+	))
+
+	validator := newPassThroughValidator(mockGCS, dir, bucketName)
+	got := validator.Validate(context.Background())
+
+	want := ValidationResult{Success: false, Err: expectedErr}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted %v, got %v", want, got)
+	}
+
+}
+
+func TestListIteration_MissingFile(t *testing.T) {
+	dir, file1, file2, _, file4 := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(
+		newObjectAttrs(file1, 1, file1Time, file1MD5),
+		newObjectAttrs(file2, 2, file2Time, file2MD5),
+		// file3 is missing
+		newObjectAttrs(file4, 4, file4Time, file4MD5),
+	))
+
+	validator := newPassThroughValidator(mockGCS, dir, bucketName)
+	got := validator.Validate(context.Background())
+
+	want := ValidationResult{Success: false}
+
+	if got.FailureMessage == "" {
+		t.Error("expected failure message but no message was set")
+	}
+
+	got.FailureMessage = ""
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted %v, got %v", want, got)
+	}
+}
+
+func TestListIteration_ExtraListItems(t *testing.T) {
+	dir, file1, file2, file3, file4 := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(
+		newObjectAttrs("000", 1, file1Time, file1MD5),
+		newObjectAttrs(file1, 1, file1Time, file1MD5),
+		newObjectAttrs(file2, 2, file2Time, file2MD5),
+		newObjectAttrs(file2+"_", 200, file2Time, file2MD5),
+		newObjectAttrs(file3, 3, file3Time, file3MD5),
+		newObjectAttrs(file3+"_", 300, file3Time, file3MD5),
+		newObjectAttrs(file4, 4, file4Time, file4MD5),
+		newObjectAttrs("ZZZ", 1, file1Time, file1MD5),
+	))
+
+	validator := newPassThroughValidator(mockGCS, dir, bucketName)
+	got := validator.Validate(context.Background())
+
+	want := ValidationResult{Success: true}
+
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted %v, got %v", want, got)
+	}
+}
+
+func TestListIteration_ExtraListItemsWithMissingFile(t *testing.T) {
+	dir, file1, file2, file3, file4 := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(
+		newObjectAttrs("000", 1, file1Time, file1MD5),
+		newObjectAttrs(file1, 1, file1Time, file1MD5),
+		// file2 is missing
+		newObjectAttrs(file2+"_", 200, file2Time, file2MD5),
+		newObjectAttrs(file3, 3, file3Time, file3MD5),
+		newObjectAttrs(file3+"_", 300, file3Time, file3MD5),
+		newObjectAttrs(file4, 4, file4Time, file4MD5),
+		newObjectAttrs("ZZZ", 1, file1Time, file1MD5),
+	))
+
+	validator := newPassThroughValidator(mockGCS, dir, bucketName)
+	got := validator.Validate(context.Background())
+
+	want := ValidationResult{Success: false}
+
+	if got.FailureMessage == "" {
+		t.Error("expected failure message but no message was set")
+	}
+
+	got.FailureMessage = ""
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted %v, got %v", want, got)
+	}
+}
+
+func TestListIteration_FirstFileMissing(t *testing.T) {
+	dir, _, file2, file3, file4 := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(
+		// file1 is missing
+		newObjectAttrs(file2, 2, file2Time, file2MD5),
+		newObjectAttrs(file3, 3, file3Time, file3MD5),
+		newObjectAttrs(file4, 4, file4Time, file4MD5),
+	))
+
+	validator := newPassThroughValidator(mockGCS, dir, bucketName)
+	got := validator.Validate(context.Background())
+
+	want := ValidationResult{Success: false}
+
+	if got.FailureMessage == "" {
+		t.Error("expected failure message but no message was set")
+	}
+
+	got.FailureMessage = ""
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted %v, got %v", want, got)
+	}
+}
+
+func TestListIteration_LastFileMissing(t *testing.T) {
+	dir, file1, file2, file3, _ := createTestFileFarm()
+	defer deleteTestFileFarm(dir)
+
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().ListObjects(gomock.Any(), bucketName, nil).Return(gcloud.NewObjectIterator(
+		newObjectAttrs(file1, 1, file1Time, file1MD5),
+		newObjectAttrs(file2, 2, file2Time, file2MD5),
+		newObjectAttrs(file3, 3, file3Time, file3MD5),
+		// file4 is missing
+	))
+
+	validator := newPassThroughValidator(mockGCS, dir, bucketName)
+	got := validator.Validate(context.Background())
+
+	want := ValidationResult{Success: false}
+
+	if got.FailureMessage == "" {
+		t.Error("expected failure message but no message was set")
+	}
+
+	got.FailureMessage = ""
+	if !reflect.DeepEqual(want, got) {
+		t.Errorf("wanted %v, got %v", want, got)
+	}
+
 }

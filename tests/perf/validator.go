@@ -41,41 +41,41 @@ type metadataValidator struct {
 type fileValidationFunc func(
 	path, relPath string, objectMetadata *dcp.ObjectMetadata, info os.FileInfo) (bool, string, error)
 
-func buildGCSAttrMap(ctx context.Context, gcs gcloud.GCS, bucketName string) (map[string]*storage.ObjectAttrs, error) {
-	listIter := gcs.ListObjects(ctx, bucketName, nil)
-
-	// Build a map of object name => object attributes.
-	gcsAttrMap := make(map[string]*storage.ObjectAttrs)
+// findInIter looks for file in a GCS ObjectIterator. ObjectIterator is assumed to be
+// in lexicographical order, and if we overshoot the file name, we know it's not there.
+// Since we only need to find the first error, there is no need to worry about the rest
+// of the iterator.
+func findInIter(file string, listIter gcloud.ObjectIterator) (*storage.ObjectAttrs, error) {
 	for {
 		attrs, err := listIter.Next()
-		if err == iterator.Done {
-			break
-		} else if err != nil {
+		if err != nil {
 			return nil, err
 		}
 
-		gcsAttrMap[attrs.Name] = attrs
-	}
+		if file == attrs.Name {
+			return attrs, nil
+		}
 
-	return gcsAttrMap, nil
+		// Overshot; file is not found in GCS.
+		if attrs.Name > file {
+			return nil, iterator.Done
+		}
+	}
 }
 
+// gcsListBasedValidation iterates through the directory, and through the GCS iterator, side-by-side.
+// When a file is found, we run fileValidationFunc on it to validate. If a file is missing in GCS,
+// validation fails.
 func gcsListingBasedValidation(ctx context.Context, gcs gcloud.GCS, sourceDir, bucketName string,
 	fileValidationFunc fileValidationFunc) ValidationResult {
+
 	result := ValidationResult{}
 
-	// Build a map of object name => object attributes.
-	// TODO: Rather than storing it all in memory, verify that Walk and list are in the same
-	//       order, and then redo this to have the Walk and the GCS.List iterated in parallel.
-	gcsAttrMap, err := buildGCSAttrMap(ctx, gcs, bucketName)
-	if err != nil {
-		result.Err = err
-		return result
-	}
+	listIter := gcs.ListObjects(ctx, bucketName, nil)
 
 	// Iterate source directory and check that everything is present.
 	result.Success = true
-	err = filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
+	err := filepath.Walk(sourceDir, func(path string, info os.FileInfo, err error) error {
 		// Bail immediately if anything is wrong.
 		if err != nil {
 			return err
@@ -88,11 +88,13 @@ func gcsListingBasedValidation(ctx context.Context, gcs gcloud.GCS, sourceDir, b
 
 		relPath := helpers.GetRelPathOsAgnostic(sourceDir, path)
 
-		attrs, ok := gcsAttrMap[relPath]
-		if !ok {
+		attrs, err := findInIter(relPath, listIter)
+		if err == iterator.Done {
 			result.Success = false
 			result.FailureMessage = fmt.Sprintf("file %s not found in GCS", relPath)
 			return filepath.SkipDir
+		} else if err != nil {
+			return err
 		}
 
 		objectMetadata, err := dcp.GCSAttrToObjectMetadata(attrs)
