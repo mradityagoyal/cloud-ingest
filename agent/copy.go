@@ -18,6 +18,7 @@ package agent
 import (
 	"context"
 	"crypto/md5"
+	"flag"
 	"fmt"
 	"io"
 	"os"
@@ -29,17 +30,36 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"golang.org/x/sync/semaphore"
 )
+
+const (
+	defaultCopyMemoryLimit int64 = 1 << 30 // Default memory limit is 1 GB.
+)
+
+var (
+	copyMemoryLimit int64
+)
+
+func init() {
+	flag.Int64Var(&copyMemoryLimit, "copy-max-memory", defaultCopyMemoryLimit,
+		"Max memory buffer (in bytes) consumed by the copy tasks.")
+}
 
 // CopyHandler is responsible for handling copy tasks.
 type CopyHandler struct {
 	gcs                gcloud.GCS
 	resumableChunkSize int
+	memoryLimiter      *semaphore.Weighted
 }
 
 func NewCopyHandler(
 	storageClient *storage.Client, resumableChunkSize int) *CopyHandler {
-	return &CopyHandler{gcloud.NewGCSClient(storageClient), resumableChunkSize}
+	return &CopyHandler{
+		gcs:                gcloud.NewGCSClient(storageClient),
+		resumableChunkSize: resumableChunkSize,
+		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
+	}
 }
 
 func checkForFileChanges(beforeStats os.FileInfo, f *os.File) error {
@@ -83,11 +103,6 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 	w := h.gcs.NewWriterWithCondition(ctx, bucketName, objectName,
 		helpers.GetGCSGenerationNumCondition(generationNum))
 
-	// Set the resumable upload chunk size.
-	if t, ok := w.(*storage.Writer); ok {
-		t.ChunkSize = h.resumableChunkSize
-	}
-
 	srcFile, err := os.Open(srcPath)
 	if err != nil {
 		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
@@ -100,7 +115,27 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 	logEntry["src_bytes"] = stats.Size()
 	logEntry["src_modified_time"] = stats.ModTime()
 
-	buffer := make([]byte, h.resumableChunkSize)
+	bufferSize := stats.Size()
+	if bufferSize > int64(h.resumableChunkSize) {
+		bufferSize = int64(h.resumableChunkSize)
+		// Set the resumable upload chunk size.
+		if t, ok := w.(*storage.Writer); ok {
+			t.ChunkSize = h.resumableChunkSize
+		}
+	}
+	if bufferSize > copyMemoryLimit {
+		err := fmt.Errorf(
+			"total memory buffer limit for copy task is %d bytes, but task requires "+
+				"%d bytes (resumeableChunkSize)",
+			copyMemoryLimit, bufferSize)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
+	}
+	if err := h.memoryLimiter.Acquire(ctx, bufferSize); err != nil {
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
+	}
+	defer h.memoryLimiter.Release(bufferSize)
+	buffer := make([]byte, bufferSize)
+
 	hash := md5.New()
 	for {
 		n, err := srcFile.Read(buffer)

@@ -19,16 +19,17 @@ import (
 	"context"
 	"os"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
-
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
+	"golang.org/x/sync/semaphore"
 )
 
 func TestNoTaskParams(t *testing.T) {
@@ -80,6 +81,34 @@ func TestSourceNotFound(t *testing.T) {
 	checkFailureWithType("task", proto.TaskFailureType_FILE_NOT_FOUND_FAILURE, msg, t)
 }
 
+func TestAcquireBufferMemoryFail(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	writer := helpers.NewStringWriteCloser(&storage.ObjectAttrs{})
+
+	tmpFile := helpers.CreateTmpFile("", "test-agent", "File content.")
+	defer os.Remove(tmpFile)
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().NewWriterWithCondition(
+		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
+
+	copyMemoryLimit = 5
+	h := CopyHandler{mockGCS, 10, semaphore.NewWeighted(5)}
+	taskParams := dcp.TaskParams{
+		"src_file":                tmpFile,
+		"dst_bucket":              "bucket",
+		"dst_object":              "object",
+		"expected_generation_num": 0,
+	}
+	msg := h.Do(context.Background(), "task", taskParams)
+	checkFailureWithType("task", proto.TaskFailureType_UNKNOWN, msg, t)
+	if !strings.Contains(msg.FailureMessage, "total memory buffer limit for copy task") {
+		t.Errorf("expected \"total memory buffer limit for copy task is\" in failure message, found: \"%s\"",
+			msg.FailureMessage)
+	}
+}
+
 func TestMD5Mismtach(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -94,7 +123,7 @@ func TestMD5Mismtach(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
-	h := CopyHandler{mockGCS, 5}
+	h := CopyHandler{mockGCS, 5, semaphore.NewWeighted(defaultCopyMemoryLimit)}
 	taskParams := dcp.TaskParams{
 		"src_file":                tmpFile,
 		"dst_bucket":              "bucket",
@@ -128,7 +157,7 @@ func TestCopySuccess(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
-	h := CopyHandler{mockGCS, 5}
+	h := CopyHandler{mockGCS, 5, semaphore.NewWeighted(copyMemoryLimit)}
 	taskParams := dcp.TaskParams{
 		"src_file":                tmpFile,
 		"dst_bucket":              "bucket",
