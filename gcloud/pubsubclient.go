@@ -28,12 +28,16 @@ type PS interface {
 }
 
 type PSTopic interface {
-	Publish(ctx context.Context, msg *pubsub.Message) *pubsub.PublishResult
+	Publish(ctx context.Context, msg *pubsub.Message) PSPublishResult
 	Stop()
 }
 
 type PSSubscription interface {
 	Receive(ctx context.Context, f func(context.Context, *pubsub.Message)) error
+}
+
+type PSPublishResult interface {
+	Get(ctx context.Context) (serverID string, err error)
 }
 
 type PubSubClient struct {
@@ -45,6 +49,14 @@ type PubSubTopic struct {
 }
 
 type PubSubSubscription struct {
+	sub *pubsub.Subscription
+}
+
+type PubSubPublishResult struct {
+	result *pubsub.PublishResult
+}
+
+type PubSubTopicWrapper struct {
 	topic *pubsub.Topic
 }
 
@@ -56,15 +68,28 @@ func (c *PubSubClient) NewPubSubClient(ctx context.Context, database string) (*p
 	return pubsub.NewClient(ctx, database)
 }
 
+// NewPubSubTopicWrapper wraps a pubsub.Topic to ensure its Publish function can return mock results
+func NewPubSubTopicWrapper(t *pubsub.Topic) *PubSubTopicWrapper {
+	return &PubSubTopicWrapper{t}
+}
+
+func (w *PubSubTopicWrapper) Publish(ctx context.Context, msg *pubsub.Message) PSPublishResult {
+	return w.topic.Publish(ctx, msg)
+}
+
+func (w *PubSubTopicWrapper) Stop() {
+	w.topic.Stop()
+}
+
 func (c *PubSubClient) TopicInProject(id, projectID string) PSTopic { // *pubsub.Topic {
-	return c.client.TopicInProject(id, projectID)
+	return NewPubSubTopicWrapper(c.client.TopicInProject(id, projectID))
 }
 
 func (c *PubSubClient) Topic(id string) PSTopic { // pubsub.Topic {
-	return c.client.Topic(id)
+	return NewPubSubTopicWrapper(c.client.Topic(id))
 }
 
-func (t *PubSubTopic) Publish(ctx context.Context, msg *pubsub.Message) *pubsub.PublishResult {
+func (t *PubSubTopic) Publish(ctx context.Context, msg *pubsub.Message) PSPublishResult {
 	return t.Publish(ctx, msg)
 }
 
@@ -78,4 +103,8 @@ func (c *PubSubClient) Subscription(id string) PSSubscription {
 
 func (s *PubSubSubscription) Receive(ctx context.Context, f func(context.Context, *pubsub.Message)) error {
 	return s.Receive(ctx, f)
+}
+
+func (p *PubSubPublishResult) Get(ctx context.Context) (serverID string, err error) {
+	return p.Get(ctx)
 }

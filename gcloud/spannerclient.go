@@ -104,7 +104,9 @@ type SpannerRowIterator struct {
 }
 
 func (iter *SpannerRowIterator) Do(f func(r *spanner.Row) error) error {
-	return iter.iter.Do(f)
+	return iter.iter.Do(func(sr *spanner.Row) error {
+		return f(sr)
+	})
 }
 
 func (iter *SpannerRowIterator) Next() (*spanner.Row, error) {

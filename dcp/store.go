@@ -545,7 +545,7 @@ func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processLis
 			NewTasks: []*Task{},
 		})
 	}
-	var publishResults []*pubsub.PublishResult
+	var publishResults []gcloud.PSPublishResult
 	messagesPublished := true
 	for i, task := range tasks {
 		var topic gcloud.PSTopic
