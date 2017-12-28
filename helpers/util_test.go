@@ -16,8 +16,70 @@ limitations under the License.
 package helpers
 
 import (
+	"fmt"
 	"testing"
+	"time"
 )
+
+func TestRetryWithExponentialBackoffSuccessFirstTime(t *testing.T) {
+	err := RetryWithExponentialBackoff(
+		time.Hour, time.Hour, 1, "Test", func() error {
+			return nil
+		})
+	if err != nil {
+		t.Errorf("expected RetryWithExponentialBackoff to succeed, but found: %v", err)
+	}
+}
+
+func TestRetryWithExponentialBackoffFail(t *testing.T) {
+	err := RetryWithExponentialBackoff(
+		time.Millisecond, 30*time.Millisecond, 3, "Test", func() error {
+			return fmt.Errorf("error")
+		})
+	if err == nil {
+		t.Errorf("expected RetryWithExponentialBackoff to fail")
+	}
+}
+
+func TestRetryWithExponentialBackoffMaxTrials(t *testing.T) {
+	count := 0
+	err := RetryWithExponentialBackoff(
+		time.Millisecond, 30*time.Millisecond, 3, "Test", func() error {
+			count++
+			if count < 4 {
+				return fmt.Errorf("error")
+			}
+			return nil
+		})
+	// Expected to fail.
+	if err == nil {
+		t.Errorf("expected RetryWithExponentialBackoff to fail")
+	}
+	// Expected number of call to be 3.
+	if count != 3 {
+		t.Errorf("expected to be retried 3 times, but it retried %d time(s)", count)
+	}
+}
+
+func TestRetryWithExponentialBackoffSucceedsOnLastTry(t *testing.T) {
+	count := 0
+	err := RetryWithExponentialBackoff(
+		time.Millisecond, 30*time.Millisecond, 4, "Test", func() error {
+			count++
+			if count < 3 {
+				return fmt.Errorf("error")
+			}
+			return nil
+		})
+	// Expected to succeed.
+	if err != nil {
+		t.Errorf("expected RetryWithExponentialBackoff to succeed but got err: %v", err)
+	}
+	// Expected number of call to be 3.
+	if count != 3 {
+		t.Errorf("expected to be retried 3 times, but it retried %d time(s)", count)
+	}
+}
 
 func TestGetRelPathOsAgnostic(t *testing.T) {
 	var tests = []struct {

@@ -50,13 +50,17 @@ func RetryWithExponentialBackoff(sleepTime time.Duration,
 	}
 
 	failures := 0
-	for err := function(); err != nil; {
+	for {
+		err := function()
+		if err == nil {
+			return nil
+		}
 		failures++
 		glog.Warningf("Error occurred in %s: %v.", functionName, err)
 
 		if maxFails > 0 && failures >= maxFails {
 			// Has failed maxFails times in a row, return with error
-			return fmt.Errorf("Aborting calls to %s after %d failures in a row.",
+			return fmt.Errorf("aborting calls to %s after %d failures in a row.",
 				functionName, maxFails)
 		}
 
