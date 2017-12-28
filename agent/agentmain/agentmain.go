@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"flag"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -41,6 +42,9 @@ var (
 	maxPubSubLeaseExtenstion time.Duration
 	credsFile                string
 	chunkSize                int
+
+	skipProcessListTasks bool
+	skipProcessCopyTasks bool
 )
 
 func init() {
@@ -56,6 +60,11 @@ func init() {
 	flag.DurationVar(&maxPubSubLeaseExtenstion, "pubsub-lease-extension", 0,
 		"The max duration to extend the leases for a Pub/Sub message. If 0, will "+
 			"use the default Pub/Sub client value (10 mins)")
+
+	flag.BoolVar(&skipProcessListTasks, "skip-list", false,
+		"Skip processing list tasks.")
+	flag.BoolVar(&skipProcessCopyTasks, "skip-copy", false,
+		"Skip processing copy tasks.")
 	flag.Parse()
 }
 
@@ -84,28 +93,42 @@ func main() {
 		glog.Fatalf("Can not create storage client, error: %+v.\n", storageErr)
 	}
 
-	listSub := pubSubClient.Subscription(listSubscription)
-	listSub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
-	listTopic := pubSubClient.Topic(listProgressTopic)
+	var wg sync.WaitGroup
+	if !skipProcessListTasks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			listSub := pubSubClient.Subscription(listSubscription)
+			listSub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
+			listTopic := pubSubClient.Topic(listProgressTopic)
 
-	copySub := pubSubClient.Subscription(copySubscription)
-	copySub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
-	copySub.ReceiveSettings.MaxOutstandingMessages = numberThreads
-	copyTopic := pubSubClient.Topic(copyProgressTopic)
-
-	listProcessor := agent.WorkProcessor{
-		WorkSub:       listSub,
-		ProgressTopic: listTopic,
-		Handler:       agent.NewListHandler(storageClient, chunkSize),
+			listProcessor := agent.WorkProcessor{
+				WorkSub:       listSub,
+				ProgressTopic: listTopic,
+				Handler:       agent.NewListHandler(storageClient, chunkSize),
+			}
+			listProcessor.Process(ctx)
+		}()
 	}
 
-	copyProcessor := agent.WorkProcessor{
-		WorkSub:       copySub,
-		ProgressTopic: copyTopic,
-		Handler:       agent.NewCopyHandler(storageClient, chunkSize),
+	if !skipProcessCopyTasks {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			copySub := pubSubClient.Subscription(copySubscription)
+			copySub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
+			copySub.ReceiveSettings.MaxOutstandingMessages = numberThreads
+			copyTopic := pubSubClient.Topic(copyProgressTopic)
+
+			copyProcessor := agent.WorkProcessor{
+				WorkSub:       copySub,
+				ProgressTopic: copyTopic,
+				Handler:       agent.NewCopyHandler(storageClient, chunkSize),
+			}
+
+			copyProcessor.Process(ctx)
+		}()
 	}
 
-	go copyProcessor.Process(ctx)
-	// listProcessor will take over this thread and won't return.
-	listProcessor.Process(ctx)
+	wg.Wait()
 }
