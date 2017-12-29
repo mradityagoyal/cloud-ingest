@@ -183,7 +183,7 @@ def main():
 
     # Make sure that insert job has the sufficient arguments.
     if args.insert_job:
-        if (not args.src_dir or not args.dst_gcs_bucket):
+        if not args.src_dir or not args.dst_gcs_bucket:
             parser.error('--insert-job requires --src-dir and --dst-gcs-bucket')
         if args.mode == 'TearDown':
             parser.error('Can not insert new jobs in the TearDown mode.')

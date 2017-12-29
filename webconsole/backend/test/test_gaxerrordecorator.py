@@ -28,6 +28,7 @@ from grpc import StatusCode
 from gaxerrordecorator import handle_common_gax_errors
 
 class TestGaxErrorDecorator(unittest.TestCase):
+    # pylint: disable=too-many-public-methods
     """Tests for gaxerrordecorator.py
 
     Since the gax error decorator is meant to be used only for SpannerWrapper

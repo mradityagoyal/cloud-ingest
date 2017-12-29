@@ -398,7 +398,6 @@ class SpannerWrapper(object):
             % SpannerWrapper.LAST_MODIFICATION_TIME)
         return self.list_query(query, params, param_types)
 
-    # pylint: enable=too-many-arguments
     def get_job_run(self, config_id, run_id=_FIRST_JOB_RUN_ID):
         """Retrieves the job run with the specified job run id.
 

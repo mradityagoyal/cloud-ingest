@@ -236,6 +236,7 @@ class TestMain(unittest.TestCase):
     # pylint: disable=too-many-public-methods
     # pylint: disable=too-many-instance-attributes
     def setUp(self):
+        # pylint: disable=no-member
         self.app = main.APP.test_client()
         self.app.testing = True
         # Set up the spanner mocks

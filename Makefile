@@ -50,7 +50,7 @@ lint-go: ## Run Go format.
 .PHONY: lint-backend
 lint-backend: ## Lint backend code.
 	@echo -e "\n== Running Backend Lint =="
-	@find $(BACKEND_DIR) -type f -name "*.py" | egrep -ve node_modules | \
+	@find $(BACKEND_DIR) -type f -name "*.py" | egrep -ve "node_modules|\/proto\/" | \
 		xargs pylint --rcfile=.pylintrc
 
 .PHONY: lint-frontend
