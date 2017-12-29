@@ -404,6 +404,16 @@ func isValidUpdate(row *spanner.Row,
 		return false, 0, err
 	}
 
+	// Fail the transaction if it changes it from Unqueued to Unqueued.
+	// TODO(b/71503268): Have task to ignore individual task updates instead of
+	// aborting all the task updates in the transaction. Additionally, there should
+	// be a clear semantic about the task update and Pub/Sub message associated to
+	// it. i.e. Update and ack' the message, skip update but ack' the message, or
+	// skip update and nack' the message.
+	if status == Unqueued && updateTask.Status == Unqueued {
+		return false, 0, fmt.Errorf(
+			"task %s has to be queued first before it's processed.", updateTask.TaskRRStruct)
+	}
 	return canChangeTaskStatus(status, updateTask.Status), status, nil
 }
 
