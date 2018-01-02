@@ -159,7 +159,7 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 				deltaObj.counter[KeyListFilesFound] += le.val("files_found")
 				deltaObj.counter[KeyListBytesFound] += le.val("bytes_found")
 				deltaObj.counter[KeyListFileStatErrors] += le.val("file_stat_errors")
-			case uploadGCSTaskType:
+			case copyTaskType:
 				deltaObj.counter[KeyBytesCopied] += le.val("src_bytes")
 			}
 		default:
@@ -200,7 +200,7 @@ func CounterSuffix(task *Task) (string, error) {
 		return KeySuffixList, nil
 	case processListTaskType:
 		return KeySuffixProcessList, nil
-	case uploadGCSTaskType:
+	case copyTaskType:
 		return KeySuffixCopy, nil
 	default:
 		return "", errors.New(fmt.Sprintf(

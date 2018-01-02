@@ -49,8 +49,8 @@ message TaskType {
     UNKNOWN = 0;
     // List task. A task that lists the files on the on-premises directory.
     LIST = 1;
-    // Upload to GCS task. Upload a file from the on-premises directory to GCS.
-    UPLOAD_GCS = 2;
+    // Copy task. Upload a file from the on-premises directory to GCS.
+    COPY = 2;
   }
 }
 

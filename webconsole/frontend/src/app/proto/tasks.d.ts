@@ -5,7 +5,7 @@ export interface ITaskFailureType {
 }
 
 /** Represents a TaskFailureType. */
-export class TaskFailureType implements ITaskFailureType {
+export class TaskFailureType {
 
     /**
      * Constructs a new TaskFailureType.
@@ -103,7 +103,7 @@ export interface ITaskStatus {
 }
 
 /** Represents a TaskStatus. */
-export class TaskStatus implements ITaskStatus {
+export class TaskStatus {
 
     /**
      * Constructs a new TaskStatus.
@@ -198,7 +198,7 @@ export interface ITaskType {
 }
 
 /** Represents a TaskType. */
-export class TaskType implements ITaskType {
+export class TaskType {
 
     /**
      * Constructs a new TaskType.
@@ -283,7 +283,7 @@ export namespace TaskType {
     enum Type {
         UNKNOWN = 0,
         LIST = 1,
-        UPLOAD_GCS = 2
+        COPY = 2
     }
 }
 
@@ -292,7 +292,7 @@ export interface IJobRunStatus {
 }
 
 /** Represents a JobRunStatus. */
-export class JobRunStatus implements IJobRunStatus {
+export class JobRunStatus {
 
     /**
      * Constructs a new JobRunStatus.
@@ -387,7 +387,7 @@ export interface IResourceStatus {
 }
 
 /** Represents a ResourceStatus. */
-export class ResourceStatus implements IResourceStatus {
+export class ResourceStatus {
 
     /**
      * Constructs a new ResourceStatus.

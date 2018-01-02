@@ -115,14 +115,14 @@ def main():
                                 constants.LIST_PROGRESS_TOPIC,
                                 constants.LIST_PROGRESS_SUBSCRIPTION),
                             '%s,%s' % (
-                                constants.UPLOAD_GCS_PROGRESS_TOPIC,
-                                constants.UPLOAD_GCS_PROGRESS_SUBSCRIPTION),
+                                constants.COPY_PROGRESS_TOPIC,
+                                constants.COPY_PROGRESS_SUBSCRIPTION),
                             '%s,%s' % (
                                 constants.LIST_TOPIC,
                                 constants.LIST_SUBSCRIPTION),
                             '%s,%s' % (
-                                constants.UPLOAD_GCS_TOPIC,
-                                constants.UPLOAD_GCS_SUBSCRIPTION)
+                                constants.COPY_TOPIC,
+                                constants.COPY_SUBSCRIPTION)
                         ])
 
     parser.add_argument('--skip-running-dcp', '-sdcp', action='store_true',

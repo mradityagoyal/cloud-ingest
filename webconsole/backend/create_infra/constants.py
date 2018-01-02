@@ -28,10 +28,10 @@ LIST_PROGRESS_SUBSCRIPTION = LIST_PROGRESS_TOPIC
 PROCESS_LIST_TOPIC = 'cloud-ingest-process-list'
 PROCESS_LIST_SUBSCRIPTION = PROCESS_LIST_TOPIC
 # Note: There is no 'progress' topic/sub for list processing.
-UPLOAD_GCS_TOPIC = 'cloud-ingest-copy'
-UPLOAD_GCS_SUBSCRIPTION = UPLOAD_GCS_TOPIC
-UPLOAD_GCS_PROGRESS_TOPIC = 'cloud-ingest-copy-progress'
-UPLOAD_GCS_PROGRESS_SUBSCRIPTION = UPLOAD_GCS_PROGRESS_TOPIC
+COPY_TOPIC = 'cloud-ingest-copy'
+COPY_SUBSCRIPTION = COPY_TOPIC
+COPY_PROGRESS_TOPIC = 'cloud-ingest-copy-progress'
+COPY_PROGRESS_SUBSCRIPTION = COPY_PROGRESS_TOPIC
 
 # Cloud ingest infra-structure default DCP GCE instance params.
 DCP_INSTANCE_NAME = 'cloud-ingest-dcp'

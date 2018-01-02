@@ -37,8 +37,8 @@ func copySuccessCompletionMessage() *TaskCompletionMessage {
 	}
 }
 
-func TestUploadGCSProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
-	handler := UploadGCSProgressMessageHandler{}
+func TestCopyProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
+	handler := CopyProgressMessageHandler{}
 
 	jobSpec := &JobSpec{}
 	taskCompletionMessage := copySuccessCompletionMessage()
@@ -50,8 +50,8 @@ func TestUploadGCSProgressMessageHandlerInvalidCompletionMessage(t *testing.T) {
 	}
 }
 
-func TestUploadGCSProgressMessageHandlerMissingParams(t *testing.T) {
-	handler := UploadGCSProgressMessageHandler{}
+func TestCopyProgressMessageHandlerMissingParams(t *testing.T) {
+	handler := CopyProgressMessageHandler{}
 
 	jobSpec := &JobSpec{}
 	taskCompletionMessage := copySuccessCompletionMessage()
@@ -65,7 +65,7 @@ func TestUploadGCSProgressMessageHandlerMissingParams(t *testing.T) {
 	}
 }
 
-func TestUploadGCSProgressMessageHandlerFailReadingGenNum(t *testing.T) {
+func TestCopyProgressMessageHandlerFailReadingGenNum(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	errorMsg := "failed to read metadata"
@@ -74,7 +74,7 @@ func TestUploadGCSProgressMessageHandlerFailReadingGenNum(t *testing.T) {
 		GetMetadata(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(nil, errors.New(errorMsg))
 
-	handler := UploadGCSProgressMessageHandler{
+	handler := CopyProgressMessageHandler{
 		ObjectMetadataReader: mockObjectMetadataReader,
 	}
 
@@ -88,10 +88,10 @@ func TestUploadGCSProgressMessageHandlerFailReadingGenNum(t *testing.T) {
 	}
 }
 
-func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
-	uploadGCSTask := &Task{
+func TestCopyProgressMessageHandlerSuccess(t *testing.T) {
+	copyTask := &Task{
 		TaskRRStruct: *NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID),
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 		Status:       Success,
 	}
 
@@ -102,7 +102,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 		GetMetadata(gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(&ObjectMetadata{GenerationNumber: 1}, nil)
 
-	handler := UploadGCSProgressMessageHandler{
+	handler := CopyProgressMessageHandler{
 		ObjectMetadataReader: mockObjectMetadataReader,
 	}
 
@@ -118,7 +118,7 @@ func TestUploadGCSProgressMessageHandlerSuccess(t *testing.T) {
 	}
 
 	expectedTaskUpdate := &TaskUpdate{
-		Task:     uploadGCSTask,
+		Task:     copyTask,
 		LogEntry: LogEntry{"logkey": "logval"},
 		OriginalTaskParams: TaskParams{
 			"src_file":                "file",

@@ -126,26 +126,26 @@ func (h *ProcessListMessageHandler) HandleMessage(
 
 	var newTasks []*Task
 	for _, filePath := range lines {
-		uploadGCSTaskID := GetUploadGCSTaskID(filePath)
+		copyTaskID := GetCopyTaskID(filePath)
 		dstObject := helpers.GetRelPathOsAgnostic(spec.SrcDirectory, filePath)
 		// TODO(b/69319257): Amend this logic when we implement synchronization.
-		uploadGCSTaskSpec := UploadGCSTaskSpec{
+		copyTaskSpec := CopyTaskSpec{
 			SrcFile:               filePath,
 			DstBucket:             jobSpec.GCSBucket,
 			DstObject:             dstObject,
 			ExpectedGenerationNum: 0,
 		}
-		uploadGCSTaskSpecJson, err := json.Marshal(uploadGCSTaskSpec)
+		copyTaskSpecJson, err := json.Marshal(copyTaskSpec)
 		if err != nil {
 			glog.Errorf(
 				"Error encoding task spec to JSON string, task spec: %v, err: %v.",
-				uploadGCSTaskSpec, err)
+				copyTaskSpec, err)
 			return nil, err
 		}
 		newTasks = append(newTasks, &Task{
-			TaskRRStruct: TaskRRStruct{task.TaskRRStruct.JobRunRRStruct, uploadGCSTaskID},
-			TaskType:     uploadGCSTaskType,
-			TaskSpec:     string(uploadGCSTaskSpecJson),
+			TaskRRStruct: TaskRRStruct{task.TaskRRStruct.JobRunRRStruct, copyTaskID},
+			TaskType:     copyTaskType,
+			TaskSpec:     string(copyTaskSpecJson),
 		})
 	}
 	taskUpdate.NewTasks = newTasks

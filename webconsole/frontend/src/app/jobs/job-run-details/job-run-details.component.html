@@ -60,7 +60,7 @@
       </ng-container>
 
       <ng-container *ngIf="jobRun.Counters.totalTasksCopy > 0">
-        <mat-tab label="Upload to GCS Progress">
+        <mat-tab label="Copy Progress">
           <dl>
             <dt>Total Files</dt>
             <dd>{{ jobRun.Counters.totalTasksCopy }}</dd>
@@ -70,19 +70,6 @@
             <dd>{{ jobRun.Counters.tasksFailedCopy }}</dd>
             <dt>Bytes Copied</dt>
             <dd>{{ jobRun.Counters.bytesCopied }}</dd>
-          </dl>
-        </mat-tab>
-      </ng-container>
-
-      <ng-container *ngIf="jobRun.Counters.totalTasksLoad > 0">
-        <mat-tab label="Load into BigQuery Progress">
-          <dl>
-            <dt>Total Objects</dt>
-            <dd>{{ jobRun.Counters.totalTasksLoad }}</dd>
-            <dt>Objects Completed</dt>
-            <dd>{{ jobRun.Counters.tasksCompletedLoad }}</dd>
-            <dt>Objects Failed</dt>
-            <dd>{{ jobRun.Counters.tasksFailedLoad }}</dd>
           </dl>
         </mat-tab>
       </ng-container>

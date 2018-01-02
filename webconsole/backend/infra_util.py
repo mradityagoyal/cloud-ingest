@@ -41,10 +41,10 @@ _TOPICS_SUBSCRIPTIONS = {
                      [constants.LIST_PROGRESS_SUBSCRIPTION], 30),
     'processList': (constants.PROCESS_LIST_TOPIC,
                     [constants.PROCESS_LIST_SUBSCRIPTION], 30),
-    'uploadGCS': (constants.UPLOAD_GCS_TOPIC,
-                  [constants.UPLOAD_GCS_SUBSCRIPTION], 30),
-    'uploadGCSProgress': (constants.UPLOAD_GCS_PROGRESS_TOPIC,
-                          [constants.UPLOAD_GCS_PROGRESS_SUBSCRIPTION], 30),
+    'copy': (constants.COPY_TOPIC,
+                  [constants.COPY_SUBSCRIPTION], 30),
+    'copyProgress': (constants.COPY_PROGRESS_TOPIC,
+                          [constants.COPY_PROGRESS_SUBSCRIPTION], 30),
 }
 
 # pylint: disable=invalid-name
@@ -72,8 +72,8 @@ def _infrastructure_status_from_bldrs(spanner_bldr, pubsub_bldr, compute_bldr):
             'pubsubStatus': {
                 'list': 'RUNNING',
                 'listProgress': 'RUNNING',
-                'uploadGCS': 'RUNNING',
-                'uploadGCSProgress': 'RUNNING'
+                'copy': 'RUNNING',
+                'copyProgress': 'RUNNING'
             },
             'spannerStatus': 'RUNNING'
         }

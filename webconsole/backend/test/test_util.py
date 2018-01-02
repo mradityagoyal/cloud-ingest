@@ -77,8 +77,8 @@ class TestUtil(unittest.TestCase):
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'NOT_FOUND',
-                'uploadGCS': 'NOT_FOUND',
-                'uploadGCSProgress': 'NOT_FOUND'
+                'copy': 'NOT_FOUND',
+                'copyProgress': 'NOT_FOUND'
             },
             'spannerStatus': 'NOT_FOUND'
         }
@@ -93,8 +93,8 @@ class TestUtil(unittest.TestCase):
             "pubsubStatus": {
                 "list": "RUNNING",
                 "listProgress": "RUNNING",
-                "uploadGCS": "RUNNING",
-                "uploadGCSProgress": "RUNNING"
+                "copy": "RUNNING",
+                "copyProgress": "RUNNING"
             },
             "spannerStatus": "RUNNING"
         }
@@ -110,8 +110,8 @@ class TestUtil(unittest.TestCase):
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'NOT_FOUND',
-                'uploadGCS': 'NOT_FOUND',
-                'uploadGCSProgress': 'NOT_FOUND'
+                'copy': 'NOT_FOUND',
+                'copyProgress': 'NOT_FOUND'
             },
             'spannerStatus': 'NOT_FOUND'
         }
@@ -125,8 +125,8 @@ class TestUtil(unittest.TestCase):
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'RUNNING',
-                'uploadGCS': 'RUNNING',
-                'uploadGCSProgress': 'UNKNOWN'
+                'copy': 'RUNNING',
+                'copyProgress': 'UNKNOWN'
             },
             'spannerStatus': 'NOT_FOUND'
         }
@@ -141,8 +141,8 @@ class TestUtil(unittest.TestCase):
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'RUNNING',
-                'uploadGCS': 'RUNNING',
-                'uploadGCSProgress': 'UNKNOWN'
+                'copy': 'RUNNING',
+                'copyProgress': 'UNKNOWN'
             },
             'spannerStatus': 'NOT_FOUND'
         }
@@ -158,8 +158,8 @@ class TestUtil(unittest.TestCase):
             'pubsubStatus': {
                 'list': 'NOT_FOUND',
                 'listProgress': 'RUNNING',
-                'uploadGCS': 'RUNNING',
-                'uploadGCSProgress': 'UNKNOWN'
+                'copy': 'RUNNING',
+                'copyProgress': 'UNKNOWN'
             },
             'spannerStatus': 'NOT_FOUND'
         }

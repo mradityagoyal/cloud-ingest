@@ -33,11 +33,11 @@ const (
 
 	listTaskPrefix        string = "list"
 	processListTaskPrefix string = "processList"
-	uploadGCSTaskPrefix   string = "uploadGCS"
+	copyTaskPrefix        string = "copy"
 
 	listTaskType        int64 = 1
 	processListTaskType int64 = 2
-	uploadGCSTaskType   int64 = 3
+	copyTaskType        int64 = 3
 
 	idSeparator string = ":"
 )
@@ -62,7 +62,7 @@ type ProcessListTaskSpec struct {
 	ByteOffset          int64  `json:"byte_offset"`
 }
 
-type UploadGCSTaskSpec struct {
+type CopyTaskSpec struct {
 	SrcFile               string `json:"src_file"`
 	DstBucket             string `json:"dst_bucket"`
 	DstObject             string `json:"dst_object"`
@@ -150,7 +150,7 @@ type TaskUpdateCollection struct {
 //		},
 //		NewTasks: []*Task{
 //			&Task{
-//				TaskRRStruct: *NewTaskRRStruct("project", "config", "run", "upload"),
+//				TaskRRStruct: *NewTaskRRStruct("project", "config", "run", "copy"),
 //				Status:       Unqueued,
 //			},
 //		},
@@ -219,7 +219,7 @@ func NewProcessListTaskSpecFromMap(params map[string]interface{}) (*ProcessListT
 	return nil, fmt.Errorf("missing params in ProcessListTaskSpec map: %v", params)
 }
 
-func NewUploadGCSTaskSpecFromMap(params map[string]interface{}) (*UploadGCSTaskSpec, error) {
+func NewCopyTaskSpecFromMap(params map[string]interface{}) (*CopyTaskSpec, error) {
 	srcFile, ok1 := params["src_file"]
 	dstBucket, ok2 := params["dst_bucket"]
 	dstObject, ok3 := params["dst_object"]
@@ -229,7 +229,7 @@ func NewUploadGCSTaskSpecFromMap(params map[string]interface{}) (*UploadGCSTaskS
 		if err != nil {
 			return nil, err
 		}
-		return &UploadGCSTaskSpec{
+		return &CopyTaskSpec{
 			SrcFile:               srcFile.(string),
 			DstBucket:             dstBucket.(string),
 			DstObject:             dstObject.(string),
@@ -237,7 +237,7 @@ func NewUploadGCSTaskSpecFromMap(params map[string]interface{}) (*UploadGCSTaskS
 		}, nil
 	}
 
-	return nil, fmt.Errorf("missing params in UploadGCSTaskSpec map: %v", params)
+	return nil, fmt.Errorf("missing params in CopyTaskSpec map: %v", params)
 }
 
 func (tc TaskUpdateCollection) Size() int {
@@ -269,12 +269,11 @@ func GetProcessListTaskID(bucket, object string) string {
 	return processListTaskPrefix + idSeparator + bucket + idSeparator + object
 }
 
-// GetUploadGCSTaskID returns the task id of an uploadGCS type task for
-// the given file.
-func GetUploadGCSTaskID(filePath string) string {
+// GetCopyTaskID returns the task id of a copy type task for the given file.
+func GetCopyTaskID(filePath string) string {
 	// TODO(b/64038794): The task ids should be a hash of the filePath, the
 	// filePath might be too long and already duplicated in the task spec.
-	return uploadGCSTaskPrefix + idSeparator + filePath
+	return copyTaskPrefix + idSeparator + filePath
 }
 
 // canChangeTaskStatus checks whether a task can be moved from a fromStatus to

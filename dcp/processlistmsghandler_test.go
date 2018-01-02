@@ -161,9 +161,9 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 		expectedNewTask := &Task{
 			TaskRRStruct: TaskRRStruct{
 				JobRunRRStruct: taskRRStruct.JobRunRRStruct,
-				TaskID:         GetUploadGCSTaskID("dir/file" + strconv.Itoa(i)),
+				TaskID:         GetCopyTaskID("dir/file" + strconv.Itoa(i)),
 			},
-			TaskType: uploadGCSTaskType,
+			TaskType: copyTaskType,
 		}
 
 		expectedTaskUpdate.NewTasks = append(expectedTaskUpdate.NewTasks, expectedNewTask)

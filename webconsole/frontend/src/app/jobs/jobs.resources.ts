@@ -94,7 +94,7 @@ export interface Task {
  */
 export const TASK_TYPE_TO_STRING_MAP = {};
 TASK_TYPE_TO_STRING_MAP[TaskType.Type.LIST] = 'List task';
-TASK_TYPE_TO_STRING_MAP[TaskType.Type.UPLOAD_GCS] = 'GCS Upload';
+TASK_TYPE_TO_STRING_MAP[TaskType.Type.COPY] = 'Copy task';
 
 /**
  * Maps failure type enums to their string representations.

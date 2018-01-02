@@ -147,7 +147,7 @@ describe('JobRunDetailsComponent', () => {
     });
   }));
 
-  it('should display a overall, list and uploadGCS tabs when progress is available',
+  it('should display a overall, list and copy tabs when progress is available',
         async(() => {
     jobsServiceStub.getJobRun.and.returnValue(Observable.of(FAKE_JOB_RUNS[2]));
     fixture = TestBed.createComponent(JobRunDetailsComponent);
@@ -162,11 +162,11 @@ describe('JobRunDetailsComponent', () => {
       expect(tabs.length).toEqual(3);
       expect(tabs[0].textContent).toEqual('Overall Progress');
       expect(tabs[1].textContent).toEqual('Listing Progress');
-      expect(tabs[2].textContent).toEqual('Upload to GCS Progress');
+      expect(tabs[2].textContent).toEqual('Copy Progress');
     });
   }));
 
-  it('should display a overall, list, uploadGCS and loadBQ tabs when progress is available',
+  it('should display a overall, list, and copy tabs when progress is available',
         async(() => {
     jobsServiceStub.getJobRun.and.returnValue(Observable.of(FAKE_JOB_RUNS[3]));
     fixture = TestBed.createComponent(JobRunDetailsComponent);
@@ -178,11 +178,10 @@ describe('JobRunDetailsComponent', () => {
       const element = compiled.querySelector('#job-progress-tabs');
       expect(element).not.toBeNull();
       const tabs = element.querySelectorAll('.mat-tab-label');
-      expect(tabs.length).toEqual(4);
+      expect(tabs.length).toEqual(3);
       expect(tabs[0].textContent).toEqual('Overall Progress');
       expect(tabs[1].textContent).toEqual('Listing Progress');
-      expect(tabs[2].textContent).toEqual('Upload to GCS Progress');
-      expect(tabs[3].textContent).toEqual('Load into BigQuery Progress');
+      expect(tabs[2].textContent).toEqual('Copy Progress');
     });
   }));
 
@@ -238,7 +237,7 @@ describe('JobRunDetailsComponent', () => {
     });
   }));
 
-  it('should show progress information in the upload gcs progress tab', async(() => {
+  it('should show progress information in the copy progress tab', async(() => {
     const jobRun = FAKE_JOB_RUNS[2];
     jobsServiceStub.getJobRun.and.returnValue(Observable.of(jobRun));
     fixture = TestBed.createComponent(JobRunDetailsComponent);
@@ -251,7 +250,7 @@ describe('JobRunDetailsComponent', () => {
       expect(tabGroup).not.toBeNull();
       const tabs = fixture.debugElement.queryAll(By.css('.mat-tab-label'));
       expect(tabs.length).toEqual(3);
-      expect(tabs[2].nativeElement.textContent).toEqual('Upload to GCS Progress');
+      expect(tabs[2].nativeElement.textContent).toEqual('Copy Progress');
       tabs[2].nativeElement.click();
       fixture.detectChanges();
       fixture.whenStable().then(() => {
@@ -259,32 +258,6 @@ describe('JobRunDetailsComponent', () => {
         expect(compiled.innerText).toContain(jobRun.Counters.tasksCompletedCopy);
         expect(compiled.innerText).toContain(jobRun.Counters.tasksFailedCopy);
         expect(compiled.innerText).toContain(jobRun.Counters.bytesCopied);
-      });
-    });
-  }));
-
-  it('should show progress information in the load into BQ progress tab', async(() => {
-    const jobRun = FAKE_JOB_RUNS[3];
-    jobsServiceStub.getJobRun.and.returnValue(Observable.of(jobRun));
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const tabGroup = compiled.querySelector('#job-progress-tabs');
-      expect(tabGroup).not.toBeNull();
-      const tabs = fixture.debugElement.queryAll(By.css('.mat-tab-label'));
-      expect(tabs.length).toEqual(4);
-      expect(tabs[3].nativeElement.textContent).toEqual('Load into BigQuery Progress');
-      tabs[3].nativeElement.click();
-      fixture.detectChanges();
-      fixture.whenStable().then(() => {
-        const tabContents = compiled.querySelectorAll('.mat-tab-body-content');
-        expect(tabContents).not.toBeNull();
-        expect(compiled.innerText).toContain(jobRun.Counters.totalTasksLoad);
-        expect(compiled.innerText).toContain(jobRun.Counters.tasksCompletedLoad);
-        expect(compiled.innerText).toContain(jobRun.Counters.tasksFailedLoad);
       });
     });
   }));

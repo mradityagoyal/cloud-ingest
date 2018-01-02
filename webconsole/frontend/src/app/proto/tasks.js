@@ -21,7 +21,6 @@ $root.TaskFailureType = (function() {
      * Constructs a new TaskFailureType.
      * @exports TaskFailureType
      * @classdesc Represents a TaskFailureType.
-     * @implements ITaskFailureType
      * @constructor
      * @param {ITaskFailureType=} [properties] Properties to set
      */
@@ -168,7 +167,6 @@ $root.TaskFailureType = (function() {
 
     /**
      * Type enum.
-     * @name TaskFailureType.Type
      * @enum {string}
      * @property {number} UNUSED=0 UNUSED value
      * @property {number} UNKNOWN=1 UNKNOWN value
@@ -205,7 +203,6 @@ $root.TaskStatus = (function() {
      * Constructs a new TaskStatus.
      * @exports TaskStatus
      * @classdesc Represents a TaskStatus.
-     * @implements ITaskStatus
      * @constructor
      * @param {ITaskStatus=} [properties] Properties to set
      */
@@ -352,7 +349,6 @@ $root.TaskStatus = (function() {
 
     /**
      * Type enum.
-     * @name TaskStatus.Type
      * @enum {string}
      * @property {number} UNQUEUED=0 UNQUEUED value
      * @property {number} QUEUED=1 QUEUED value
@@ -383,7 +379,6 @@ $root.TaskType = (function() {
      * Constructs a new TaskType.
      * @exports TaskType
      * @classdesc Represents a TaskType.
-     * @implements ITaskType
      * @constructor
      * @param {ITaskType=} [properties] Properties to set
      */
@@ -530,17 +525,16 @@ $root.TaskType = (function() {
 
     /**
      * Type enum.
-     * @name TaskType.Type
      * @enum {string}
      * @property {number} UNKNOWN=0 UNKNOWN value
      * @property {number} LIST=1 LIST value
-     * @property {number} UPLOAD_GCS=2 UPLOAD_GCS value
+     * @property {number} COPY=2 COPY value
      */
     TaskType.Type = (function() {
         var valuesById = {}, values = Object.create(valuesById);
         values[valuesById[0] = "UNKNOWN"] = 0;
         values[valuesById[1] = "LIST"] = 1;
-        values[valuesById[2] = "UPLOAD_GCS"] = 2;
+        values[valuesById[2] = "COPY"] = 2;
         return values;
     })();
 
@@ -559,7 +553,6 @@ $root.JobRunStatus = (function() {
      * Constructs a new JobRunStatus.
      * @exports JobRunStatus
      * @classdesc Represents a JobRunStatus.
-     * @implements IJobRunStatus
      * @constructor
      * @param {IJobRunStatus=} [properties] Properties to set
      */
@@ -706,7 +699,6 @@ $root.JobRunStatus = (function() {
 
     /**
      * Type enum.
-     * @name JobRunStatus.Type
      * @enum {string}
      * @property {number} NOT_STARTED=0 NOT_STARTED value
      * @property {number} IN_PROGRESS=1 IN_PROGRESS value
@@ -737,7 +729,6 @@ $root.ResourceStatus = (function() {
      * Constructs a new ResourceStatus.
      * @exports ResourceStatus
      * @classdesc Represents a ResourceStatus.
-     * @implements IResourceStatus
      * @constructor
      * @param {IResourceStatus=} [properties] Properties to set
      */
@@ -884,7 +875,6 @@ $root.ResourceStatus = (function() {
 
     /**
      * Type enum.
-     * @name ResourceStatus.Type
      * @enum {string}
      * @property {number} TYPE_UNSPECIFIED=0 TYPE_UNSPECIFIED value
      * @property {number} RUNNING=1 RUNNING value

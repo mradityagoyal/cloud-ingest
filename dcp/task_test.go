@@ -214,7 +214,7 @@ func TestNewListTaskSpecFromMap(t *testing.T) {
 	}
 }
 
-func TestNewUploadGCSTaskSpecFromMap(t *testing.T) {
+func TestNewCopyTaskSpecFromMap(t *testing.T) {
 	var tests = []struct {
 		srcFile interface{}
 		bucket  interface{}
@@ -245,11 +245,11 @@ func TestNewUploadGCSTaskSpecFromMap(t *testing.T) {
 			params["expected_generation_num"] = tc.genNum
 		}
 
-		result, err := NewUploadGCSTaskSpecFromMap(params)
+		result, err := NewCopyTaskSpecFromMap(params)
 
 		if tc.srcFile != nil && tc.bucket != nil && tc.object != nil && tc.genNum != nil {
 			// All values populated, should be working result (always same values).
-			expected := &UploadGCSTaskSpec{
+			expected := &CopyTaskSpec{
 				SrcFile:               "srcfile",
 				DstBucket:             "bucket",
 				DstObject:             "object",
@@ -260,7 +260,7 @@ func TestNewUploadGCSTaskSpecFromMap(t *testing.T) {
 				t.Errorf("expected nil error, got: %v", err)
 			}
 
-			DeepEqualCompare("uploadGCSTaskSpec construction from map", expected, result, t)
+			DeepEqualCompare("copyTaskSpec construction from map", expected, result, t)
 		} else {
 			// Any missing parameter should result in error.
 			if err == nil {

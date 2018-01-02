@@ -76,9 +76,9 @@ class InfraUtilTest(unittest.TestCase):
                 return_value = ResourceStatus.RUNNING
             if topic == constants.LIST_PROGRESS_TOPIC:
                 return_value = ResourceStatus.UNKNOWN
-            if topic == constants.UPLOAD_GCS_TOPIC:
+            if topic == constants.COPY_TOPIC:
                 return_value = ResourceStatus.DELETING
-            if topic == constants.UPLOAD_GCS_PROGRESS_TOPIC:
+            if topic == constants.COPY_PROGRESS_TOPIC:
                 return_value = ResourceStatus.RUNNING
             return return_value
 
@@ -98,8 +98,8 @@ class InfraUtilTest(unittest.TestCase):
                 "list": ResourceStatus.RUNNING,
                 "listProgress": ResourceStatus.UNKNOWN,
                 "processList": ResourceStatus.UNKNOWN,
-                "uploadGCS": ResourceStatus.DELETING,
-                "uploadGCSProgress": ResourceStatus.RUNNING
+                "copy": ResourceStatus.DELETING,
+                "copyProgress": ResourceStatus.RUNNING
             },
             "spannerStatus": ResourceStatus.NOT_FOUND,
           }

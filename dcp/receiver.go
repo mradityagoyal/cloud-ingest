@@ -89,7 +89,7 @@ func (r *MessageReceiver) getJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobS
 }
 
 func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
-	// Currently, there is a batcher for each message receiver type (list, uploadGCS).
+	// Currently, there is a batcher for each message receiver type (list, copy).
 	// Maybe we can consider only one batcher for all the receiver types.
 	r.batcher.initializeAndStart(r.Store)
 	r.jobSpecsCache.Lock()

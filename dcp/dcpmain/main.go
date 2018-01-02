@@ -109,7 +109,7 @@ func main() {
 	gcsClient := gcloud.NewGCSClient(storageClient)
 
 	metadataReader := dcp.NewGCSObjectMetadataReader(gcsClient)
-	listingReceiver := dcp.MessageReceiver{
+	listReceiver := dcp.MessageReceiver{
 		Sub:   listProgressSub,
 		Store: store,
 		Handler: &dcp.ListProgressMessageHandler{
@@ -125,17 +125,17 @@ func main() {
 		},
 	}
 
-	uploadGCSReceiver := dcp.MessageReceiver{
+	copyReceiver := dcp.MessageReceiver{
 		Sub:   copyProgressSub,
 		Store: store,
-		Handler: &dcp.UploadGCSProgressMessageHandler{
+		Handler: &dcp.CopyProgressMessageHandler{
 			ObjectMetadataReader: metadataReader,
 		},
 	}
 
-	go listingReceiver.ReceiveMessages(ctx)
+	go listReceiver.ReceiveMessages(ctx)
 	go processListReceiver.ReceiveMessages(ctx)
-	go uploadGCSReceiver.ReceiveMessages(ctx)
+	go copyReceiver.ReceiveMessages(ctx)
 
 	// The LogEntryProcessor will continuously export logs from the "LogEntries"
 	// Spanner table to GCS.

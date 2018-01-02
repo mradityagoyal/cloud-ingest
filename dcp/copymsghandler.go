@@ -23,12 +23,12 @@ import (
 	"cloud.google.com/go/storage"
 )
 
-type UploadGCSProgressMessageHandler struct {
+type CopyProgressMessageHandler struct {
 	ObjectMetadataReader ObjectMetadataReader
 }
 
-func (h *UploadGCSProgressMessageHandler) extractGenerationNum(ctx context.Context, completionMsg *TaskCompletionMessage) (int64, error) {
-	taskSpec, err := NewUploadGCSTaskSpecFromMap(completionMsg.TaskParams)
+func (h *CopyProgressMessageHandler) extractGenerationNum(ctx context.Context, completionMsg *TaskCompletionMessage) (int64, error) {
+	taskSpec, err := NewCopyTaskSpecFromMap(completionMsg.TaskParams)
 	if err != nil {
 		return 0, err
 	}
@@ -44,7 +44,7 @@ func (h *UploadGCSProgressMessageHandler) extractGenerationNum(ctx context.Conte
 	}
 }
 
-func (h *UploadGCSProgressMessageHandler) HandleMessage(
+func (h *CopyProgressMessageHandler) HandleMessage(
 	jobSpec *JobSpec, taskCompletionMessage *TaskCompletionMessage) (*TaskUpdate, error) {
 	ctx := context.Background()
 	taskUpdate, err := TaskCompletionMessageToTaskUpdate(taskCompletionMessage)
@@ -52,7 +52,7 @@ func (h *UploadGCSProgressMessageHandler) HandleMessage(
 		glog.Errorf("Error extracting taskCompletionMessage %v: %v", taskCompletionMessage, err)
 		return nil, err
 	}
-	taskUpdate.Task.TaskType = uploadGCSTaskType
+	taskUpdate.Task.TaskType = copyTaskType
 
 	// If there's a chance that we need to reissue the task, we should
 	// look up the expected generation number from GCS. We do this here,

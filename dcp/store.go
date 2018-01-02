@@ -555,7 +555,7 @@ func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processLis
 			topic = listTopic
 		case processListTaskType:
 			topic = processListTopic
-		case uploadGCSTaskType:
+		case copyTaskType:
 			topic = copyTopic
 		default:
 			return errors.New(fmt.Sprintf("unknown Task, task id: %v.", task.TaskRRStruct))

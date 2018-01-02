@@ -164,11 +164,11 @@ func TestUpdateForTaskUpdateMultipleInsertsSingleJob(t *testing.T) {
 	}
 	task2 := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	task3 := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task1, task2, task3}}
 
@@ -199,11 +199,11 @@ func TestUpdateForTaskUpdateMultipleInsertsMultipleJobs(t *testing.T) {
 	}
 	task2 := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *id1},
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	task3 := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *id1},
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	task4 := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *id2},
@@ -211,7 +211,7 @@ func TestUpdateForTaskUpdateMultipleInsertsMultipleJobs(t *testing.T) {
 	}
 	task5 := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *id2},
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	tu := &TaskUpdate{Task: nil, LogEntry: nil, NewTasks: []*Task{task1, task2, task3, task4, task5}}
 
@@ -259,7 +259,7 @@ func TestUpdateForTaskUpdateQueuedToSuccess(t *testing.T) {
 	task := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
 		Status:       Success,
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
@@ -289,7 +289,7 @@ func TestUpdateForTaskUpdateQueuedToSuccessDeltaObjAlreadyExists(t *testing.T) {
 	task := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
 		Status:       Success,
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
@@ -319,7 +319,7 @@ func TestUpdateForTaskUpdateFailedToSuccess(t *testing.T) {
 	task := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
 		Status:       Success,
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
@@ -349,7 +349,7 @@ func TestUpdateForTaskUpdateUnqueuedToSuccess(t *testing.T) {
 	task := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
 		Status:       Success,
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
@@ -382,7 +382,7 @@ func TestUpdateForTaskUpdateUnqueuedToFailed(t *testing.T) {
 	task := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
 		Status:       Failed,
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
@@ -415,7 +415,7 @@ func TestUpdateForTaskUpdateUnqueuedToQueued(t *testing.T) {
 	task := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
 		Status:       Queued,
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	tu := &TaskUpdate{Task: task, LogEntry: nil, NewTasks: []*Task{}}
 
@@ -452,11 +452,11 @@ func TestUpdateForTaskUpdateListTaskNewCopyTasks(t *testing.T) {
 	}
 	newCopyTask1 := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	newCopyTask2 := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	logEntry := make(LogEntry)
 	logEntry["files_found"] = json.Number("2")
@@ -526,11 +526,11 @@ func TestUpdateForTaskUpdateCopyTaskNewLoadTask(t *testing.T) {
 	updatedCopyTask := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
 		Status:       Success,
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	newLoadTask := &Task{
 		TaskRRStruct: TaskRRStruct{JobRunRRStruct: *jobRunRRStruct},
-		TaskType:     uploadGCSTaskType,
+		TaskType:     copyTaskType,
 	}
 	logEntry := make(LogEntry)
 	logEntry["src_bytes"] = json.Number("12345")
