@@ -9,6 +9,6 @@ export interface InfrastructureStatus {
 export interface PubsubStatus {
   list: ResourceStatus.Type;
   listProgress: ResourceStatus.Type;
-  uploadGCS: ResourceStatus.Type;
-  uploadGCSProgress: ResourceStatus.Type;
+  copy: ResourceStatus.Type;
+  copyProgress: ResourceStatus.Type;
 }

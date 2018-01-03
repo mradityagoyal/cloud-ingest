@@ -42,9 +42,9 @@ _TOPICS_SUBSCRIPTIONS = {
     'processList': (constants.PROCESS_LIST_TOPIC,
                     [constants.PROCESS_LIST_SUBSCRIPTION], 30),
     'copy': (constants.COPY_TOPIC,
-                  [constants.COPY_SUBSCRIPTION], 30),
+             [constants.COPY_SUBSCRIPTION], 30),
     'copyProgress': (constants.COPY_PROGRESS_TOPIC,
-                          [constants.COPY_PROGRESS_SUBSCRIPTION], 30),
+                     [constants.COPY_PROGRESS_SUBSCRIPTION], 30),
 }
 
 # pylint: disable=invalid-name

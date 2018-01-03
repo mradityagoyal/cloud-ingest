@@ -7,8 +7,8 @@ import { ResourceStatus } from '../proto/tasks.js';
 const FAKE_PUBSUB_STATUS_RUNNING: PubsubStatus = {
  list:  ResourceStatus.Type.RUNNING,
  listProgress: ResourceStatus.Type.RUNNING,
- uploadGCS: ResourceStatus.Type.RUNNING,
- uploadGCSProgress: ResourceStatus.Type.RUNNING
+ copy: ResourceStatus.Type.RUNNING,
+ copyProgress: ResourceStatus.Type.RUNNING
 };
 
 export const FAKE_INFRA_STATUS_RUNNING: InfrastructureStatus = {
@@ -20,8 +20,8 @@ export const FAKE_INFRA_STATUS_RUNNING: InfrastructureStatus = {
 const FAKE_PUBSUB_STATUS_NOT_FOUND: PubsubStatus = {
  list:  ResourceStatus.Type.NOT_FOUND,
  listProgress: ResourceStatus.Type.NOT_FOUND,
- uploadGCS: ResourceStatus.Type.NOT_FOUND,
- uploadGCSProgress: ResourceStatus.Type.NOT_FOUND
+ copy: ResourceStatus.Type.NOT_FOUND,
+ copyProgress: ResourceStatus.Type.NOT_FOUND
 };
 
 export const FAKE_INFRA_STATUS_NOT_FOUND: InfrastructureStatus = {
@@ -33,8 +33,8 @@ export const FAKE_INFRA_STATUS_NOT_FOUND: InfrastructureStatus = {
 const FAKE_PUBSUB_STATUS_UNKNOWN: PubsubStatus = {
  list:  ResourceStatus.Type.RUNNING,
  listProgress: ResourceStatus.Type.RUNNING,
- uploadGCS: ResourceStatus.Type.RUNNING,
- uploadGCSProgress: ResourceStatus.Type.UNKNOWN
+ copy: ResourceStatus.Type.RUNNING,
+ copyProgress: ResourceStatus.Type.UNKNOWN
 };
 
 export const FAKE_INFRA_STATUS_UNKNOWN: InfrastructureStatus = {
@@ -46,8 +46,8 @@ export const FAKE_INFRA_STATUS_UNKNOWN: InfrastructureStatus = {
 const FAKE_PUBSUB_STATUS_FAILED: PubsubStatus = {
  list:  ResourceStatus.Type.RUNNING,
  listProgress: ResourceStatus.Type.FAILED,
- uploadGCS: ResourceStatus.Type.RUNNING,
- uploadGCSProgress: ResourceStatus.Type.RUNNING
+ copy: ResourceStatus.Type.RUNNING,
+ copyProgress: ResourceStatus.Type.RUNNING
 };
 
 export const FAKE_INFRA_STATUS_FAILED: InfrastructureStatus = {
@@ -59,8 +59,8 @@ export const FAKE_INFRA_STATUS_FAILED: InfrastructureStatus = {
 const FAKE_PUBSUB_STATUS_DEPLOYING: PubsubStatus = {
  list:  ResourceStatus.Type.DEPLOYING,
  listProgress: ResourceStatus.Type.NOT_FOUND,
- uploadGCS: ResourceStatus.Type.DEPLOYING,
- uploadGCSProgress: ResourceStatus.Type.DEPLOYING
+ copy: ResourceStatus.Type.DEPLOYING,
+ copyProgress: ResourceStatus.Type.DEPLOYING
 };
 
 export const FAKE_INFRA_STATUS_DEPLOYING: InfrastructureStatus = {
@@ -72,8 +72,8 @@ export const FAKE_INFRA_STATUS_DEPLOYING: InfrastructureStatus = {
 const FAKE_PUBSUB_STATUS_DELETING: PubsubStatus = {
  list:  ResourceStatus.Type.DELETING,
  listProgress: ResourceStatus.Type.RUNNING,
- uploadGCS: ResourceStatus.Type.DELETING,
- uploadGCSProgress: ResourceStatus.Type.DELETING
+ copy: ResourceStatus.Type.DELETING,
+ copyProgress: ResourceStatus.Type.DELETING
 };
 
 export const FAKE_INFRA_STATUS_DELETING: InfrastructureStatus = {
@@ -85,8 +85,8 @@ export const FAKE_INFRA_STATUS_DELETING: InfrastructureStatus = {
 const FAKE_PUBSUB_STATUS_NOT_DETERMINED: PubsubStatus = {
  list:  ResourceStatus.Type.DEPLOYING,
  listProgress: ResourceStatus.Type.RUNNING,
- uploadGCS: ResourceStatus.Type.RUNNING,
- uploadGCSProgress: ResourceStatus.Type.DELETING
+ copy: ResourceStatus.Type.RUNNING,
+ copyProgress: ResourceStatus.Type.DELETING
 };
 
 export const FAKE_INFRA_STATUS_NOT_DETERMINED: InfrastructureStatus = {
