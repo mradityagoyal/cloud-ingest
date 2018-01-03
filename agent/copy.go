@@ -24,6 +24,7 @@ import (
 	"os"
 	"path"
 	"reflect"
+	"strconv"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
@@ -98,8 +99,6 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 			taskRRName, taskParams, logEntry, NewInvalidTaskParamsError(taskParams))
 	}
 
-	// TODO(b/70808741): Preserve the POSIX mtime of the file as GCS metadata
-	// (goog-reserved-file-mtime)
 	w := h.gcs.NewWriterWithCondition(ctx, bucketName, objectName,
 		helpers.GetGCSGenerationNumCondition(generationNum))
 
@@ -116,13 +115,16 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 	logEntry["src_modified_time"] = stats.ModTime()
 
 	bufferSize := stats.Size()
-	if bufferSize > int64(h.resumableChunkSize) {
-		bufferSize = int64(h.resumableChunkSize)
-		// Set the resumable upload chunk size.
-		if t, ok := w.(*storage.Writer); ok {
+	if t, ok := w.(*storage.Writer); ok {
+		t.Metadata = map[string]string{
+			dcp.MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
+		}
+		if bufferSize > int64(h.resumableChunkSize) {
+			bufferSize = int64(h.resumableChunkSize)
 			t.ChunkSize = h.resumableChunkSize
 		}
 	}
+
 	if bufferSize > copyMemoryLimit {
 		err := fmt.Errorf(
 			"total memory buffer limit for copy task is %d bytes, but task requires "+

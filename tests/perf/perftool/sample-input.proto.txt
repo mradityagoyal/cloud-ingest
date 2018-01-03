@@ -2,8 +2,11 @@ name: "test-perf"
 config: {
   sourceDir: "/tmp/datagenerator/test/sub-dir-0"
   destinationBucket: "cloud-ingest-perf-test-00"
+  validators: METADATA_VALIDATOR
 }
 config: {
   sourceDir: "/tmp/datagenerator/test/sub-dir-1"
   destinationBucket: "cloud-ingest-perf-test-01"
+  validators: METADATA_VALIDATOR
+  validators: DEEP_COMPARISON_VALIDATOR
 }

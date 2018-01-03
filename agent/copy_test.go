@@ -123,7 +123,8 @@ func TestMD5Mismtach(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
-	h := CopyHandler{mockGCS, 5, semaphore.NewWeighted(defaultCopyMemoryLimit)}
+	copyMemoryLimit = defaultCopyMemoryLimit
+	h := CopyHandler{mockGCS, 5, semaphore.NewWeighted(copyMemoryLimit)}
 	taskParams := dcp.TaskParams{
 		"src_file":                tmpFile,
 		"dst_bucket":              "bucket",
@@ -157,6 +158,7 @@ func TestCopySuccess(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
+	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{mockGCS, 5, semaphore.NewWeighted(copyMemoryLimit)}
 	taskParams := dcp.TaskParams{
 		"src_file":                tmpFile,
