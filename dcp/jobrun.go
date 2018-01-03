@@ -17,7 +17,6 @@ package dcp
 
 import (
 	"encoding/json"
-	"errors"
 	"fmt"
 )
 
@@ -132,7 +131,7 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 			deltaObj.counter[KeyTasksFailed] -= 1
 			deltaObj.counter[KeyTasksFailed+suffix] -= 1
 		default:
-			return errors.New(fmt.Sprintf("Unexpected oldStatus: %v", oldStatus))
+			return fmt.Errorf("unexpected oldStatus: %v", oldStatus)
 		}
 
 		// Increment the new status' counters.
@@ -150,8 +149,7 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 			deltaObj.counter[KeyTasksCompleted] += 1
 			deltaObj.counter[KeyTasksCompleted+suffix] += 1
 			if tu.LogEntry == nil {
-				return errors.New(fmt.Sprintf(
-					"Missing LogEntry for TaskUpdate: %v", tu))
+				return fmt.Errorf("missing LogEntry for TaskUpdate: %v", tu)
 			}
 			le := tu.LogEntry
 			switch task.TaskType {
@@ -163,7 +161,7 @@ func (j *JobCountersCollection) updateForTaskUpdate(tu *TaskUpdate, oldStatus in
 				deltaObj.counter[KeyBytesCopied] += le.val("src_bytes")
 			}
 		default:
-			return errors.New(fmt.Sprintf("Unexpected task.Status: %v", task.Status))
+			return fmt.Errorf("unexpected task.Status: %v", task.Status)
 		}
 	}
 
@@ -203,7 +201,7 @@ func CounterSuffix(task *Task) (string, error) {
 	case copyTaskType:
 		return KeySuffixCopy, nil
 	default:
-		return "", errors.New(fmt.Sprintf(
-			"Found unexpected TaskType updateForTaskUpdate: %v. task:%v", task.TaskType, task))
+		return "", fmt.Errorf(
+			"found unexpected TaskType updateForTaskUpdate: %v. task:%v", task.TaskType, task)
 	}
 }

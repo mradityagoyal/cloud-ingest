@@ -297,9 +297,9 @@ func canChangeTaskStatus(fromStatus int64, toStatus int64) bool {
 func constructPubSubTaskMsg(task *Task) ([]byte, error) {
 	taskParams := make(TaskParams)
 	if err := json.Unmarshal([]byte(task.TaskSpec), &taskParams); err != nil {
-		return nil, errors.New(fmt.Sprintf(
+		return nil, fmt.Errorf(
 			"error decoding JSON task spec string %s for task %v.",
-			task.TaskSpec, task))
+			task.TaskSpec, task)
 	}
 
 	taskMsg := make(map[string]interface{})

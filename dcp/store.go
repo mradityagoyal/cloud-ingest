@@ -18,7 +18,6 @@ package dcp
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"time"
 
@@ -558,7 +557,7 @@ func (s *SpannerStore) queueTasks(n int, projectID string, listTopic, processLis
 		case copyTaskType:
 			topic = copyTopic
 		default:
-			return errors.New(fmt.Sprintf("unknown Task, task id: %v.", task.TaskRRStruct))
+			return fmt.Errorf("unknown Task, task id: %v.", task.TaskRRStruct)
 		}
 
 		// Publish the messages.
