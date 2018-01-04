@@ -507,7 +507,7 @@ func (s *SpannerStore) RoundRobinQueueTasks(n int, processListTopic gcloud.PSTop
 }
 
 func (s *SpannerStore) getProjectTopicsMap() (map[string]PubSubTopics, error) {
-	stmt := spanner.NewStatement("SQL: `SELECT ProjectId, ListTopicId, CopyTopicId FROM Projects")
+	stmt := spanner.NewStatement("SELECT ProjectId, ListTopicId, CopyTopicId FROM Projects")
 	iter := s.Spanner.Single().Query(context.Background(), stmt)
 	defer iter.Stop()
 	m := make(map[string]PubSubTopics)
