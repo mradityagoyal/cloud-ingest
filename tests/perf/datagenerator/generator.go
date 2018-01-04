@@ -4,17 +4,16 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math"
 	"os"
 	"path"
 	"strconv"
 	"sync"
 
-	"github.com/golang/protobuf/proto"
-
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	pb "github.com/GoogleCloudPlatform/cloud-ingest/tests/perf/proto"
+	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/time/rate"
 )
 
@@ -91,10 +90,10 @@ func (g *Generator) generateFileSystemObjects() []error {
 				l.Wait(context.Background())
 				if err := ioutil.WriteFile(
 					file, fileGenerator.GetBytes(), 0640); err != nil {
-					log.Printf("Failed writing file: %s, err: %v", file, err)
+					glog.Errorf("Failed writing file: %s, err: %v", file, err)
 					g.mu.Lock()
-					defer g.mu.Unlock()
 					g.errs = append(g.errs, err)
+					g.mu.Unlock()
 				}
 			}
 		}()
