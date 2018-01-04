@@ -25,6 +25,7 @@ import (
 type PS interface {
 	Topic(id string) PSTopic
 	TopicInProject(id, projectID string) PSTopic
+	Subscription(id string) PSSubscription
 }
 
 type PSTopic interface {
@@ -64,8 +65,8 @@ func NewPubSubClient(client *pubsub.Client) *PubSubClient {
 	return &PubSubClient{client}
 }
 
-func (c *PubSubClient) NewPubSubClient(ctx context.Context, database string) (*pubsub.Client, error) {
-	return pubsub.NewClient(ctx, database)
+func (c *PubSubClient) NewPubSubClient(ctx context.Context, projectID string) (*pubsub.Client, error) {
+	return pubsub.NewClient(ctx, projectID)
 }
 
 // NewPubSubTopicWrapper wraps a pubsub.Topic to ensure its Publish function can return mock results
@@ -81,11 +82,11 @@ func (w *PubSubTopicWrapper) Stop() {
 	w.topic.Stop()
 }
 
-func (c *PubSubClient) TopicInProject(id, projectID string) PSTopic { // *pubsub.Topic {
+func (c *PubSubClient) TopicInProject(id, projectID string) PSTopic {
 	return NewPubSubTopicWrapper(c.client.TopicInProject(id, projectID))
 }
 
-func (c *PubSubClient) Topic(id string) PSTopic { // pubsub.Topic {
+func (c *PubSubClient) Topic(id string) PSTopic {
 	return NewPubSubTopicWrapper(c.client.Topic(id))
 }
 

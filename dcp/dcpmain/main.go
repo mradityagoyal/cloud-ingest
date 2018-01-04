@@ -47,6 +47,9 @@ const (
 	queueTasksSleepTime time.Duration = 1 * time.Second
 	// The max time for which the program sleeps between calls to store.QueueTasks
 	maxQueueTasksSleepTime time.Duration = 5 * time.Minute
+	// The max time for checking for new subscriptions or retrying failed
+	// subscriptions in receiver.RoundRobinQueueTasks
+	checkSubscriptionsFrequency time.Duration = 10 * time.Minute
 )
 
 var (
@@ -76,6 +79,14 @@ func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
 	}
 }
 
+func GetPubSubClient(ctx context.Context, projectID string) (gcloud.PS, error) {
+	pubSubGCloudClient, err := pubsub.NewClient(ctx, projectID)
+	if err != nil {
+		return nil, err
+	}
+	return gcloud.NewPubSubClient(pubSubGCloudClient), nil
+}
+
 func main() {
 	defer glog.Flush()
 	database := fmt.Sprintf("projects/%s/instances/%s/databases/%s",
@@ -83,16 +94,12 @@ func main() {
 
 	ctx := context.Background()
 
-	pubSubGCloudClient, err := pubsub.NewClient(ctx, projectID)
-	pubSubClient := gcloud.NewPubSubClient(pubSubGCloudClient)
+	pubSubClient, err := GetPubSubClient(ctx, projectID)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Can not create pubsub client, error: %v.\n", err)
 		os.Exit(1)
 	}
-	listProgressSub := pubSubClient.Subscription(listProgressSubscription)
 	processListSub := pubSubClient.Subscription(processListSubscription)
-	copyProgressSub := pubSubClient.Subscription(copyProgressSubscription)
-
 	processListTopic := pubSubClient.Topic(processListTopic)
 
 	spannerGCloudClient, err := spanner.NewClient(ctx, database)
@@ -112,32 +119,36 @@ func main() {
 
 	metadataReader := dcp.NewGCSObjectMetadataReader(gcsClient)
 	listReceiver := dcp.MessageReceiver{
-		Sub:   listProgressSub,
-		Store: store,
+		PubSubClientFunc: GetPubSubClient,
+		Store:            store,
+		Ticker:           helpers.NewClockTicker(checkSubscriptionsFrequency),
 		Handler: &dcp.ListProgressMessageHandler{
 			ObjectMetadataReader: metadataReader,
 		},
 	}
 
 	processListReceiver := dcp.MessageReceiver{
-		Sub:   processListSub,
-		Store: store,
+		PubSubClientFunc: GetPubSubClient,
+		Store:            store,
 		Handler: &dcp.ProcessListMessageHandler{
 			ListingResultReader: dcp.NewGCSListingResultReader(gcsClient),
 		},
 	}
 
 	copyReceiver := dcp.MessageReceiver{
-		Sub:   copyProgressSub,
-		Store: store,
+		PubSubClientFunc: GetPubSubClient,
+		Store:            store,
+		Ticker:           helpers.NewClockTicker(checkSubscriptionsFrequency),
 		Handler: &dcp.CopyProgressMessageHandler{
 			ObjectMetadataReader: metadataReader,
 		},
 	}
 
-	go listReceiver.ReceiveMessages(ctx)
-	go processListReceiver.ReceiveMessages(ctx)
-	go copyReceiver.ReceiveMessages(ctx)
+	go listReceiver.RoundRobinReceiveMessages(
+		ctx, store.GetListProgressSubscriptionsMap, projectID, listProgressSubscription)
+	go processListReceiver.SingleSubReceiveMessages(ctx, processListSub)
+	go copyReceiver.RoundRobinReceiveMessages(
+		ctx, store.GetCopyProgressSubscriptionsMap, projectID, copyProgressSubscription)
 
 	// The LogEntryProcessor will continuously export logs from the "LogEntries"
 	// Spanner table to GCS.

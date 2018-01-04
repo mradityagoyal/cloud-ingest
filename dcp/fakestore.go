@@ -29,9 +29,11 @@ var (
 // FakeStore is a fake implementation of Store interface that is used for test
 // purposes.
 type FakeStore struct {
-	jobSpec      *JobSpec
-	tasks        map[TaskRRStruct]*Task
-	logEntryRows []*LogEntryRow
+	jobSpec        *JobSpec
+	tasks          map[TaskRRStruct]*Task
+	logEntryRows   []*LogEntryRow
+	listProgSubMap map[string]string
+	copyProgSubMap map[string]string
 }
 
 func (s *FakeStore) GetJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobSpec, error) {
@@ -59,6 +61,31 @@ func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) erro
 
 func (s *FakeStore) RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic, fallbackProjectID string) error {
 	return errors.New("RoundRobinQueueTasks: Not implemented.")
+}
+
+func (s *FakeStore) AddListSubscription(projectID, subscriptionID string) {
+	if s.listProgSubMap != nil {
+		s.listProgSubMap[projectID] = subscriptionID
+	} else {
+		s.listProgSubMap = make(map[string]string)
+		s.listProgSubMap[projectID] = subscriptionID
+	}
+}
+
+func (s *FakeStore) GetListProgressSubscriptionsMap() (map[string]string, error) {
+	if s.listProgSubMap != nil {
+		return s.listProgSubMap, nil
+	}
+	return nil, errors.New("GetListProgressSubscriptionsMap: Uninitialized.")
+}
+
+// GetCopyProgressSubscriptionsMap retrieves a map of Project ID to the copy
+// progress subscription associated with that project.
+func (s *FakeStore) GetCopyProgressSubscriptionsMap() (map[string]string, error) {
+	if s.copyProgSubMap != nil {
+		return s.copyProgSubMap, nil
+	}
+	return nil, errors.New("GetCopyProgressSubscriptionsMap: Uninitialized.")
 }
 
 func (s *FakeStore) GetNumUnprocessedLogs() (int64, error) {

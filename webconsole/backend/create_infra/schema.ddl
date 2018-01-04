@@ -1,8 +1,9 @@
 CREATE TABLE Projects (
     ProjectId STRING(MAX) NOT NULL,
-    ProjectInfo STRING(MAX),
     ListTopicId STRING(MAX),
     CopyTopicId STRING(MAX),
+    ListProgressSubscriptionId STRING(MAX),
+    CopyProgressSubscriptionId STRING(MAX),
 ) PRIMARY KEY(ProjectId)
 
 CREATE TABLE JobConfigs (

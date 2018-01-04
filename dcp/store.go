@@ -79,6 +79,14 @@ type Store interface {
 	// TaskUpdateCollection object. It also inserts the log entries associated
 	// with the task updates.
 	UpdateAndInsertTasks(tasks *TaskUpdateCollection) error
+
+	// GetListProgressSubscriptionsMap retrieves a map of Project ID to the list
+	// progress subscription associated with that project.
+	GetListProgressSubscriptionsMap() (map[string]string, error)
+
+	// GetCopyProgressSubscriptionsMap retrieves a map of Project ID to the copy
+	// progress subscription associated with that project.
+	GetCopyProgressSubscriptionsMap() (map[string]string, error)
 }
 
 // TODO(b/63749083): Replace empty context (context.Background) when interacting
@@ -701,6 +709,36 @@ func (s *SpannerStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 		}
 	}
 	return nil
+}
+
+func (s *SpannerStore) GetListProgressSubscriptionsMap() (map[string]string, error) {
+	return s.getProjectSubscriptionIDMap("ListProgressSubscriptionId")
+}
+
+func (s *SpannerStore) GetCopyProgressSubscriptionsMap() (map[string]string, error) {
+	return s.getProjectSubscriptionIDMap("CopyProgressSubscriptionId")
+}
+
+func (s *SpannerStore) getProjectSubscriptionIDMap(columnName string) (map[string]string, error) {
+	stmt := spanner.NewStatement(fmt.Sprintf("SELECT ProjectId, %s FROM Projects", columnName))
+	iter := s.Spanner.Single().Query(context.Background(), stmt)
+	defer iter.Stop()
+	m := make(map[string]string)
+	err := iter.Do(func(row *spanner.Row) error {
+		var projectID, subscriptionID string
+		if err := row.ColumnByName("ProjectId", &projectID); err != nil {
+			return err
+		}
+		if err := row.ColumnByName(columnName, &subscriptionID); err != nil {
+			return err
+		}
+		m[projectID] = subscriptionID
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return m, nil
 }
 
 // getUnqueuedTasks retrieves at most n unqueued tasks for projectID from the store.

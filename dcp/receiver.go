@@ -29,12 +29,16 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
 	"github.com/golang/groupcache/lru"
 )
 
 const (
 	jobSpecsCacheMaxSize = 1000
+
+	fallbackListProgressSubcriptionID string = "cloud-ingest-list-progress"
+	fallbackCopyProgressSubcriptionID string = "cloud-ingest-copy-progress"
 )
 
 // MessageHandler interface is used to abstract handling of various message
@@ -51,9 +55,10 @@ type MessageHandler interface {
 // passes the result to the batcher to perform transactional updates and ack the message.
 // TODO(b/63014764): Add unit tests for MessageReceiver.
 type MessageReceiver struct {
-	Sub     gcloud.PSSubscription
-	Store   Store
-	Handler MessageHandler
+	PubSubClientFunc func(ctx context.Context, projectID string) (gcloud.PS, error)
+	Store            Store
+	Handler          MessageHandler
+	Ticker           helpers.Ticker
 
 	batcher       taskUpdatesBatcher
 	jobSpecsCache struct {
@@ -61,6 +66,8 @@ type MessageReceiver struct {
 		c *lru.Cache
 	}
 }
+
+type SubscriptionMapGetter func() (map[string]string, error)
 
 func (r *MessageReceiver) getJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobSpec, error) {
 	// Try to find the job from the cache.
@@ -88,61 +95,123 @@ func (r *MessageReceiver) getJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobS
 	return storeJobSpec, nil
 }
 
-func (r *MessageReceiver) ReceiveMessages(ctx context.Context) {
+func (r *MessageReceiver) SingleSubReceiveMessages(ctx context.Context, sub gcloud.PSSubscription) {
+	r.initializeBatcher()
+	r.receiveMessages(ctx, sub, "", nil)
+}
+
+func (r *MessageReceiver) RoundRobinReceiveMessages(
+	ctx context.Context, subMapGetter SubscriptionMapGetter,
+	fallbackProjectID, fallbackSubID string) {
+	r.initializeBatcher()
+	// TODO (b/71647771): PubSub Go client currently doesn't support an easy way to create a
+	// subscription outside of the Client struct's project.  When
+	// https://github.com/GoogleCloudPlatform/google-cloud-go/issues/849 is fixed,
+	// drop the one-client-per-subscription.
+	projectClientMap := make(map[string]gcloud.PS)
+
+	subFailed := make(chan string) // Project IDs of failed subscriptions
+
+	// Ticker is used as the loop conditional to ensure the loop immediately runs once.
+	for ; true; <-r.Ticker.GetChannel() {
+		select {
+		case <-ctx.Done():
+			glog.Warningf(
+				"Context for RoundRobinReceiveMessages was cancelled with context error: %v.", ctx.Err())
+			return
+		case failedProjectID := <-subFailed:
+			// The subscription for this project failed; recreate it and retry.
+			projectClientMap[failedProjectID] = nil
+		default:
+			m, err := subMapGetter()
+			if err != nil || len(m) == 0 {
+				// Fallback to default subscriptions and project.
+				m = map[string]string{fallbackProjectID: fallbackSubID}
+				glog.Warningf("Retrieving ProjectID:Subscription failed, error: %v", err)
+			}
+
+			for projectID, subscriptionID := range m {
+				if projectClientMap[projectID] != nil {
+					// There is already a goroutine receiving messages for this project's subscription.
+					continue
+				}
+				pubSubClient, err := r.PubSubClientFunc(ctx, projectID)
+				if err != nil {
+					glog.Warningf(
+						"Could not create PubSub client for project %s, error: %v.", projectID, err)
+					continue
+				}
+				projectClientMap[projectID] = pubSubClient
+				sub := pubSubClient.Subscription(subscriptionID)
+				// TODO (b/71648278): Add a leasing mechanism so that this scales beyond the number
+				// of listeners that can run in a single DCP.
+				go r.receiveMessages(ctx, sub, projectID, subFailed)
+			}
+		}
+	}
+}
+
+func (r *MessageReceiver) initializeBatcher() {
 	// Currently, there is a batcher for each message receiver type (list, copy).
 	// Maybe we can consider only one batcher for all the receiver types.
 	r.batcher.initializeAndStart(r.Store)
 	r.jobSpecsCache.Lock()
 	r.jobSpecsCache.c = lru.New(jobSpecsCacheMaxSize)
 	r.jobSpecsCache.Unlock()
+}
 
-	err := r.Sub.Receive(ctx, func(ctx context.Context, msg *pubsub.Message) {
-		// TODO(b/63058868): Failed to handle a PubSub message will be keep
-		// redelivered by the PubSub for significant amount of time (1 week).
-		// Non-retriable errors should mark the task failed and ack the message.
-		glog.Infof("Handling a message: %s.", string(msg.Data))
-		taskCompletionMessage, err := TaskCompletionMessageFromJson(msg.Data)
-		if err != nil {
-			glog.Errorf("Error handling the message: %s with error: %v.",
-				string(msg.Data), err)
-			return
-		}
-		taskRRStruct, err := TaskRRStructFromTaskRRName(taskCompletionMessage.TaskRRName)
-		if err != nil {
-			glog.Errorf("Error getting JobConfigID from TaskIDStr %s: %v",
-				taskCompletionMessage.TaskRRName, err)
-			return
-		}
-		jobSpec, err := r.getJobSpec(taskRRStruct.JobConfigRRStruct)
-		if err != nil {
-			glog.Errorf("Error in getting JobSpec of JobConfig: %v, with error: %v.",
-				taskRRStruct.JobConfigRRStruct, err)
-			return
-		}
-
-		taskUpdate, err := r.Handler.HandleMessage(jobSpec, taskCompletionMessage)
-		if err != nil {
-			glog.Errorf(
-				"Error handling the message: %s, with job spec: %v, and taskCompletionMessage: %v: %v",
-				string(msg.Data), jobSpec, taskCompletionMessage, err)
-			return
-		}
-
-		r.batcher.addTaskUpdate(taskUpdate, msg)
-	})
+func (r *MessageReceiver) receiveMessages(
+	ctx context.Context, sub gcloud.PSSubscription, projectID string, subFailed chan<- string) {
+	// TODO(b/63058868): Failed to handle a PubSub message will be keep
+	// redelivered by the PubSub for significant amount of time (1 week).
+	// Non-retriable errors should mark the task failed and ack the message.
+	err := sub.Receive(ctx, r.subReceiveFunc)
 
 	if ctx.Err() != nil {
 		glog.Warningf(
-			"Error receiving messages for subscription %v, with context error: %v.",
-			r.Sub, ctx.Err())
+			"Context for receiveMessages on sub %v, was cancelled with context error: %v.",
+			sub, ctx.Err())
 	}
 
 	// The Pub/Sub client libraries already retries on retriable errors. Panic
 	// here on non-retriable errors.
 	if err != nil {
-		// TODO(b/69918304): We should not panic in the managed service. Instead,
-		// we should have an alerting technique for non-retriable errors.
-		glog.Fatalf("Error receiving messages for subscription %v, with error: %v.",
-			r.Sub, err)
+		glog.Warningf("Error receiving messages for subscription %v, with error: %v.",
+			sub, err)
 	}
+	if subFailed != nil {
+		subFailed <- projectID
+	}
+}
+
+func (r *MessageReceiver) subReceiveFunc(ctx context.Context, msg *pubsub.Message) {
+	glog.Infof("Handling a message: %s.", string(msg.Data))
+	taskCompletionMessage, err := TaskCompletionMessageFromJson(msg.Data)
+	if err != nil {
+		glog.Errorf("Error handling the message: %s with error: %v.",
+			string(msg.Data), err)
+		return
+	}
+	taskRRStruct, err := TaskRRStructFromTaskRRName(taskCompletionMessage.TaskRRName)
+	if err != nil {
+		glog.Errorf("Error getting JobConfigID from TaskIDStr %s: %v",
+			taskCompletionMessage.TaskRRName, err)
+		return
+	}
+	jobSpec, err := r.getJobSpec(taskRRStruct.JobConfigRRStruct)
+	if err != nil {
+		glog.Errorf("Error in getting JobSpec of JobConfig: %v, with error: %v.",
+			taskRRStruct.JobConfigRRStruct, err)
+		return
+	}
+
+	taskUpdate, err := r.Handler.HandleMessage(jobSpec, taskCompletionMessage)
+	if err != nil {
+		glog.Errorf(
+			"Error handling the message: %s, with job spec: %v, and taskCompletionMessage: %v: %v",
+			string(msg.Data), jobSpec, taskCompletionMessage, err)
+		return
+	}
+
+	r.batcher.addTaskUpdate(taskUpdate, msg)
 }

@@ -58,6 +58,18 @@ func (mr *MockPSMockRecorder) TopicInProject(id, projectID interface{}) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopicInProject", reflect.TypeOf((*MockPS)(nil).TopicInProject), id, projectID)
 }
 
+// Subscription mocks base method
+func (m *MockPS) Subscription(id string) PSSubscription {
+	ret := m.ctrl.Call(m, "Subscription", id)
+	ret0, _ := ret[0].(PSSubscription)
+	return ret0
+}
+
+// Subscription indicates an expected call of Subscription
+func (mr *MockPSMockRecorder) Subscription(id interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscription", reflect.TypeOf((*MockPS)(nil).Subscription), id)
+}
+
 // MockPSTopic is a mock of PSTopic interface
 type MockPSTopic struct {
 	ctrl     *gomock.Controller
