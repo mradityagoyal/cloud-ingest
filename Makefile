@@ -1,7 +1,11 @@
 FRONTEND_DIR = webconsole/frontend
 BACKEND_DIR = webconsole/backend
-OPI_BACKEND_VIRTUALENV_PATH ?= ~/cloud-ingest-backend-env
+OPI_BACKEND_VIRTUALENV_PATH ?= $(HOME)/cloud-ingest-backend-env
 FULL_OPI_BACKEND_VIRTUALENV_PATH = $(OPI_BACKEND_VIRTUALENV_PATH)/opi-virtualenv
+GOPATH ?= $(shell go env GOPATH)
+ifeq ($(OPI_GCP_PROJECT),)
+OPI_GCP_PROJECT := $(shell gcloud config get-value project 2>/dev/null)
+endif
 
 # Add new top-level Go packages here.
 GO_TARGETS = \
@@ -87,11 +91,23 @@ else
 	@echo -n `tput sgr0` # Reset
 endif
 
+.PHONY: end-to-end-test
+end-to-end-test: build-go ## Run an end-to-end test. This requires that you have a cloud project with spanner/pubsub deployed.
+	@echo -e "\n== Running End-To-End Test =="
+	$(eval export FULL_OPI_BACKEND_VIRTUALENV_PATH=$(FULL_OPI_BACKEND_VIRTUALENV_PATH))
+	$(eval export INGEST_CONFIG_PATH=ingestwebconsole.local_settings)
+	$(eval export GOPATH=$(GOPATH))
+ifndef OPI_GCP_PROJECT
+	$(GOPATH)/bin/e2etestrunner -logtostderr
+else
+	$(GOPATH)/bin/e2etestrunner -project-id $(OPI_GCP_PROJECT) -logtostderr
+endif
+
 .PHONY: build
 build: setup build-go build-backend build-frontend ## Refresh dependencies, Build, test, and install everything.
 
 .PHONY: build-go
-build-go: lint-go go-mocks test-go ## Build, test, and install Go binaries.
+build-go: go-mocks lint-go test-go ## Build, test, and install Go binaries.
 	@echo -e "\n== Building/Installing Go Binaries =="
 	@go install -v $(GO_TARGETS)
 
@@ -151,5 +167,8 @@ help:
 	@echo "                               live (default: $(OPI_BACKEND_VIRTUALENV_PATH))"
 	@echo "  SKIP_FRONTEND_TEST: If set, the frontend unit tests are skipped. Useful when"
 	@echo "                      no browser is available. (default: unset)"
+	@echo "  OPI_GCP_PROJECT: Google Cloud Platform project containing infrastructure to use"
+	@echo "                   with any live test."
+	@echo "                   (default: output of 'gcloud config get-value project')"
 
 .DEFAULT_GOAL := build

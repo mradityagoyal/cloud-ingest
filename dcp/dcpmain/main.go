@@ -50,13 +50,15 @@ const (
 )
 
 var (
-	projectID    string
-	tasksToQueue int
+	projectID            string
+	tasksToQueue         int
+	disableLogProcessing bool
 )
 
 func init() {
 	flag.StringVar(&projectID, "projectid", "", "The project id to associate with this DCP. Must be set!")
 	flag.IntVar(&tasksToQueue, "taskstoqueue", 100, "The number of tasks to queue at a time.")
+	flag.BoolVar(&disableLogProcessing, "disablelogprocessing", false, "Disables writing logs to GCS.")
 	flag.Parse()
 	if projectID == "" {
 		fmt.Println("The projectid flag must be set. Run 'dcpmain -h' for more info about flags.")
@@ -139,8 +141,10 @@ func main() {
 
 	// The LogEntryProcessor will continuously export logs from the "LogEntries"
 	// Spanner table to GCS.
-	logEntryProcessor := dcp.LogEntryProcessor{gcsClient, store}
-	logEntryProcessor.ProcessLogs()
+	if !disableLogProcessing {
+		logEntryProcessor := dcp.LogEntryProcessor{gcsClient, store}
+		logEntryProcessor.ProcessLogs()
+	}
 
 	// Loop indefinitely to queue tasks.
 	for {

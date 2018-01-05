@@ -109,7 +109,7 @@ func ParseListFileLine(line string) (*ListFileEntry, error) {
 
 func (l ListFileEntry) String() string {
 	typeField := "f"
-	if  l.IsDir {
+	if l.IsDir {
 		typeField = "d"
 	}
 	return fmt.Sprintf("%v,%v", typeField, l.FilePath)

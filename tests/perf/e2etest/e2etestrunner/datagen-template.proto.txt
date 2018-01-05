@@ -1,0 +1,15 @@
+# Data Generator Config for end-to-end testing.
+# The "<UNSET>" path informs the end-to-end testing tool to
+# set the path to the local test run directory.
+fileSystem: {
+  dir: {
+    path: "<UNSET>"
+
+    totalNumberFiles: 100
+  }
+  uniformDistribution: {
+    min: 5242880  # 5MB = 5 * 1024 * 1024
+    max: 15728640 # 15MB = 15 * 1024 * 1024
+  }
+  maxNodesInDir: 20
+}

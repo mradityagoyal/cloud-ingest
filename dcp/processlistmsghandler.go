@@ -33,8 +33,8 @@ type ProcessListMessageHandler struct {
 }
 
 const (
-	maxEntriesToProcess     = 1000
-	expectedByteOffsetKey   = "byte_offset"
+	maxEntriesToProcess   = 1000
+	expectedByteOffsetKey = "byte_offset"
 	// TODO(b/71637535): Move the audit logs to the cloud-ingest working space.
 	// This is the root directory in the destination GCS bucket which contains files
 	// created as part of the ingest process, namely list files and audit logs.

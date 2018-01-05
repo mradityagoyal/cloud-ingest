@@ -13,3 +13,6 @@ package-lock.json
 # e2e build artifacts
 e2e/*.js
 e2e/*.map
+
+# Test run output directory
+test_runs/

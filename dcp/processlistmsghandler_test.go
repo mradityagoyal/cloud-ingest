@@ -84,7 +84,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 	// Setup the ListingResultReader.
 	mockListReader := NewMockListingResultReader(mockCtrl)
 	var newBytesProcessed int64 = 123
-	entries := []ListFileEntry {
+	entries := []ListFileEntry{
 		ListFileEntry{true, "dir/dir0"},
 		ListFileEntry{false, "dir/file0"},
 		ListFileEntry{false, "dir/file1"},
@@ -112,7 +112,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 
 	jobSpec := &JobSpec{
 		OnpremSrcDirectory: "dir",
-		GCSBucket: "bucket2",
+		GCSBucket:          "bucket2",
 	}
 
 	taskUpdate, err := handler.HandleMessage(jobSpec, processListCompletionMessage())
@@ -123,9 +123,9 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 	expectedTaskUpdate := &TaskUpdate{
 		Task: processListTask,
 		LogEntry: LogEntry{
-			"endingOffset":   newBytesProcessed,
+			"endingOffset":     newBytesProcessed,
 			"entriesProcessed": int64(3),
-			"startingOffset": int64(0),
+			"startingOffset":   int64(0),
 		},
 		OriginalTaskParams: TaskParams{
 			"byte_offset":            0,
@@ -159,7 +159,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, taskUpdate.NewTasks[0].TaskSpec)
 		}
 		taskUpdate.NewTasks[0].TaskSpec = "" // Blow it away.
-		expectedNewTask := &Task{ // Add task (sans spec) to our expected update.
+		expectedNewTask := &Task{            // Add task (sans spec) to our expected update.
 			TaskRRStruct: TaskRRStruct{
 				JobRunRRStruct: taskRRStruct.JobRunRRStruct,
 				TaskID:         GetListTaskID("dir/dir0"),
@@ -183,7 +183,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, taskUpdate.NewTasks[i+1].TaskSpec)
 		}
 		taskUpdate.NewTasks[i+1].TaskSpec = "" // Blow it away.
-		expectedNewTask := &Task{ // Add task (sans spec) to our expected update.
+		expectedNewTask := &Task{              // Add task (sans spec) to our expected update.
 			TaskRRStruct: TaskRRStruct{
 				JobRunRRStruct: taskRRStruct.JobRunRRStruct,
 				TaskID:         GetCopyTaskID("dir/file" + strconv.Itoa(i)),
