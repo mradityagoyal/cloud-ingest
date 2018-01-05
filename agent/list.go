@@ -20,11 +20,13 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/golang/glog"
 )
 
 // ListHandler is responsible for handling list tasks.
@@ -38,34 +40,24 @@ func NewListHandler(
 	return &ListHandler{gcloud.NewGCSClient(storageClient), resumableChunkSize}
 }
 
-type FileInfo struct {
-	os.FileInfo
-	fullPath string
-	err      error
-}
-
-func listDirectory(ctx context.Context, srcDir string) <-chan FileInfo {
-	c := make(chan FileInfo)
-	go func() {
-		defer close(c)
-		filepath.Walk(srcDir, func(path string, info os.FileInfo, err error) error {
-			if err != nil {
-				c <- FileInfo{info, path, err}
-				return filepath.SkipDir
-			}
-			if ctx.Err() != nil {
-				// The context is already closed. Stop execution.
-				return filepath.SkipDir
-			}
-			if info.IsDir() {
-				// Ignoring directories.
-				return nil
-			}
-			c <- FileInfo{info, path, nil}
-			return nil
-		})
-	}()
-	return c
+func listDirectory(dir string) ([]os.FileInfo, error) {
+	f, err := os.Open(dir)
+	if err != nil {
+		glog.Errorf("error opening dir %v: %v\n", dir, err)
+		return nil, err
+	}
+	fileInfos, err := f.Readdir(-1)
+	f.Close()
+	if err != nil {
+		glog.Errorf("error reading dir %v: %v\n", dir, err)
+		return nil, err
+	}
+	// Readdir returns the entries in "directory order", so they must be sorted
+	// to meet our expectations of lexicographical order.
+	sort.Slice(fileInfos, func(i, j int) bool {
+		return fileInfos[i].Name() < fileInfos[j].Name()
+	})
+	return fileInfos, nil
 }
 
 func (h *ListHandler) Do(ctx context.Context, taskRRName string,
@@ -99,21 +91,25 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string,
 		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 	}
 
-	var bytesFound, filesFound int64
-	ctxWithCancel, cancelFn := context.WithCancel(ctx)
-	for file := range listDirectory(ctxWithCancel, srcDirectory) {
-		if file.err != nil {
-			cancelFn()
-			w.CloseWithError(file.err)
-			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, file.err)
-		}
-		if _, err := fmt.Fprintln(w, file.fullPath); err != nil {
-			cancelFn()
+	fileInfos, err := listDirectory(srcDirectory)
+	if err != nil {
+		w.CloseWithError(err)
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
+	}
+	var bytesFound, filesFound, dirsFound int64
+	for _, fileInfo := range fileInfos {
+		fullPath := filepath.Join(srcDirectory, fileInfo.Name())
+		listFileEntry := dcp.ListFileEntry{fileInfo.IsDir(), fullPath}
+		if _, err := fmt.Fprintln(w, listFileEntry); err != nil {
 			w.CloseWithError(err)
 			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 		}
-		filesFound++
-		bytesFound += file.Size()
+		if fileInfo.IsDir() {
+			dirsFound++
+		} else {
+			filesFound++
+			bytesFound += fileInfo.Size()
+		}
 	}
 
 	if err := w.Close(); err != nil {
@@ -122,6 +118,7 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string,
 
 	logEntry["files_found"] = filesFound
 	logEntry["bytes_found"] = bytesFound
+	logEntry["dirs_found"] = dirsFound
 
 	return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, nil)
 }

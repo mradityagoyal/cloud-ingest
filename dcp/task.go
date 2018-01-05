@@ -263,7 +263,12 @@ func (tc *TaskUpdateCollection) Clear() {
 	tc.tasks = make(map[TaskRRStruct]*TaskUpdate)
 }
 
-// GetProcessListTaskID returns the task id of an processList type task for
+// GetListTaskID returns the task id of a list type task for the given file path.
+func GetListTaskID(filePath string) string {
+	return listTaskPrefix + idSeparator + filePath
+}
+
+// GetProcessListTaskID returns the task id of a processList type task for
 // the given bucket and object.
 func GetProcessListTaskID(bucket, object string) string {
 	return processListTaskPrefix + idSeparator + bucket + idSeparator + object

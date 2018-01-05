@@ -61,8 +61,8 @@ func TestProcessListMessageHandlerFailReadingListResult(t *testing.T) {
 	defer mockCtrl.Finish()
 	mockListReader := NewMockListingResultReader(mockCtrl)
 	errorMsg := "Failed reading listing result."
-	mockListReader.EXPECT().ReadLines(
-		context.Background(), "bucket1", "object", int64(0), maxLinesToProcess).
+	mockListReader.EXPECT().ReadEntries(
+		context.Background(), "bucket1", "object", int64(0), maxEntriesToProcess).
 		Return(nil, int64(0), errors.New(errorMsg))
 
 	handler := ProcessListMessageHandler{
@@ -84,10 +84,14 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 	// Setup the ListingResultReader.
 	mockListReader := NewMockListingResultReader(mockCtrl)
 	var newBytesProcessed int64 = 123
-	lines := []string{"dir/file0", "dir/file1"}
-	mockListReader.EXPECT().ReadLines(
-		context.Background(), "bucket1", "object", int64(0), maxLinesToProcess).
-		Return(lines, newBytesProcessed, io.EOF)
+	entries := []ListFileEntry {
+		ListFileEntry{true, "dir/dir0"},
+		ListFileEntry{false, "dir/file0"},
+		ListFileEntry{false, "dir/file1"},
+	}
+	mockListReader.EXPECT().ReadEntries(
+		context.Background(), "bucket1", "object", int64(0), maxEntriesToProcess).
+		Return(entries, newBytesProcessed, io.EOF)
 
 	taskRRStruct := NewTaskRRStruct(testProjectID, testJobConfigID, testJobRunID, testTaskID)
 	processListTask := &Task{
@@ -107,6 +111,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 	}
 
 	jobSpec := &JobSpec{
+		OnpremSrcDirectory: "dir",
 		GCSBucket: "bucket2",
 	}
 
@@ -119,7 +124,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 		Task: processListTask,
 		LogEntry: LogEntry{
 			"endingOffset":   newBytesProcessed,
-			"linesProcessed": int64(2),
+			"entriesProcessed": int64(3),
 			"startingOffset": int64(0),
 		},
 		OriginalTaskParams: TaskParams{
@@ -137,10 +142,34 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 	// No task spec on TaskUpdate.
 	processListTask.TaskSpec = ""
 
-	if len(taskUpdate.NewTasks) != 2 {
-		t.Errorf("expecting 2 tasks, found %d.", len(taskUpdate.NewTasks))
+	if len(taskUpdate.NewTasks) != 3 {
+		t.Errorf("expecting 3 tasks, found %d.", len(taskUpdate.NewTasks))
 	}
 
+	// Validate the new list task.
+	{
+		// Handle the task spec JSON separately, since it doesn't play well with equality checks.
+		expectedNewTaskSpec := fmt.Sprintf(`{
+				"dst_list_result_bucket": "bucket2",
+				"dst_list_result_object": "%v/%v/%v/dir0/list",
+				"src_directory": "dir/dir0",
+				"expected_generation_num": 0
+			}`, cloudIngestWorkingSpace, testJobConfigID, testJobRunID)
+		if !helpers.AreEqualJSON(expectedNewTaskSpec, taskUpdate.NewTasks[0].TaskSpec) {
+			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, taskUpdate.NewTasks[0].TaskSpec)
+		}
+		taskUpdate.NewTasks[0].TaskSpec = "" // Blow it away.
+		expectedNewTask := &Task{ // Add task (sans spec) to our expected update.
+			TaskRRStruct: TaskRRStruct{
+				JobRunRRStruct: taskRRStruct.JobRunRRStruct,
+				TaskID:         GetListTaskID("dir/dir0"),
+			},
+			TaskType: listTaskType,
+		}
+		expectedTaskUpdate.NewTasks = append(expectedTaskUpdate.NewTasks, expectedNewTask)
+	}
+
+	// Validate the new copy tasks.
 	for i := 0; i < 2; i++ {
 		// Handle the task spec JSON separately, since it doesn't play well with equality checks.
 		expectedNewTaskSpec := fmt.Sprintf(`{
@@ -150,22 +179,17 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 				"src_file": "dir/file%d"
 			}`, i, i)
 
-		if !helpers.AreEqualJSON(expectedNewTaskSpec, taskUpdate.NewTasks[i].TaskSpec) {
-			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, taskUpdate.NewTasks[i].TaskSpec)
+		if !helpers.AreEqualJSON(expectedNewTaskSpec, taskUpdate.NewTasks[i+1].TaskSpec) {
+			t.Errorf("expected task spec: %s, found: %s", expectedNewTaskSpec, taskUpdate.NewTasks[i+1].TaskSpec)
 		}
-
-		// Blow it away.
-		taskUpdate.NewTasks[i].TaskSpec = ""
-
-		// Add task (sans spec) to our expected update.
-		expectedNewTask := &Task{
+		taskUpdate.NewTasks[i+1].TaskSpec = "" // Blow it away.
+		expectedNewTask := &Task{ // Add task (sans spec) to our expected update.
 			TaskRRStruct: TaskRRStruct{
 				JobRunRRStruct: taskRRStruct.JobRunRRStruct,
 				TaskID:         GetCopyTaskID("dir/file" + strconv.Itoa(i)),
 			},
 			TaskType: copyTaskType,
 		}
-
 		expectedTaskUpdate.NewTasks = append(expectedTaskUpdate.NewTasks, expectedNewTask)
 	}
 
@@ -176,7 +200,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 	DeepEqualCompare("TaskUpdate.LogEntry", expectedTaskUpdate.LogEntry, taskUpdate.LogEntry, t)
 	DeepEqualCompare("TaskUpdate.OriginalTaskParams",
 		expectedTaskUpdate.OriginalTaskParams, taskUpdate.OriginalTaskParams, t)
-	for i := 0; i < 2; i++ {
+	for i := 0; i < 3; i++ {
 		DeepEqualCompare("NewTasks", expectedTaskUpdate.NewTasks[i], taskUpdate.NewTasks[i], t)
 	}
 }

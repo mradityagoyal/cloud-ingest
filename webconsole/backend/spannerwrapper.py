@@ -197,12 +197,12 @@ _INITIAL_COUNTERS_DICT = {
     'tasksUnqueuedCopy': 0
 }
 
-def _get_task_spec_first_list_task(job_spec_dict, project_id, config_id):
+def _get_task_spec_first_list_task(job_spec_dict, config_id):
     """
     Gets the task spec for the first list task from a job spec dictionary.
     """
-    list_result_object_name = 'list-task-output-%s-%s-%s-%s' % (project_id,
-        config_id, _FIRST_JOB_RUN_ID, _LIST_TASK_ID)
+    list_result_object_name = 'cloud-ingest/%s/%s/%s' % (config_id,
+        _FIRST_JOB_RUN_ID, 'list')
     task_spec = {
         'src_directory': job_spec_dict['onPremSrcDirectory'],
         'dst_list_result_bucket': job_spec_dict['gcsBucket'],
@@ -224,8 +224,9 @@ def _create_new_job_transaction(transaction, project_id, config_id, job_spec):
         jobspec: The job spec as a dictionary.
     """
     run_id = _FIRST_JOB_RUN_ID
+    list_id = 'list:' + job_spec['onPremSrcDirectory']
     task_spec_json = json.dumps(_get_task_spec_first_list_task(job_spec,
-        project_id, config_id))
+        config_id))
     job_spec_json = json.dumps(job_spec)
     current_time_nanos = util.get_unix_nano()
     transaction.insert(SpannerWrapper.JOB_CONFIGS_TABLE,
@@ -240,8 +241,8 @@ def _create_new_job_transaction(transaction, project_id, config_id, job_spec):
         current_time_nanos, json.dumps(_INITIAL_COUNTERS_DICT))])
     transaction.insert(SpannerWrapper.TASKS_TABLE,
         columns=SpannerWrapper.TASKS_COLUMNS, values=[(project_id, config_id,
-        run_id, _LIST_TASK_ID, current_time_nanos, current_time_nanos,
-        TaskStatus.UNQUEUED, task_spec_json, TaskType.LIST)])
+        run_id, list_id, current_time_nanos, current_time_nanos, TaskStatus.UNQUEUED,
+        task_spec_json, TaskType.LIST)])
 
 class SpannerWrapper(object):
     """SpannerWrapper class handles all interactions with cloud Spanner.

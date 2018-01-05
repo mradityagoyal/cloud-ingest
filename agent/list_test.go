@@ -143,7 +143,7 @@ func TestListSuccessFlatDir(t *testing.T) {
 	// The result of the list are sorted.
 	sort.Strings(filePaths)
 	for _, path := range filePaths {
-		expectedListResult.WriteString(fmt.Sprintln(path))
+		expectedListResult.WriteString(fmt.Sprintln(dcp.ListFileEntry{false, path}))
 	}
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -184,22 +184,26 @@ func TestListSuccessNestedDir(t *testing.T) {
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
-	// Create a couple empty nested dir
-	helpers.CreateTmpDir(tmpDir, "empty-dir-")
-	helpers.CreateTmpDir(nestedTmpDir, "empty-nested-dir-")
+	emptyDir := helpers.CreateTmpDir(tmpDir, "empty-dir-")
 	defer os.RemoveAll(tmpDir)
 
+	expectedListResult.WriteString(fmt.Sprintln(dcp.ListFileEntry{true, emptyDir}))
+	expectedListResult.WriteString(fmt.Sprintln(dcp.ListFileEntry{true, nestedTmpDir}))
+
 	fileContent := "0123456789"
-	filePaths := make([]string, 20)
+	filePaths := make([]string, 0)
 
 	for i := 0; i < 10; i++ {
-		filePaths[i*2] = helpers.CreateTmpFile(tmpDir, "test-file-", fileContent)
-		filePaths[i*2+1] = helpers.CreateTmpFile(nestedTmpDir, "test-file-", fileContent)
+		filePaths = append(filePaths, helpers.CreateTmpFile(tmpDir, "test-file-", fileContent))
 	}
 	// The result of the list are in sorted order.
 	sort.Strings(filePaths)
 	for _, path := range filePaths {
-		expectedListResult.WriteString(fmt.Sprintln(path))
+		expectedListResult.WriteString(fmt.Sprintln(dcp.ListFileEntry{false, path}))
+	}
+	// Create some files in the sub-dir. These should not be in the list output.
+	for i := 0; i < 10; i++ {
+		filePaths = append(filePaths, helpers.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
 	}
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -223,8 +227,9 @@ func TestListSuccessNestedDir(t *testing.T) {
 	expectedLogEntry := dcp.LogEntry{
 		"worker_id":        workerID,
 		"file_stat_errors": 0,
-		"files_found":      int64(20),
-		"bytes_found":      int64(200),
+		"files_found":      int64(10),
+		"bytes_found":      int64(100),
+		"dirs_found":       int64(2),
 	}
 	if !reflect.DeepEqual(msg.LogEntry, expectedLogEntry) {
 		t.Errorf("expected log entry: %+v, but found: %+v", expectedLogEntry, msg.LogEntry)

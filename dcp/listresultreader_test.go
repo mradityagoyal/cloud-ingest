@@ -18,6 +18,7 @@ package dcp
 import (
 	"context"
 	"io"
+	"strings"
 	"testing"
 
 	"cloud.google.com/go/storage"
@@ -37,7 +38,7 @@ func TestReadListResultError(t *testing.T) {
 
 	reader := NewGCSListingResultReader(mockGcs)
 
-	_, _, err := reader.ReadLines(context.Background(), "bucket", "object", 0, 5)
+	_, _, err := reader.ReadEntries(context.Background(), "bucket", "object", 0, 5)
 
 	if err == nil {
 		t.Errorf("Expected error '%v', but got <nil>", storage.ErrObjectNotExist)
@@ -50,7 +51,7 @@ func TestReadListResultSuccess(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := helpers.NewStringReadCloser("junkid\nline1\nline2\nline3\nline4")
+	src := helpers.NewStringReadCloser("junkid\nd,line1\nf,line2\nf,line3\nf,line4")
 	mockGcs.EXPECT().
 		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
@@ -58,18 +59,22 @@ func TestReadListResultSuccess(t *testing.T) {
 	reader := NewGCSListingResultReader(mockGcs)
 
 	startingOffset := int64(0)
-	lines, endingOffset, err := reader.ReadLines(context.Background(), "bucket", "object", startingOffset, 3)
+	listFileEntries, endingOffset, err := reader.ReadEntries(context.Background(), "bucket", "object", startingOffset, 3)
 	if err != nil {
 		t.Errorf("Expected no error, but got '%v'", err)
 	}
 
-	expectedLines := []string{"line1", "line2", "line3"}
-	if len(expectedLines) != len(lines) {
-		t.Errorf("Wrong number of lines returned (actual %v vs expected %v)", len(lines), len(expectedLines))
+	expectedEntries := []ListFileEntry{
+		ListFileEntry{true, "line1"},
+		ListFileEntry{false, "line2"},
+		ListFileEntry{false, "line3"},
+	}
+	if len(expectedEntries) != len(listFileEntries) {
+		t.Errorf("Wrong number of listFileEntries returned (actual %v vs expected %v)", len(listFileEntries), len(expectedEntries))
 	} else {
-		for i := range lines {
-			if lines[i] != expectedLines[i] {
-				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, lines[i], expectedLines[i])
+		for i := range listFileEntries {
+			if listFileEntries[i] != expectedEntries[i] {
+				t.Errorf("Entry %v doesn't match expectation (actual %v vs expected %v)", i, listFileEntries[i], expectedEntries[i])
 			}
 		}
 	}
@@ -89,7 +94,7 @@ func TestReadListResultNonzeroOffset(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := helpers.NewStringReadCloser("line2\nline3\nline4\nline5\bline6")
+	src := helpers.NewStringReadCloser("d,line2\nf,line3\nf,line4\nf,line5\bf,line6")
 	mockGcs.EXPECT().
 		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
@@ -99,18 +104,22 @@ func TestReadListResultNonzeroOffset(t *testing.T) {
 	// Note that since the StringReadCloser is mocked here, the "line2\nline3..." is what is
 	// returned as if the startingOffset was 12.
 	startingOffset := int64(12)
-	lines, endingOffset, err := reader.ReadLines(context.Background(), "bucket", "object", startingOffset, 3)
+	listFileEntries, endingOffset, err := reader.ReadEntries(context.Background(), "bucket", "object", startingOffset, 3)
 	if err != nil {
 		t.Errorf("Expected no error, but got '%v'", err)
 	}
 
-	expectedLines := []string{"line2", "line3", "line4"}
-	if len(expectedLines) != len(lines) {
-		t.Errorf("Wrong number of lines returned (actual %v vs expected %v)", len(lines), len(expectedLines))
+	expectedEntries := []ListFileEntry{
+		ListFileEntry{true, "line2"},
+		ListFileEntry{false, "line3"},
+		ListFileEntry{false, "line4"},
+	}
+	if len(expectedEntries) != len(listFileEntries) {
+		t.Errorf("Wrong number of listFileEntries returned (actual %v vs expected %v)", len(listFileEntries), len(expectedEntries))
 	} else {
-		for i := range lines {
-			if lines[i] != expectedLines[i] {
-				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, lines[i], expectedLines[i])
+		for i := range listFileEntries {
+			if listFileEntries[i] != expectedEntries[i] {
+				t.Errorf("Entry %v doesn't match expectation (actual %v vs expected %v)", i, listFileEntries[i], expectedEntries[i])
 			}
 		}
 	}
@@ -130,7 +139,7 @@ func TestReadListResultEOF(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := helpers.NewStringReadCloser("junkid\nline with spaces\nline2")
+	src := helpers.NewStringReadCloser("junkid\nd,line with spaces\nd,line2")
 	mockGcs.EXPECT().
 		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
@@ -138,18 +147,21 @@ func TestReadListResultEOF(t *testing.T) {
 	reader := NewGCSListingResultReader(mockGcs)
 
 	startingOffset := int64(0)
-	lines, endingOffset, err := reader.ReadLines(context.Background(), "bucket", "object", startingOffset, 3)
+	listFileEntries, endingOffset, err := reader.ReadEntries(context.Background(), "bucket", "object", startingOffset, 3)
 	if err != io.EOF {
 		t.Errorf("Expected io.EOF error, but got '%v'", err)
 	}
 
-	expectedLines := []string{"line with spaces", "line2"}
-	if len(expectedLines) != len(lines) {
-		t.Errorf("Wrong number of lines returned (actual %v vs expected %v)", len(lines), len(expectedLines))
+	expectedEntries := []ListFileEntry{
+		ListFileEntry{true, "line with spaces"},
+		ListFileEntry{true, "line2"},
+	}
+	if len(expectedEntries) != len(listFileEntries) {
+		t.Errorf("Wrong number of listFileEntries returned (actual %v vs expected %v)", len(listFileEntries), len(expectedEntries))
 	} else {
-		for i := range lines {
-			if lines[i] != expectedLines[i] {
-				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, lines[i], expectedLines[i])
+		for i := range listFileEntries {
+			if listFileEntries[i] != expectedEntries[i] {
+				t.Errorf("Entry %v doesn't match expectation (actual %v vs expected %v)", i, listFileEntries[i], expectedEntries[i])
 			}
 		}
 	}
@@ -169,7 +181,7 @@ func TestReadListResultMaxLinesEOF(t *testing.T) {
 
 	mockGcs := gcloud.NewMockGCS(mockCtrl)
 
-	src := helpers.NewStringReadCloser("some line\nthe last line")
+	src := helpers.NewStringReadCloser("f,some line\nf,the last line")
 	mockGcs.EXPECT().
 		NewRangeReader(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		Return(src, nil)
@@ -177,18 +189,21 @@ func TestReadListResultMaxLinesEOF(t *testing.T) {
 	reader := NewGCSListingResultReader(mockGcs)
 
 	startingOffset := int64(123)
-	lines, endingOffset, err := reader.ReadLines(context.Background(), "bucket", "object", startingOffset, 2)
+	listFileEntries, endingOffset, err := reader.ReadEntries(context.Background(), "bucket", "object", startingOffset, 2)
 	if err != io.EOF {
 		t.Errorf("Expected io.EOF error, but got '%v'", err)
 	}
 
-	expectedLines := []string{"some line", "the last line"}
-	if len(expectedLines) != len(lines) {
-		t.Errorf("Wrong number of lines returned (actual %v vs expected %v)", len(lines), len(expectedLines))
+	expectedEntries := []ListFileEntry{
+		ListFileEntry{false, "some line"},
+		ListFileEntry{false, "the last line"},
+	}
+	if len(expectedEntries) != len(listFileEntries) {
+		t.Errorf("Wrong number of listFileEntries returned (actual %v vs expected %v)", len(listFileEntries), len(expectedEntries))
 	} else {
-		for i := range lines {
-			if lines[i] != expectedLines[i] {
-				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, lines[i], expectedLines[i])
+		for i := range listFileEntries {
+			if listFileEntries[i] != expectedEntries[i] {
+				t.Errorf("Line %v doesn't match expectation (actual %v vs expected %v)", i, listFileEntries[i], expectedEntries[i])
 			}
 		}
 	}
@@ -199,5 +214,57 @@ func TestReadListResultMaxLinesEOF(t *testing.T) {
 
 	if !src.Closed {
 		t.Error("Did not close the reader.")
+	}
+}
+
+func TestListFileEntryParseAndStringSuccess(t *testing.T) {
+	var tests = []struct {
+		entry ListFileEntry
+		line  string
+	}{
+		{ListFileEntry{true, "some path"}, "d,some path"},
+		{ListFileEntry{true, "a/b/c/d"}, "d,a/b/c/d"},
+		{ListFileEntry{true, "/a/b/c/d"}, "d,/a/b/c/d"},
+		{ListFileEntry{true, "//a/b/c/d"}, "d,//a/b/c/d"},
+		{ListFileEntry{true, "a\\b\\c\\d"}, "d,a\\b\\c\\d"},
+		{ListFileEntry{true, "c:\\a\\b\\c\\d"}, "d,c:\\a\\b\\c\\d"},
+		{ListFileEntry{true, "a,b"}, "d,a,b"},
+		{ListFileEntry{false, "some path"}, "f,some path"},
+		{ListFileEntry{false, "a/b/c/d"}, "f,a/b/c/d"},
+		{ListFileEntry{false, "/a/b/c/d"}, "f,/a/b/c/d"},
+		{ListFileEntry{false, "//a/b/c/d"}, "f,//a/b/c/d"},
+		{ListFileEntry{false, "a\\b\\c\\d"}, "f,a\\b\\c\\d"},
+		{ListFileEntry{false, "c:\\a\\b\\c\\d"}, "f,c:\\a\\b\\c\\d"},
+		{ListFileEntry{false, "a,b"}, "f,a,b"},
+	}
+	for _, tc := range tests {
+		parsedEntry, err := ParseListFileLine(tc.line)
+		if err != nil {
+			t.Errorf("Error parsing line %v, err: %v", tc.line, err)
+		}
+		if *parsedEntry != tc.entry {
+			t.Errorf("Expected parsed %v, actual: %v", tc.entry, *parsedEntry)
+		}
+		if s := tc.entry.String(); s != tc.line {
+			t.Errorf("Expected entry string %v, actual: %v", tc.line, s)
+		}
+	}
+}
+
+func TestListFileEntryParseFailure(t *testing.T) {
+	// Parse fails without the correct number of fields.
+	expectedErr := "expected 2 fields"
+	if _, err := ParseListFileLine("some path with no delimiter"); err == nil {
+		t.Errorf("error is nil, expected error: %v...", expectedErr)
+	} else if !strings.Contains(err.Error(), expectedErr) {
+		t.Errorf("expected error to contain %s, found: %s.", expectedErr, err.Error())
+	}
+
+	// Parse fails with a bogus type field.
+	expectedErr = "expected 'd' or 'f'"
+	if _, err := ParseListFileLine("b,bogus type field"); err == nil {
+		t.Errorf("error is nil, expected error: %v...", expectedErr)
+	} else if !strings.Contains(err.Error(), expectedErr) {
+		t.Errorf("expected error to contain %s, found: %s.", expectedErr, err.Error())
 	}
 }

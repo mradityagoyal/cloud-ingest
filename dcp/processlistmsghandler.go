@@ -20,6 +20,7 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
+	"path/filepath"
 	"strings"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
@@ -32,8 +33,12 @@ type ProcessListMessageHandler struct {
 }
 
 const (
-	maxLinesToProcess     int64  = 1000
-	expectedByteOffsetKey string = "byte_offset"
+	maxEntriesToProcess     = 1000
+	expectedByteOffsetKey   = "byte_offset"
+	// TODO(b/71637535): Move the audit logs to the cloud-ingest working space.
+	// This is the root directory in the destination GCS bucket which contains files
+	// created as part of the ingest process, namely list files and audit logs.
+	cloudIngestWorkingSpace = "cloud-ingest"
 )
 
 // ProcessListingFileSemantics implements the TaskTransactionalSemantics interface (see
@@ -105,9 +110,9 @@ func (h *ProcessListMessageHandler) HandleMessage(
 		return nil, err
 	}
 
-	lines, offset, err := h.ListingResultReader.ReadLines(
+	listFileEntries, offset, err := h.ListingResultReader.ReadEntries(
 		ctx, spec.DstListResultBucket, spec.DstListResultObject,
-		spec.ByteOffset, maxLinesToProcess)
+		spec.ByteOffset, maxEntriesToProcess)
 	if err == io.EOF {
 		task.Status = Success
 	} else if err != nil {
@@ -125,36 +130,60 @@ func (h *ProcessListMessageHandler) HandleMessage(
 	}
 
 	var newTasks []*Task
-	for _, filePath := range lines {
-		copyTaskID := GetCopyTaskID(filePath)
-		dstObject := helpers.GetRelPathOsAgnostic(spec.SrcDirectory, filePath)
-		// TODO(b/69319257): Amend this logic when we implement synchronization.
-		copyTaskSpec := CopyTaskSpec{
-			SrcFile:               filePath,
-			DstBucket:             jobSpec.GCSBucket,
-			DstObject:             dstObject,
-			ExpectedGenerationNum: 0,
-		}
-		copyTaskSpecJson, err := json.Marshal(copyTaskSpec)
+	for _, lfe := range listFileEntries {
+		newTasks, err = processListFileEntry(lfe, task, jobSpec, newTasks)
 		if err != nil {
-			glog.Errorf(
-				"Error encoding task spec to JSON string, task spec: %v, err: %v.",
-				copyTaskSpec, err)
+			glog.Errorf("Error processing listFileEntry %v, err: %v", lfe, err)
 			return nil, err
 		}
-		newTasks = append(newTasks, &Task{
-			TaskRRStruct: TaskRRStruct{task.TaskRRStruct.JobRunRRStruct, copyTaskID},
-			TaskType:     copyTaskType,
-			TaskSpec:     string(copyTaskSpecJson),
-		})
 	}
 	taskUpdate.NewTasks = newTasks
 
 	logEntry := make(map[string]interface{})
-	logEntry["linesProcessed"] = int64(len(lines))
+	logEntry["entriesProcessed"] = int64(len(listFileEntries))
 	logEntry["startingOffset"] = spec.ByteOffset
 	logEntry["endingOffset"] = offset
 	taskUpdate.LogEntry = logEntry
 
 	return taskUpdate, nil
+}
+
+func processListFileEntry(lfe ListFileEntry, task *Task, jobSpec *JobSpec, newTasks []*Task) ([]*Task, error) {
+	var taskType int64
+	var taskID string
+	var taskSpec interface{}
+	filePathRelToOnPremSrcDir := helpers.GetRelPathOsAgnostic(jobSpec.OnpremSrcDirectory, lfe.FilePath)
+	if lfe.IsDir {
+		taskType = listTaskType
+		taskID = GetListTaskID(lfe.FilePath)
+		dstObject := filepath.Join(
+			cloudIngestWorkingSpace, task.TaskRRStruct.JobConfigID,
+			task.TaskRRStruct.JobRunID, filePathRelToOnPremSrcDir, "list")
+		taskSpec = ListTaskSpec{
+			DstListResultBucket:   jobSpec.GCSBucket,
+			DstListResultObject:   dstObject,
+			SrcDirectory:          lfe.FilePath,
+			ExpectedGenerationNum: 0,
+		}
+	} else {
+		taskType = copyTaskType
+		taskID = GetCopyTaskID(lfe.FilePath)
+		// TODO(b/69319257): Amend this logic when we implement synchronization.
+		taskSpec = CopyTaskSpec{
+			DstBucket:             jobSpec.GCSBucket,
+			DstObject:             filePathRelToOnPremSrcDir,
+			SrcFile:               lfe.FilePath,
+			ExpectedGenerationNum: 0,
+		}
+	}
+	taskSpecJSON, err := json.Marshal(taskSpec)
+	if err != nil {
+		glog.Errorf("Error JSON string encoding task spec: %v, err: %v.", taskSpec, err)
+		return nil, err
+	}
+	return append(newTasks, &Task{
+		TaskRRStruct: TaskRRStruct{task.TaskRRStruct.JobRunRRStruct, taskID},
+		TaskType:     taskType,
+		TaskSpec:     string(taskSpecJSON),
+	}), nil
 }
