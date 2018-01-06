@@ -23,27 +23,13 @@
 
 #!/bin/bash
 
+source $(dirname $0)/common.inc
+
 # Exit the script on the first failure.
 set -e
 
-# Capture this script directory.
-SCRIPT_DIR="$( dirname "${BASH_SOURCE[0]}" )"
-
-# Move to this script dir.
-pushd "$SCRIPT_DIR"
-
-# Return back to the original dir.
-trap popd EXIT
-
 # TODO(b/63626194): Change with google official container registry.
 PROJECT_ID="mbassiouny-test"
-
-fail() {
-  local _red="\\033[1;31m"
-  local _normal="\\033[0;39m"
-  [ -n "$*" ] && >&2 printf "${_red}$*${_normal}\n"
-  exit 1
-}
 
 if [ $# -ne 1 ] || ( [ "$1" != "base" ] && [ "$1" != "dcp" ] && \
                      [ "$1" != "test" ] && [ "$1" != "perf" ] && \
