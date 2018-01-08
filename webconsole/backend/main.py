@@ -530,18 +530,9 @@ def create_infrastructure(project_id):
     if not _user_has_permission_to_project(credentials=credentials,
         project_id=project_id):
         return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
-    # TODO(b/65754348): Creating the infrastructure API may take the resources
-    # (in the request body) to create.
-    dcp_docker_image = (None if APP.config.get('SKIP_RUNNING_DCP', False) else
-                        APP.config['DCP_DOCKER_IMAGE'])
-
-    if not dcp_docker_image and not APP.config['DEBUG']:
-        logging.critical('DCP docker image must be specified in prod '
-                         'environment.')
-        raise ServerError('Internal Server Error')
 
     infra_util.create_infrastructure(
-        credentials, project_id, dcp_docker_image)
+        credentials, project_id)
     return jsonify({})
 
 @APP.route('/projects/<project_id>/tear-down-infrastructure',
@@ -652,16 +643,6 @@ def main():
     """Executes the main logic when the function is run from the command line.
     Used when executed on a local workstation.
     """
-    parser = argparse.ArgumentParser(
-        description='Cloud ingest local backend server')
-
-    parser.add_argument('--skip-running-dcp', '-sdcp', action='store_true',
-                        help='Skip running the DCP when creating an '
-                             'infra-structure.',
-                        default=False)
-    args = parser.parse_args()
-    APP.config['SKIP_RUNNING_DCP'] = args.skip_running_dcp
-
     APP.run(
         host=APP.config['HOST'],
         port=APP.config['PORT'],

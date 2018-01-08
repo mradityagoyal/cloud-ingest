@@ -12,9 +12,7 @@ const FAKE_PUBSUB_STATUS_RUNNING: PubsubStatus = {
 };
 
 export const FAKE_INFRA_STATUS_RUNNING: InfrastructureStatus = {
-  spannerStatus: ResourceStatus.Type.RUNNING,
-  pubsubStatus: FAKE_PUBSUB_STATUS_RUNNING,
-  dcpStatus: ResourceStatus.Type.RUNNING
+  pubsubStatus: FAKE_PUBSUB_STATUS_RUNNING
 };
 
 const FAKE_PUBSUB_STATUS_NOT_FOUND: PubsubStatus = {
@@ -25,9 +23,7 @@ const FAKE_PUBSUB_STATUS_NOT_FOUND: PubsubStatus = {
 };
 
 export const FAKE_INFRA_STATUS_NOT_FOUND: InfrastructureStatus = {
-  spannerStatus: ResourceStatus.Type.NOT_FOUND,
-  pubsubStatus: FAKE_PUBSUB_STATUS_NOT_FOUND,
-  dcpStatus: ResourceStatus.Type.NOT_FOUND
+  pubsubStatus: FAKE_PUBSUB_STATUS_NOT_FOUND
 };
 
 const FAKE_PUBSUB_STATUS_UNKNOWN: PubsubStatus = {
@@ -38,9 +34,7 @@ const FAKE_PUBSUB_STATUS_UNKNOWN: PubsubStatus = {
 };
 
 export const FAKE_INFRA_STATUS_UNKNOWN: InfrastructureStatus = {
-  spannerStatus: ResourceStatus.Type.RUNNING,
-  pubsubStatus: FAKE_PUBSUB_STATUS_UNKNOWN,
-  dcpStatus: ResourceStatus.Type.UNKNOWN
+  pubsubStatus: FAKE_PUBSUB_STATUS_UNKNOWN
 };
 
 const FAKE_PUBSUB_STATUS_FAILED: PubsubStatus = {
@@ -51,9 +45,7 @@ const FAKE_PUBSUB_STATUS_FAILED: PubsubStatus = {
 };
 
 export const FAKE_INFRA_STATUS_FAILED: InfrastructureStatus = {
-  spannerStatus: ResourceStatus.Type.RUNNING,
-  pubsubStatus: FAKE_PUBSUB_STATUS_UNKNOWN,
-  dcpStatus: ResourceStatus.Type.FAILED
+  pubsubStatus: FAKE_PUBSUB_STATUS_FAILED
 };
 
 const FAKE_PUBSUB_STATUS_DEPLOYING: PubsubStatus = {
@@ -64,9 +56,7 @@ const FAKE_PUBSUB_STATUS_DEPLOYING: PubsubStatus = {
 };
 
 export const FAKE_INFRA_STATUS_DEPLOYING: InfrastructureStatus = {
-  spannerStatus: ResourceStatus.Type.NOT_FOUND,
-  pubsubStatus: FAKE_PUBSUB_STATUS_DEPLOYING,
-  dcpStatus: ResourceStatus.Type.NOT_FOUND
+  pubsubStatus: FAKE_PUBSUB_STATUS_DEPLOYING
 };
 
 const FAKE_PUBSUB_STATUS_DELETING: PubsubStatus = {
@@ -77,9 +67,7 @@ const FAKE_PUBSUB_STATUS_DELETING: PubsubStatus = {
 };
 
 export const FAKE_INFRA_STATUS_DELETING: InfrastructureStatus = {
-  spannerStatus: ResourceStatus.Type.RUNNING,
-  pubsubStatus: FAKE_PUBSUB_STATUS_DELETING,
-  dcpStatus: ResourceStatus.Type.RUNNING
+  pubsubStatus: FAKE_PUBSUB_STATUS_DELETING
 };
 
 const FAKE_PUBSUB_STATUS_NOT_DETERMINED: PubsubStatus = {
@@ -90,9 +78,7 @@ const FAKE_PUBSUB_STATUS_NOT_DETERMINED: PubsubStatus = {
 };
 
 export const FAKE_INFRA_STATUS_NOT_DETERMINED: InfrastructureStatus = {
-  spannerStatus: ResourceStatus.Type.RUNNING,
-  pubsubStatus: FAKE_PUBSUB_STATUS_NOT_DETERMINED,
-  dcpStatus: ResourceStatus.Type.DELETING
+  pubsubStatus: FAKE_PUBSUB_STATUS_NOT_DETERMINED
 };
 
 export class InfrastructureServiceStub {

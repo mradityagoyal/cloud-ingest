@@ -35,34 +35,19 @@ class InfraUtilTest(unittest.TestCase):
     """Unit tests for infra_util.py"""
 
     @staticmethod
-    @patch.object(spanner, 'Client')
-    @patch.object(spanner_builder, 'SpannerBuilder')
     @patch.object(pubsub_builder, 'PubSubBuilder')
-    @patch.object(compute_builder, 'ComputeBuilder')
     # pylint: disable=too-many-arguments
-    def test_infrastructure_status_create_builders(
-        compute_builder_mock, pubsub_builder_mock,
-        spanner_builder_mock, spanner_client_mock):
+    def test_infrastructure_status_create_builders(pubsub_builder_mock):
         """
         Tests infrastructure_status method constructing the right builders.
         """
-        spanner_client_instance = spanner_client_mock.return_value
-
         credentials = MagicMock()
         project_id = 'project'
 
         infra_util.infrastructure_status(credentials, project_id)
 
-        spanner_builder_mock.assert_called_once_with(
-            constants.SPANNER_INSTANCE, client=spanner_client_instance)
-        spanner_client_mock.assert_called_once_with(credentials=credentials,
-                                                    project=project_id)
-
         pubsub_builder_mock.assert_called_once_with(credentials=credentials,
                                                     project_id=project_id)
-
-        compute_builder_mock.assert_called_once_with(credentials=credentials,
-                                                     project_id=project_id)
     # pylint: enable=too-many-arguments
 
     def test_infrastructure_status_from_builders(self):
@@ -74,36 +59,26 @@ class InfraUtilTest(unittest.TestCase):
             return_value = ResourceStatus.UNKNOWN
             if topic == constants.LIST_TOPIC:
                 return_value = ResourceStatus.RUNNING
-            if topic == constants.LIST_PROGRESS_TOPIC:
-                return_value = ResourceStatus.UNKNOWN
             if topic == constants.COPY_TOPIC:
                 return_value = ResourceStatus.DELETING
             if topic == constants.COPY_PROGRESS_TOPIC:
                 return_value = ResourceStatus.RUNNING
             return return_value
 
-        spanner_bldr = MagicMock()
         pubsub_bldr = MagicMock()
-        compute_bldr = MagicMock()
 
         self.maxDiff = None
-        spanner_bldr.database_status.return_value = ResourceStatus.NOT_FOUND
         pubsub_bldr.topic_and_subscriptions_status.side_effect = (
             topic_and_subscriptions_status_side_effect)
-        compute_bldr.instance_status.return_value = ResourceStatus.UNKNOWN
 
         expected_status = {
-            "dcpStatus": ResourceStatus.UNKNOWN,
             "pubsubStatus": {
                 "list": ResourceStatus.RUNNING,
                 "listProgress": ResourceStatus.UNKNOWN,
-                "processList": ResourceStatus.UNKNOWN,
                 "copy": ResourceStatus.DELETING,
                 "copyProgress": ResourceStatus.RUNNING
             },
-            "spannerStatus": ResourceStatus.NOT_FOUND,
           }
 
-        status = infra_util._infrastructure_status_from_bldrs(
-            spanner_bldr, pubsub_bldr, compute_bldr)
+        status = infra_util._infrastructure_status_from_bldrs(pubsub_bldr)
         self.assertDictEqual(status, expected_status)

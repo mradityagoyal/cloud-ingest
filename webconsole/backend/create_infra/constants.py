@@ -25,16 +25,7 @@ LIST_TOPIC = 'cloud-ingest-list'
 LIST_SUBSCRIPTION = LIST_TOPIC
 LIST_PROGRESS_TOPIC = 'cloud-ingest-list-progress'
 LIST_PROGRESS_SUBSCRIPTION = LIST_PROGRESS_TOPIC
-PROCESS_LIST_TOPIC = 'cloud-ingest-process-list'
-PROCESS_LIST_SUBSCRIPTION = PROCESS_LIST_TOPIC
-# Note: There is no 'progress' topic/sub for list processing.
 COPY_TOPIC = 'cloud-ingest-copy'
 COPY_SUBSCRIPTION = COPY_TOPIC
 COPY_PROGRESS_TOPIC = 'cloud-ingest-copy-progress'
 COPY_PROGRESS_SUBSCRIPTION = COPY_PROGRESS_TOPIC
-
-# Cloud ingest infra-structure default DCP GCE instance params.
-DCP_INSTANCE_NAME = 'cloud-ingest-dcp'
-# TODO(b/63626194): Change with google official container registry.
-DCP_INSTANCE_DOCKER_IMAGE = 'gcr.io/mbassiouny-test/cloud-ingest:dcp'
-DCP_INSTANCE_CMD_LINE = '/cloud-ingest/dcpmain'
