@@ -31,7 +31,6 @@ CREATE TABLE Tasks (
     TaskType INT64 NOT NULL,
     Status INT64 NOT NULL,
     CreationTime INT64 NOT NULL,
-    WorkerId STRING(MAX),
     LastModificationTime INT64 NOT NULL,
     FailureType INT64,
     FailureMessage STRING(MAX),

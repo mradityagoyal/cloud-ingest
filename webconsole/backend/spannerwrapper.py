@@ -274,7 +274,6 @@ class SpannerWrapper(object):
     TASK_SPEC = "TaskSpec"
     TASK_TYPE = "TaskType"
     FAILURE_MESSAGE = "FailureMessage"
-    WORKER_ID = "WorkerId"
     FAILURE_TYPE = "FailureType"
 
     # The field names that are expected to be converted to json.

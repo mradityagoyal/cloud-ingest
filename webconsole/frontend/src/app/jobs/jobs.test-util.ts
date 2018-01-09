@@ -16,7 +16,6 @@ export const FAKE_TASKS: Task[] = [
     Status: 3,
     // September 7, 2016 12:00:00 PM
     CreationTime: 1473274800000000000,
-    WorkerId: 'fakeWorkerId1',
     // October 7, 2017, 12:00:00 PM
     LastModificationTime: '1507402800000000000',
     FailureMessage: 'Fake failure message 1'
@@ -31,7 +30,6 @@ export const FAKE_TASKS: Task[] = [
     Status: 3,
     // October 7, 2014 12:00:00 PM
     CreationTime: 1412708400000000000,
-    WorkerId: 'fakeWorkerId2',
     // October 7, 2015 12:00:00 PM
     LastModificationTime: '1444244400000000000',
     FailureMessage: 'Fake failure message 2'
@@ -49,7 +47,6 @@ export const FAKE_TASKS2: Task[] = [
     Status: 3,
     // September 7, 2016 12:00:00 PM
     CreationTime: 1473274800000000000,
-    WorkerId: 'fakeWorkerId3',
     // October 7, 2017, 12:00:00 PM
     LastModificationTime: '1507402800000000000',
     FailureMessage: 'Fake failure message 3'

@@ -84,7 +84,6 @@ export interface Task {
   FailureType?: TaskFailureType.Type;
   Status: number;
   CreationTime: number;
-  WorkerId: string;
   LastModificationTime: string;
   FailureMessage: string;
 }
