@@ -157,7 +157,7 @@ func processListFileEntry(lfe ListFileEntry, task *Task, jobSpec *JobSpec, newTa
 		taskType = listTaskType
 		taskID = GetListTaskID(lfe.FilePath)
 		dstObject := filepath.Join(
-			cloudIngestWorkingSpace, task.TaskRRStruct.JobConfigID,
+			cloudIngestWorkingSpace, "listfiles", task.TaskRRStruct.JobConfigID,
 			task.TaskRRStruct.JobRunID, filePathRelToOnPremSrcDir, "list")
 		taskSpec = ListTaskSpec{
 			DstListResultBucket:   jobSpec.GCSBucket,

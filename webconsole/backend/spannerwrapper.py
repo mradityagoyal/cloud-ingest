@@ -201,7 +201,7 @@ def _get_task_spec_first_list_task(job_spec_dict, config_id):
     """
     Gets the task spec for the first list task from a job spec dictionary.
     """
-    list_result_object_name = 'cloud-ingest/%s/%s/%s' % (config_id,
+    list_result_object_name = 'cloud-ingest/listfiles/%s/%s/%s' % (config_id,
         _FIRST_JOB_RUN_ID, 'list')
     task_spec = {
         'src_directory': job_spec_dict['onPremSrcDirectory'],

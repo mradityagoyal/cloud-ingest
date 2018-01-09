@@ -68,7 +68,7 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		msg.Ack()
 		return
 	}
-	taskRRName, ok := msgMap["task_id"].(string)
+	taskRRName, ok := msgMap["task_rr_name"].(string)
 	if !ok {
 		glog.Errorf("Can not get the full task id from message %s.", string(msg.Data))
 		// Here the taskRRName is unknown. Will Ack the message to avoid delivering again.

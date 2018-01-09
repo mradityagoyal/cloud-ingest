@@ -311,7 +311,7 @@ Task Methods Tests
 *******************************************************************************/
 func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 	msg := []byte(`{
-		"task_id": "project_id_A:job_config_id_A:job_run_id_A:A",
+		"task_rr_name": "projects/project_id_A/jobConfigs/job_config_id_A/jobRuns/job_run_id_A/tasks/A",
 		"status": "FAILED",
 		"failure_reason": 5,
 		"failure_message": "Failure",
@@ -331,7 +331,7 @@ func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 	}
 
 	want := TaskCompletionMessage{
-		TaskRRName:     "project_id_A:job_config_id_A:job_run_id_A:A",
+		TaskRRName:     "projects/project_id_A/jobConfigs/job_config_id_A/jobRuns/job_run_id_A/tasks/A",
 		Status:         "FAILED",
 		FailureType:    proto.TaskFailureType_FILE_NOT_FOUND_FAILURE,
 		FailureMessage: "Failure",
@@ -352,7 +352,7 @@ func TestTaskCompletionMessageFromJsonFailureMessage(t *testing.T) {
 
 func TestTaskCompletionMessageFromJsonSuccessMessage(t *testing.T) {
 	msg := []byte(`{
-		"task_id": "project_id_A:job_config_id_A:job_run_id_A:A",
+		"task_rr_name": "projects/project_id_A/jobConfigs/job_config_id_A/jobRuns/job_run_id_A/tasks/A",
 		"status": "SUCCESS",
 		"log_entry": {
 			"logkey1": "logval1"
@@ -368,7 +368,7 @@ func TestTaskCompletionMessageFromJsonSuccessMessage(t *testing.T) {
 	}
 
 	want := TaskCompletionMessage{
-		TaskRRName: "project_id_A:job_config_id_A:job_run_id_A:A",
+		TaskRRName: "projects/project_id_A/jobConfigs/job_config_id_A/jobRuns/job_run_id_A/tasks/A",
 		Status:     "SUCCESS",
 		LogEntry: LogEntry{
 			"logkey1": "logval1",
@@ -475,7 +475,7 @@ func TestConstructPubSubTaskMsgSuccess(t *testing.T) {
 	}
 
 	want := map[string]interface{}{
-		"task_id": testTaskRRName,
+		"task_rr_name": testTaskRRName,
 		"task_params": map[string]interface{}{
 			"foo": "bar",
 			"nest1": map[string]interface{}{

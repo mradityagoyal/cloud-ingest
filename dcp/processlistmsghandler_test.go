@@ -151,7 +151,7 @@ func TestProcessListMessageHandlerSuccess(t *testing.T) {
 		// Handle the task spec JSON separately, since it doesn't play well with equality checks.
 		expectedNewTaskSpec := fmt.Sprintf(`{
 				"dst_list_result_bucket": "bucket2",
-				"dst_list_result_object": "%v/%v/%v/dir0/list",
+				"dst_list_result_object": "%s/listfiles/%s/%s/dir0/list",
 				"src_directory": "dir/dir0",
 				"expected_generation_num": 0
 			}`, cloudIngestWorkingSpace, testJobConfigID, testJobRunID)

@@ -96,8 +96,8 @@ func getTestingFakeStoreAndLogPath(n int64) (*FakeStore, string) {
 				Processed:    false,
 			})
 	}
-	logPath := fmt.Sprintf(
-		"logs/%s/2009-11-10T15:00:00.000000000-08:00.log", testJobConfigID)
+	logPath := fmt.Sprintf("%s/logs/%s/2009-11-10T15:00:00.000000000-08:00.log",
+		cloudIngestWorkingSpace, testJobConfigID)
 	return fakestore, logPath
 }
 
@@ -259,7 +259,7 @@ func TestSingleLogsProcessingRun(t *testing.T) {
 	}
 
 	mockGcs.EXPECT().NewWriter(context.Background(), "dummy_bucket",
-		"logs/job_config_id_A/2009-11-10T15:00:00.000000150-08:00.log").
+		"cloud-ingest/logs/job_config_id_A/2009-11-10T15:00:00.000000150-08:00.log").
 		Return(&writer)
 	lep.SingleLogsProcessingRun(context.Background(), 100) // Process all (two) remaining log entries.
 

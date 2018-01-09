@@ -257,7 +257,7 @@ func (lep LogEntryProcessor) SingleLogsProcessingRun(ctx context.Context, n int6
 			timebytes := time.Unix(0, logEntryRow.CreationTime).Format(logTimeFormat)
 			// Note that the timestamp is in nanoseconds, so collisions are
 			// nearly impossible (two subsequent Go timestamps are ~50ns apart).
-			objectName := fmt.Sprintf("logs/%v/%v.log",
+			objectName := fmt.Sprintf("%s/logs/%s/%s.log", cloudIngestWorkingSpace,
 				jobConfigRRStruct.JobConfigID, string(timebytes))
 			gcsLogFile = lep.Gcs.NewWriter(ctx, bucketName, objectName)
 			gcsLogFiles[jobConfigRRStruct] = gcsLogFile

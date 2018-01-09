@@ -84,7 +84,7 @@ type TaskParams map[string]interface{}
 
 // TaskCompletionMessage is the response type we get back from any progress queue.
 type TaskCompletionMessage struct {
-	TaskRRName     string                     `json:"task_id"`
+	TaskRRName     string                     `json:"task_rr_name"`
 	Status         string                     `json:"status"`
 	FailureType    proto.TaskFailureType_Type `json:"failure_reason"`
 	FailureMessage string                     `json:"failure_message"`
@@ -308,7 +308,7 @@ func constructPubSubTaskMsg(task *Task) ([]byte, error) {
 	}
 
 	taskMsg := make(map[string]interface{})
-	taskMsg["task_id"] = task.TaskRRStruct.String()
+	taskMsg["task_rr_name"] = task.TaskRRStruct.String()
 	taskMsg["task_params"] = taskParams
 	return json.Marshal(taskMsg)
 }
