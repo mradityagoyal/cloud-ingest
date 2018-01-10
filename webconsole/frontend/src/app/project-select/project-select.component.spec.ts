@@ -114,7 +114,7 @@ describe('ProjectSelectComponent', () => {
       queryParams: { project: 'fakeGcsProjectId' }
     };
     component.onProjectSelectSubmit();
-    expect(navigateSpy).toHaveBeenCalledWith(['/infrastructure'], fakeNavigationExtras);
+    expect(navigateSpy).toHaveBeenCalledWith(['/jobs'], fakeNavigationExtras);
   }));
 
 });

@@ -67,6 +67,6 @@ export class ProjectSelectComponent {
     const navigationExtras: NavigationExtras = {
       queryParams: { project: this.gcsProjectId }
     };
-    this.router.navigate(['/infrastructure'], navigationExtras);
+    this.router.navigate(['/jobs'], navigationExtras);
   }
 }

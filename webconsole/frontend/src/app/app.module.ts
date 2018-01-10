@@ -8,7 +8,6 @@ import { AppComponent } from './app.component';
 import { AuthInterceptor } from './auth/auth-interceptor';
 import { AuthService } from './auth/auth.service';
 import { AppRoutingModule } from './app-routing.module';
-import { InfrastructureModule } from './infrastructure/infrastructure.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ProjectSelectComponent } from './project-select/project-select.component';
 import { LogsComponent } from './logs/logs.component';
@@ -27,7 +26,6 @@ import { LogsComponent } from './logs/logs.component';
     ReactiveFormsModule,
     AngularMaterialImporterModule,
     JobsModule,
-    InfrastructureModule,
     AppRoutingModule
   ],
   providers: [

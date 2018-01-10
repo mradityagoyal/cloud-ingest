@@ -41,6 +41,7 @@ from mock import patch
 from googleapiclient import discovery
 
 import main
+from create_infra import constants
 from proto import tasks_pb2
 from spannerwrapper import SpannerWrapper
 from proto.tasks_pb2 import TaskFailureType
@@ -252,9 +253,11 @@ class TestMain(unittest.TestCase):
         # Start the patchers used in all the tests.
         self.spanner_mock_patcher = patch('spannerwrapper.spanner')
         self.spanner_mock = self.spanner_mock_patcher.start()
+        self.credentials_mock = MagicMock()
         (self.
          get_credentials_mock_patcher) = patch.object(main, '_get_credentials')
         self.get_credentials_mock = self.get_credentials_mock_patcher.start()
+        self.get_credentials_mock.return_value = self.credentials_mock
         # Start discovery patcher
         self.discovery_patcher = patch.object(main, 'discovery',
             spec=discovery)
@@ -291,6 +294,32 @@ class TestMain(unittest.TestCase):
             """
             trans_function(self.mock_transaction, *args)
         self.mock_database.run_in_transaction = run_in_transaction
+
+    @staticmethod
+    @patch.object(main, 'PubSubBuilder')
+    def test_create_pubsub_not_exists(builder_mock):
+        """Test _create_pubsub_if_not_exists only creates the non existing
+        Pub/Sub topics and subscriptions.
+        """
+        # pylint: disable=protected-access,no-member
+        def pub_sub_exist_mock(topic, _):
+            """Mock for Pub/Sub topic/subscription existance."""
+            if topic == constants.LIST_TOPIC:
+                return False
+            return True
+
+        bldr_object = MagicMock()
+        builder_mock.return_value = bldr_object
+        bldr_object.topic_and_subscriptions_exist.side_effect = (
+            pub_sub_exist_mock)
+
+        main._create_pubsub_if_not_exists("credentials", "project")
+        builder_mock.assert_called_once_with(
+            credentials="credentials", project_id="project")
+        bldr_object.create_topic_and_subscriptions.assert_called_once_with(
+            constants.LIST_TOPIC, [constants.LIST_SUBSCRIPTION],
+            ack_deadline=30)
+        # pylint: enable=protected-access,no-member
 
     @patch.object(main, '_get_credentials')
     def test_error_includes_traceback(self, _get_credentials_mock):
@@ -570,7 +599,8 @@ class TestMain(unittest.TestCase):
         assert (response_json[1][SpannerWrapper.JOB_SPEC] ==
             json.loads(FAKE_JOB_CONFIG_RESPONSE2[SpannerWrapper.JOB_SPEC]))
 
-    def test_post_job_configs(self):
+    @patch.object(main, '_create_pubsub_if_not_exists')
+    def test_post_job_configs(self, create_pubsub_mock):
         """
         <project_id>/jobconfigs POST should create a new job configuration.
         """
@@ -587,6 +617,9 @@ class TestMain(unittest.TestCase):
         assert insert_calls[0][1][0] == SpannerWrapper.JOB_CONFIGS_TABLE
         assert insert_calls[1][1][0] == SpannerWrapper.JOB_RUNS_TABLE
         assert insert_calls[2][1][0] == SpannerWrapper.TASKS_TABLE
+        # Assert that the pubsub is created successfully.
+        create_pubsub_mock.assert_called_once_with(
+            self.credentials_mock, "fakeprojectid")
 
     def test_post_job_configs_error(self):
         """
@@ -799,42 +832,6 @@ class TestMain(unittest.TestCase):
         response = self.app.get('/projects/invalid$projectid/tasks/'
             'invalid#configid/status/' + str(TaskStatus.UNQUEUED) +
             '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
-        response_json = json.loads(response.data)
-
-        assert response.status_code == httplib.BAD_REQUEST
-        assert response_json['error'] is not None
-
-    def test_infra_status_error(self):
-        """
-        /projects/<project_id>/infrastructure-status should return an error if
-        the project id is invalid
-        """
-        response = self.app.get('/projects/invalid<projectid/'
-            'infrastructure-status')
-        response_json = json.loads(response.data)
-
-        assert response.status_code == httplib.BAD_REQUEST
-        assert response_json['error'] is not None
-
-    def test_create_infra_error(self):
-        """
-        /projects/<project_id>/create-infrastructure should return an error if
-        the project id is invalid
-        """
-        response = self.app.post('/projects/invalid*project/'
-            'create-infrastructure')
-        response_json = json.loads(response.data)
-
-        assert response.status_code == httplib.BAD_REQUEST
-        assert response_json['error'] is not None
-
-    def test_tear_infra_error(self):
-        """
-        /projects/<project_id>/tear-down-infrastructure should return an error
-        if the project id is invalid
-        """
-        response = self.app.post('/projects/<project_id>/'
-            'tear-down-infrastructure')
         response_json = json.loads(response.data)
 
         assert response.status_code == httplib.BAD_REQUEST

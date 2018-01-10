@@ -40,9 +40,10 @@ from proto.tasks_pb2 import TaskFailureType
 from proto.tasks_pb2 import TaskStatus
 from googleapiclient import discovery
 
-import infra_util
 import util
 from corsdecorator import crossdomain  # To allow requests from the front-end
+from create_infra import constants
+from create_infra.pubsub_builder import PubSubBuilder
 from spannerwrapper import SpannerWrapper
 
 APP = Flask(__name__)
@@ -183,6 +184,18 @@ _RESOURCE_MANAGER_UPDATE_PERMISSION = 'resourcemanager.projects.update'
 
 _PERMISSIONS = 'permissions'
 
+# The cloud ingest pre-defined topics and subscriptions.
+_TOPICS_SUBSCRIPTIONS = {
+    'list': (constants.LIST_TOPIC,
+             [constants.LIST_SUBSCRIPTION], 30),
+    'listProgress': (constants.LIST_PROGRESS_TOPIC,
+                     [constants.LIST_PROGRESS_SUBSCRIPTION], 30),
+    'copy': (constants.COPY_TOPIC,
+             [constants.COPY_SUBSCRIPTION], 30),
+    'copyProgress': (constants.COPY_PROGRESS_TOPIC,
+                     [constants.COPY_PROGRESS_SUBSCRIPTION], 30),
+}
+
 def _get_credentials():
     """Gets OAuth2 credentials from request Authorization headers."""
     auth_header = request.headers.get('Authorization')
@@ -321,6 +334,17 @@ def _user_has_permission_to_project(credentials, project_id):
             _RESOURCE_MANAGER_GET_PERMISSION in response[_PERMISSIONS] and
             _RESOURCE_MANAGER_UPDATE_PERMISSION in response[_PERMISSIONS])
 
+def _create_pubsub_if_not_exists(credentials, project_id):
+    """Creates project Pub/Sub Topics and subscriptions if they does not exist.
+    """
+    pubsub_bldr = PubSubBuilder(credentials=credentials, project_id=project_id)
+    for key, topic_subscriptions in _TOPICS_SUBSCRIPTIONS.iteritems():
+        if not pubsub_bldr.topic_and_subscriptions_exist(
+            topic_subscriptions[0], topic_subscriptions[1]):
+            pubsub_bldr.create_topic_and_subscriptions(
+                topic_subscriptions[0], topic_subscriptions[1],
+                ack_deadline=topic_subscriptions[2])
+
 @APP.route('/projects/<project_id>/jobconfigs/delete',
            methods=['OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
@@ -380,6 +404,7 @@ def job_configs(project_id):
         error = _get_post_job_configs_error(content)
         if error:
             return jsonify(error), httplib.BAD_REQUEST
+        _create_pubsub_if_not_exists(credentials, project_id)
         job_spec = _get_post_job_configs_job_spec(content)
         spanner_wrapper.create_new_job(content[CONFIG_ID], job_spec)
         return jsonify({}), httplib.OK
@@ -497,60 +522,6 @@ def get_tasks_of_failure_type(project_id, config_id, failure_type):
     tasks = spanner_wrapper.get_tasks_of_failure_type(config_id,
         failure_type_int, last_modified_before)
     return jsonify(_convert_time_to_str(tasks))
-
-@APP.route('/projects/<project_id>/infrastructure-status',
-           methods=['OPTIONS', 'GET'])
-@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def infrastructure_status(project_id):
-    """Gets the ingest infrastructure status.
-
-    Responds with a JSON object contains all the infrastructure component
-    statuses. Each status is a value of type ResourceStatus.
-    """
-    if not _PROJECT_ID_PATTERN.match(project_id):
-        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
-    credentials = _get_credentials()
-    if not _user_has_permission_to_project(credentials=credentials,
-        project_id=project_id):
-        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
-    # TODO(b/65586429): Getting the infrastructure status API may take the
-    # resources (in the request body) to query for.
-    return jsonify(infra_util.infrastructure_status(credentials,
-                                                    project_id))
-
-@APP.route('/projects/<project_id>/create-infrastructure',
-           methods=['OPTIONS', 'POST'])
-@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def create_infrastructure(project_id):
-    """Creates the ingest infrastructure.
-    """
-    if not _PROJECT_ID_PATTERN.match(project_id):
-        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
-    credentials = _get_credentials()
-    if not _user_has_permission_to_project(credentials=credentials,
-        project_id=project_id):
-        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
-
-    infra_util.create_infrastructure(
-        credentials, project_id)
-    return jsonify({})
-
-@APP.route('/projects/<project_id>/tear-down-infrastructure',
-           methods=['OPTIONS', 'POST'])
-@crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
-def tear_infrastructure(project_id):
-    """Tears down the ingest infrastructure.
-    """
-    if not _PROJECT_ID_PATTERN.match(project_id):
-        return jsonify(_PROJECT_ID_FORMAT_ERROR), httplib.BAD_REQUEST
-    credentials = _get_credentials()
-    if not _user_has_permission_to_project(credentials=credentials,
-        project_id=project_id):
-        return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
-    # TODO(b/65754348): Tearing the infrastructure API may take the resources
-    # (in the request body) to tear down.
-    infra_util.tear_infrastructure(credentials, project_id)
-    return jsonify({})
 
 def _get_int_param(get_request, param_name):
     """Returns the int GET parameter named param_name from the given request.
