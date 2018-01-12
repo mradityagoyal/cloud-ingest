@@ -20,6 +20,7 @@ import httplib
 import json
 import unittest
 
+from copy import deepcopy
 from google.cloud import spanner
 from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import Conflict
@@ -39,6 +40,7 @@ from google.cloud.spanner_v1.transaction import Transaction
 from mock import MagicMock
 from mock import patch
 from googleapiclient import discovery
+from random import shuffle
 
 import main
 from create_infra import constants
@@ -265,7 +267,7 @@ class TestMain(unittest.TestCase):
         # Make a cloudresource manager discovery.Resource object
         self.resource_mock = MagicMock(spec=['projects'])
         self.discovery_mock.build.return_value = self.resource_mock
-        self.resource_mock_projects = MagicMock(spec=['testIamPermissions'])
+        self.resource_mock_projects = MagicMock()
         self.mock_projects_request = MagicMock(spec=['execute'])
         (self.resource_mock_projects.testIamPermissions.
          return_value) = self.mock_projects_request
@@ -319,6 +321,129 @@ class TestMain(unittest.TestCase):
         bldr_object.create_topic_and_subscriptions.assert_called_once_with(
             constants.LIST_TOPIC, [constants.LIST_SUBSCRIPTION],
             ack_deadline=30)
+        # pylint: enable=protected-access,no-member
+
+    def test_add_policy_binding(self):
+        """Tests _add_policy_binding adds the binding and returns if it's added.
+        """
+        # pylint: disable=protected-access,no-member
+        policy = {
+            'bindings': [
+                {
+                  'members': ['member1'],
+                  'role': 'role1'
+                },
+                {
+                  'members': ['member1', 'member2'],
+                  'role': 'role2'
+                },
+            ]
+        }
+        # Tests the binding already exists.
+        self.assertFalse(main._add_policy_binding(policy, 'member2', 'role2'))
+
+        # Tests the role exists but does not contain the member.
+        self.assertTrue(main._add_policy_binding(policy, 'member3', 'role2'))
+        self.assertFalse(main._add_policy_binding(policy, 'member3', 'role2'))
+
+        # Tests when the role does not exists.
+        self.assertTrue(main._add_policy_binding(policy, 'member1', 'role3'))
+        self.assertFalse(main._add_policy_binding(policy, 'member1', 'role3'))
+
+        expected_updated_policy = {
+            'bindings': [
+                {
+                  'members': ['member1'],
+                  'role': 'role1'
+                },
+                {
+                  'members': ['member1', 'member2', 'member3'],
+                  'role': 'role2'
+                },
+                {
+                  'members': ['member1'],
+                  'role': 'role3'
+                },
+            ]
+        }
+        self.assertEqual(json.dumps(policy, sort_keys=True),
+            json.dumps(expected_updated_policy, sort_keys=True))
+        # pylint: enable=protected-access,no-member
+
+    def test_grant_sa_permissions(self):
+        """Test _grant_service_account_permissions_if_needed grant the service
+        account the permissions needed.
+        """
+        # pylint: disable=protected-access,no-member
+        get_iam_policy_mock = MagicMock()
+        set_iam_policy_mock = MagicMock()
+        self.resource_mock_projects.getIamPolicy.return_value = (
+            get_iam_policy_mock)
+        self.resource_mock_projects.setIamPolicy.return_value = (
+            set_iam_policy_mock)
+
+        policy = {
+            'bindings': [
+                {
+                  'members': ['member1'],
+                  'role': 'role1'
+                },
+                {
+                  'members': ['member1', 'member2'],
+                  'role': 'role2'
+                },
+            ]
+        }
+
+        expected_updated_policy = deepcopy(policy)
+        for role in main._SERVICE_ACCOUNT_ROLES:
+            expected_updated_policy['bindings'].append({
+                'members': [main._SERVICE_ACCOUNT_MEMBER],
+                'role': role
+                })
+        get_iam_policy_mock.execute.return_value = policy
+        main._grant_service_account_permissions_if_needed(
+            self.credentials_mock, 'fakeprojectid')
+        get_iam_policy_mock.execute.assert_called_once_with()
+        self.resource_mock_projects.setIamPolicy.assert_called_once_with(
+            resource='fakeprojectid', body={'policy': expected_updated_policy})
+        set_iam_policy_mock.execute.assert_called_once_with()
+        # pylint: enable=protected-access,no-member
+
+    def test_not_grant_sa_permissions(self):
+        """Test _grant_service_account_permissions_if_needed find that the
+        service account has the right permissions and does not update the
+        policy.
+        """
+        # pylint: disable=protected-access,no-member
+        get_iam_policy_mock = MagicMock()
+        self.resource_mock_projects.getIamPolicy.return_value = (
+            get_iam_policy_mock)
+
+        policy = {
+            'bindings': [
+                {
+                  'members': ['member1'],
+                  'role': 'role1'
+                },
+                {
+                  'members': ['member1', 'member2'],
+                  'role': 'role2'
+                },
+            ]
+        }
+        for role in main._SERVICE_ACCOUNT_ROLES:
+            policy['bindings'].append({
+                'members': [main._SERVICE_ACCOUNT_MEMBER],
+                'role': role
+                })
+        shuffle(policy['bindings'])
+
+        get_iam_policy_mock.execute.return_value = policy
+        main._grant_service_account_permissions_if_needed(
+            self.credentials_mock, 'fakeprojectid')
+        get_iam_policy_mock.execute.assert_called_once_with()
+        self.resource_mock_projects.setIamPolicy.assert_not_called()
         # pylint: enable=protected-access,no-member
 
     @patch.object(main, '_get_credentials')
@@ -600,7 +725,8 @@ class TestMain(unittest.TestCase):
             json.loads(FAKE_JOB_CONFIG_RESPONSE2[SpannerWrapper.JOB_SPEC]))
 
     @patch.object(main, '_create_pubsub_if_not_exists')
-    def test_post_job_configs(self, create_pubsub_mock):
+    @patch.object(main, '_grant_service_account_permissions_if_needed')
+    def test_post_job_configs(self, grant_sa_perm_mock, create_pubsub_mock):
         """
         <project_id>/jobconfigs POST should create a new job configuration.
         """
@@ -619,6 +745,8 @@ class TestMain(unittest.TestCase):
         assert insert_calls[2][1][0] == SpannerWrapper.TASKS_TABLE
         # Assert that the pubsub is created successfully.
         create_pubsub_mock.assert_called_once_with(
+            self.credentials_mock, "fakeprojectid")
+        grant_sa_perm_mock.assert_called_once_with(
             self.credentials_mock, "fakeprojectid")
 
     def test_post_job_configs_error(self):

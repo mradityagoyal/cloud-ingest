@@ -2,3 +2,4 @@ DEBUG=False
 CLIENT='https://cloud-ingest-test.appspot.com'
 SPANNER_INSTANCE='cloud-ingest-spanner-instance'
 SPANNER_DATABASE='cloud-ingest-database'
+HOST_PROJECT='test-project'

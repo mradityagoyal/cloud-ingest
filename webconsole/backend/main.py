@@ -28,6 +28,7 @@ import traceback
 from flask import Flask
 from flask import jsonify
 from flask import request
+from google import auth
 from google.cloud.exceptions import BadRequest
 from google.cloud.exceptions import Conflict
 from google.cloud.exceptions import Forbidden
@@ -39,6 +40,7 @@ from google.oauth2.credentials import Credentials
 from proto.tasks_pb2 import TaskFailureType
 from proto.tasks_pb2 import TaskStatus
 from googleapiclient import discovery
+import googleapiclient
 
 import util
 from corsdecorator import crossdomain  # To allow requests from the front-end
@@ -49,6 +51,19 @@ from spannerwrapper import SpannerWrapper
 APP = Flask(__name__)
 APP.config.from_pyfile('ingestwebconsole.default_settings')
 APP.config.from_envvar('INGEST_CONFIG_PATH')
+
+# The project hosting the ingest infrastructure.
+_HOST_PROJECT = (APP.config['HOST_PROJECT'] if APP.config.get('HOST_PROJECT')
+    else auth.default()[1])
+# Service account IAM member used by the DCP workers.
+_SERVICE_ACCOUNT_MEMBER = (
+    "serviceAccount:cloud-ingest-dcp@%s.iam.gserviceaccount.com" % _HOST_PROJECT)
+
+# Required to roles for the DCP service account member.
+_SERVICE_ACCOUNT_ROLES = [
+    'roles/pubsub.admin',
+    'roles/storage.objectAdmin'
+]
 
 # Allowed headers in cross-site http requests.
 _ALLOWED_HEADERS = ['Content-Type', 'Authorization']
@@ -345,6 +360,62 @@ def _create_pubsub_if_not_exists(credentials, project_id):
                 topic_subscriptions[0], topic_subscriptions[1],
                 ack_deadline=topic_subscriptions[2])
 
+def _add_policy_binding(policy, member, role):
+    """Add IAM policy binding for a member to a role. It returns False if the
+    binding already exists, or True if it's newly added to the policy. Example
+    of a policy object:
+    {
+      "bindings": [
+        {
+          "role": "roles/owner",
+          "members": [
+            "user:mike@example.com",
+            "group:admins@example.com",
+            "domain:google.com",
+            "serviceAccount:my-other-app@appspot.gserviceaccount.com",
+          ]
+        },
+        {
+          "role": "roles/viewer",
+          "members": ["user:sean@example.com"]
+        }
+      ]
+    }
+    More details about Policy object spec cab be found at: 
+    https://cloud.google.com/iam/reference/rest/v1/Policy
+    """
+    # TODO(b/71875048): We may be more smart about checking the permissions. For
+    # example, if the member have project.owner, it's inherently have
+    # everything, and hence we do not need to grant specific permissions.
+    for binding in policy['bindings']:
+        if binding['role'] == role:
+            if member in set(binding['members']):
+                return False
+            binding['members'].append(member)
+            return True
+    policy['bindings'].append({
+        'role': role,
+        'members': [member]
+        })
+    return True
+
+def _grant_service_account_permissions_if_needed(credentials, project_id):
+    """Checks if the host project service account has the right permissions to
+    the project_id. If not, it will grant it.
+    """
+    service = discovery.build('cloudresourcemanager', 'v1',
+                              credentials=credentials)
+    policy = service.projects().getIamPolicy(
+        resource=project_id, body={}).execute()
+
+    need_update = False
+    for role in _SERVICE_ACCOUNT_ROLES:
+        if _add_policy_binding(policy, _SERVICE_ACCOUNT_MEMBER, role):
+            need_update = True
+    if need_update:
+        policy = service.projects().setIamPolicy(resource=project_id,
+            body={'policy': policy}).execute()
+
 @APP.route('/projects/<project_id>/jobconfigs/delete',
            methods=['OPTIONS', 'POST'])
 @crossdomain(origin=APP.config['CLIENT'], headers=_ALLOWED_HEADERS)
@@ -405,6 +476,7 @@ def job_configs(project_id):
         if error:
             return jsonify(error), httplib.BAD_REQUEST
         _create_pubsub_if_not_exists(credentials, project_id)
+        _grant_service_account_permissions_if_needed(credentials, project_id)
         job_spec = _get_post_job_configs_job_spec(content)
         spanner_wrapper.create_new_job(content[CONFIG_ID], job_spec)
         return jsonify({}), httplib.OK
