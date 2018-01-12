@@ -24,6 +24,8 @@ SPANNER_DATABASE="cloud-ingest-database"
 PROCESS_LIST_TOPIC="cloud-ingest-process-list"
 PROCESS_LIST_SUBSCRIPTION="$PROCESS_LIST_TOPIC"
 
+DCP_SERVICE_ACCOUNT="cloud-ingest-dcp"
+
 DCP_CLUSTER_NAME="cloud-ingest-dcp-cluster"
 
 usage() {
@@ -73,6 +75,8 @@ parse_params $*
 [ -z "$PROJECT_ID" ] && \
   usage "project id should be set."
 
+DCP_SERVICE_ACCOUNT_EMAIL="$DCP_SERVICE_ACCOUNT@$PROJECT_ID.iam.gserviceaccount.com"
+
 if [ "$TEAR_DOWN" = true ] ; then
   read -p "Are you sure you want to tear down the infrastructure? (y/n) " -r
   if ! [[ $REPLY =~ ^[Yy]$ ]]
@@ -82,6 +86,10 @@ if [ "$TEAR_DOWN" = true ] ; then
 
   echo "Tearing down DCP cluster."
   gcloud container clusters delete "$DCP_CLUSTER_NAME" \
+    --quiet --project="$PROJECT_ID"
+
+  echo "Removing DCP service account."
+  gcloud iam service-accounts delete "$DCP_SERVICE_ACCOUNT_EMAIL" \
     --quiet --project="$PROJECT_ID"
 
   echo "Tearing down Spanner."
@@ -118,11 +126,17 @@ if [ "$CREATE" = true ] ; then
   gcloud pubsub subscriptions create "$PROCESS_LIST_SUBSCRIPTION" \
     --topic "$PROCESS_LIST_TOPIC" --ack-deadline=30 --project="$PROJECT_ID"
 
-  # TODO(b/71719365): Create custom service account and make DCP K8 cluster use
-  # it. Currently it's using the default compute engine service account.
+  echo "Creating the DCP service account."
+  gcloud iam service-accounts create "$DCP_SERVICE_ACCOUNT" \
+    --display-name "Cloud Ingest DCP service account"
+
+  gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:$DCP_SERVICE_ACCOUNT_EMAIL" \
+    --role=roles/editor --no-user-output-enabled
+
   echo "Creating DCP K8 cluster."
-  gcloud container clusters create "$DCP_CLUSTER_NAME" \
-    --project="$PROJECT_ID" --scopes=cloud-platform
+  gcloud container clusters create "$DCP_CLUSTER_NAME" --project="$PROJECT_ID" \
+    --service-account="$DCP_SERVICE_ACCOUNT_EMAIL"
 
   echo "Deploying the DCP container into the cluster."
   kubectl run dcp --image="$DCP_CONTAINER_IMAGE" --replicas=1 \
