@@ -241,8 +241,8 @@ def _create_new_job_transaction(transaction, project_id, config_id, job_spec):
         current_time_nanos, json.dumps(_INITIAL_COUNTERS_DICT))])
     transaction.insert(SpannerWrapper.TASKS_TABLE,
         columns=SpannerWrapper.TASKS_COLUMNS, values=[(project_id, config_id,
-        run_id, list_id, current_time_nanos, current_time_nanos, TaskStatus.UNQUEUED,
-        task_spec_json, TaskType.LIST)])
+        run_id, list_id, current_time_nanos, current_time_nanos,
+        TaskStatus.UNQUEUED, task_spec_json, TaskType.LIST)])
 
 class SpannerWrapper(object):
     """SpannerWrapper class handles all interactions with cloud Spanner.
