@@ -28,19 +28,25 @@ from proto.tasks_pb2 import TaskStatus
 from proto.tasks_pb2 import TaskType
 from proto.tasks_pb2 import JobRunStatus
 
-def _get_params_and_param_types(config_id, run_id=None, num_tasks=None,
-    task_status=None, last_modified_before=None, failure_type=None):
+# pylint: disable=too-many-arguments
+def _get_params_and_param_types(project_id=None, config_id=None, run_id=None,
+    num_tasks=None, task_status=None, last_modified_before=None,
+    failure_type=None):
     """Gets the base parameters and parameter types used in most queries.
 
     Returns:
         A tuple of params and param_types of the specified input parameters.
     """
     params = {
-        "config_id": config_id
     }
     param_types = {
-        "config_id": type_pb2.Type(code=type_pb2.STRING)
     }
+    if project_id is not None:
+        params["project_id"] = project_id
+        param_types["project_id"] = type_pb2.Type(code=type_pb2.STRING)
+    if config_id is not None:
+        params["config_id"] = config_id
+        param_types["config_id"] = type_pb2.Type(code=type_pb2.STRING)
     if run_id is not None:
         params["run_id"] = run_id
         param_types["run_id"] = type_pb2.Type(code=type_pb2.STRING)
@@ -57,6 +63,7 @@ def _get_params_and_param_types(config_id, run_id=None, num_tasks=None,
         params["last_modified_before"] = last_modified_before
         param_types["last_modified_before"] = type_pb2.Type(code=type_pb2.INT64)
     return params, param_types
+# pylint: enable=too-many-arguments
 
 def _get_delible_indelible_configs(config_id_list, rows):
     """Gets a list of delible and indelible configs from the result of the
@@ -72,11 +79,12 @@ def _get_delible_indelible_configs(config_id_list, rows):
             delible_configs.append(config_id_list[i])
     return delible_configs, indelible_configs
 
-def _get_all_tasks_in_progress(config_id_list):
+def _get_all_tasks_in_progress(project_id, config_id_list):
     """Gets a string query that returns the number of tasks in progress for
        each config in config_id_list.
 
     Args:
+        project_id: The project id used in the query.
         config_id_list: The list of job config ids to build the query from.
     Returns:
         1) A string query that has one row per config_id_list. Each row has the
@@ -84,8 +92,7 @@ def _get_all_tasks_in_progress(config_id_list):
         2) The params for the query
         3) The param_types for the query
     """
-    params = {}
-    param_types = {}
+    params, param_types = _get_params_and_param_types(project_id=project_id)
     query = ''
     for i, config_id in enumerate(config_id_list):
         query += _get_tasks_in_progress_query(config_id, params, param_types, i)
@@ -93,13 +100,14 @@ def _get_all_tasks_in_progress(config_id_list):
             query = query + '\nUNION ALL\n'
     return query, params, param_types
 
-def _delete_job_configs_transaction(transaction, config_id_list,
+def _delete_job_configs_transaction(transaction, project_id, config_id_list,
     transaction_read_result):
     """Reads the tasks in each job configuration, and deletes a job
        configuration if it has no tasks in progress.
 
     Args:
         transaction: The transaction to operate with.
+        project_id: The project id of the configs to delete.
         config_id_list: The list of job configurations to try to delete.
         transaction_read_result: A dictionary with fields 'delible_configs' and
             'indelible_configs'. The function populates these fields with what
@@ -110,7 +118,7 @@ def _delete_job_configs_transaction(transaction, config_id_list,
         ValueError if there are no job configurations to delete.
     """
     query, params, param_types = \
-        _get_all_tasks_in_progress(config_id_list)
+        _get_all_tasks_in_progress(project_id, config_id_list)
     result = \
         transaction.execute_sql(query, params=params, param_types=param_types)
     result.consume_all()
@@ -120,7 +128,7 @@ def _delete_job_configs_transaction(transaction, config_id_list,
     transaction_read_result['indelible_configs'] = indelible_configs
     if delible_configs:
         # Put keys in a list of lists, the expected keyset format.
-        keyset_keys = [[config_id] for config_id in delible_configs]
+        keyset_keys = [[project_id, config_id] for config_id in delible_configs]
         transaction.delete(SpannerWrapper.JOB_CONFIGS_TABLE,
                             keyset=spanner.KeySet(keys=keyset_keys))
 
@@ -144,11 +152,23 @@ def _get_tasks_in_progress_query(config_id, params, param_types, counter):
     """
     config_id_param = '@config_' + str(counter)
     config_id_key = 'config_' + str(counter)
-    query = ('SELECT COUNT(*) AS tasks_in_progress_count FROM {0} '
-            'WHERE {1} = {2} AND  ({3} = {4} OR {3} = {5})').format(
-            SpannerWrapper.TASKS_TABLE, SpannerWrapper.JOB_CONFIG_ID,
-            config_id_param, SpannerWrapper.STATUS, TaskStatus.QUEUED,
-            TaskStatus.UNQUEUED)
+    query = """
+        SELECT COUNT(*) AS tasks_in_progress_count FROM %(tasks_table)s
+        WHERE %(project_id_col)s = @project_id AND
+            %(config_id_col)s = %(config_id_param)s AND
+            (
+                %(status_col)s = %(status_queued)d OR
+                %(status_col)s = %(status_unqueued)d
+            )
+        """ % {
+            'tasks_table': SpannerWrapper.TASKS_TABLE,
+            'project_id_col': SpannerWrapper.PROJECT_ID,
+            'config_id_col': SpannerWrapper.JOB_CONFIG_ID,
+            'config_id_param': config_id_param,
+            'status_col': SpannerWrapper.STATUS,
+            'status_queued': TaskStatus.QUEUED,
+            'status_unqueued': TaskStatus.UNQUEUED
+        }
     params[config_id_key] = config_id
     param_types[config_id_key] = type_pb2.Type(code=type_pb2.STRING)
     return query
@@ -156,10 +176,11 @@ def _get_tasks_in_progress_query(config_id, params, param_types, counter):
 def _get_tasks_of_status_base_query():
     """Gets the base query to get the task status.
     """
-    return (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @config_id "
-             "AND %s = @run_id AND %s = @task_status ") %
+    return (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @project_id "
+             "AND %s = @config_id AND %s = @run_id AND %s = @task_status ") %
             (SpannerWrapper.TASKS_TABLE,
              SpannerWrapper.TASK_BY_STATUS_INDEX_NAME,
+             SpannerWrapper.PROJECT_ID,
              SpannerWrapper.JOB_CONFIG_ID,
              SpannerWrapper.JOB_RUN_ID,
              SpannerWrapper.STATUS))
@@ -296,27 +317,27 @@ class SpannerWrapper(object):
         Args:
             credentials: The OAuth2 Credentials to use to create spanner
                          instance.
-            project_id: The cloud ingest project id.
+            project_id: The cloud ingest project id hosting Spanner instance.
             instance_id: The id of the Cloud Spanner instance.
             database_id: The id of the Cloud Spanner instance.
         """
-        self.project_id = project_id
-        self.instance_id = instance_id
-        self.database_id = database_id
         self.spanner_client = spanner.Client(credentials=credentials,
                                              project=project_id)
         # Get a Cloud Spanner instance by ID.
-        self.instance = self.spanner_client.instance(instance_id)
+        instance = self.spanner_client.instance(instance_id)
 
         # Get a Cloud Spanner database by ID.
-        self.database = self.instance.database(database_id)
+        self.database = instance.database(database_id)
 
         self.session_pool = spanner.BurstyPool()
         self.session_pool.bind(self.database)
 
-    def get_job_configs(self):
+    def get_job_configs(self, project_id):
         """Retrieves all job configs from Cloud Spanner, along with the
            information of the latest job run.
+
+        Args:
+            project_id: The project id to get the job configs.
 
         Returns:
             A list containing the retrieved job configs in JSON format.
@@ -324,37 +345,56 @@ class SpannerWrapper(object):
         # This query assumes that the job creation time will be unique. If the
         # job creation time is not unique, two rows might be returned with the
         # same config id.
-        query = ('SELECT * FROM {0} JOIN {1} ON {0}.{2} = {1}.{2} WHERE {3} IN '
-                 '(SELECT MAX({3}) FROM {0} GROUP BY {2})').format(
-                   SpannerWrapper.JOB_RUNS_TABLE,
-                   SpannerWrapper.JOB_CONFIGS_TABLE,
-                   SpannerWrapper.JOB_CONFIG_ID,
-                   SpannerWrapper.JOB_CREATION_TIME)
-        return self.list_query(query)
+        query = """
+            SELECT * FROM %(runs_table)s JOIN %(configs_table)s 
+            ON %(runs_table)s.%(project_id_col)s = @project_id AND
+                %(runs_table)s.%(project_id_col)s = 
+                %(configs_table)s.%(project_id_col)s AND 
+                %(runs_table)s.%(config_id_col)s = 
+                %(configs_table)s.%(config_id_col)s 
+            WHERE %(creation_time_col)s IN (
+                SELECT MAX(%(creation_time_col)s) FROM %(runs_table)s 
+                WHERE %(runs_table)s.%(project_id_col)s = @project_id
+                GROUP BY %(config_id_col)s
+            )
+            """ % {
+            'runs_table': SpannerWrapper.JOB_RUNS_TABLE,
+            'configs_table': SpannerWrapper.JOB_CONFIGS_TABLE,
+            'project_id_col': SpannerWrapper.PROJECT_ID,
+            'config_id_col': SpannerWrapper.JOB_CONFIG_ID,
+            'creation_time_col': SpannerWrapper.JOB_CREATION_TIME
+        }
 
-    def create_new_job(self, config_id, jobspec):
+        params, param_types = _get_params_and_param_types(project_id=project_id)
+
+        return self.list_query(query, params, param_types)
+
+    def create_new_job(self, project_id, config_id, jobspec):
         """
         Transactionally creates a new job inserting the new job config, the new
         job run, and a the first list task.
 
         Arguments
+            project_id: The project id to use for the job.
             config_id: The configuration id to use for the job.
             job_spec: A dictionary representing the job spec to use for the job.
         """
         self.database.run_in_transaction(_create_new_job_transaction,
-            self.project_id, config_id, jobspec)
+            project_id, config_id, jobspec)
 
-    def get_tasks_of_status(self, config_id, task_status,
+    def get_tasks_of_status(self, project_id, config_id, task_status,
         last_modified_before=None):
         """Retrieves tasks of the input status for the input job configuration
            and job run.
 
         Args:
+          project_id: The project id.
           config_id: The job configuration id.
           task_status: Get tasks of this status.
           last_modified_before: Retrieves tasks only before this timestamp.
         """
-        params, param_types = _get_params_and_param_types(config_id,
+        params, param_types = _get_params_and_param_types(project_id=project_id,
+            config_id=config_id,
             run_id=_FIRST_JOB_RUN_ID,
             num_tasks=_NUM_OF_TASKS,
             task_status=task_status,
@@ -367,26 +407,29 @@ class SpannerWrapper(object):
             SpannerWrapper.LAST_MODIFICATION_TIME)
         return self.list_query(query, params, param_types)
 
-    def get_tasks_of_failure_type(self, config_id, failure_type,
+    def get_tasks_of_failure_type(self, project_id, config_id, failure_type,
         last_modified_before=None):
         """Retrieves the tasks of the input failure type for the input job
            configuration and job run.
 
         Args:
+          project_id: Th project id.
           config_id: The job configuration id.
           failure_type: Get tasks of this failure type.
           last_modified_before: Timestamp to retrieve tasks before this
               timestamp.
         """
-        params, param_types = _get_params_and_param_types(config_id,
-            run_id=_FIRST_JOB_RUN_ID, num_tasks=_NUM_OF_TASKS,
-            failure_type=failure_type,
+        params, param_types = _get_params_and_param_types(project_id=project_id,
+            config_id=config_id, run_id=_FIRST_JOB_RUN_ID,
+            num_tasks=_NUM_OF_TASKS, failure_type=failure_type,
             last_modified_before=last_modified_before)
 
-        query = (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @config_id "
-                  "AND %s = @run_id AND %s = @failure_type ") %
+        query = (("SELECT * FROM %s@{FORCE_INDEX=%s} WHERE %s = @project_id "
+                  "AND %s = @config_id AND %s = @run_id "
+                  "AND %s = @failure_type ") %
                 (SpannerWrapper.TASKS_TABLE,
                  SpannerWrapper.TASK_BY_STATUS_INDEX_NAME,
+                 SpannerWrapper.PROJECT_ID,
                  SpannerWrapper.JOB_CONFIG_ID,
                  SpannerWrapper.JOB_RUN_ID,
                  SpannerWrapper.FAILURE_TYPE))
@@ -398,10 +441,11 @@ class SpannerWrapper(object):
             % SpannerWrapper.LAST_MODIFICATION_TIME)
         return self.list_query(query, params, param_types)
 
-    def get_job_run(self, config_id, run_id=_FIRST_JOB_RUN_ID):
+    def get_job_run(self, project_id, config_id, run_id=_FIRST_JOB_RUN_ID):
         """Retrieves the job run with the specified job run id.
 
         Args:
+          project_id: The project id of the desired job run.
           config_id: The config id of the desired job run.
           run_id: The job run id of the desired job run.
 
@@ -413,16 +457,31 @@ class SpannerWrapper(object):
                  SpannerWrapper.JOB_RUNS_TABLE,
                  SpannerWrapper.JOB_CONFIGS_TABLE, SpannerWrapper.JOB_CONFIG_ID,
                  SpannerWrapper.JOB_RUN_ID)
-        params, param_types = _get_params_and_param_types(run_id=run_id,
-            config_id=config_id)
+        query = """
+            SELECT * FROM %(runs_table)s JOIN %(configs_table)s
+            ON %(runs_table)s.%(project_id_col)s = @project_id AND
+                %(runs_table)s.%(config_id_col)s = @config_id AND
+                %(runs_table)s.%(run_id_col)s = @run_id AND
+                %(configs_table)s.%(project_id_col)s = @project_id AND
+                %(configs_table)s.%(config_id_col)s = @config_id
+            """ % {
+                'runs_table': SpannerWrapper.JOB_RUNS_TABLE,
+                'configs_table': SpannerWrapper.JOB_CONFIGS_TABLE,
+                'project_id_col': SpannerWrapper.PROJECT_ID,
+                'config_id_col': SpannerWrapper.JOB_CONFIG_ID,
+                'run_id_col': SpannerWrapper.JOB_RUN_ID
+            }
+        params, param_types = _get_params_and_param_types(project_id=project_id,
+            config_id=config_id, run_id=run_id)
         job_run = self.single_result_query(query, params, param_types)
         return job_run
 
-    def delete_job_configs(self, config_id_list):
+    def delete_job_configs(self, project_id, config_id_list):
         """Deletes a list of job configurations. Only deletes a job
            configuration if it doesn't have tasks in progress.
 
         Args:
+          project_id: The project id of the configs to delete.
           config_id_list: The list of job config ids to delete.
         Returns:
           A list of configs that could not be deleted because they had tasks in
@@ -434,7 +493,7 @@ class SpannerWrapper(object):
         }
         try:
             self.database.run_in_transaction(_delete_job_configs_transaction,
-                config_id_list, transaction_read_result)
+                project_id, config_id_list, transaction_read_result)
         except ValueError:
             pass # There was nothing to commit. Do nothing.
         return transaction_read_result

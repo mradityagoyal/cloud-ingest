@@ -52,9 +52,15 @@ APP = Flask(__name__)
 APP.config.from_pyfile('ingestwebconsole.default_settings')
 APP.config.from_envvar('INGEST_CONFIG_PATH')
 
-# The project hosting the ingest infrastructure.
+# Credentials and project id of the hosting project.
+_CREDENTIALS, _HOST_PROJECT = auth.default()
 _HOST_PROJECT = (APP.config['HOST_PROJECT'] if APP.config.get('HOST_PROJECT')
-    else auth.default()[1])
+    else _HOST_PROJECT)
+
+_SPANNER_WRAPPER = SpannerWrapper(
+    _CREDENTIALS, _HOST_PROJECT,
+    APP.config['SPANNER_INSTANCE'], APP.config['SPANNER_DATABASE'])
+
 # Service account IAM member used by the DCP workers.
 _SERVICE_ACCOUNT_MEMBER = (
     "serviceAccount:cloud-ingest-dcp@%s.iam.gserviceaccount.com" % _HOST_PROJECT)
@@ -433,11 +439,7 @@ def delete_job_configs(project_id):
         error = _get_delete_job_configs_error(content)
         if error:
             return jsonify(error), httplib.BAD_REQUEST
-        spanner_wrapper = SpannerWrapper(credentials,
-                                    project_id,
-                                    APP.config['SPANNER_INSTANCE'],
-                                    APP.config['SPANNER_DATABASE'])
-        result = spanner_wrapper.delete_job_configs(content)
+        result = _SPANNER_WRAPPER.delete_job_configs(project_id, content)
         if len(result['indelible_configs']) > 0:
             error = {
                 'error': 'Error deleting jobs',
@@ -463,12 +465,8 @@ def job_configs(project_id):
     if not _user_has_permission_to_project(credentials=credentials,
         project_id=project_id):
         return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
-    spanner_wrapper = SpannerWrapper(credentials,
-                                    project_id,
-                                    APP.config['SPANNER_INSTANCE'],
-                                    APP.config['SPANNER_DATABASE'])
     if request.method == 'GET':
-        configs = spanner_wrapper.get_job_configs()
+        configs = _SPANNER_WRAPPER.get_job_configs(project_id)
         return jsonify(configs)
     elif request.method == 'POST':
         content = request.json
@@ -478,7 +476,8 @@ def job_configs(project_id):
         _create_pubsub_if_not_exists(credentials, project_id)
         _grant_service_account_permissions_if_needed(credentials, project_id)
         job_spec = _get_post_job_configs_job_spec(content)
-        spanner_wrapper.create_new_job(content[CONFIG_ID], job_spec)
+        _SPANNER_WRAPPER.create_new_job(
+            project_id, content[CONFIG_ID], job_spec)
         return jsonify({}), httplib.OK
 
 @APP.route('/projects/<project_id>/jobrun/<config_id>',
@@ -508,11 +507,7 @@ def get_job_run(project_id, config_id):
         return jsonify(_NO_ACCESS_TO_PROJECT_ERROR), httplib.FORBIDDEN
     if not _CONFIG_ID_PATTERN.match(config_id):
         return jsonify(_CONFIG_FORMAT_ERROR), httplib.BAD_REQUEST
-    spanner_wrapper = SpannerWrapper(credentials,
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
-    result = spanner_wrapper.get_job_run(config_id)
+    result = _SPANNER_WRAPPER.get_job_run(project_id, config_id)
     if not result:
         return jsonify(_CONFIG_NOT_FOUND_ERROR), httplib.NOT_FOUND
     return jsonify(result), httplib.OK
@@ -548,12 +543,8 @@ def get_tasks_of_status(project_id, config_id, task_status):
         task_status_int)
     if error:
         return jsonify(error), httplib.BAD_REQUEST
-    spanner_wrapper = SpannerWrapper(credentials,
-                                    project_id,
-                                    APP.config['SPANNER_INSTANCE'],
-                                    APP.config['SPANNER_DATABASE'])
-    tasks = spanner_wrapper.get_tasks_of_status(config_id, task_status_int,
-        last_modified_before)
+    tasks = _SPANNER_WRAPPER.get_tasks_of_status(project_id, config_id,
+        task_status_int, last_modified_before)
     return jsonify(_convert_time_to_str(tasks))
 
 @APP.route(
@@ -587,11 +578,7 @@ def get_tasks_of_failure_type(project_id, config_id, failure_type):
         failure_type_int)
     if error:
         return jsonify(error), httplib.BAD_REQUEST
-    spanner_wrapper = SpannerWrapper(credentials,
-                                     project_id,
-                                     APP.config['SPANNER_INSTANCE'],
-                                     APP.config['SPANNER_DATABASE'])
-    tasks = spanner_wrapper.get_tasks_of_failure_type(config_id,
+    tasks = _SPANNER_WRAPPER.get_tasks_of_failure_type(project_id, config_id,
         failure_type_int, last_modified_before)
     return jsonify(_convert_time_to_str(tasks))
 

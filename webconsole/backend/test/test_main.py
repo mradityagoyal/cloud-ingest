@@ -297,6 +297,14 @@ class TestMain(unittest.TestCase):
             trans_function(self.mock_transaction, *args)
         self.mock_database.run_in_transaction = run_in_transaction
 
+        # pylint: disable=protected-access
+        # Re-initialize the spanner wrapper to get the mock in effect.
+        main._SPANNER_WRAPPER = SpannerWrapper(
+            main._CREDENTIALS, main._HOST_PROJECT,
+            main.APP.config['SPANNER_INSTANCE'],
+            main.APP.config['SPANNER_DATABASE'])
+        # pylint: enable=protected-access
+
     @staticmethod
     @patch.object(main, 'PubSubBuilder')
     def test_create_pubsub_not_exists(builder_mock):
