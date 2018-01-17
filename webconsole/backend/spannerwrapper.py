@@ -24,6 +24,7 @@ from google.cloud.spanner_v1.proto import type_pb2
 
 import util
 from gaxerrordecorator import handle_common_gax_errors
+from create_infra import constants
 from proto.tasks_pb2 import TaskStatus
 from proto.tasks_pb2 import TaskType
 from proto.tasks_pb2 import JobRunStatus
@@ -250,6 +251,13 @@ def _create_new_job_transaction(transaction, project_id, config_id, job_spec):
         config_id))
     job_spec_json = json.dumps(job_spec)
     current_time_nanos = util.get_unix_nano()
+    transaction.insert_or_update(SpannerWrapper.PROJECTS_TABLE,
+        columns=SpannerWrapper.PROJECTS_COLUMNS,
+        values=[(
+            project_id, constants.LIST_TOPIC, constants.COPY_TOPIC,
+            constants.LIST_PROGRESS_SUBSCRIPTION,
+            constants.COPY_PROGRESS_SUBSCRIPTION
+        )])
     transaction.insert(SpannerWrapper.JOB_CONFIGS_TABLE,
         columns=SpannerWrapper.JOB_CONFIGS_COLUMNS,
         values=[(project_id, config_id, job_spec_json)])
@@ -274,6 +282,17 @@ class SpannerWrapper(object):
         NotFound - Allowed to access the Spanner resource, but it doesn't exist
         Unauthorized - Not properly authorized
     """
+    PROJECTS_TABLE = "Projects"
+    PROJECT_ID = "ProjectId"
+    LIST_TOPIC_ID = "ListTopicId"
+    COPY_TOPIC_ID = "CopyTopicId"
+    LIST_PROGRESS_SUB_ID = "ListProgressSubscriptionId"
+    COPY_PROGRESS_SUB_ID = "CopyProgressSubscriptionId"
+    PROJECTS_COLUMNS = [
+        PROJECT_ID, LIST_TOPIC_ID, COPY_TOPIC_ID,
+        LIST_PROGRESS_SUB_ID, COPY_PROGRESS_SUB_ID
+    ]
+
     JOB_CONFIGS_TABLE = "JobConfigs"
     PROJECT_ID = "ProjectId"
     JOB_CONFIG_ID = "JobConfigId"

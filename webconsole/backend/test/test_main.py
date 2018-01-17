@@ -1,3 +1,4 @@
+# pylint: disable=too-many-lines
 # -*- coding: utf-8 -*-
 # Copyright 2017 Google Inc. All Rights Reserved.
 #
@@ -12,6 +13,7 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License
+
 """Unit tests for main.py
 
 Includes unit tests for the flask routes on main.py.
@@ -37,7 +39,9 @@ from google.cloud.spanner_v1.session import Session
 from google.cloud.spanner_v1.snapshot import Snapshot
 from google.cloud.spanner_v1.streamed import StreamedResultSet
 from google.cloud.spanner_v1.transaction import Transaction
+from mock import ANY
 from mock import MagicMock
+from mock import call
 from mock import patch
 from googleapiclient import discovery
 from random import shuffle
@@ -744,13 +748,31 @@ class TestMain(unittest.TestCase):
                              'fileSystemDirectory': '/fake/on/prem/dir'}),
                              content_type='application/json')
 
-        insert_calls = self.mock_transaction.insert.mock_calls
+        self.mock_transaction.insert_or_update.assert_called_once_with(
+            SpannerWrapper.PROJECTS_TABLE,
+            columns=SpannerWrapper.PROJECTS_COLUMNS,
+            values=[(
+                "fakeprojectid", constants.LIST_TOPIC, constants.COPY_TOPIC,
+                constants.LIST_PROGRESS_SUBSCRIPTION,
+                constants.COPY_PROGRESS_SUBSCRIPTION
+            )])
 
-        # Assert that it inserts the first list task, a job config and a job
-        # run in their tables.
-        assert insert_calls[0][1][0] == SpannerWrapper.JOB_CONFIGS_TABLE
-        assert insert_calls[1][1][0] == SpannerWrapper.JOB_RUNS_TABLE
-        assert insert_calls[2][1][0] == SpannerWrapper.TASKS_TABLE
+        calls = [
+            call(SpannerWrapper.JOB_CONFIGS_TABLE,
+                columns=SpannerWrapper.JOB_CONFIGS_COLUMNS,
+                values=ANY),
+            call(
+                SpannerWrapper.JOB_RUNS_TABLE,
+                columns=SpannerWrapper.JOB_RUNS_COLUMNS,
+                values=ANY),
+            call(
+                SpannerWrapper.TASKS_TABLE,
+                columns=SpannerWrapper.TASKS_COLUMNS,
+                values=ANY)
+        ]
+        self.assertEqual(len(self.mock_transaction.insert.mock_calls), 3)
+        self.mock_transaction.insert.assert_has_calls(calls)
+
         # Assert that the pubsub is created successfully.
         create_pubsub_mock.assert_called_once_with(
             self.credentials_mock, "fakeprojectid")
