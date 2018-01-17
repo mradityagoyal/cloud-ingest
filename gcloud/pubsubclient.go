@@ -31,14 +31,25 @@ type PS interface {
 type PSTopic interface {
 	Publish(ctx context.Context, msg *pubsub.Message) PSPublishResult
 	Stop()
+	ID() string
+	Delete(ctx context.Context) error
+	Exists(ctx context.Context) (bool, error)
 }
 
 type PSSubscription interface {
 	Receive(ctx context.Context, f func(context.Context, *pubsub.Message)) error
+	ID() string
+	Delete(ctx context.Context) error
+	Config(ctx context.Context) (PSSubscriptionConfig, error)
+	Exists(ctx context.Context) (bool, error)
 }
 
 type PSPublishResult interface {
 	Get(ctx context.Context) (serverID string, err error)
+}
+
+type PSSubscriptionConfig interface {
+	Topic() PSTopic
 }
 
 type PubSubClient struct {
@@ -59,6 +70,14 @@ type PubSubPublishResult struct {
 
 type PubSubTopicWrapper struct {
 	topic *pubsub.Topic
+}
+
+type PubSubSubscriptionWrapper struct {
+	sub *pubsub.Subscription
+}
+
+type PubSubSubscriptionConfig struct {
+	topic PSTopic
 }
 
 func NewPubSubClient(client *pubsub.Client) *PubSubClient {
@@ -82,6 +101,48 @@ func (w *PubSubTopicWrapper) Stop() {
 	w.topic.Stop()
 }
 
+func (w *PubSubTopicWrapper) ID() string {
+	return w.topic.ID()
+}
+
+func (w *PubSubTopicWrapper) Delete(ctx context.Context) error {
+	return w.topic.Delete(ctx)
+}
+
+func (w *PubSubTopicWrapper) Exists(ctx context.Context) (bool, error) {
+	return w.topic.Exists(ctx)
+}
+
+// NewPubSubSubscriptionWrapper wraps a pubsub.Subscription to ensure its Config function
+// can return mock results
+func NewPubSubSubscriptionWrapper(s *pubsub.Subscription) *PubSubSubscriptionWrapper {
+	return &PubSubSubscriptionWrapper{s}
+}
+
+func (w *PubSubSubscriptionWrapper) Receive(ctx context.Context, f func(context.Context, *pubsub.Message)) error {
+	return w.sub.Receive(ctx, f)
+}
+
+func (w *PubSubSubscriptionWrapper) ID() string {
+	return w.sub.ID()
+}
+
+func (w *PubSubSubscriptionWrapper) Delete(ctx context.Context) error {
+	return w.sub.Delete(ctx)
+}
+
+func (w *PubSubSubscriptionWrapper) Config(ctx context.Context) (PSSubscriptionConfig, error) {
+	config, err := w.sub.Config(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &PubSubSubscriptionConfig{topic: NewPubSubTopicWrapper(config.Topic)}, nil
+}
+
+func (w *PubSubSubscriptionWrapper) Exists(ctx context.Context) (bool, error) {
+	return w.sub.Exists(ctx)
+}
+
 func (c *PubSubClient) TopicInProject(id, projectID string) PSTopic {
 	return NewPubSubTopicWrapper(c.client.TopicInProject(id, projectID))
 }
@@ -98,14 +159,54 @@ func (t *PubSubTopic) Stop() {
 	t.Stop()
 }
 
+func (t *PubSubTopic) ID() string {
+	return t.ID()
+}
+
+func (t *PubSubTopic) Delete(ctx context.Context) error {
+	return t.Delete(ctx)
+}
+
+func (t *PubSubTopic) Exists(ctx context.Context) (bool, error) {
+	return t.Exists(ctx)
+}
+
 func (c *PubSubClient) Subscription(id string) PSSubscription {
-	return c.client.Subscription(id)
+	return NewPubSubSubscriptionWrapper(c.client.Subscription(id))
 }
 
 func (s *PubSubSubscription) Receive(ctx context.Context, f func(context.Context, *pubsub.Message)) error {
 	return s.Receive(ctx, f)
 }
 
+func (s *PubSubSubscription) ID() string {
+	return s.ID()
+}
+
+func (s *PubSubSubscription) Delete(ctx context.Context) error {
+	return s.Delete(ctx)
+}
+
+func (s *PubSubSubscription) Config(ctx context.Context) (PSSubscriptionConfig, error) {
+	config, err := s.Config(ctx)
+	if err != nil {
+		return nil, err
+	}
+	return &PubSubSubscriptionConfig{topic: config.Topic()}, nil
+}
+
+func (s *PubSubSubscription) Exists(ctx context.Context) (bool, error) {
+	return s.Exists(ctx)
+}
+
 func (p *PubSubPublishResult) Get(ctx context.Context) (serverID string, err error) {
 	return p.Get(ctx)
+}
+
+func NewPubSubSubscriptionConfig(topic PSTopic) PSSubscriptionConfig {
+	return &PubSubSubscriptionConfig{topic: topic}
+}
+
+func (c *PubSubSubscriptionConfig) Topic() PSTopic {
+	return c.topic
 }

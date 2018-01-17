@@ -13,12 +13,6 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-/*
-Package dcp contains all the objects definition and the logic necessary for the
-data control plane (dcp). DCP is responsible for managing the whole lifecyle of
-transfers and so managing the transfer jobs and the tasks associated with them,
-and provide a monitoring capabilities for the transfers.
-*/
 // TODO(b/63026027): Design a proper way of logging. Currently, everything is
 // printed to stdout.
 package dcp

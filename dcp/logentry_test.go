@@ -70,7 +70,7 @@ func TestInsertLogEntryMutation(t *testing.T) {
 		})
 
 	if !reflect.DeepEqual(mutations[0], test_mutation) {
-		t.Errorf("Generated mutation doesn't match test mutation,\n%s\nvs\n%s\n",
+		t.Errorf("Generated mutation doesn't match test mutation,\n%v\nvs\n%v\n",
 			mutations[0], test_mutation)
 	}
 }
@@ -276,7 +276,7 @@ func TestSanitizeFailureMessage(t *testing.T) {
 	s := "This test's string is unsanitized.\nHow shameful!\n\n'!'\n"
 	s = sanitizeFailureMessage(s)
 	if s != "This test`s string is unsanitized.\\nHow shameful!\\n\\n`!`\\n" {
-		t.Errorf("String not correctly sanitized:", s)
+		t.Errorf("String not correctly sanitized: %s", s)
 	}
 }
 
@@ -299,6 +299,6 @@ func TestLogEntryRowStringer(t *testing.T) {
 		t.Errorf("Expected l.String to be\n%s\ninstead got\n%s", lExpectedString, lString)
 	}
 	if count := strings.Count(lString, "UNUSED"); count > 0 {
-		t.Errorf("Expected no instances of 'UNUSED' in log entry string, found:", count)
+		t.Errorf("Expected no instances of 'UNUSED' in log entry string, found: %d", count)
 	}
 }

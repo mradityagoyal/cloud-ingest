@@ -34,6 +34,7 @@ type FakeStore struct {
 	logEntryRows   []*LogEntryRow
 	listProgSubMap map[string]string
 	copyProgSubMap map[string]string
+	unusedProjects []*ProjectInfo
 }
 
 func (s *FakeStore) GetJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobSpec, error) {
@@ -123,6 +124,40 @@ func (s *FakeStore) MarkLogsAsProcessed(logEntryRows []*LogEntryRow) error {
 		}
 		if !foundEntry {
 			return errors.New("LogEntryRow to mark as processed not found.")
+		}
+	}
+	return nil
+}
+
+func minInt(x, y int) int {
+	if x < y {
+		return x
+	}
+	return y
+}
+
+func (s *FakeStore) GetUnusedProjects(n int) ([]*ProjectInfo, error) {
+	if s.unusedProjects != nil {
+		return s.unusedProjects[:minInt(len(s.unusedProjects), n)], nil
+	} else {
+		return nil, errors.New("UnusedProjects uninitialized.")
+	}
+}
+
+func (s *FakeStore) DeleteProjectRow(projectID string) error {
+	// This fake assumes the row is unused (and found in the unused projects table)
+	if s.unusedProjects == nil {
+		return errors.New("UnusedProjects uninitialized.")
+	} else {
+		matchingIndex := -1
+		for index, pid := range s.unusedProjects {
+			if pid.ProjectID == projectID {
+				matchingIndex = index
+			}
+		}
+		if matchingIndex != -1 {
+			s.unusedProjects = append(
+				s.unusedProjects[:matchingIndex], s.unusedProjects[matchingIndex+1:]...)
 		}
 	}
 	return nil

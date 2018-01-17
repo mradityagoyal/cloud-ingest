@@ -115,6 +115,43 @@ func (mr *MockPSTopicMockRecorder) Stop() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockPSTopic)(nil).Stop))
 }
 
+// ID mocks base method
+func (m *MockPSTopic) ID() string {
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ID indicates an expected call of ID
+func (mr *MockPSTopicMockRecorder) ID() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockPSTopic)(nil).ID))
+}
+
+// Delete mocks base method
+func (m *MockPSTopic) Delete(ctx context.Context) error {
+	ret := m.ctrl.Call(m, "Delete", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete
+func (mr *MockPSTopicMockRecorder) Delete(ctx interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPSTopic)(nil).Delete), ctx)
+}
+
+// Exists mocks base method
+func (m *MockPSTopic) Exists(ctx context.Context) (bool, error) {
+	ret := m.ctrl.Call(m, "Exists", ctx)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exists indicates an expected call of Exists
+func (mr *MockPSTopicMockRecorder) Exists(ctx interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPSTopic)(nil).Exists), ctx)
+}
+
 // MockPSSubscription is a mock of PSSubscription interface
 type MockPSSubscription struct {
 	ctrl     *gomock.Controller
@@ -148,6 +185,56 @@ func (m *MockPSSubscription) Receive(ctx context.Context, f func(context.Context
 // Receive indicates an expected call of Receive
 func (mr *MockPSSubscriptionMockRecorder) Receive(ctx, f interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Receive", reflect.TypeOf((*MockPSSubscription)(nil).Receive), ctx, f)
+}
+
+// ID mocks base method
+func (m *MockPSSubscription) ID() string {
+	ret := m.ctrl.Call(m, "ID")
+	ret0, _ := ret[0].(string)
+	return ret0
+}
+
+// ID indicates an expected call of ID
+func (mr *MockPSSubscriptionMockRecorder) ID() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockPSSubscription)(nil).ID))
+}
+
+// Delete mocks base method
+func (m *MockPSSubscription) Delete(ctx context.Context) error {
+	ret := m.ctrl.Call(m, "Delete", ctx)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Delete indicates an expected call of Delete
+func (mr *MockPSSubscriptionMockRecorder) Delete(ctx interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPSSubscription)(nil).Delete), ctx)
+}
+
+// Config mocks base method
+func (m *MockPSSubscription) Config(ctx context.Context) (PSSubscriptionConfig, error) {
+	ret := m.ctrl.Call(m, "Config", ctx)
+	ret0, _ := ret[0].(PSSubscriptionConfig)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Config indicates an expected call of Config
+func (mr *MockPSSubscriptionMockRecorder) Config(ctx interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Config", reflect.TypeOf((*MockPSSubscription)(nil).Config), ctx)
+}
+
+// Exists mocks base method
+func (m *MockPSSubscription) Exists(ctx context.Context) (bool, error) {
+	ret := m.ctrl.Call(m, "Exists", ctx)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Exists indicates an expected call of Exists
+func (mr *MockPSSubscriptionMockRecorder) Exists(ctx interface{}) *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPSSubscription)(nil).Exists), ctx)
 }
 
 // MockPSPublishResult is a mock of PSPublishResult interface
@@ -184,4 +271,39 @@ func (m *MockPSPublishResult) Get(ctx context.Context) (string, error) {
 // Get indicates an expected call of Get
 func (mr *MockPSPublishResultMockRecorder) Get(ctx interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockPSPublishResult)(nil).Get), ctx)
+}
+
+// MockPSSubscriptionConfig is a mock of PSSubscriptionConfig interface
+type MockPSSubscriptionConfig struct {
+	ctrl     *gomock.Controller
+	recorder *MockPSSubscriptionConfigMockRecorder
+}
+
+// MockPSSubscriptionConfigMockRecorder is the mock recorder for MockPSSubscriptionConfig
+type MockPSSubscriptionConfigMockRecorder struct {
+	mock *MockPSSubscriptionConfig
+}
+
+// NewMockPSSubscriptionConfig creates a new mock instance
+func NewMockPSSubscriptionConfig(ctrl *gomock.Controller) *MockPSSubscriptionConfig {
+	mock := &MockPSSubscriptionConfig{ctrl: ctrl}
+	mock.recorder = &MockPSSubscriptionConfigMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockPSSubscriptionConfig) EXPECT() *MockPSSubscriptionConfigMockRecorder {
+	return m.recorder
+}
+
+// Topic mocks base method
+func (m *MockPSSubscriptionConfig) Topic() PSTopic {
+	ret := m.ctrl.Call(m, "Topic")
+	ret0, _ := ret[0].(PSTopic)
+	return ret0
+}
+
+// Topic indicates an expected call of Topic
+func (mr *MockPSSubscriptionConfigMockRecorder) Topic() *gomock.Call {
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Topic", reflect.TypeOf((*MockPSSubscriptionConfig)(nil).Topic))
 }

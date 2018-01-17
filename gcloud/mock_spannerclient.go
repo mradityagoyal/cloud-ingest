@@ -60,6 +60,24 @@ func (mr *MockSpannerMockRecorder) ReadWriteTransaction(ctx, f interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ReadWriteTransaction", reflect.TypeOf((*MockSpanner)(nil).ReadWriteTransaction), ctx, f)
 }
 
+// Apply mocks base method
+func (m *MockSpanner) Apply(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (time.Time, error) {
+	varargs := []interface{}{ctx, ms}
+	for _, a := range opts {
+		varargs = append(varargs, a)
+	}
+	ret := m.ctrl.Call(m, "Apply", varargs...)
+	ret0, _ := ret[0].(time.Time)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Apply indicates an expected call of Apply
+func (mr *MockSpannerMockRecorder) Apply(ctx, ms interface{}, opts ...interface{}) *gomock.Call {
+	varargs := append([]interface{}{ctx, ms}, opts...)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Apply", reflect.TypeOf((*MockSpanner)(nil).Apply), varargs...)
+}
+
 // MockReadOnlyTransaction is a mock of ReadOnlyTransaction interface
 type MockReadOnlyTransaction struct {
 	ctrl     *gomock.Controller

@@ -25,6 +25,7 @@ import (
 type Spanner interface {
 	Single() ReadOnlyTransaction
 	ReadWriteTransaction(ctx context.Context, f func(context.Context, ReadWriteTransaction) error) (time.Time, error)
+	Apply(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error)
 }
 
 type ReadOnlyTransaction interface {
@@ -61,6 +62,10 @@ func (s *SpannerClient) ReadWriteTransaction(ctx context.Context, f func(context
 	return s.client.ReadWriteTransaction(ctx, func(ctx context.Context, txn *spanner.ReadWriteTransaction) error {
 		return f(ctx, &SpannerReadWriteTransaction{txn})
 	})
+}
+
+func (s *SpannerClient) Apply(ctx context.Context, ms []*spanner.Mutation, opts ...spanner.ApplyOption) (commitTimestamp time.Time, err error) {
+	return s.client.Apply(ctx, ms, opts...)
 }
 
 type SpannerReadOnlyTransaction struct {

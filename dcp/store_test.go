@@ -216,3 +216,117 @@ func TestRoundRobinQueueTasksTwoProjectsAndTasks(t *testing.T) {
 
 	tc.RoundRobinQueueTasks(1, mockProcessListTopic, "fakeProjectID")
 }
+
+func TestGetUnusedProjectsReturnMax(t *testing.T) {
+	// Tests that GetUnusedProjects correctly parses Spanner rows and respects return limits.
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockSpanner := gcloud.NewMockSpanner(mockCtrl)
+	mockReadProjectsTransaction := gcloud.NewMockReadOnlyTransaction(mockCtrl)
+
+	tc := &SpannerStore{mockSpanner, nil}
+
+	projectsColumnNames := []string{
+		"ProjectId", "ListTopicId", "CopyTopicId", "ListProgressSubscriptionId",
+		"CopyProgressSubscriptionId"}
+	projectsRow1, _ := spanner.NewRow(
+		projectsColumnNames, []interface{}{"fakeProjectID1", "lt1", "ct1", "ls1", "cs1"})
+	projectsRow2, _ := spanner.NewRow(
+		projectsColumnNames, []interface{}{"fakeProjectID2", "lt2", "ct2", "ls2", "cs2"})
+	projectsRowIterator := gcloud.NewFakeRowIterator([]spanner.Row{*projectsRow1, *projectsRow2})
+
+	mockSpanner.EXPECT().Single().Return(mockReadProjectsTransaction).MaxTimes(1)
+	mockReadProjectsTransaction.EXPECT().Query(gomock.Any(), gomock.Any()).Return(projectsRowIterator).MaxTimes(1)
+
+	projectInfos, err := tc.GetUnusedProjects(2)
+	if err != nil {
+		t.Errorf("GetUnusedProjects returned error: %v", err)
+	} else if len(projectInfos) != 2 {
+		t.Errorf("Expected 2 projectInfos, got %d", len(projectInfos))
+	} else {
+		DeepEqualCompare("GetUnusedProjects",
+			ProjectInfo{
+				ProjectID:                  "fakeProjectID1",
+				ListTopicID:                "lt1",
+				CopyTopicID:                "ct1",
+				ListProgressSubscriptionID: "ls1",
+				CopyProgressSubscriptionID: "cs1",
+			},
+			*projectInfos[0],
+			t)
+		DeepEqualCompare("GetUnusedProjects",
+			ProjectInfo{
+				ProjectID:                  "fakeProjectID2",
+				ListTopicID:                "lt2",
+				CopyTopicID:                "ct2",
+				ListProgressSubscriptionID: "ls2",
+				CopyProgressSubscriptionID: "cs2",
+			},
+			*projectInfos[1],
+			t)
+	}
+}
+
+func TestGetUnusedProjectsReturnFewer(t *testing.T) {
+	// Tests that GetUnusedProjects correctly parses Spanner rows and respects return limits.
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	mockSpanner := gcloud.NewMockSpanner(mockCtrl)
+	mockReadProjectsTransaction := gcloud.NewMockReadOnlyTransaction(mockCtrl)
+
+	tc := &SpannerStore{mockSpanner, nil}
+
+	projectsColumnNames := []string{
+		"ProjectId", "ListTopicId", "CopyTopicId", "ListProgressSubscriptionId",
+		"CopyProgressSubscriptionId"}
+	projectsRow1, _ := spanner.NewRow(
+		projectsColumnNames, []interface{}{"fakeProjectID1", "lt1", "ct1", "ls1", "cs1"})
+	projectsRow2, _ := spanner.NewRow(
+		projectsColumnNames, []interface{}{"fakeProjectID2", "lt2", "ct2", "ls2", "cs2"})
+	projectsRow3, _ := spanner.NewRow(
+		projectsColumnNames, []interface{}{"fakeProjectID3", "lt3", "ct3", "ls3", "cs3"})
+	projectsRowIterator := gcloud.NewFakeRowIterator([]spanner.Row{
+		*projectsRow1, *projectsRow2, *projectsRow3})
+
+	mockSpanner.EXPECT().Single().Return(mockReadProjectsTransaction).MaxTimes(1)
+	mockReadProjectsTransaction.EXPECT().Query(gomock.Any(), gomock.Any()).Return(projectsRowIterator).MaxTimes(1)
+
+	projectInfos, err := tc.GetUnusedProjects(5)
+	if err != nil {
+		t.Errorf("GetUnusedProjects returned error: %v", err)
+	}
+	if len(projectInfos) != 3 {
+		t.Errorf("Expected 3 projectInfos, got %d", len(projectInfos))
+	}
+	DeepEqualCompare("GetUnusedProjects",
+		ProjectInfo{
+			ProjectID:                  "fakeProjectID1",
+			ListTopicID:                "lt1",
+			CopyTopicID:                "ct1",
+			ListProgressSubscriptionID: "ls1",
+			CopyProgressSubscriptionID: "cs1",
+		},
+		*projectInfos[0],
+		t)
+	DeepEqualCompare("GetUnusedProjects",
+		ProjectInfo{
+			ProjectID:                  "fakeProjectID2",
+			ListTopicID:                "lt2",
+			CopyTopicID:                "ct2",
+			ListProgressSubscriptionID: "ls2",
+			CopyProgressSubscriptionID: "cs2",
+		},
+		*projectInfos[1],
+		t)
+	DeepEqualCompare("GetUnusedProjects",
+		ProjectInfo{
+			ProjectID:                  "fakeProjectID3",
+			ListTopicID:                "lt3",
+			CopyTopicID:                "ct3",
+			ListProgressSubscriptionID: "ls3",
+			CopyProgressSubscriptionID: "cs3",
+		},
+		*projectInfos[2],
+		t)
+
+}

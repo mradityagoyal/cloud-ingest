@@ -50,6 +50,9 @@ const (
 	// The max time for checking for new subscriptions or retrying failed
 	// subscriptions in receiver.RoundRobinQueueTasks
 	checkSubscriptionsFrequency time.Duration = 30 * time.Second
+	// The max time for checking for unused projects and cleaning the associated
+	// PubSub resources and Store row(s).
+	cleanUnusedProjectsFrequency time.Duration = 10 * time.Minute
 )
 
 var (
@@ -149,6 +152,14 @@ func main() {
 	go processListReceiver.SingleSubReceiveMessages(ctx, processListSub)
 	go copyReceiver.RoundRobinReceiveMessages(
 		ctx, store.GetCopyProgressSubscriptionsMap, projectID, copyProgressSubscription)
+
+	pubSubCleaner := dcp.PubSubCleaner{
+		PubSubClientFunc: GetPubSubClient,
+		Store:            store,
+	}
+
+	go dcp.DoPeriodically(
+		ctx, helpers.NewClockTicker(cleanUnusedProjectsFrequency), pubSubCleaner.CleanPubSub)
 
 	// The LogEntryProcessor will continuously export logs from the "LogEntries"
 	// Spanner table to GCS.

@@ -39,6 +39,14 @@ const (
 	fallbackCopyTopicID string = "cloud-ingest-copy"
 )
 
+type ProjectInfo struct {
+	ProjectID                  string
+	ListTopicID                string
+	ListProgressSubscriptionID string
+	CopyTopicID                string
+	CopyProgressSubscriptionID string
+}
+
 // Store provides an interface for the backing store that is used by the DCP.
 type Store interface {
 	// GetJobSpec retrieves the JobSpec from the store.
@@ -87,6 +95,14 @@ type Store interface {
 	// GetCopyProgressSubscriptionsMap retrieves a map of Project ID to the copy
 	// progress subscription associated with that project.
 	GetCopyProgressSubscriptionsMap() (map[string]string, error)
+
+	// GetUnusedProjects retrieves up to 'n' projects which have zero associated
+	// JobConfigs.
+	GetUnusedProjects(n int) ([]*ProjectInfo, error)
+
+	// DeleteProjectRow removes the row describing the project from Spanner.
+	// It does *not* verify that the project is unused.
+	DeleteProjectRow(projectID string) error
 }
 
 // TODO(b/63749083): Replace empty context (context.Background) when interacting
@@ -739,6 +755,59 @@ func (s *SpannerStore) getProjectSubscriptionIDMap(columnName string) (map[strin
 		return nil, err
 	}
 	return m, nil
+}
+
+func (s *SpannerStore) GetUnusedProjects(n int) ([]*ProjectInfo, error) {
+	// TODO (b/72227281): This will eventually fail once a sufficiently
+	// large number of projects are in use. Replace it with a model where a
+	// handler in the DCP processes job deletions (and signals for topic cleanup
+	// as necessary).
+	stmt := spanner.Statement{
+		SQL: `SELECT p.ProjectId, p.ListTopicId, p.CopyTopicId,
+		             p.ListProgressSubscriptionId, p.CopyProgressSubscriptionId
+          FROM   Projects AS p LEFT JOIN JobConfigs AS j
+          ON     p.ProjectId = j.ProjectId
+          WHERE  JobConfigId IS NULL
+          LIMIT  @numProjects`,
+		Params: map[string]interface{}{
+			"numProjects": n,
+		},
+	}
+	iter := s.Spanner.Single().Query(context.Background(), stmt)
+	defer iter.Stop()
+	unusedProjectInfos := make([]*ProjectInfo, 0, n)
+	iter.Do(func(row *spanner.Row) error {
+		pi := new(ProjectInfo)
+		if err := row.ColumnByName("ProjectId", &pi.ProjectID); err != nil {
+			return err
+		}
+		if err := row.ColumnByName("ListTopicId", &pi.ListTopicID); err != nil {
+			return err
+		}
+		if err := row.ColumnByName("CopyTopicId", &pi.CopyTopicID); err != nil {
+			return err
+		}
+		if err := row.ColumnByName(
+			"ListProgressSubscriptionId", &pi.ListProgressSubscriptionID); err != nil {
+			return err
+		}
+		if err := row.ColumnByName(
+			"CopyProgressSubscriptionId", &pi.CopyProgressSubscriptionID); err != nil {
+			return err
+		}
+		unusedProjectInfos = append(unusedProjectInfos, pi)
+		return nil
+	})
+	return unusedProjectInfos, nil
+}
+
+func (s *SpannerStore) DeleteProjectRow(projectID string) error {
+	mutation := spanner.Delete("Projects", spanner.Key{projectID})
+	if _, err := s.Spanner.Apply(context.Background(), []*spanner.Mutation{mutation}); err != nil {
+		glog.Warningf("Failed to delete unused project %s, error: %v.", projectID, err)
+		return err
+	}
+	return nil
 }
 
 // getUnqueuedTasks retrieves at most n unqueued tasks for projectID from the store.

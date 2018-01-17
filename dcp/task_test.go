@@ -112,7 +112,7 @@ func TestGetTaskUpdatesEmptyCollection(t *testing.T) {
 		count++
 	}
 	if count != 0 {
-		t.Errorf("expected 0 updates, found", count)
+		t.Errorf("expected 0 updates, found: %d", count)
 	}
 }
 
@@ -139,7 +139,7 @@ func TestGetTaskUpdates(t *testing.T) {
 		count++
 	}
 	if count != 2 {
-		t.Errorf("expected 2 updates, found", count)
+		t.Errorf("expected 2 updates, found: %d", count)
 	}
 
 	taskUpdates := tc.GetTaskUpdates()
