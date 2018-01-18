@@ -123,7 +123,7 @@ if [ "$CREATE" = true ] ; then
   gcloud spanner databases create "$SPANNER_DATABASE" \
     --project="$PROJECT_ID" \
     --instance="$SPANNER_INSTANCE" \
-    --ddl="$(sed ':a;N;$!ba;s/\n\n/;\n\n/g' webconsole/backend/create_infra/schema.ddl)"
+    --ddl="$(sed ':a;N;$!ba;s/\n\n/;\n\n/g' dev/schema.ddl)"
 
   echo "Creating Pub/Sub."
   gcloud pubsub topics create "$PROCESS_LIST_TOPIC" --project="$PROJECT_ID"

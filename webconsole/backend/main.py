@@ -42,10 +42,10 @@ from proto.tasks_pb2 import TaskStatus
 from googleapiclient import discovery
 import googleapiclient
 
+import constants
 import util
 from corsdecorator import crossdomain  # To allow requests from the front-end
-from create_infra import constants
-from create_infra.pubsub_builder import PubSubBuilder
+from pubsub_builder import PubSubBuilder
 from spannerwrapper import SpannerWrapper
 
 APP = Flask(__name__)

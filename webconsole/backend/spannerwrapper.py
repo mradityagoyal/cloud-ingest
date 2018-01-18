@@ -22,9 +22,9 @@ import json
 from google.cloud import spanner
 from google.cloud.spanner_v1.proto import type_pb2
 
+import constants
 import util
 from gaxerrordecorator import handle_common_gax_errors
-from create_infra import constants
 from proto.tasks_pb2 import TaskStatus
 from proto.tasks_pb2 import TaskType
 from proto.tasks_pb2 import JobRunStatus

@@ -46,8 +46,8 @@ from mock import patch
 from googleapiclient import discovery
 from random import shuffle
 
+import constants
 import main
-from create_infra import constants
 from proto import tasks_pb2
 from spannerwrapper import SpannerWrapper
 from proto.tasks_pb2 import TaskFailureType
