@@ -59,6 +59,10 @@ parse_params() {
       TEAR_DOWN=true
       shift # past argument
       ;;
+      -sdcp|--skip-dcp)
+      SKIP_DCP=true
+      shift # past argument
+      ;;
       -h|--help)
       usage
       exit 0
@@ -134,12 +138,16 @@ if [ "$CREATE" = true ] ; then
     --member="serviceAccount:$DCP_SERVICE_ACCOUNT_EMAIL" \
     --role=roles/editor --no-user-output-enabled
 
-  echo "Creating DCP K8 cluster."
-  gcloud container clusters create "$DCP_CLUSTER_NAME" --project="$PROJECT_ID" \
-    --service-account="$DCP_SERVICE_ACCOUNT_EMAIL"
+  if [ "$SKIP_DCP" = true ] ; then
+    echo "Skip creating the DCP K8 cluster."
+  else
+    echo "Creating DCP K8 cluster."
+    gcloud container clusters create "$DCP_CLUSTER_NAME" \
+      --project="$PROJECT_ID" --service-account="$DCP_SERVICE_ACCOUNT_EMAIL"
 
-  echo "Deploying the DCP container into the cluster."
-  kubectl run dcp --image="$DCP_CONTAINER_IMAGE" --replicas=1 \
-    --command -- ./dcpmain -projectid="$PROJECT_ID" -logtostderr
+    echo "Deploying the DCP container into the cluster."
+    kubectl run dcp --image="$DCP_CONTAINER_IMAGE" --replicas=1 \
+      --command -- ./dcpmain -projectid="$PROJECT_ID" -logtostderr
+  fi
 fi
 exit 0
