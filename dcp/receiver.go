@@ -59,9 +59,25 @@ type MessageReceiver struct {
 		sync.RWMutex
 		c *lru.Cache
 	}
+	failedSubs       chan string
+	projectClientMap map[string]gcloud.PS
 }
 
 type SubscriptionMapGetter func() (map[string]string, error)
+type PubSubClientGetter func(ctx context.Context, projectID string) (gcloud.PS, error)
+
+func NewMessageReceiver(
+	pscg PubSubClientGetter, store Store, handler MessageHandler) *MessageReceiver {
+	r := MessageReceiver{
+		PubSubClientFunc: pscg,
+		Store:            store,
+		Handler:          handler,
+	}
+	r.initializeBatcher()
+	r.failedSubs = make(chan (string))
+	r.projectClientMap = make(map[string]gcloud.PS)
+	return &r
+}
 
 func (r *MessageReceiver) getJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobSpec, error) {
 	// Try to find the job from the cache.
@@ -90,57 +106,44 @@ func (r *MessageReceiver) getJobSpec(jobConfigRRStruct JobConfigRRStruct) (*JobS
 }
 
 func (r *MessageReceiver) SingleSubReceiveMessages(ctx context.Context, sub gcloud.PSSubscription) {
-	r.initializeBatcher()
-	r.receiveMessages(ctx, sub, "", nil)
+	r.receiveMessages(ctx, sub, "", false)
 }
 
 func (r *MessageReceiver) RoundRobinReceiveMessages(
 	ctx context.Context, subMapGetter SubscriptionMapGetter,
 	fallbackProjectID, fallbackSubID string) {
-	r.initializeBatcher()
 	// TODO (b/71647771): PubSub Go client currently doesn't support an easy way to create a
 	// subscription outside of the Client struct's project.  When
 	// https://github.com/GoogleCloudPlatform/google-cloud-go/issues/849 is fixed,
 	// drop the one-client-per-subscription.
-	projectClientMap := make(map[string]gcloud.PS)
+	select {
+	case failedProjectID := <-r.failedSubs:
+		// The subscription for this project failed; recreate it and retry.
+		r.projectClientMap[failedProjectID] = nil
+	default:
+		m, err := subMapGetter()
+		if err != nil || len(m) == 0 {
+			// Fallback to default subscriptions and project.
+			m = map[string]string{fallbackProjectID: fallbackSubID}
+			glog.Warningf("Retrieving ProjectID:Subscription failed, error: %v", err)
+		}
 
-	subFailed := make(chan string) // Project IDs of failed subscriptions
-
-	// Ticker is used as the loop conditional to ensure the loop immediately runs once.
-	for ; true; <-r.Ticker.GetChannel() {
-		select {
-		case <-ctx.Done():
-			glog.Warningf(
-				"Context for RoundRobinReceiveMessages was cancelled with context error: %v.", ctx.Err())
-			return
-		case failedProjectID := <-subFailed:
-			// The subscription for this project failed; recreate it and retry.
-			projectClientMap[failedProjectID] = nil
-		default:
-			m, err := subMapGetter()
-			if err != nil || len(m) == 0 {
-				// Fallback to default subscriptions and project.
-				m = map[string]string{fallbackProjectID: fallbackSubID}
-				glog.Warningf("Retrieving ProjectID:Subscription failed, error: %v", err)
+		for projectID, subscriptionID := range m {
+			if r.projectClientMap[projectID] != nil {
+				// There is already a goroutine receiving messages for this project's subscription.
+				continue
 			}
-
-			for projectID, subscriptionID := range m {
-				if projectClientMap[projectID] != nil {
-					// There is already a goroutine receiving messages for this project's subscription.
-					continue
-				}
-				pubSubClient, err := r.PubSubClientFunc(ctx, projectID)
-				if err != nil {
-					glog.Warningf(
-						"Could not create PubSub client for project %s, error: %v.", projectID, err)
-					continue
-				}
-				projectClientMap[projectID] = pubSubClient
-				sub := pubSubClient.Subscription(subscriptionID)
-				// TODO (b/71648278): Add a leasing mechanism so that this scales beyond the number
-				// of listeners that can run in a single DCP.
-				go r.receiveMessages(ctx, sub, projectID, subFailed)
+			pubSubClient, err := r.PubSubClientFunc(ctx, projectID)
+			if err != nil {
+				glog.Warningf(
+					"Could not create PubSub client for project %s, error: %v.", projectID, err)
+				continue
 			}
+			r.projectClientMap[projectID] = pubSubClient
+			sub := pubSubClient.Subscription(subscriptionID)
+			// TODO (b/71648278): Add a leasing mechanism so that this scales beyond the number
+			// of listeners that can run in a single DCP.
+			go r.receiveMessages(ctx, sub, projectID, true)
 		}
 	}
 }
@@ -155,7 +158,7 @@ func (r *MessageReceiver) initializeBatcher() {
 }
 
 func (r *MessageReceiver) receiveMessages(
-	ctx context.Context, sub gcloud.PSSubscription, projectID string, subFailed chan<- string) {
+	ctx context.Context, sub gcloud.PSSubscription, projectID string, reportFailedSubs bool) {
 	// TODO(b/63058868): Failed to handle a PubSub message will be keep
 	// redelivered by the PubSub for significant amount of time (1 week).
 	// Non-retriable errors should mark the task failed and ack the message.
@@ -173,8 +176,8 @@ func (r *MessageReceiver) receiveMessages(
 		glog.Warningf("Error receiving messages for subscription %v, with error: %v.",
 			sub, err)
 	}
-	if subFailed != nil {
-		subFailed <- projectID
+	if reportFailedSubs {
+		r.failedSubs <- projectID
 	}
 }
 

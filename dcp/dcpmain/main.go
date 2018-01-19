@@ -121,37 +121,32 @@ func main() {
 	gcsClient := gcloud.NewGCSClient(storageClient)
 
 	metadataReader := dcp.NewGCSObjectMetadataReader(gcsClient)
-	listReceiver := dcp.MessageReceiver{
-		PubSubClientFunc: GetPubSubClient,
-		Store:            store,
-		Ticker:           helpers.NewClockTicker(checkSubscriptionsFrequency),
-		Handler: &dcp.ListProgressMessageHandler{
+	listReceiver := dcp.NewMessageReceiver(
+		GetPubSubClient, store, &dcp.ListProgressMessageHandler{
 			ObjectMetadataReader: metadataReader,
-		},
-	}
+		})
 
-	processListReceiver := dcp.MessageReceiver{
-		PubSubClientFunc: GetPubSubClient,
-		Store:            store,
-		Handler: &dcp.ProcessListMessageHandler{
+	processListReceiver := dcp.NewMessageReceiver(
+		GetPubSubClient, store, &dcp.ProcessListMessageHandler{
 			ListingResultReader: dcp.NewGCSListingResultReader(gcsClient),
-		},
-	}
+		})
 
-	copyReceiver := dcp.MessageReceiver{
-		PubSubClientFunc: GetPubSubClient,
-		Store:            store,
-		Ticker:           helpers.NewClockTicker(checkSubscriptionsFrequency),
-		Handler: &dcp.CopyProgressMessageHandler{
+	copyReceiver := dcp.NewMessageReceiver(
+		GetPubSubClient, store, &dcp.CopyProgressMessageHandler{
 			ObjectMetadataReader: metadataReader,
-		},
-	}
+		})
 
-	go listReceiver.RoundRobinReceiveMessages(
-		ctx, store.GetListProgressSubscriptionsMap, projectID, listProgressSubscription)
+	go dcp.DoPeriodically(ctx, helpers.NewClockTicker(checkSubscriptionsFrequency),
+		func() {
+			listReceiver.RoundRobinReceiveMessages(
+				ctx, store.GetListProgressSubscriptionsMap, projectID, listProgressSubscription)
+		})
 	go processListReceiver.SingleSubReceiveMessages(ctx, processListSub)
-	go copyReceiver.RoundRobinReceiveMessages(
-		ctx, store.GetCopyProgressSubscriptionsMap, projectID, copyProgressSubscription)
+	go dcp.DoPeriodically(ctx, helpers.NewClockTicker(checkSubscriptionsFrequency),
+		func() {
+			copyReceiver.RoundRobinReceiveMessages(
+				ctx, store.GetCopyProgressSubscriptionsMap, projectID, copyProgressSubscription)
+		})
 
 	pubSubCleaner := dcp.PubSubCleaner{
 		PubSubClientFunc: GetPubSubClient,

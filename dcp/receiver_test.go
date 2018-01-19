@@ -22,7 +22,6 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/groupcache/lru"
 	"github.com/golang/mock/gomock"
 )
@@ -107,27 +106,22 @@ func TestRoundRobinReceiveMessagesFallbackSub(t *testing.T) {
 	mockPubSub := gcloud.NewMockPS(mockCtrl)
 	mockListSub := gcloud.NewMockPSSubscription(mockCtrl)
 	store := &FakeStore{listProgSubMap: map[string]string{}}
-	ticker := helpers.NewMockTicker()
-	r := MessageReceiver{
-		PubSubClientFunc: func(ctx context.Context, projectID string) (gcloud.PS, error) {
+	r := NewMessageReceiver(
+		func(ctx context.Context, projectID string) (gcloud.PS, error) {
 			if projectID != "fallbackProjectID" {
 				t.Errorf("Expected pubsub client for 'fallbackProjectID', got '%s'", projectID)
 			}
 			return mockPubSub, nil
 		},
-		Store:  store,
-		Ticker: ticker,
-	}
+		store,
+		nil)
 	mockPubSub.EXPECT().Subscription("fallbackSubID").MaxTimes(1).Return(mockListSub)
 	mockListSub.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1)
-	ctx, stopRunner := context.WithCancel(context.Background())
-	go r.RoundRobinReceiveMessages(
-		ctx,
+	r.RoundRobinReceiveMessages(
+		context.Background(),
 		store.GetListProgressSubscriptionsMap,
 		"fallbackProjectID",
 		"fallbackSubID")
-	ticker.Tick()
-	stopRunner()
 }
 
 func TestRoundRobinReceiveMessagesMultipleSubs(t *testing.T) {
@@ -140,26 +134,21 @@ func TestRoundRobinReceiveMessagesMultipleSubs(t *testing.T) {
 	store := &FakeStore{}
 	store.AddListSubscription("fakeProjectID1", "fakeListSubID1")
 	store.AddListSubscription("fakeProjectID2", "fakeListSubID2")
-	ticker := helpers.NewMockTicker()
-	r := MessageReceiver{
-		PubSubClientFunc: func(ctx context.Context, projectID string) (gcloud.PS, error) {
+	r := NewMessageReceiver(
+		func(ctx context.Context, projectID string) (gcloud.PS, error) {
 			return mockPubSub, nil
 		},
-		Store:  store,
-		Ticker: ticker,
-	}
+		store,
+		nil)
 	mockPubSub.EXPECT().Subscription("fakeListSubID1").MaxTimes(1).Return(mockListSub1)
 	mockPubSub.EXPECT().Subscription("fakeListSubID2").MaxTimes(1).Return(mockListSub2)
 	mockListSub1.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1)
 	mockListSub2.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1)
-	ctx, stopRunner := context.WithCancel(context.Background())
-	go r.RoundRobinReceiveMessages(
-		ctx,
+	r.RoundRobinReceiveMessages(
+		context.Background(),
 		store.GetListProgressSubscriptionsMap,
 		"fallbackProjectID",
 		"fallbackSubID")
-	ticker.Tick()
-	stopRunner()
 }
 
 func TestRoundRobinReceiveMessagesSubDies(t *testing.T) {
@@ -171,14 +160,12 @@ func TestRoundRobinReceiveMessagesSubDies(t *testing.T) {
 	mockListSubRecreated := gcloud.NewMockPSSubscription(mockCtrl)
 	store := &FakeStore{}
 	store.AddListSubscription("fakeProjectID1", "fakeListSubID1")
-	ticker := helpers.NewMockTicker()
-	r := MessageReceiver{
-		PubSubClientFunc: func(ctx context.Context, projectID string) (gcloud.PS, error) {
+	r := NewMessageReceiver(
+		func(ctx context.Context, projectID string) (gcloud.PS, error) {
 			return mockPubSub, nil
 		},
-		Store:  store,
-		Ticker: ticker,
-	}
+		store,
+		nil)
 	callNumber := 0
 	mockPubSub.EXPECT().Subscription("fakeListSubID1").DoAndReturn(
 		func(projectID string) *gcloud.MockPSSubscription {
@@ -192,15 +179,18 @@ func TestRoundRobinReceiveMessagesSubDies(t *testing.T) {
 	mockListSub.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1).Return(
 		errors.New("sub died"))
 	mockListSubRecreated.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1)
-	ctx, stopRunner := context.WithCancel(context.Background())
-	go r.RoundRobinReceiveMessages(
-		ctx,
+	// First iteration: Subscription.Receive dies
+	r.RoundRobinReceiveMessages(
+		context.Background(),
 		store.GetListProgressSubscriptionsMap,
 		"fallbackProjectID",
 		"fallbackSubID")
-	ticker.Tick() // First iteration: Subscription.Receive dies
-	ticker.Tick() // Second iteration: Subscription.Receive succeeds
-	stopRunner()
+	// Second iteration: Subscription.Receive succeeds
+	r.RoundRobinReceiveMessages(
+		context.Background(),
+		store.GetListProgressSubscriptionsMap,
+		"fallbackProjectID",
+		"fallbackSubID")
 }
 
 func TestRoundRobinReceiveMessagesNewSub(t *testing.T) {
@@ -212,29 +202,27 @@ func TestRoundRobinReceiveMessagesNewSub(t *testing.T) {
 	mockListSub2 := gcloud.NewMockPSSubscription(mockCtrl)
 	store := &FakeStore{}
 	store.AddListSubscription("fakeProjectID1", "fakeListSubID1")
-	ticker := helpers.NewMockTicker()
-	r := MessageReceiver{
-		PubSubClientFunc: func(ctx context.Context, projectID string) (gcloud.PS, error) {
+	r := NewMessageReceiver(
+		func(ctx context.Context, projectID string) (gcloud.PS, error) {
 			return mockPubSub, nil
 		},
-		Store:  store,
-		Ticker: ticker,
-	}
+		store,
+		nil)
 	mockPubSub.EXPECT().Subscription("fakeListSubID1").MaxTimes(1).Return(mockListSub1)
 	mockPubSub.EXPECT().Subscription("fakeListSubID2").MaxTimes(1).Return(mockListSub2)
 	mockListSub1.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1)
 	mockListSub2.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1)
-	ctx, stopRunner := context.WithCancel(context.Background())
-	go r.RoundRobinReceiveMessages(
-		ctx,
+	// First iteration: First subscription is live
+	r.RoundRobinReceiveMessages(
+		context.Background(),
 		store.GetListProgressSubscriptionsMap,
 		"fallbackProjectID",
 		"fallbackSubID")
-	ticker.Tick() // First iteration: First subscription is live
 	store.AddListSubscription("fakeProjectID2", "fakeListSubID2")
-	// Add second subscription. Depending on timing, this could get picked up during the second
-	// or third iterations.
-	ticker.Tick()
-	ticker.Tick()
-	stopRunner()
+	// Second iteration: Add second subscription.
+	r.RoundRobinReceiveMessages(
+		context.Background(),
+		store.GetListProgressSubscriptionsMap,
+		"fallbackProjectID",
+		"fallbackSubID")
 }
