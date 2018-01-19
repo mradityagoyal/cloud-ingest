@@ -49,7 +49,7 @@ const (
 	maxQueueTasksSleepTime time.Duration = 5 * time.Minute
 	// The max time for checking for new subscriptions or retrying failed
 	// subscriptions in receiver.RoundRobinQueueTasks
-	checkSubscriptionsFrequency time.Duration = 10 * time.Minute
+	checkSubscriptionsFrequency time.Duration = 30 * time.Second
 )
 
 var (
