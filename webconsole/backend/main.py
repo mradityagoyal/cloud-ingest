@@ -18,7 +18,6 @@ during the processing of a request will be handled by the error handler
 for Internal Server Errors and a response of 500 Internal Server Error will
 be sent.
 """
-import argparse
 import httplib
 import json
 import logging
@@ -34,18 +33,16 @@ from google.cloud.exceptions import Conflict
 from google.cloud.exceptions import Forbidden
 from google.cloud.exceptions import NotFound
 from google.cloud.exceptions import PreconditionFailed
-from google.cloud.exceptions import ServerError
 from google.cloud.exceptions import Unauthorized
 from google.oauth2.credentials import Credentials
 from proto.tasks_pb2 import TaskFailureType
 from proto.tasks_pb2 import TaskStatus
 from googleapiclient import discovery
-import googleapiclient
 
-import constants
 import util
 from corsdecorator import crossdomain  # To allow requests from the front-end
-from pubsub_builder import PubSubBuilder
+from create_infra import constants
+from create_infra.pubsub_builder import PubSubBuilder
 from spannerwrapper import SpannerWrapper
 
 APP = Flask(__name__)
@@ -63,7 +60,8 @@ _SPANNER_WRAPPER = SpannerWrapper(
 
 # Service account IAM member used by the DCP workers.
 _SERVICE_ACCOUNT_MEMBER = (
-    "serviceAccount:cloud-ingest-dcp@%s.iam.gserviceaccount.com" % _HOST_PROJECT)
+    "serviceAccount:cloud-ingest-dcp@%s.iam.gserviceaccount.com" %
+    _HOST_PROJECT)
 
 # Required to roles for the DCP service account member.
 _SERVICE_ACCOUNT_ROLES = [
@@ -359,7 +357,7 @@ def _create_pubsub_if_not_exists(credentials, project_id):
     """Creates project Pub/Sub Topics and subscriptions if they does not exist.
     """
     pubsub_bldr = PubSubBuilder(credentials=credentials, project_id=project_id)
-    for key, topic_subscriptions in _TOPICS_SUBSCRIPTIONS.iteritems():
+    for _, topic_subscriptions in _TOPICS_SUBSCRIPTIONS.iteritems():
         if not pubsub_bldr.topic_and_subscriptions_exist(
             topic_subscriptions[0], topic_subscriptions[1]):
             pubsub_bldr.create_topic_and_subscriptions(
@@ -387,7 +385,7 @@ def _add_policy_binding(policy, member, role):
         }
       ]
     }
-    More details about Policy object spec cab be found at: 
+    More details about Policy object spec cab be found at:
     https://cloud.google.com/iam/reference/rest/v1/Policy
     """
     # TODO(b/71875048): We may be more smart about checking the permissions. For
