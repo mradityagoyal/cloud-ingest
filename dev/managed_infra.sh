@@ -132,7 +132,7 @@ if [ "$CREATE" = true ] ; then
 
   echo "Creating the DCP service account."
   gcloud iam service-accounts create "$DCP_SERVICE_ACCOUNT" \
-    --display-name "Cloud Ingest DCP service account"
+    --project="$PROJECT_ID" --display-name "Cloud Ingest DCP service account"
 
   gcloud projects add-iam-policy-binding "$PROJECT_ID" \
     --member="serviceAccount:$DCP_SERVICE_ACCOUNT_EMAIL" \
