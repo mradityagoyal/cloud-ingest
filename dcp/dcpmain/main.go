@@ -75,10 +75,10 @@ func init() {
 // GetQueueTasksClosure returns a function that calls the function QueueTasks
 // on the given store with the given values as the parameters.
 func GetQueueTasksClosure(store *dcp.SpannerStore, num int,
-	processListTopic gcloud.PSTopic, fallbackProjectID string) func() error {
+	processListTopic gcloud.PSTopic) func() error {
 
 	return func() error {
-		return store.RoundRobinQueueTasks(num, processListTopic, fallbackProjectID)
+		return store.RoundRobinQueueTasks(num, processListTopic)
 	}
 }
 
@@ -138,14 +138,12 @@ func main() {
 
 	go dcp.DoPeriodically(ctx, helpers.NewClockTicker(checkSubscriptionsFrequency),
 		func() {
-			listReceiver.RoundRobinReceiveMessages(
-				ctx, store.GetListProgressSubscriptionsMap, projectID, listProgressSubscription)
+			listReceiver.RoundRobinReceiveMessages(ctx, store.GetListProgressSubscriptionsMap)
 		})
 	go processListReceiver.SingleSubReceiveMessages(ctx, processListSub)
 	go dcp.DoPeriodically(ctx, helpers.NewClockTicker(checkSubscriptionsFrequency),
 		func() {
-			copyReceiver.RoundRobinReceiveMessages(
-				ctx, store.GetCopyProgressSubscriptionsMap, projectID, copyProgressSubscription)
+			copyReceiver.RoundRobinReceiveMessages(ctx, store.GetCopyProgressSubscriptionsMap)
 		})
 
 	pubSubCleaner := dcp.PubSubCleaner{
@@ -170,7 +168,7 @@ func main() {
 			maxQueueTasksSleepTime,
 			maxNumFailures,
 			"QueueTasks",
-			GetQueueTasksClosure(store, tasksToQueue, processListTopic, projectID),
+			GetQueueTasksClosure(store, tasksToQueue, processListTopic),
 		)
 		if err != nil {
 			glog.Fatalf("Error in queueing tasks: %v.", err)

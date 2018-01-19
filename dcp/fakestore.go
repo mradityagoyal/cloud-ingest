@@ -60,7 +60,7 @@ func (s *FakeStore) UpdateAndInsertTasks(taskUpdates *TaskUpdateCollection) erro
 	return nil
 }
 
-func (s *FakeStore) RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic, fallbackProjectID string) error {
+func (s *FakeStore) RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic) error {
 	return errors.New("RoundRobinQueueTasks: Not implemented.")
 }
 

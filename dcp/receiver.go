@@ -30,9 +30,6 @@ import (
 
 const (
 	jobSpecsCacheMaxSize = 1000
-
-	fallbackListProgressSubcriptionID string = "cloud-ingest-list-progress"
-	fallbackCopyProgressSubcriptionID string = "cloud-ingest-copy-progress"
 )
 
 // MessageHandler interface is used to abstract handling of various message
@@ -110,8 +107,7 @@ func (r *MessageReceiver) SingleSubReceiveMessages(ctx context.Context, sub gclo
 }
 
 func (r *MessageReceiver) RoundRobinReceiveMessages(
-	ctx context.Context, subMapGetter SubscriptionMapGetter,
-	fallbackProjectID, fallbackSubID string) {
+	ctx context.Context, subMapGetter SubscriptionMapGetter) {
 	// TODO (b/71647771): PubSub Go client currently doesn't support an easy way to create a
 	// subscription outside of the Client struct's project.  When
 	// https://github.com/GoogleCloudPlatform/google-cloud-go/issues/849 is fixed,
@@ -122,10 +118,12 @@ func (r *MessageReceiver) RoundRobinReceiveMessages(
 		r.projectClientMap[failedProjectID] = nil
 	default:
 		m, err := subMapGetter()
-		if err != nil || len(m) == 0 {
-			// Fallback to default subscriptions and project.
-			m = map[string]string{fallbackProjectID: fallbackSubID}
-			glog.Warningf("Retrieving ProjectID:Subscription failed, error: %v", err)
+		if err != nil {
+			// TODO (b/72335955): Instead of dying here and letting the DCP retry when it
+			// is restarted, continue monitoring the subscriptions that we have and
+			// add monitoring so that we can alert that we're unable to retrieve from
+			// the store.
+			glog.Fatalf("Retrieving ProjectID:Subscription failed, error: %v", err)
 		}
 
 		for projectID, subscriptionID := range m {

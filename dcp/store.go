@@ -34,9 +34,6 @@ import (
 const (
 	MarkLogsAsProcessedBatchSize int = 2000
 	// TODO(b/69808978): Determine and implement other transaction limits.
-
-	fallbackListTopicID string = "cloud-ingest-list"
-	fallbackCopyTopicID string = "cloud-ingest-copy"
 )
 
 type ProjectInfo struct {
@@ -59,12 +56,7 @@ type Store interface {
 	// from the unqueued tasks for each project. It sends PubSub messages to the
 	// corresponding topic, and updates the status of the task to
 	// queued.
-	// If there is any error in retrieving topics for projects, or no projects are
-	// populated in Spanner, this function falls back to using default topic
-	// names in the fallback project ID.
-	// TODO (b/70989356): Remove fallback logic once project IDs and topics are
-	// populated by webconsole.
-	RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic, fallbackProjectID string) error
+	RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic) error
 
 	// GetNumUnprocessedLogs returns the number of rows in the LogEntries table
 	// with the 'Processed' column set to false. Any errors result in returning
@@ -508,13 +500,11 @@ func (s *SpannerStore) UpdateAndInsertTasks(tasks *TaskUpdateCollection) error {
 	return err
 }
 
-func (s *SpannerStore) RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic, fallbackProjectID string) error {
+func (s *SpannerStore) RoundRobinQueueTasks(n int, processListTopic gcloud.PSTopic) error {
 	m, err := s.getProjectTopicsMap()
-	if err != nil || len(m) == 0 {
-		// Fallback to default topics and project.
-		m = map[string]PubSubTopics{
-			fallbackProjectID: PubSubTopics{fallbackListTopicID, fallbackCopyTopicID},
-		}
+	if err != nil {
+		glog.Warningf("Could not get project topics map from Spanner, error: %v", err)
+		return err
 	}
 	for projectID, pst := range m {
 		// TODO (b/70989550): Maintain references to Topics in a map to avoid repeated

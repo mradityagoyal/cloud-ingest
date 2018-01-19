@@ -26,45 +26,23 @@ import (
 )
 
 func TestRoundRobinQueueTasksNoProjects(t *testing.T) {
-	// Test that fallback logic works when no projects are returned.
+	// Tests that RoundRobinQueueTasks does nothing if there are no projects.
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockSpanner := gcloud.NewMockSpanner(mockCtrl)
 	mockPubSub := gcloud.NewMockPS(mockCtrl)
-	mockListTopic := gcloud.NewMockPSTopic(mockCtrl)
 	mockProcessListTopic := gcloud.NewMockPSTopic(mockCtrl)
-	mockCopyTopic := gcloud.NewMockPSTopic(mockCtrl)
 	mockReadProjectsTransaction := gcloud.NewMockReadOnlyTransaction(mockCtrl)
 	mockProjectsRowIterator := gcloud.NewMockRowIterator(mockCtrl)
-	mockReadTasksTransaction := gcloud.NewMockReadOnlyTransaction(mockCtrl)
-	mockTasksRowIterator := gcloud.NewMockRowIterator(mockCtrl)
 
 	tc := &SpannerStore{mockSpanner, mockPubSub}
 
 	mockProjectsRowIterator.EXPECT().Do(gomock.Any()).Return(nil)
 	mockProjectsRowIterator.EXPECT().Stop()
-	mockTasksRowIterator.EXPECT().Next().Return(nil, iterator.Done)
-	mockTasksRowIterator.EXPECT().Stop()
-
 	mockReadProjectsTransaction.EXPECT().Query(gomock.Any(), gomock.Any()).Return(mockProjectsRowIterator)
-	mockReadTasksTransaction.EXPECT().Query(gomock.Any(), gomock.Any()).Return(mockTasksRowIterator)
+	mockSpanner.EXPECT().Single().Return(mockReadProjectsTransaction).MaxTimes(1)
 
-	spannerSingleCallNumber := 0
-	mockSpanner.EXPECT().Single().DoAndReturn(func() *gcloud.MockReadOnlyTransaction {
-		if spannerSingleCallNumber == 0 {
-			spannerSingleCallNumber++
-			return mockReadProjectsTransaction
-		} else {
-			return mockReadTasksTransaction
-		}
-	}).MaxTimes(2)
-
-	mockListTopic.EXPECT().Stop()
-	mockCopyTopic.EXPECT().Stop()
-	mockPubSub.EXPECT().TopicInProject("cloud-ingest-list", "fakeProjectID").Return(mockListTopic)
-	mockPubSub.EXPECT().TopicInProject("cloud-ingest-copy", "fakeProjectID").Return(mockCopyTopic)
-
-	tc.RoundRobinQueueTasks(1, mockProcessListTopic, "fakeProjectID")
+	tc.RoundRobinQueueTasks(1, mockProcessListTopic)
 }
 
 func TestRoundRobinQueueTasksTwoProjectsNoTasks(t *testing.T) {
@@ -111,7 +89,7 @@ func TestRoundRobinQueueTasksTwoProjectsNoTasks(t *testing.T) {
 	mockPubSub.EXPECT().TopicInProject("ct1", "fakeProjectID1").Return(mockCopyTopic)
 	mockPubSub.EXPECT().TopicInProject("ct2", "fakeProjectID2").Return(mockCopyTopic)
 
-	tc.RoundRobinQueueTasks(3, mockProcessListTopic, "fakeProjectID")
+	tc.RoundRobinQueueTasks(3, mockProcessListTopic)
 }
 
 func TestRoundRobinQueueTasksTwoProjectsAndTasks(t *testing.T) {
@@ -214,7 +192,7 @@ func TestRoundRobinQueueTasksTwoProjectsAndTasks(t *testing.T) {
 	mockPubSub.EXPECT().TopicInProject("ct2", "fakeProjectID2").Return(mockCopyTopic)
 	mockSpanner.EXPECT().ReadWriteTransaction(gomock.Any(), gomock.Any()).MaxTimes(2).Return(time.Unix(0, 0), nil)
 
-	tc.RoundRobinQueueTasks(1, mockProcessListTopic, "fakeProjectID")
+	tc.RoundRobinQueueTasks(1, mockProcessListTopic)
 }
 
 func TestGetUnusedProjectsReturnMax(t *testing.T) {

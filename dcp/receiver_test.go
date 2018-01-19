@@ -100,28 +100,18 @@ func TestGetJobSpecThatRemovedFromCache(t *testing.T) {
 }
 
 func TestRoundRobinReceiveMessagesFallbackSub(t *testing.T) {
-	// Tests that the round-robin receiver uses defaults if the store has no subscription IDs.
+	// Tests that the round-robin receiver does nothing if there are no projects.
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 	mockPubSub := gcloud.NewMockPS(mockCtrl)
-	mockListSub := gcloud.NewMockPSSubscription(mockCtrl)
 	store := &FakeStore{listProgSubMap: map[string]string{}}
 	r := NewMessageReceiver(
 		func(ctx context.Context, projectID string) (gcloud.PS, error) {
-			if projectID != "fallbackProjectID" {
-				t.Errorf("Expected pubsub client for 'fallbackProjectID', got '%s'", projectID)
-			}
 			return mockPubSub, nil
 		},
 		store,
 		nil)
-	mockPubSub.EXPECT().Subscription("fallbackSubID").MaxTimes(1).Return(mockListSub)
-	mockListSub.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1)
-	r.RoundRobinReceiveMessages(
-		context.Background(),
-		store.GetListProgressSubscriptionsMap,
-		"fallbackProjectID",
-		"fallbackSubID")
+	r.RoundRobinReceiveMessages(context.Background(), store.GetListProgressSubscriptionsMap)
 }
 
 func TestRoundRobinReceiveMessagesMultipleSubs(t *testing.T) {
@@ -146,9 +136,7 @@ func TestRoundRobinReceiveMessagesMultipleSubs(t *testing.T) {
 	mockListSub2.EXPECT().Receive(gomock.Any(), gomock.Any()).MaxTimes(1)
 	r.RoundRobinReceiveMessages(
 		context.Background(),
-		store.GetListProgressSubscriptionsMap,
-		"fallbackProjectID",
-		"fallbackSubID")
+		store.GetListProgressSubscriptionsMap)
 }
 
 func TestRoundRobinReceiveMessagesSubDies(t *testing.T) {
@@ -182,15 +170,11 @@ func TestRoundRobinReceiveMessagesSubDies(t *testing.T) {
 	// First iteration: Subscription.Receive dies
 	r.RoundRobinReceiveMessages(
 		context.Background(),
-		store.GetListProgressSubscriptionsMap,
-		"fallbackProjectID",
-		"fallbackSubID")
+		store.GetListProgressSubscriptionsMap)
 	// Second iteration: Subscription.Receive succeeds
 	r.RoundRobinReceiveMessages(
 		context.Background(),
-		store.GetListProgressSubscriptionsMap,
-		"fallbackProjectID",
-		"fallbackSubID")
+		store.GetListProgressSubscriptionsMap)
 }
 
 func TestRoundRobinReceiveMessagesNewSub(t *testing.T) {
@@ -215,14 +199,10 @@ func TestRoundRobinReceiveMessagesNewSub(t *testing.T) {
 	// First iteration: First subscription is live
 	r.RoundRobinReceiveMessages(
 		context.Background(),
-		store.GetListProgressSubscriptionsMap,
-		"fallbackProjectID",
-		"fallbackSubID")
+		store.GetListProgressSubscriptionsMap)
 	store.AddListSubscription("fakeProjectID2", "fakeListSubID2")
 	// Second iteration: Add second subscription.
 	r.RoundRobinReceiveMessages(
 		context.Background(),
-		store.GetListProgressSubscriptionsMap,
-		"fallbackProjectID",
-		"fallbackSubID")
+		store.GetListProgressSubscriptionsMap)
 }
