@@ -1,3 +1,5 @@
+// +build !windows
+
 package helpers
 
 import (
@@ -10,6 +12,9 @@ import (
 	"syscall"
 	"time"
 )
+
+// TODO(b/72961361): Support a fast-feedback test process that validates the
+// agent on Windows.
 
 const (
 	FakeCommandExitOutput     = "exit"
