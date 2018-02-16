@@ -21,10 +21,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"math"
 	"os"
 	"path"
 	"reflect"
 	"strconv"
+
+	"golang.org/x/time/rate"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
@@ -139,6 +142,15 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 	buffer := make([]byte, bufferSize)
 
 	hash := md5.New()
+
+	bandwidth, ok := taskParams["bandwidth"].(int)
+	maxBucketSize := math.MaxInt32
+	limiter := rate.NewLimiter(rate.Limit(bandwidth), maxBucketSize)
+	if !ok || bandwidth <= 0 {
+		limiter = rate.NewLimiter(rate.Inf, maxBucketSize)
+	}
+	// The rate limiter starts with a full token bucket, we need to empty it before copying
+	limiter.WaitN(ctx, maxBucketSize)
 	for {
 		n, err := srcFile.Read(buffer)
 		if err != nil {
@@ -157,6 +169,10 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 		_, err = hash.Write(buffer[:n])
 		if err != nil {
 			w.CloseWithError(err)
+			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
+		}
+		err = limiter.WaitN(ctx, n)
+		if err != nil {
 			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 		}
 	}
