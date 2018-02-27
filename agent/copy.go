@@ -149,8 +149,10 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 	if !ok || bandwidth <= 0 {
 		limiter = rate.NewLimiter(rate.Inf, maxBucketSize)
 	}
-	// The rate limiter starts with a full token bucket, we need to empty it before copying
-	limiter.WaitN(ctx, maxBucketSize)
+	// The rate limiter starts with a full token bucket, we need to empty it before copying.
+	if err := limiter.WaitN(ctx, maxBucketSize); err != nil {
+		return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
+	}
 	for {
 		n, err := srcFile.Read(buffer)
 		if err != nil {
@@ -171,8 +173,7 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string,
 			w.CloseWithError(err)
 			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 		}
-		err = limiter.WaitN(ctx, n)
-		if err != nil {
+		if err := limiter.WaitN(ctx, n); err != nil {
 			return buildTaskCompletionMessage(taskRRName, taskParams, logEntry, err)
 		}
 	}
