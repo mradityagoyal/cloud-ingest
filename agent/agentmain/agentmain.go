@@ -18,6 +18,7 @@ package main
 import (
 	"context"
 	"flag"
+	"net/http"
 	"sync"
 	"time"
 
@@ -72,25 +73,30 @@ func main() {
 	defer glog.Flush()
 	ctx := context.Background()
 
-	var pubSubErr, storageErr error
+	var pubSubErr, storageErr, httpcErr error
 	var pubSubClient *pubsub.Client
 	var storageClient *storage.Client
+	var httpc *http.Client
 
 	if credsFile != "" {
 		clientOptions := option.WithCredentialsFile(credsFile)
 		pubSubClient, pubSubErr = pubsub.NewClient(ctx, projectID, clientOptions)
 		storageClient, storageErr = storage.NewClient(ctx, clientOptions)
+		httpc, httpcErr = agent.NewResumableHttpClient(ctx, clientOptions)
 	} else {
 		pubSubClient, pubSubErr = pubsub.NewClient(ctx, projectID)
 		storageClient, storageErr = storage.NewClient(ctx)
+		httpc, httpcErr = agent.NewResumableHttpClient(ctx)
 	}
 
 	if pubSubErr != nil {
-		glog.Fatalf("Can not create Pub/Sub client, error: %+v.\n", pubSubErr)
+		glog.Fatalf("Can't create Pub/Sub client, error: %+v\n", pubSubErr)
 	}
-
 	if storageErr != nil {
-		glog.Fatalf("Can not create storage client, error: %+v.\n", storageErr)
+		glog.Fatalf("Can't create storage client, error: %+v\n", storageErr)
+	}
+	if httpcErr != nil {
+		glog.Fatalf("Can't create http.Client, error: %+v\n", httpcErr)
 	}
 
 	var wg sync.WaitGroup
@@ -123,7 +129,7 @@ func main() {
 			copyProcessor := agent.WorkProcessor{
 				WorkSub:       copySub,
 				ProgressTopic: copyTopic,
-				Handler:       agent.NewCopyHandler(storageClient, chunkSize),
+				Handler:       agent.NewCopyHandler(storageClient, chunkSize, httpc),
 			}
 
 			copyProcessor.Process(ctx)

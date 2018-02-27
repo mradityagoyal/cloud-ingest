@@ -18,7 +18,6 @@ package agent
 import (
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 )
 
@@ -31,9 +30,9 @@ func (ae AgentError) Error() string {
 	return ae.Msg
 }
 
-func NewInvalidTaskParamsError(taskParams dcp.TaskParams) *AgentError {
+func NewInvalidTaskParamsError(taskParams taskParams, err error) *AgentError {
 	return &AgentError{
-		Msg:         fmt.Sprintf("Invalid task params arguments: %+v", taskParams),
+		Msg:         fmt.Sprintf("Invalid task params arguments: %+v, err: %v", taskParams, err),
 		FailureType: proto.TaskFailureType_UNKNOWN,
 	}
 }

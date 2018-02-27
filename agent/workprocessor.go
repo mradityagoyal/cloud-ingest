@@ -23,7 +23,6 @@ import (
 	"os"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/golang/glog"
 )
 
@@ -40,7 +39,7 @@ func init() {
 // WorkHandler is an interface to handle different task types.
 type WorkHandler interface {
 	// Do handles the task with taskRRName and taskParams.
-	Do(ctx context.Context, taskRRName string, taskParams dcp.TaskParams) dcp.TaskCompletionMessage
+	Do(ctx context.Context, taskRRName string, taskParams taskParams) taskDoneMsg
 }
 
 // WorkProcessor processes tasks of a certain type. It listens to subscription

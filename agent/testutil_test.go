@@ -20,51 +20,50 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 )
 
 func checkFailureWithType(
 	taskRRName string, failureType proto.TaskFailureType_Type,
-	msg dcp.TaskCompletionMessage, t *testing.T) {
+	msg taskDoneMsg, t *testing.T) {
 
 	if msg.TaskRRName != taskRRName {
-		t.Errorf("expected task id to be \"%s\", found: \"%s\"", taskRRName, msg.TaskRRName)
+		t.Errorf("want task id \"%s\", got \"%s\"", taskRRName, msg.TaskRRName)
 	}
 	if msg.Status != "FAILURE" {
-		t.Errorf("expected task to fail, found: %s", msg.Status)
+		t.Errorf("want task fail, found: %s", msg.Status)
 	}
 	if msg.FailureType != failureType {
-		t.Errorf("expected task to fail with %s type, found: %s",
+		t.Errorf("want task to fail with %s type, got: %s",
 			proto.TaskFailureType_Type_name[int32(failureType)],
 			proto.TaskFailureType_Type_name[int32(msg.FailureType)])
 	}
 }
 
 func checkForInvalidTaskParamsArguments(
-	taskRRName string, msg dcp.TaskCompletionMessage, t *testing.T) {
+	taskRRName string, msg taskDoneMsg, t *testing.T) {
 	checkFailureWithType(taskRRName, proto.TaskFailureType_UNKNOWN, msg, t)
 	if !strings.Contains(msg.FailureMessage, "Invalid task params arguments") {
-		t.Errorf("expected \"Invalid task params arguments\" failure message, found: %s",
+		t.Errorf("failure message want \"Invalid task params arguments\", got: %s",
 			msg.FailureMessage)
 	}
 }
 
-func checkSuccessMsg(taskRRName string, msg dcp.TaskCompletionMessage, t *testing.T) {
+func checkSuccessMsg(taskRRName string, msg taskDoneMsg, t *testing.T) {
 	if msg.TaskRRName != taskRRName {
-		t.Errorf("expected task id to be \"%s\", found: \"%s\"", taskRRName, msg.TaskRRName)
+		t.Errorf("want task id \"%s\", got \"%s\"", taskRRName, msg.TaskRRName)
 	}
 	if msg.Status != "SUCCESS" {
-		t.Errorf("expected message to success, found: %s", msg.Status)
+		t.Errorf("want message success, got: %s", msg.Status)
 	}
 }
 
-func testMissingOneTaskParams(h WorkHandler, taskParams dcp.TaskParams, t *testing.T) {
-	for param := range taskParams {
-		paramVal := taskParams[param]
-		delete(taskParams, param)
-		msg := h.Do(context.Background(), "task", taskParams)
+func testMissingOneTaskParams(h WorkHandler, tp taskParams, t *testing.T) {
+	for param := range tp {
+		paramVal := tp[param]
+		delete(tp, param)
+		msg := h.Do(context.Background(), "task", tp)
 		checkForInvalidTaskParamsArguments("task", msg, t)
-		taskParams[param] = paramVal
+		tp[param] = paramVal
 	}
 }
