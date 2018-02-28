@@ -245,9 +245,8 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *copyTaskSpec, srcFi
 	if c.Bandwidth <= 0 {
 		limiter = rate.NewLimiter(rate.Inf, maxBucketSize)
 	}
-	// The limiter starts with a full token bucket, empty it before copying.
 	if err := limiter.WaitN(ctx, maxBucketSize); err != nil {
-		return err
+		return fmt.Errorf("error draining new rate limiter, err: %v", err)
 	}
 
 	// Perform the copy (by writing to the gcsWriter).
@@ -411,9 +410,15 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, t
 	}
 	srcCRC32C := int64(crc32pkg.Update(uint32(c.CRC32C), CRC32CTable, buf))
 
+	// Add bandwidth control to the HTTP request body.
+	rlr, err := NewRateLimitedReader(ctx, bytes.NewReader(buf), rate.Limit(c.Bandwidth))
+	if err != nil {
+		return err
+	}
+
 	// Perform the copy!
 	res, err := h.resumedCopyRequest(
-		ctx, c.ResumableUploadId, bytes.NewReader(buf), c.BytesCopied, int64(bytesRead), final)
+		ctx, c.ResumableUploadId, rlr, c.BytesCopied, int64(bytesRead), final)
 	if err != nil {
 		return err
 	}
