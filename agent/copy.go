@@ -179,7 +179,7 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string, tp taskParams) 
 	}
 
 	// Copy the entire file or start a resumable copy.
-	tpUpdates := make(taskParams)
+	taskResponse := make(taskResponse)
 	if !resumedCopy {
 		// Start a copy. If the file is small enough (or BytesToCopy indicates so)
 		// copy the entire file now. Otherwise, begin a resumable copy.
@@ -190,7 +190,7 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string, tp taskParams) 
 			}
 		} else {
 			ctSpec.ResumableUploadId, err = h.prepareResumableCopy(
-				ctx, ctSpec, tpUpdates, srcFile, stats)
+				ctx, ctSpec, taskResponse, srcFile, stats)
 			if err != nil {
 				return buildTaskDoneMsg(taskRRName, tp, nil, logEntry, err)
 			}
@@ -198,7 +198,7 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string, tp taskParams) 
 		}
 	}
 	if resumedCopy {
-		err = h.copyResumableChunk(ctx, ctSpec, tpUpdates, srcFile, stats, logEntry)
+		err = h.copyResumableChunk(ctx, ctSpec, taskResponse, srcFile, stats, logEntry)
 		if err != nil {
 			return buildTaskDoneMsg(taskRRName, tp, nil, logEntry, err)
 		}
@@ -209,7 +209,7 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string, tp taskParams) 
 		return buildTaskDoneMsg(taskRRName, tp, nil, logEntry, err)
 	}
 
-	return buildTaskDoneMsg(taskRRName, tp, tpUpdates, logEntry, nil)
+	return buildTaskDoneMsg(taskRRName, tp, taskResponse, logEntry, nil)
 }
 
 func (h *CopyHandler) copyEntireFile(ctx context.Context, c *copyTaskSpec, srcFile *os.File, stats os.FileInfo, logEntry dcp.LogEntry) error {
@@ -307,9 +307,9 @@ func contentType(srcFile io.Reader) string {
 
 // prepareResumableCopy makes a request to GCS to begin a resumable copy, and
 // returns a resuambleUploadId which may be used for the lifetime of this copy.
-// This function also adds fields to tpUpdates which get sent to the DCP to
+// This function also adds fields to taskResponse which get sent to the DCP to
 // update the task params for future work on this resumable copy task.
-func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec, tpUpdates taskParams, srcFile io.Reader, stats os.FileInfo) (resumableUploadId string, err error) {
+func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec, taskResponse taskResponse, srcFile io.Reader, stats os.FileInfo) (resumableUploadId string, err error) {
 	// Create the request URL.
 	urlParams := make(gensupport.URLParams)
 	urlParams.Set("ifGenerationMatch", fmt.Sprint(c.ExpectedGenerationNum))
@@ -359,9 +359,9 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec,
 	}
 
 	// This function was successful, update the resumable-copy params.
-	tpUpdates["file_bytes"] = stats.Size()
-	tpUpdates["file_mtime"] = stats.ModTime().Unix()
-	tpUpdates["resumable_upload_id"] = res.Header.Get("Location")
+	taskResponse["file_bytes"] = stats.Size()
+	taskResponse["file_mtime"] = stats.ModTime().Unix()
+	taskResponse["resumable_upload_id"] = res.Header.Get("Location")
 
 	// TODO(b/74009190): Consider renaming this, or somehow indicating that
 	// this is a full URL. The Agent needs to be aware that this is a full
@@ -372,9 +372,9 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec,
 }
 
 // copyResumableChunk sends a chunk of the srcFile to GCS as part of a resumable
-// copy task. This function also updates tpUpdates and the logEntry, both of
+// copy task. This function also updates taskResponse and the logEntry, both of
 // which are sent to the DCP.
-func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, tpUpdates taskParams, srcFile *os.File, stats os.FileInfo, logEntry dcp.LogEntry) error {
+func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, taskResponse taskResponse, srcFile *os.File, stats os.FileInfo, logEntry dcp.LogEntry) error {
 	bytesToCopy := c.BytesToCopy
 	if bytesToCopy <= 0 {
 		// c.BytesToCopy <= 0 indicates that the rest of the file should be copied.
@@ -454,9 +454,9 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, t
 		logEntry["dst_bytes"] = obj.Size
 		logEntry["dst_modified_time"] = obj.Updated
 	} else {
-		tpUpdates["crc32c"] = srcCRC32C
+		taskResponse["crc32c"] = srcCRC32C
 	}
-	tpUpdates["bytes_copied"] = c.BytesCopied + int64(bytesRead)
+	taskResponse["bytes_copied"] = c.BytesCopied + int64(bytesRead)
 	logEntry["bytes_copied"] = c.BytesCopied + int64(bytesRead)
 
 	return nil

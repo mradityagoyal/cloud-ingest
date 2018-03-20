@@ -220,15 +220,15 @@ func TestCopyHanderDoResumable(t *testing.T) {
 		t.Errorf("log entry want: %+v, got: %+v", wantLogEntry, msg.LogEntry)
 	}
 
-	wantTPUpdates := taskParams{
+	wantTaskResponse := taskResponse{
 		"bytes_copied":        int64(10),
 		"crc32c":              int64(testTenByteCRC32C),
 		"file_bytes":          int64(len(testFileContent)),
 		"file_mtime":          int64(srcStats.ModTime().Unix()),
 		"resumable_upload_id": "testResumableUploadId",
 	}
-	if !reflect.DeepEqual(wantTPUpdates, msg.TaskParamUpdates) {
-		t.Errorf("taskParamupdates want: %+v, got: %+v", wantTPUpdates, msg.TaskParamUpdates)
+	if !reflect.DeepEqual(wantTaskResponse, msg.TaskResponse) {
+		t.Errorf("taskResponse want: %+v, got: %+v", wantTaskResponse, msg.TaskResponse)
 	}
 }
 
@@ -314,7 +314,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 
 	ctx := context.Background()
 	c := &copyTaskSpec{"src_f", "dst_b", "dst_o", 77, 0, 0, 0, 0, 0, 10 /*bytesToCopy*/, ""}
-	tpUpdates := make(taskParams)
+	taskResponse := make(taskResponse)
 
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
@@ -325,7 +325,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	resumableUploadId, err := h.prepareResumableCopy(ctx, c, tpUpdates, srcFile, stats)
+	resumableUploadId, err := h.prepareResumableCopy(ctx, c, taskResponse, srcFile, stats)
 	if err != nil {
 		t.Error("got ", err)
 	}
@@ -333,8 +333,8 @@ func TestPrepareResumableCopy(t *testing.T) {
 		t.Error("want resumableUploadId testResumableUploadId, got ", resumableUploadId)
 	}
 
-	// Verify task parameter updates.
-	var wantTPUpdates = []struct {
+	// Verify the task response.
+	var wantTaskResponse = []struct {
 		key string
 		val interface{}
 	}{
@@ -342,14 +342,14 @@ func TestPrepareResumableCopy(t *testing.T) {
 		{"file_mtime", int64(1234567890)},
 		{"resumable_upload_id", "testResumableUploadId"},
 	}
-	for _, wtpu := range wantTPUpdates {
+	for _, wtr := range wantTaskResponse {
 		var val interface{}
 		var ok bool
-		if val, ok = tpUpdates[wtpu.key]; !ok {
-			t.Errorf("want tpUpdate key %v to exist, it didn't", wtpu.key)
+		if val, ok = taskResponse[wtr.key]; !ok {
+			t.Errorf("want taskResponse key %v to exist, it didn't", wtr.key)
 		}
-		if val != wtpu.val {
-			t.Errorf("want tpUpdate %s %[2]v/%[2]T, got %[3]v/%[3]T", wtpu.key, wtpu.val, val)
+		if val != wtr.val {
+			t.Errorf("want taskResponse %s %[2]v/%[2]T, got %[3]v/%[3]T", wtr.key, wtr.val, val)
 		}
 	}
 }
@@ -386,21 +386,21 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	tpUpdates := make(taskParams)
+	taskResponse := make(taskResponse)
 	logEntry := dcp.LogEntry{}
 
-	err = h.copyResumableChunk(ctx, c, tpUpdates, srcFile, stats, logEntry)
+	err = h.copyResumableChunk(ctx, c, taskResponse, srcFile, stats, logEntry)
 	if err != nil {
 		t.Error("got ", err)
 	}
 
 	// Verify task parameter updates.
-	val, ok := tpUpdates["bytes_copied"]
+	val, ok := taskResponse["bytes_copied"]
 	if !ok {
-		t.Error("want tpUpdates key bytes_copied to exist, it didn't")
+		t.Error("want taskResponse key bytes_copied to exist, it didn't")
 	}
 	if val != int64(len(testFileContent)) {
-		t.Errorf("want tpUpdates bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(len(testFileContent)), val)
+		t.Errorf("want taskResponse bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(len(testFileContent)), val)
 	}
 
 	// Verify task logEntry.
@@ -457,30 +457,30 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	tpUpdates := make(taskParams)
+	taskResponse := make(taskResponse)
 	logEntry := dcp.LogEntry{}
 
-	err = h.copyResumableChunk(ctx, c, tpUpdates, srcFile, stats, logEntry)
+	err = h.copyResumableChunk(ctx, c, taskResponse, srcFile, stats, logEntry)
 	if err != nil {
 		t.Error("got ", err)
 	}
 
-	// Verify task parameter updates.
-	var wantTPUpdates = []struct {
+	// Verify the task response.
+	var wantTaskResponse = []struct {
 		key string
 		val interface{}
 	}{
 		{"crc32c", int64(testTenByteCRC32C)},
 		{"bytes_copied", int64(10)},
 	}
-	for _, wtpu := range wantTPUpdates {
+	for _, wtr := range wantTaskResponse {
 		var val interface{}
 		var ok bool
-		if val, ok = tpUpdates[wtpu.key]; !ok {
-			t.Errorf("want tpUpdate key %v to exist, it didn't", wtpu.key)
+		if val, ok = taskResponse[wtr.key]; !ok {
+			t.Errorf("want taskResponse key %v to exist, it didn't", wtr.key)
 		}
-		if val != wtpu.val {
-			t.Errorf("want tpUpdate %s %[2]v/%[2]T, got %[3]v/%[3]T", wtpu.key, wtpu.val, val)
+		if val != wtr.val {
+			t.Errorf("want taskResponse %s %[2]v/%[2]T, got %[3]v/%[3]T", wtr.key, wtr.val, val)
 		}
 	}
 

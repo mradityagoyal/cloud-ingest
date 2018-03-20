@@ -29,6 +29,7 @@ type copyTaskSpec struct {
 }
 
 type taskParams map[string]interface{}
+type taskResponse map[string]interface{}
 
 // taskDoneMsg is the response the client sends to the DCP when a task is done.
 type taskDoneMsg struct {
@@ -38,7 +39,7 @@ type taskDoneMsg struct {
 	FailureMessage   string                     `json:"failure_message"`
 	LogEntry         dcp.LogEntry               `json:"log_entry"`
 	TaskParams       taskParams                 `json:"task_params"`
-	TaskParamUpdates taskParams                 `json:"task_param_updates"`
+	TaskResponse     taskResponse               `json:"task_response"`
 }
 
 func copyTaskSpecFromTaskParams(params map[string]interface{}) (cts *copyTaskSpec, err error) {

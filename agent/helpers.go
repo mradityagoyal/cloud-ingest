@@ -52,15 +52,15 @@ func getFailureTypeFromError(err error) proto.TaskFailureType_Type {
 // buildTaskDoneMsg constructs and returns a taskDoneMsg from the params;
 //   taskRRName is the task's relative resource name
 //   tp are the taskParams that the task was originally called with
-//   tpUpdates are modifications to the taskParams that the DCP will consume
+//   tr are the response key/values as a result of this task request
 //   le is the logEntry for this task
 //   err defines whether the taskDoneMsg's Status is SUCCESS or FAILURE
-func buildTaskDoneMsg(taskRRName string, tp, tpUpdates taskParams, le dcp.LogEntry, err error) taskDoneMsg {
+func buildTaskDoneMsg(taskRRName string, tp taskParams, tr taskResponse, le dcp.LogEntry, err error) taskDoneMsg {
 	msg := taskDoneMsg{
-		TaskRRName:       taskRRName,
-		TaskParams:       tp,
-		TaskParamUpdates: tpUpdates,
-		LogEntry:         le,
+		TaskRRName:   taskRRName,
+		TaskParams:   tp,
+		TaskResponse: tr,
+		LogEntry:     le,
 	}
 	if err != nil {
 		msg.Status = "FAILURE"
