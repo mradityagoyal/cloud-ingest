@@ -1,0 +1,127 @@
+#!/bin/bash
+set -e
+
+# This script does the heavy lifting for the preliminary agent release process.
+#
+# How to invoke: release <commit-id>
+#
+# What it does:
+# - Clone the git repo into a temp working directory, at the specified commit
+# - Run unit tests
+# - Build for every supported os/architecture combination
+# - Upload a new version to our version archive bucket
+#
+# The "clone a commit-id from repo" requirement ensures we never mistakenly
+# release local changes.
+
+function die() {
+  echo -e >&2 "$@"
+  exit 1
+}
+
+function prompt_with_regex() {
+  msg=$1
+  regex=$2
+  while true; do
+    read -p "$msg: " input
+    if [[ $input =~ $regex ]]; then # matches regex
+      echo $input
+      break
+    fi
+  done
+}
+
+# Basic command line dependencies needed to run this script.
+command -v git > /dev/null 2>&1 || die "git is not installed. Bailing!"
+command -v go > /dev/null 2>&1 || die "go is not installed. Bailing!"
+command -v gsutil > /dev/null 2>&1 || die "gsutil is not installed. Bailing!"
+
+# Add supported platforms here, as they're needed. These are cross-compiled by
+# Go without having to be built on the local platform. Neat!
+BUILD_PLATFORMS=(linux_amd64 windows_amd64)
+
+# Git repo stuff.
+GIT_COMMIT_ID=$1
+GIT_REPO_NAME=GoogleCloudPlatform/cloud-ingest
+
+# Local directories of relevance.
+SOURCE_DIR=$(go env GOPATH)/src/github.com/$GIT_REPO_NAME
+RELEASE_DIR=$SOURCE_DIR/release
+WORKING_DIR=$RELEASE_DIR/tmp-release-ephemeral
+REPO_DIR=$WORKING_DIR/repo
+ARTIFACT_DIR=$WORKING_DIR/build_artifacts
+ASSET_DIR=$WORKING_DIR/assets
+
+# Binary info.
+MAIN_SOURCE=agent/agentmain/agentmain.go
+BINARY_NAME=agent
+BINARY_PATH=$BINARY_NAME/bin
+
+# Where to upload the versions.
+GCS_PREFIX=gs://cloud-ingest/agent
+
+# Validate input and state.
+[[ -d $RELEASE_DIR ]] || die "Directory $RELEASE_DIR does not exist."
+[[ $GIT_COMMIT_ID =~ ^[0-9a-f]{40}$ ]] || die "First argument should be git commit ID."
+
+# Clean up any old release work, and start fresh.
+rm -rf $WORKING_DIR
+mkdir -p $REPO_DIR
+pushd $REPO_DIR > /dev/null
+
+# Grab code to release (repo@commit).
+echo "Retrieving code to release..."
+git clone git@github.com:$GIT_REPO_NAME.git .
+git checkout $GIT_COMMIT_ID
+echo "Done retrieving code."
+echo ""
+
+# Run tests - Never allow releases that fail unit tests.
+echo "Running unit tests..."
+go test ./... || die "\nUnit tests are failing. Not allowing release to proceed."
+echo "Done running tests."
+echo ""
+
+# Build for every OS/Arch combination we support.
+echo "Building release assets..."
+mkdir -p $ASSET_DIR
+for os_arch in ${BUILD_PLATFORMS[@]}; do
+  build_os=$(echo $os_arch | cut -f1 -d_)
+  build_arch=$(echo $os_arch | cut -f2 -d_)
+  echo "Building for $build_os/$build_arch..."
+  mkdir -p $ARTIFACT_DIR/$os_arch
+
+  if [[ $build_os == "windows" ]]; then
+    GOOS=$build_os GOARCH=$build_arch go build -o $ARTIFACT_DIR/$os_arch/$BINARY_PATH/$BINARY_NAME.exe $MAIN_SOURCE
+    pushd $ARTIFACT_DIR/$os_arch > /dev/null
+    zip -r -q $ASSET_DIR/$BINARY_NAME-$os_arch.zip $BINARY_NAME > /dev/null
+    popd > /dev/null
+  else
+    GOOS=$build_os GOARCH=$build_arch go build -o $ARTIFACT_DIR/$os_arch/$BINARY_PATH/$BINARY_NAME $MAIN_SOURCE
+    tar -czf $ASSET_DIR/$BINARY_NAME-$os_arch.tar.gz -C $ARTIFACT_DIR/$os_arch $BINARY_NAME
+  fi
+done
+popd > /dev/null
+
+echo "Done building."
+echo ""
+
+# Display existing releases.
+echo "Existing Releases (for reference):"
+echo ""
+all_releases=$(gsutil ls $GCS_PREFIX/)
+echo "$all_releases"
+echo""
+
+# Read a new release version, and verify it is unique.
+release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "^v[0-9]+\.[0-9]+\.[0-9]+$")
+[[ ! $all_releases =~ "/$release_version/" ]] || die "Version $release_version already exists."
+
+# Upload our artifacts to the new release version.
+echo ""
+echo "Uploading Artifacts..."
+echo ""
+gsutil -m cp $ASSET_DIR/* $GCS_PREFIX/$release_version/
+echo ""
+
+echo "Done!"
