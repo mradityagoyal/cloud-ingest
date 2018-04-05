@@ -82,30 +82,6 @@ go test ./... || die "\nUnit tests are failing. Not allowing release to proceed.
 echo "Done running tests."
 echo ""
 
-# Build for every OS/Arch combination we support.
-echo "Building release assets..."
-mkdir -p $ASSET_DIR
-for os_arch in ${BUILD_PLATFORMS[@]}; do
-  build_os=$(echo $os_arch | cut -f1 -d_)
-  build_arch=$(echo $os_arch | cut -f2 -d_)
-  echo "Building for $build_os/$build_arch..."
-  mkdir -p $ARTIFACT_DIR/$os_arch
-
-  if [[ $build_os == "windows" ]]; then
-    GOOS=$build_os GOARCH=$build_arch go build -o $ARTIFACT_DIR/$os_arch/$BINARY_PATH/$BINARY_NAME.exe $MAIN_SOURCE
-    pushd $ARTIFACT_DIR/$os_arch > /dev/null
-    zip -r -q $ASSET_DIR/$BINARY_NAME-$os_arch.zip $BINARY_NAME > /dev/null
-    popd > /dev/null
-  else
-    GOOS=$build_os GOARCH=$build_arch go build -o $ARTIFACT_DIR/$os_arch/$BINARY_PATH/$BINARY_NAME $MAIN_SOURCE
-    tar -czf $ASSET_DIR/$BINARY_NAME-$os_arch.tar.gz -C $ARTIFACT_DIR/$os_arch $BINARY_NAME
-  fi
-done
-popd > /dev/null
-
-echo "Done building."
-echo ""
-
 # Display existing releases.
 echo "Existing Releases (for reference):"
 echo ""
@@ -117,8 +93,36 @@ echo""
 release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "^v[0-9]+\.[0-9]+\.[0-9]+$")
 [[ ! $all_releases =~ "/$release_version/" ]] || die "Version $release_version already exists."
 
-# Upload our artifacts to the new release version.
+# Additional flags to pass to the compiler. Currently just release information
+# to compile in.
+ldflags="-X main.buildVersion=$release_version -X main.buildCommit=$GIT_COMMIT_ID -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%S%Z)"
+
+# Build for every OS/Arch combination we support.
+echo""
+echo "Building release assets..."
+mkdir -p $ASSET_DIR
+for os_arch in ${BUILD_PLATFORMS[@]}; do
+  build_os=$(echo $os_arch | cut -f1 -d_)
+  build_arch=$(echo $os_arch | cut -f2 -d_)
+  echo "Building for $build_os/$build_arch..."
+  mkdir -p $ARTIFACT_DIR/$os_arch
+
+  if [[ $build_os == "windows" ]]; then
+    GOOS=$build_os GOARCH=$build_arch go build -ldflags "$ldflags" -o $ARTIFACT_DIR/$os_arch/$BINARY_PATH/$BINARY_NAME.exe $MAIN_SOURCE
+    pushd $ARTIFACT_DIR/$os_arch > /dev/null
+    zip -r -q $ASSET_DIR/$BINARY_NAME-$os_arch.zip $BINARY_NAME > /dev/null
+    popd > /dev/null
+  else
+    GOOS=$build_os GOARCH=$build_arch go build -ldflags "$ldflags" -o $ARTIFACT_DIR/$os_arch/$BINARY_PATH/$BINARY_NAME $MAIN_SOURCE
+    tar -czf $ASSET_DIR/$BINARY_NAME-$os_arch.tar.gz -C $ARTIFACT_DIR/$os_arch $BINARY_NAME
+  fi
+done
+popd > /dev/null
+
+echo "Done building."
 echo ""
+
+# Upload our artifacts to the new release version.
 echo "Uploading Artifacts..."
 echo ""
 gsutil -m cp $ASSET_DIR/* $GCS_PREFIX/$release_version/

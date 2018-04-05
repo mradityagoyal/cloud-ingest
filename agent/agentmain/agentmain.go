@@ -18,7 +18,9 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"net/http"
+	"os"
 	"sync"
 	"time"
 
@@ -46,6 +48,13 @@ var (
 
 	skipProcessListTasks bool
 	skipProcessCopyTasks bool
+	printVersion         bool
+
+	// Fields used to display version information. These defaults are
+	// overridden when the release script builds in values through ldflags.
+	buildVersion = "v0.0.0-development"
+	buildCommit  = "(local)"
+	buildDate    = "Unknown; this is not an official release."
 )
 
 func init() {
@@ -66,12 +75,24 @@ func init() {
 		"Skip processing list tasks.")
 	flag.BoolVar(&skipProcessCopyTasks, "skip-copy", false,
 		"Skip processing copy tasks.")
+	flag.BoolVar(&printVersion, "version", false,
+		"Print build/version info and exit.")
 	flag.Parse()
+}
+
+func printVersionInfo() {
+	fmt.Printf("Google Cloud Ingest Agent %s\n", buildVersion)
+	fmt.Printf("Git Commit: %s\nBuild Date: %s\n", buildCommit, buildDate)
 }
 
 func main() {
 	defer glog.Flush()
 	ctx := context.Background()
+
+	if printVersion {
+		printVersionInfo()
+		os.Exit(0)
+	}
 
 	var pubSubErr, storageErr, httpcErr error
 	var pubSubClient *pubsub.Client
