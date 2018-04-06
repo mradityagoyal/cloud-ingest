@@ -8,6 +8,11 @@
     <mat-sidenav-container fullscreen class="ingest-sidenav-container">
       <mat-sidenav #sidenav mode="side" opened="true">
         <mat-list>
+          <a mat-list-item routerLink="/bandwidth-control"
+              queryParamsHandling="merge" id="bandwidth-control-link"
+              i18n="Link to page to configure bandwidth control for the project">
+            Bandwidth Control
+          </a>
           <a mat-list-item routerLink="/jobs"
               queryParamsHandling="merge" id="jobslink"
               i18n="Link to page listing jobs">

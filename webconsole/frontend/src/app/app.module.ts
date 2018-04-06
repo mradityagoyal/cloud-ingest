@@ -11,12 +11,14 @@ import { AppRoutingModule } from './app-routing.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ProjectSelectComponent } from './project-select/project-select.component';
 import { LogsComponent } from './logs/logs.component';
+import { BandwidthControlComponent } from './bandwidth-control/bandwidth-control.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     ProjectSelectComponent,
-    LogsComponent
+    LogsComponent,
+    BandwidthControlComponent
   ],
   imports: [
     BrowserModule,
@@ -26,7 +28,7 @@ import { LogsComponent } from './logs/logs.component';
     ReactiveFormsModule,
     AngularMaterialImporterModule,
     JobsModule,
-    AppRoutingModule
+    AppRoutingModule,
   ],
   providers: [
     AuthService,
