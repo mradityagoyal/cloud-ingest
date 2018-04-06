@@ -1,0 +1,63 @@
+#!/bin/bash
+set -e
+source $(dirname ${BASH_SOURCE[0]})/release-helpers.sh
+
+# This script releases an existing agent version to an environment it can be
+# consumed from.
+#
+# How to invoke: release-agent <version> <env>
+#
+# e.g. release-agent v1.0.0 prod
+#
+# What it does:
+# - Verify the version exists in our versioned build archive
+# - Copy its contents to desired destination
+#
+# Env can be: test, prod
+
+function perform_release() {
+  local version=$1
+  local env=$2
+  local dst_prefix=$3
+
+  # Final check - point of no return.
+  [[ $version =~ $VERSION_REGEX ]] || die "Version number must have format like v1.0.0"
+  echo "Releasing Agent $version to $env ($dst_prefix)."
+  echo ""
+  prompt_with_regex "If this is okay, enter 'yes' (ctrl-c to bail)" "^yes$" > /dev/null
+  echo ""
+
+  # Copy files to release directory.
+  gsutil -m cp $GCS_VERSIONS_PREFIX/$version/* $dst_prefix
+}
+
+# Basic command line dependencies needed to run this script.
+command -v gsutil > /dev/null 2>&1 || die "gsutil is not installed. Bailing!"
+
+VERSION=$1
+RELEASE_ENV=$2
+
+# Destinations.
+TEST_GCS_PREFIX=gs://cloud-ingest-test/agent/current
+PROD_GCS_PREFIX=gs://cloud-ingest-pub/agent/current
+
+# Validate version number.
+[[ $VERSION =~ $VERSION_REGEX ]] || die "Version number must have format like v1.0.0"
+all_releases=$(gsutil ls $GCS_VERSIONS_PREFIX/)
+[[ $all_releases =~ "/$VERSION/" ]] || die "Version $VERSION does not exist."
+
+# Promote based on input environment.
+case $RELEASE_ENV in
+  "test")
+    perform_release $VERSION $RELEASE_ENV $TEST_GCS_PREFIX
+    ;;
+  "prod")
+    perform_release $VERSION $RELEASE_ENV $PROD_GCS_PREFIX
+    ;;
+  *)
+    die "'$RELEASE_ENV' is not a supported environment."
+    ;;
+esac
+
+echo ""
+echo "Done!"

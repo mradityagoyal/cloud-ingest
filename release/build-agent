@@ -1,9 +1,10 @@
 #!/bin/bash
 set -e
+source $(dirname ${BASH_SOURCE[0]})/release-helpers.sh
 
 # This script does the heavy lifting for the preliminary agent release process.
 #
-# How to invoke: release <commit-id>
+# How to invoke: build-agent <full-commit-id>
 #
 # What it does:
 # - Clone the git repo into a temp working directory, at the specified commit
@@ -13,23 +14,6 @@ set -e
 #
 # The "clone a commit-id from repo" requirement ensures we never mistakenly
 # release local changes.
-
-function die() {
-  echo -e >&2 "$@"
-  exit 1
-}
-
-function prompt_with_regex() {
-  msg=$1
-  regex=$2
-  while true; do
-    read -p "$msg: " input
-    if [[ $input =~ $regex ]]; then # matches regex
-      echo $input
-      break
-    fi
-  done
-}
 
 # Basic command line dependencies needed to run this script.
 command -v git > /dev/null 2>&1 || die "git is not installed. Bailing!"
@@ -51,14 +35,12 @@ WORKING_DIR=$RELEASE_DIR/tmp-release-ephemeral
 REPO_DIR=$WORKING_DIR/repo
 ARTIFACT_DIR=$WORKING_DIR/build_artifacts
 ASSET_DIR=$WORKING_DIR/assets
+VERSION_FILE=$ASSET_DIR/VERSIONINFO.txt
 
 # Binary info.
 MAIN_SOURCE=agent/agentmain/agentmain.go
 BINARY_NAME=agent
 BINARY_PATH=$BINARY_NAME/bin
-
-# Where to upload the versions.
-GCS_PREFIX=gs://cloud-ingest/agent
 
 # Validate input and state.
 [[ -d $RELEASE_DIR ]] || die "Directory $RELEASE_DIR does not exist."
@@ -85,22 +67,29 @@ echo ""
 # Display existing releases.
 echo "Existing Releases (for reference):"
 echo ""
-all_releases=$(gsutil ls $GCS_PREFIX/)
+all_releases=$(gsutil ls $GCS_VERSIONS_PREFIX/)
 echo "$all_releases"
 echo""
 
 # Read a new release version, and verify it is unique.
-release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "^v[0-9]+\.[0-9]+\.[0-9]+$")
+release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "$VERSION_REGEX")
 [[ ! $all_releases =~ "/$release_version/" ]] || die "Version $release_version already exists."
 
 # Additional flags to pass to the compiler. Currently just release information
 # to compile in.
-ldflags="-X main.buildVersion=$release_version -X main.buildCommit=$GIT_COMMIT_ID -X main.buildDate=$(date -u +%Y-%m-%dT%H:%M:%S%Z)"
+build_date=$(date -u +%Y-%m-%dT%H:%M:%S%Z)
+ldflags="-X main.buildVersion=$release_version -X main.buildCommit=$GIT_COMMIT_ID -X main.buildDate=$build_date"
+
+# Create an asset directory, and write a basic text file with our version info.
+# This is for human convenience; this file will not be parsed programmatically.
+mkdir -p $ASSET_DIR
+echo "Version: $release_version" > $VERSION_FILE
+echo "Commit: $GIT_COMMIT_ID" >> $VERSION_FILE
+echo "Build Date: $build_date" >> $VERSION_FILE
 
 # Build for every OS/Arch combination we support.
 echo""
 echo "Building release assets..."
-mkdir -p $ASSET_DIR
 for os_arch in ${BUILD_PLATFORMS[@]}; do
   build_os=$(echo $os_arch | cut -f1 -d_)
   build_arch=$(echo $os_arch | cut -f2 -d_)
@@ -125,7 +114,7 @@ echo ""
 # Upload our artifacts to the new release version.
 echo "Uploading Artifacts..."
 echo ""
-gsutil -m cp $ASSET_DIR/* $GCS_PREFIX/$release_version/
+gsutil -m cp $ASSET_DIR/* $GCS_VERSIONS_PREFIX/$release_version/
 echo ""
 
 echo "Done!"
