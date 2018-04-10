@@ -30,9 +30,9 @@ func (ae AgentError) Error() string {
 	return ae.Msg
 }
 
-func NewInvalidTaskParamsError(taskParams taskParams, err error) *AgentError {
+func NewInvalidTaskReqParamsError(taskReqParams taskReqParams, err error) *AgentError {
 	return &AgentError{
-		Msg:         fmt.Sprintf("Invalid task params arguments: %+v, err: %v", taskParams, err),
+		Msg:         fmt.Sprintf("Invalid taskReqParams arguments: %+v, err: %v", taskReqParams, err),
 		FailureType: proto.TaskFailureType_UNKNOWN,
 	}
 }

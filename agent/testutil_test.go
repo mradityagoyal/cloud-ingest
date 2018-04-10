@@ -23,10 +23,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 )
 
-func checkFailureWithType(
-	taskRRName string, failureType proto.TaskFailureType_Type,
-	msg taskDoneMsg, t *testing.T) {
-
+func checkFailureWithType(taskRRName string, failureType proto.TaskFailureType_Type, msg taskProgressMsg, t *testing.T) {
 	if msg.TaskRRName != taskRRName {
 		t.Errorf("want task id \"%s\", got \"%s\"", taskRRName, msg.TaskRRName)
 	}
@@ -40,16 +37,15 @@ func checkFailureWithType(
 	}
 }
 
-func checkForInvalidTaskParamsArguments(
-	taskRRName string, msg taskDoneMsg, t *testing.T) {
+func checkForInvalidTaskReqParamsArguments(taskRRName string, msg taskProgressMsg, t *testing.T) {
 	checkFailureWithType(taskRRName, proto.TaskFailureType_UNKNOWN, msg, t)
-	if !strings.Contains(msg.FailureMessage, "Invalid task params arguments") {
-		t.Errorf("failure message want \"Invalid task params arguments\", got: %s",
+	if !strings.Contains(msg.FailureMessage, "Invalid taskReqParams arguments") {
+		t.Errorf("failure message want \"Invalid taskReqParams arguments\", got: %s",
 			msg.FailureMessage)
 	}
 }
 
-func checkSuccessMsg(taskRRName string, msg taskDoneMsg, t *testing.T) {
+func checkSuccessMsg(taskRRName string, msg taskProgressMsg, t *testing.T) {
 	if msg.TaskRRName != taskRRName {
 		t.Errorf("want task id \"%s\", got \"%s\"", taskRRName, msg.TaskRRName)
 	}
@@ -58,12 +54,12 @@ func checkSuccessMsg(taskRRName string, msg taskDoneMsg, t *testing.T) {
 	}
 }
 
-func testMissingOneTaskParams(h WorkHandler, tp taskParams, t *testing.T) {
-	for param := range tp {
-		paramVal := tp[param]
-		delete(tp, param)
-		msg := h.Do(context.Background(), "task", tp)
-		checkForInvalidTaskParamsArguments("task", msg, t)
-		tp[param] = paramVal
+func testMissingOneTaskReqParams(h WorkHandler, taskReqParams taskReqParams, t *testing.T) {
+	for param := range taskReqParams {
+		paramVal := taskReqParams[param]
+		delete(taskReqParams, param)
+		msg := h.Do(context.Background(), "task", taskReqParams)
+		checkForInvalidTaskReqParamsArguments("task", msg, t)
+		taskReqParams[param] = paramVal
 	}
 }

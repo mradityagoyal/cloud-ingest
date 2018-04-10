@@ -38,8 +38,8 @@ func init() {
 
 // WorkHandler is an interface to handle different task types.
 type WorkHandler interface {
-	// Do handles the task with taskRRName and taskParams.
-	Do(ctx context.Context, taskRRName string, taskParams taskParams) taskDoneMsg
+	// Do handles the task with taskRRName and taskReqParams.
+	Do(ctx context.Context, taskRRName string, taskReqParams taskReqParams) taskProgressMsg
 }
 
 // WorkProcessor processes tasks of a certain type. It listens to subscription
@@ -74,9 +74,9 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		msg.Ack()
 		return
 	}
-	taskParams := msgMap["task_params"].(map[string]interface{})
+	taskReqParams := msgMap["task_req_params"].(map[string]interface{})
 
-	progressMsg := wp.Handler.Do(ctx, taskRRName, taskParams)
+	progressMsg := wp.Handler.Do(ctx, taskRRName, taskReqParams)
 
 	progressMsgJSON, err := json.Marshal(progressMsg)
 	if err != nil {

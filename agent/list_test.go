@@ -31,34 +31,34 @@ import (
 	"github.com/golang/mock/gomock"
 )
 
-func TestListNoTaskParams(t *testing.T) {
+func TestListNoTaskReqParams(t *testing.T) {
 	h := ListHandler{}
-	tp := taskParams{}
-	msg := h.Do(context.Background(), "task", tp)
-	checkForInvalidTaskParamsArguments("task", msg, t)
+	taskReqParams := taskReqParams{}
+	msg := h.Do(context.Background(), "task", taskReqParams)
+	checkForInvalidTaskReqParamsArguments("task", msg, t)
 }
 
-func TestListMissingOneTaskParams(t *testing.T) {
+func TestListMissingOneTaskReqParams(t *testing.T) {
 	h := &ListHandler{}
-	tp := taskParams{
+	taskReqParams := taskReqParams{
 		"dst_list_result_bucket":  "bucket",
 		"dst_list_result_object":  "object",
 		"src_directory":           "dir",
 		"expected_generation_num": 0,
 	}
-	testMissingOneTaskParams(h, tp, t)
+	testMissingOneTaskReqParams(h, taskReqParams, t)
 }
 
 func TestListInvalidGenerationNum(t *testing.T) {
 	h := ListHandler{}
-	tp := taskParams{
+	taskReqParams := taskReqParams{
 		"dst_list_result_bucket":  "bucket",
 		"dst_list_result_object":  "object",
 		"src_directory":           "dir",
 		"expected_generation_num": "not a number",
 	}
-	msg := h.Do(context.Background(), "task", tp)
-	checkForInvalidTaskParamsArguments("task", msg, t)
+	msg := h.Do(context.Background(), "task", taskReqParams)
+	checkForInvalidTaskReqParamsArguments("task", msg, t)
 }
 
 func TestDirNotFound(t *testing.T) {
@@ -70,13 +70,13 @@ func TestDirNotFound(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	tp := taskParams{
+	taskReqParams := taskReqParams{
 		"dst_list_result_bucket":  "bucket",
 		"dst_list_result_object":  "object",
 		"src_directory":           "dir does not exist",
 		"expected_generation_num": 0,
 	}
-	msg := h.Do(context.Background(), "task", tp)
+	msg := h.Do(context.Background(), "task", taskReqParams)
 	checkFailureWithType("task", proto.TaskFailureType_FILE_NOT_FOUND_FAILURE, msg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
@@ -101,13 +101,13 @@ func TestListSuccessEmptyDir(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	tp := taskParams{
+	taskReqParams := taskReqParams{
 		"dst_list_result_bucket":  "bucket",
 		"dst_list_result_object":  "object",
 		"src_directory":           tmpDir,
 		"expected_generation_num": 0,
 	}
-	msg := h.Do(context.Background(), taskRRName, tp)
+	msg := h.Do(context.Background(), taskRRName, taskReqParams)
 	checkSuccessMsg(taskRRName, msg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -151,13 +151,13 @@ func TestListSuccessFlatDir(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	tp := taskParams{
+	taskReqParams := taskReqParams{
 		"dst_list_result_bucket":  "bucket",
 		"dst_list_result_object":  "object",
 		"src_directory":           tmpDir,
 		"expected_generation_num": 0,
 	}
-	msg := h.Do(context.Background(), taskRRName, tp)
+	msg := h.Do(context.Background(), taskRRName, taskReqParams)
 	checkSuccessMsg(taskRRName, msg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -211,13 +211,13 @@ func TestListSuccessNestedDir(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	tp := taskParams{
+	taskReqParams := taskReqParams{
 		"dst_list_result_bucket":  "bucket",
 		"dst_list_result_object":  "object",
 		"src_directory":           tmpDir,
 		"expected_generation_num": 0,
 	}
-	msg := h.Do(context.Background(), taskRRName, tp)
+	msg := h.Do(context.Background(), taskRRName, taskReqParams)
 	checkSuccessMsg(taskRRName, msg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",

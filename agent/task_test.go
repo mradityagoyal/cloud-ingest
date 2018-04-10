@@ -14,7 +14,7 @@ func deepEqualCompare(msgPrefix string, want, got interface{}, t *testing.T) {
 	}
 }
 
-func TestCopyTaskSpecFromTaskParams(t *testing.T) {
+func TestCopyTaskSpecFromTaskReqParams(t *testing.T) {
 	var tests = []struct {
 		// Mandatory fields.
 		srcFile interface{}
@@ -86,7 +86,7 @@ func TestCopyTaskSpecFromTaskParams(t *testing.T) {
 			params["resumable_upload_id"] = tc.resumableUploadId
 		}
 
-		result, err := copyTaskSpecFromTaskParams(params)
+		result, err := copyTaskSpecFromTaskReqParams(params)
 
 		if tc.srcFile != nil && tc.bucket != nil && tc.object != nil && tc.genNum != nil &&
 			tc.fileBytes != nil && tc.fileMtime != nil && tc.bytesCopied != nil &&

@@ -49,18 +49,18 @@ func getFailureTypeFromError(err error) proto.TaskFailureType_Type {
 	return proto.TaskFailureType_UNKNOWN
 }
 
-// buildTaskDoneMsg constructs and returns a taskDoneMsg from the params;
+// buildTaskProgressMsg constructs and returns a taskProgressMsg from the params;
 //   taskRRName is the task's relative resource name
-//   tp are the taskParams that the task was originally called with
-//   tr are the response key/values as a result of this task request
+//   taskReqParams are the taskReqParams that the task was originally called with
+//   taskResParams are the response key/values as a result of this task request
 //   le is the logEntry for this task
-//   err defines whether the taskDoneMsg's Status is SUCCESS or FAILURE
-func buildTaskDoneMsg(taskRRName string, tp taskParams, tr taskResponse, le dcp.LogEntry, err error) taskDoneMsg {
-	msg := taskDoneMsg{
-		TaskRRName:   taskRRName,
-		TaskParams:   tp,
-		TaskResponse: tr,
-		LogEntry:     le,
+//   err defines whether the taskProgressMsg's Status is SUCCESS or FAILURE
+func buildTaskProgressMsg(taskRRName string, taskReqParams taskReqParams, taskResParams taskResParams, le dcp.LogEntry, err error) taskProgressMsg {
+	msg := taskProgressMsg{
+		TaskRRName:    taskRRName,
+		TaskReqParams: taskReqParams,
+		TaskResParams: taskResParams,
+		LogEntry:      le,
 	}
 	if err != nil {
 		msg.Status = "FAILURE"

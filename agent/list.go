@@ -59,11 +59,11 @@ func listDirectory(dir string) ([]os.FileInfo, error) {
 	return fileInfos, nil
 }
 
-func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskParams taskParams) taskDoneMsg {
-	bucketName, bucketNameOK := taskParams["dst_list_result_bucket"].(string)
-	objectName, objectNameOK := taskParams["dst_list_result_object"].(string)
-	srcDirectory, srcDirectoryOK := taskParams["src_directory"].(string)
-	generationNum, err := helpers.ToInt64(taskParams["expected_generation_num"])
+func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskReqParams taskReqParams) taskProgressMsg {
+	bucketName, bucketNameOK := taskReqParams["dst_list_result_bucket"].(string)
+	objectName, objectNameOK := taskReqParams["dst_list_result_object"].(string)
+	srcDirectory, srcDirectoryOK := taskReqParams["src_directory"].(string)
+	generationNum, err := helpers.ToInt64(taskReqParams["expected_generation_num"])
 
 	logEntry := dcp.LogEntry{
 		"worker_id":        workerID,
@@ -71,7 +71,7 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskParams task
 	}
 
 	if !bucketNameOK || !objectNameOK || !srcDirectoryOK || err != nil {
-		return buildTaskDoneMsg(taskRRName, taskParams, nil, logEntry, NewInvalidTaskParamsError(taskParams, err))
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, NewInvalidTaskReqParamsError(taskReqParams, err))
 	}
 
 	w := h.gcs.NewWriterWithCondition(ctx, bucketName, objectName,
@@ -84,13 +84,13 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskParams task
 
 	if _, err := fmt.Fprintln(w, taskRRName); err != nil {
 		w.CloseWithError(err)
-		return buildTaskDoneMsg(taskRRName, taskParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
 	}
 
 	fileInfos, err := listDirectory(srcDirectory)
 	if err != nil {
 		w.CloseWithError(err)
-		return buildTaskDoneMsg(taskRRName, taskParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
 	}
 	var bytesFound, filesFound, dirsFound int64
 	for _, fileInfo := range fileInfos {
@@ -98,7 +98,7 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskParams task
 		listFileEntry := dcp.ListFileEntry{fileInfo.IsDir(), fullPath}
 		if _, err := fmt.Fprintln(w, listFileEntry); err != nil {
 			w.CloseWithError(err)
-			return buildTaskDoneMsg(taskRRName, taskParams, nil, logEntry, err)
+			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
 		}
 		if fileInfo.IsDir() {
 			dirsFound++
@@ -109,12 +109,12 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskParams task
 	}
 
 	if err := w.Close(); err != nil {
-		return buildTaskDoneMsg(taskRRName, taskParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
 	}
 
 	logEntry["files_found"] = filesFound
 	logEntry["bytes_found"] = bytesFound
 	logEntry["dirs_found"] = dirsFound
 
-	return buildTaskDoneMsg(taskRRName, taskParams, nil, logEntry, nil)
+	return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, nil)
 }

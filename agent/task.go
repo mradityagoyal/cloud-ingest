@@ -28,21 +28,21 @@ type copyTaskSpec struct {
 	ResumableUploadId string `json:"resumable_upload_id"`
 }
 
-type taskParams map[string]interface{}
-type taskResponse map[string]interface{}
+type taskReqParams map[string]interface{}
+type taskResParams map[string]interface{}
 
-// taskDoneMsg is the response the client sends to the DCP when a task is done.
-type taskDoneMsg struct {
-	TaskRRName       string                     `json:"task_rr_name"`
-	Status           string                     `json:"status"`
-	FailureType      proto.TaskFailureType_Type `json:"failure_reason"`
-	FailureMessage   string                     `json:"failure_message"`
-	LogEntry         dcp.LogEntry               `json:"log_entry"`
-	TaskParams       taskParams                 `json:"task_params"`
-	TaskResponse     taskResponse               `json:"task_response"`
+// taskProgressMsg is the response the client sends to the DCP when a task is done.
+type taskProgressMsg struct {
+	TaskRRName     string                     `json:"task_rr_name"`
+	Status         string                     `json:"status"`
+	FailureType    proto.TaskFailureType_Type `json:"failure_reason"`
+	FailureMessage string                     `json:"failure_message"`
+	LogEntry       dcp.LogEntry               `json:"log_entry"`
+	TaskReqParams  taskReqParams              `json:"task_req_params"`
+	TaskResParams  taskResParams              `json:"task_res_params"`
 }
 
-func copyTaskSpecFromTaskParams(params map[string]interface{}) (cts *copyTaskSpec, err error) {
+func copyTaskSpecFromTaskReqParams(params map[string]interface{}) (cts *copyTaskSpec, err error) {
 	// Mandatory params.
 	srcFile, ok1 := params["src_file"]
 	dstBucket, ok2 := params["dst_bucket"]

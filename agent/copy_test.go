@@ -43,47 +43,47 @@ const (
 	testTenByteCRC32C = 1069694901 // CRC32C of the first 10-bytes of testFileContent.
 )
 
-func testingTaskParams() taskParams {
-	tp := make(taskParams)
-	tp["src_file"] = "file"
-	tp["dst_bucket"] = "bucket"
-	tp["dst_object"] = "object"
-	tp["expected_generation_num"] = 0
-	tp["file_bytes"] = 0
-	tp["file_mtime"] = 0
-	tp["bytes_copied"] = 0
-	tp["bytes_to_copy"] = 0
-	tp["resumable_upload_id"] = ""
-	tp["crc32c"] = 0
-	return tp
+func testingTaskReqParams() taskReqParams {
+	taskReqParams := make(taskReqParams)
+	taskReqParams["src_file"] = "file"
+	taskReqParams["dst_bucket"] = "bucket"
+	taskReqParams["dst_object"] = "object"
+	taskReqParams["expected_generation_num"] = 0
+	taskReqParams["file_bytes"] = 0
+	taskReqParams["file_mtime"] = 0
+	taskReqParams["bytes_copied"] = 0
+	taskReqParams["bytes_to_copy"] = 0
+	taskReqParams["resumable_upload_id"] = ""
+	taskReqParams["crc32c"] = 0
+	return taskReqParams
 }
 
-func TestNoTaskParams(t *testing.T) {
+func TestNoTaskReqParams(t *testing.T) {
 	h := CopyHandler{}
-	tp := taskParams{}
-	msg := h.Do(context.Background(), "task", tp)
-	checkForInvalidTaskParamsArguments("task", msg, t)
+	taskReqParams := taskReqParams{}
+	msg := h.Do(context.Background(), "task", taskReqParams)
+	checkForInvalidTaskReqParamsArguments("task", msg, t)
 }
 
-func TestCopyMissingOneTaskParams(t *testing.T) {
+func TestCopyMissingOneTaskReqParams(t *testing.T) {
 	h := &CopyHandler{}
-	tp := testingTaskParams()
-	testMissingOneTaskParams(h, tp, t)
+	taskReqParams := testingTaskReqParams()
+	testMissingOneTaskReqParams(h, taskReqParams, t)
 }
 
 func TestCopyInvalidGenerationNum(t *testing.T) {
 	h := CopyHandler{}
-	tp := testingTaskParams()
-	tp["expected_generation_num"] = "not a number"
-	msg := h.Do(context.Background(), "task", tp)
-	checkForInvalidTaskParamsArguments("task", msg, t)
+	taskReqParams := testingTaskReqParams()
+	taskReqParams["expected_generation_num"] = "not a number"
+	msg := h.Do(context.Background(), "task", taskReqParams)
+	checkForInvalidTaskReqParamsArguments("task", msg, t)
 }
 
 func TestSourceNotFound(t *testing.T) {
 	h := CopyHandler{}
-	tp := testingTaskParams()
-	tp["src_file"] = "file does not exist"
-	msg := h.Do(context.Background(), "task", tp)
+	taskReqParams := testingTaskReqParams()
+	taskReqParams["src_file"] = "file does not exist"
+	msg := h.Do(context.Background(), "task", taskReqParams)
 	checkFailureWithType("task", proto.TaskFailureType_FILE_NOT_FOUND_FAILURE, msg, t)
 }
 
@@ -101,9 +101,9 @@ func TestAcquireBufferMemoryFail(t *testing.T) {
 
 	copyMemoryLimit = 5
 	h := CopyHandler{mockGCS, 10, nil, semaphore.NewWeighted(5), nil}
-	tp := testingTaskParams()
-	tp["src_file"] = tmpFile
-	msg := h.Do(context.Background(), "task", tp)
+	taskReqParams := testingTaskReqParams()
+	taskReqParams["src_file"] = tmpFile
+	msg := h.Do(context.Background(), "task", taskReqParams)
 	checkFailureWithType("task", proto.TaskFailureType_UNKNOWN, msg, t)
 }
 
@@ -123,9 +123,9 @@ func TestCRC32CMismtach(t *testing.T) {
 
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{mockGCS, 5, nil, semaphore.NewWeighted(copyMemoryLimit), nil}
-	tp := testingTaskParams()
-	tp["src_file"] = tmpFile
-	msg := h.Do(context.Background(), "task", tp)
+	taskReqParams := testingTaskReqParams()
+	taskReqParams["src_file"] = tmpFile
+	msg := h.Do(context.Background(), "task", taskReqParams)
 	checkFailureWithType("task", proto.TaskFailureType_MD5_MISMATCH_FAILURE, msg, t)
 }
 
@@ -149,9 +149,9 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{mockGCS, 5, nil, semaphore.NewWeighted(copyMemoryLimit), nil}
-	tp := testingTaskParams()
-	tp["src_file"] = tmpFile
-	msg := h.Do(context.Background(), "task", tp)
+	taskReqParams := testingTaskReqParams()
+	taskReqParams["src_file"] = tmpFile
+	msg := h.Do(context.Background(), "task", taskReqParams)
 	checkSuccessMsg("task", msg, t)
 	if writer.WrittenString() != testFileContent {
 		t.Errorf("written string want \"%s\", got \"%s\"",
@@ -201,10 +201,10 @@ func TestCopyHanderDoResumable(t *testing.T) {
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 
-	tp := testingTaskParams()
-	tp["src_file"] = tmpFile
-	tp["bytes_to_copy"] = 10
-	msg := h.Do(context.Background(), "task", tp)
+	taskReqParams := testingTaskReqParams()
+	taskReqParams["src_file"] = tmpFile
+	taskReqParams["bytes_to_copy"] = 10
+	msg := h.Do(context.Background(), "task", taskReqParams)
 	checkSuccessMsg("task", msg, t)
 
 	srcStats, _ := os.Stat(tmpFile)
@@ -220,15 +220,15 @@ func TestCopyHanderDoResumable(t *testing.T) {
 		t.Errorf("log entry want: %+v, got: %+v", wantLogEntry, msg.LogEntry)
 	}
 
-	wantTaskResponse := taskResponse{
+	wantTaskResParams := taskResParams{
 		"bytes_copied":        int64(10),
 		"crc32c":              int64(testTenByteCRC32C),
 		"file_bytes":          int64(len(testFileContent)),
 		"file_mtime":          int64(srcStats.ModTime().Unix()),
 		"resumable_upload_id": "testResumableUploadId",
 	}
-	if !reflect.DeepEqual(wantTaskResponse, msg.TaskResponse) {
-		t.Errorf("taskResponse want: %+v, got: %+v", wantTaskResponse, msg.TaskResponse)
+	if !reflect.DeepEqual(wantTaskResParams, msg.TaskResParams) {
+		t.Errorf("taskResParams want: %+v, got: %+v", wantTaskResParams, msg.TaskResParams)
 	}
 }
 
@@ -314,7 +314,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 
 	ctx := context.Background()
 	c := &copyTaskSpec{"src_f", "dst_b", "dst_o", 77, 0, 0, 0, 0, 0, 10 /*bytesToCopy*/, ""}
-	taskResponse := make(taskResponse)
+	taskResParams := make(taskResParams)
 
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
@@ -325,7 +325,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	resumableUploadId, err := h.prepareResumableCopy(ctx, c, taskResponse, srcFile, stats)
+	resumableUploadId, err := h.prepareResumableCopy(ctx, c, taskResParams, srcFile, stats)
 	if err != nil {
 		t.Error("got ", err)
 	}
@@ -334,7 +334,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 	}
 
 	// Verify the task response.
-	var wantTaskResponse = []struct {
+	var wantTaskResParams = []struct {
 		key string
 		val interface{}
 	}{
@@ -342,14 +342,14 @@ func TestPrepareResumableCopy(t *testing.T) {
 		{"file_mtime", int64(1234567890)},
 		{"resumable_upload_id", "testResumableUploadId"},
 	}
-	for _, wtr := range wantTaskResponse {
+	for _, wtr := range wantTaskResParams {
 		var val interface{}
 		var ok bool
-		if val, ok = taskResponse[wtr.key]; !ok {
-			t.Errorf("want taskResponse key %v to exist, it didn't", wtr.key)
+		if val, ok = taskResParams[wtr.key]; !ok {
+			t.Errorf("want taskResParams key %v to exist, it didn't", wtr.key)
 		}
 		if val != wtr.val {
-			t.Errorf("want taskResponse %s %[2]v/%[2]T, got %[3]v/%[3]T", wtr.key, wtr.val, val)
+			t.Errorf("want taskResParams %s %[2]v/%[2]T, got %[3]v/%[3]T", wtr.key, wtr.val, val)
 		}
 	}
 }
@@ -386,21 +386,21 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	taskResponse := make(taskResponse)
+	taskResParams := make(taskResParams)
 	logEntry := dcp.LogEntry{}
 
-	err = h.copyResumableChunk(ctx, c, taskResponse, srcFile, stats, logEntry)
+	err = h.copyResumableChunk(ctx, c, taskResParams, srcFile, stats, logEntry)
 	if err != nil {
 		t.Error("got ", err)
 	}
 
 	// Verify task parameter updates.
-	val, ok := taskResponse["bytes_copied"]
+	val, ok := taskResParams["bytes_copied"]
 	if !ok {
-		t.Error("want taskResponse key bytes_copied to exist, it didn't")
+		t.Error("want taskResParams key bytes_copied to exist, it didn't")
 	}
 	if val != int64(len(testFileContent)) {
-		t.Errorf("want taskResponse bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(len(testFileContent)), val)
+		t.Errorf("want taskResParams bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(len(testFileContent)), val)
 	}
 
 	// Verify task logEntry.
@@ -457,30 +457,30 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	taskResponse := make(taskResponse)
+	taskResParams := make(taskResParams)
 	logEntry := dcp.LogEntry{}
 
-	err = h.copyResumableChunk(ctx, c, taskResponse, srcFile, stats, logEntry)
+	err = h.copyResumableChunk(ctx, c, taskResParams, srcFile, stats, logEntry)
 	if err != nil {
 		t.Error("got ", err)
 	}
 
 	// Verify the task response.
-	var wantTaskResponse = []struct {
+	var wantTaskResParams = []struct {
 		key string
 		val interface{}
 	}{
 		{"crc32c", int64(testTenByteCRC32C)},
 		{"bytes_copied", int64(10)},
 	}
-	for _, wtr := range wantTaskResponse {
+	for _, wtr := range wantTaskResParams {
 		var val interface{}
 		var ok bool
-		if val, ok = taskResponse[wtr.key]; !ok {
-			t.Errorf("want taskResponse key %v to exist, it didn't", wtr.key)
+		if val, ok = taskResParams[wtr.key]; !ok {
+			t.Errorf("want taskResParams key %v to exist, it didn't", wtr.key)
 		}
 		if val != wtr.val {
-			t.Errorf("want taskResponse %s %[2]v/%[2]T, got %[3]v/%[3]T", wtr.key, wtr.val, val)
+			t.Errorf("want taskResParams %s %[2]v/%[2]T, got %[3]v/%[3]T", wtr.key, wtr.val, val)
 		}
 	}
 
