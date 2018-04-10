@@ -85,7 +85,7 @@ func compareTaskUpdates(want, got *TaskUpdate, t *testing.T) {
 func TestFileIntegritySemantics_FailedReissue(t *testing.T) {
 	// Task failed in a way that requires reissuing (e.g. MD5)
 	taskUpdate := getTestingTaskUpdate(
-		0, Failed, proto.TaskFailureType_MD5_MISMATCH_FAILURE, getTestingTaskSpec(0))
+		0, Failed, proto.TaskFailureType_HASH_MISMATCH_FAILURE, getTestingTaskSpec(0))
 
 	var semantics TaskTransactionalSemantics = &FileIntegritySemantics{1000}
 	if proceed, err := semantics.Apply(taskUpdate); err != nil || !proceed {
@@ -219,7 +219,7 @@ func TestNeedGenerationNumCheck(t *testing.T) {
 		{Failed, proto.TaskFailureType_UNUSED, false},
 		{Failed, proto.TaskFailureType_UNKNOWN, false},
 		{Failed, proto.TaskFailureType_FILE_MODIFIED_FAILURE, true},
-		{Failed, proto.TaskFailureType_MD5_MISMATCH_FAILURE, true},
+		{Failed, proto.TaskFailureType_HASH_MISMATCH_FAILURE, true},
 		{Failed, proto.TaskFailureType_PRECONDITION_FAILURE, true},
 		{Failed, proto.TaskFailureType_FILE_NOT_FOUND_FAILURE, false},
 		{Failed, proto.TaskFailureType_PERMISSION_FAILURE, false},

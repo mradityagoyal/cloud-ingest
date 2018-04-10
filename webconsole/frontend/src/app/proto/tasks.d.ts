@@ -91,7 +91,7 @@ export namespace TaskFailureType {
         UNUSED = 0,
         UNKNOWN = 1,
         FILE_MODIFIED_FAILURE = 2,
-        MD5_MISMATCH_FAILURE = 3,
+        HASH_MISMATCH_FAILURE = 3,
         PRECONDITION_FAILURE = 4,
         FILE_NOT_FOUND_FAILURE = 5,
         PERMISSION_FAILURE = 6

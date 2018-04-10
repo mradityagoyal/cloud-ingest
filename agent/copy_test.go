@@ -126,7 +126,7 @@ func TestCRC32CMismtach(t *testing.T) {
 	taskReqParams := testingTaskReqParams()
 	taskReqParams["src_file"] = tmpFile
 	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkFailureWithType("task", proto.TaskFailureType_MD5_MISMATCH_FAILURE, msg, t)
+	checkFailureWithType("task", proto.TaskFailureType_HASH_MISMATCH_FAILURE, msg, t)
 }
 
 func TestCopyEntireFileSuccess(t *testing.T) {

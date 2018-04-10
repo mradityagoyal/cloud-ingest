@@ -27,7 +27,7 @@ const expectedGenerationNumKey string = "expected_generation_num"
 
 var reissuableFailureTypes = []proto.TaskFailureType_Type{
 	proto.TaskFailureType_FILE_MODIFIED_FAILURE,
-	proto.TaskFailureType_MD5_MISMATCH_FAILURE,
+	proto.TaskFailureType_HASH_MISMATCH_FAILURE,
 	proto.TaskFailureType_PRECONDITION_FAILURE,
 }
 

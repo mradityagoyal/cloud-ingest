@@ -283,12 +283,10 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *copyTaskSpec, srcFi
 
 	// Verify the CRC32C.
 	if dstAttrs.CRC32C != srcCRC32C {
-		// TODO(b/74010109): Change MD5_MISMATCH_FAILURE to
-		// HASH_MISMATCH_FAILURE or CRC32C_MISMATCH_FAILURE.
 		return AgentError{
 			Msg: fmt.Sprintf("CRC32C mismatch for file %s (%d) against object %s (%d)",
 				c.SrcFile, srcCRC32C, c.DstObject, dstAttrs.CRC32C),
-			FailureType: proto.TaskFailureType_MD5_MISMATCH_FAILURE,
+			FailureType: proto.TaskFailureType_HASH_MISMATCH_FAILURE,
 		}
 	}
 
@@ -447,7 +445,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, t
 			return AgentError{
 				Msg: fmt.Sprintf("CRC32C mismatch for file %s (%d) against object %s (%d)",
 					c.SrcFile, srcCRC32C, c.DstObject, dstCRC32C),
-				FailureType: proto.TaskFailureType_MD5_MISMATCH_FAILURE,
+				FailureType: proto.TaskFailureType_HASH_MISMATCH_FAILURE,
 			}
 		}
 		logEntry["dst_crc32c"] = int64(dstCRC32C)

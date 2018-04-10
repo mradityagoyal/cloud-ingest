@@ -171,7 +171,7 @@ $root.TaskFailureType = (function() {
      * @property {number} UNUSED=0 UNUSED value
      * @property {number} UNKNOWN=1 UNKNOWN value
      * @property {number} FILE_MODIFIED_FAILURE=2 FILE_MODIFIED_FAILURE value
-     * @property {number} MD5_MISMATCH_FAILURE=3 MD5_MISMATCH_FAILURE value
+     * @property {number} HASH_MISMATCH_FAILURE=3 HASH_MISMATCH_FAILURE value
      * @property {number} PRECONDITION_FAILURE=4 PRECONDITION_FAILURE value
      * @property {number} FILE_NOT_FOUND_FAILURE=5 FILE_NOT_FOUND_FAILURE value
      * @property {number} PERMISSION_FAILURE=6 PERMISSION_FAILURE value
@@ -181,7 +181,7 @@ $root.TaskFailureType = (function() {
         values[valuesById[0] = "UNUSED"] = 0;
         values[valuesById[1] = "UNKNOWN"] = 1;
         values[valuesById[2] = "FILE_MODIFIED_FAILURE"] = 2;
-        values[valuesById[3] = "MD5_MISMATCH_FAILURE"] = 3;
+        values[valuesById[3] = "HASH_MISMATCH_FAILURE"] = 3;
         values[valuesById[4] = "PRECONDITION_FAILURE"] = 4;
         values[valuesById[5] = "FILE_NOT_FOUND_FAILURE"] = 5;
         values[valuesById[6] = "PERMISSION_FAILURE"] = 6;

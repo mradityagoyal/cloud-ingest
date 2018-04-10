@@ -13,8 +13,8 @@ message TaskFailureType {
     UNKNOWN = 1;
     // The file was modified at source while being uploaded.
     FILE_MODIFIED_FAILURE = 2;
-    // File MD5 hash does not match GCS MD5 hash.
-    MD5_MISMATCH_FAILURE = 3;
+    // File hash does not match GCS hash.
+    HASH_MISMATCH_FAILURE = 3;
     // GCS upload failed due to a precondition failure.
     PRECONDITION_FAILURE = 4;
     // Agent asked to upload a file that does not exist.

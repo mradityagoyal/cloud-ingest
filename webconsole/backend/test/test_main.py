@@ -877,7 +877,7 @@ class TestMain(unittest.TestCase):
         should return an error if the last modification time is invalid
         """
         response = self.app.get('/projects/fakeprojectid/tasks/fakeconfigid/'
-            'failuretype/' + str(TaskFailureType.MD5_MISMATCH_FAILURE) +
+            'failuretype/' + str(TaskFailureType.HASH_MISMATCH_FAILURE) +
             '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
         response_json = json.loads(response.data)
 
@@ -890,7 +890,7 @@ class TestMain(unittest.TestCase):
         should return an error if the project id is invalid
         """
         response = self.app.get('/projects/fake*.*invalid/tasks/fakeconfigid/'
-            'failuretype/' + str(TaskFailureType.MD5_MISMATCH_FAILURE) +
+            'failuretype/' + str(TaskFailureType.HASH_MISMATCH_FAILURE) +
             '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
         response_json = json.loads(response.data)
 
@@ -903,7 +903,7 @@ class TestMain(unittest.TestCase):
         should return an error if the config id is invalid
         """
         response = self.app.get('/projects/fakeprojectid/tasks/fake*invalid./'
-            'failuretype/' + str(TaskFailureType.MD5_MISMATCH_FAILURE) +
+            'failuretype/' + str(TaskFailureType.HASH_MISMATCH_FAILURE) +
             '?lastModifiedBefore=' + str(FAKE_INVALID_TIME))
         response_json = json.loads(response.data)
 

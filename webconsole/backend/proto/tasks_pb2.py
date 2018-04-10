@@ -19,7 +19,7 @@ DESCRIPTOR = _descriptor.FileDescriptor(
   name='proto/tasks.proto',
   package='',
   syntax='proto3',
-  serialized_pb=_b('\n\x11proto/tasks.proto\"\xb6\x01\n\x0fTaskFailureType\"\xa2\x01\n\x04Type\x12\n\n\x06UNUSED\x10\x00\x12\x0b\n\x07UNKNOWN\x10\x01\x12\x19\n\x15\x46ILE_MODIFIED_FAILURE\x10\x02\x12\x18\n\x14MD5_MISMATCH_FAILURE\x10\x03\x12\x18\n\x14PRECONDITION_FAILURE\x10\x04\x12\x1a\n\x16\x46ILE_NOT_FOUND_FAILURE\x10\x05\x12\x16\n\x12PERMISSION_FAILURE\x10\x06\"G\n\nTaskStatus\"9\n\x04Type\x12\x0c\n\x08UNQUEUED\x10\x00\x12\n\n\x06QUEUED\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"3\n\x08TaskType\"\'\n\x04Type\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x08\n\x04LIST\x10\x01\x12\x08\n\x04\x43OPY\x10\x02\"Q\n\x0cJobRunStatus\"A\n\x04Type\x12\x0f\n\x0bNOT_STARTED\x10\x00\x12\x0f\n\x0bIN_PROGRESS\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"\x80\x01\n\x0eResourceStatus\"n\n\x04Type\x12\x14\n\x10TYPE_UNSPECIFIED\x10\x00\x12\x0b\n\x07RUNNING\x10\x01\x12\r\n\tDEPLOYING\x10\x02\x12\x0c\n\x08\x44\x45LETING\x10\x03\x12\n\n\x06\x46\x41ILED\x10\x04\x12\r\n\tNOT_FOUND\x10\x05\x12\x0b\n\x07UNKNOWN\x10\x06\x42\x07Z\x05protob\x06proto3')
+  serialized_pb=_b('\n\x11proto/tasks.proto\"\xb7\x01\n\x0fTaskFailureType\"\xa3\x01\n\x04Type\x12\n\n\x06UNUSED\x10\x00\x12\x0b\n\x07UNKNOWN\x10\x01\x12\x19\n\x15\x46ILE_MODIFIED_FAILURE\x10\x02\x12\x19\n\x15HASH_MISMATCH_FAILURE\x10\x03\x12\x18\n\x14PRECONDITION_FAILURE\x10\x04\x12\x1a\n\x16\x46ILE_NOT_FOUND_FAILURE\x10\x05\x12\x16\n\x12PERMISSION_FAILURE\x10\x06\"G\n\nTaskStatus\"9\n\x04Type\x12\x0c\n\x08UNQUEUED\x10\x00\x12\n\n\x06QUEUED\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"3\n\x08TaskType\"\'\n\x04Type\x12\x0b\n\x07UNKNOWN\x10\x00\x12\x08\n\x04LIST\x10\x01\x12\x08\n\x04\x43OPY\x10\x02\"Q\n\x0cJobRunStatus\"A\n\x04Type\x12\x0f\n\x0bNOT_STARTED\x10\x00\x12\x0f\n\x0bIN_PROGRESS\x10\x01\x12\n\n\x06\x46\x41ILED\x10\x02\x12\x0b\n\x07SUCCESS\x10\x03\"\x80\x01\n\x0eResourceStatus\"n\n\x04Type\x12\x14\n\x10TYPE_UNSPECIFIED\x10\x00\x12\x0b\n\x07RUNNING\x10\x01\x12\r\n\tDEPLOYING\x10\x02\x12\x0c\n\x08\x44\x45LETING\x10\x03\x12\n\n\x06\x46\x41ILED\x10\x04\x12\r\n\tNOT_FOUND\x10\x05\x12\x0b\n\x07UNKNOWN\x10\x06\x42\x07Z\x05protob\x06proto3')
 )
 
 
@@ -43,7 +43,7 @@ _TASKFAILURETYPE_TYPE = _descriptor.EnumDescriptor(
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
-      name='MD5_MISMATCH_FAILURE', index=3, number=3,
+      name='HASH_MISMATCH_FAILURE', index=3, number=3,
       options=None,
       type=None),
     _descriptor.EnumValueDescriptor(
@@ -62,7 +62,7 @@ _TASKFAILURETYPE_TYPE = _descriptor.EnumDescriptor(
   containing_type=None,
   options=None,
   serialized_start=42,
-  serialized_end=204,
+  serialized_end=205,
 )
 _sym_db.RegisterEnumDescriptor(_TASKFAILURETYPE_TYPE)
 
@@ -91,8 +91,8 @@ _TASKSTATUS_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=220,
-  serialized_end=277,
+  serialized_start=221,
+  serialized_end=278,
 )
 _sym_db.RegisterEnumDescriptor(_TASKSTATUS_TYPE)
 
@@ -117,8 +117,8 @@ _TASKTYPE_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=291,
-  serialized_end=330,
+  serialized_start=292,
+  serialized_end=331,
 )
 _sym_db.RegisterEnumDescriptor(_TASKTYPE_TYPE)
 
@@ -147,8 +147,8 @@ _JOBRUNSTATUS_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=348,
-  serialized_end=413,
+  serialized_start=349,
+  serialized_end=414,
 )
 _sym_db.RegisterEnumDescriptor(_JOBRUNSTATUS_TYPE)
 
@@ -189,8 +189,8 @@ _RESOURCESTATUS_TYPE = _descriptor.EnumDescriptor(
   ],
   containing_type=None,
   options=None,
-  serialized_start=434,
-  serialized_end=544,
+  serialized_start=435,
+  serialized_end=545,
 )
 _sym_db.RegisterEnumDescriptor(_RESOURCESTATUS_TYPE)
 
@@ -216,7 +216,7 @@ _TASKFAILURETYPE = _descriptor.Descriptor(
   oneofs=[
   ],
   serialized_start=22,
-  serialized_end=204,
+  serialized_end=205,
 )
 
 
@@ -240,8 +240,8 @@ _TASKSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=206,
-  serialized_end=277,
+  serialized_start=207,
+  serialized_end=278,
 )
 
 
@@ -265,8 +265,8 @@ _TASKTYPE = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=279,
-  serialized_end=330,
+  serialized_start=280,
+  serialized_end=331,
 )
 
 
@@ -290,8 +290,8 @@ _JOBRUNSTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=332,
-  serialized_end=413,
+  serialized_start=333,
+  serialized_end=414,
 )
 
 
@@ -315,8 +315,8 @@ _RESOURCESTATUS = _descriptor.Descriptor(
   extension_ranges=[],
   oneofs=[
   ],
-  serialized_start=416,
-  serialized_end=544,
+  serialized_start=417,
+  serialized_end=545,
 )
 
 _TASKFAILURETYPE_TYPE.containing_type = _TASKFAILURETYPE
