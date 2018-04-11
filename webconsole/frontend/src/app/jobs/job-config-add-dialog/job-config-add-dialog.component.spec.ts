@@ -1,4 +1,4 @@
-import { JobsServiceStub } from '../jobs.test-util';
+import { JobsServiceStub, FAKE_TRANSFER_JOB_RESPONSE } from '../jobs.test-util';
 import 'rxjs/add/observable/of';
 
 import { async, TestBed } from '@angular/core/testing';
@@ -9,27 +9,23 @@ import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { FAKE_HTTP_ERROR, MatDialogRefStub } from '../../util/common.test-util';
-import { JobConfigRequest } from '../jobs.resources';
+import { TransferJob, TransferJobResponse } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
 
 let jobsServiceStub: JobsServiceStub;
 let matDialogRefStub: MatDialogRefStub;
+let fakeJobModel: TransferJob;
+const EMPTY_MODEL = new TransferJob();
 
-let fakeJobConfigModel: JobConfigRequest;
-
-const FAKE_JOB_CONFIG: JobConfigRequest = new JobConfigRequest(
-  'fakeConfigId', 'fakeBucket', 'fakeFileSystemDir');
-
-const EMPTY_MODEL: JobConfigRequest = new JobConfigRequest('', '', '');
 
 describe('JobConfigAddDialogComponent', () => {
 
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
     matDialogRefStub = new MatDialogRefStub();
-    jobsServiceStub.postJobConfig.and.returnValue(Observable.of(FAKE_JOB_CONFIG));
-    fakeJobConfigModel = FAKE_JOB_CONFIG;
+    jobsServiceStub.postJob.and.returnValue(Observable.of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]));
+    fakeJobModel = new TransferJob();
     TestBed.configureTestingModule({
       declarations: [
         JobConfigAddDialogComponent
@@ -63,26 +59,26 @@ describe('JobConfigAddDialogComponent', () => {
   it('onSubmit should call jobsService post job config', async(() => {
     const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
     const component = fixture.debugElement.componentInstance;
-    component.model = fakeJobConfigModel;
+    component.model = fakeJobModel;
     component.onSubmit();
-    expect(jobsServiceStub.postJobConfig.calls.count()).toEqual(1);
-    expect(jobsServiceStub.postJobConfig.calls.first().args[0]).toEqual(fakeJobConfigModel);
+    expect(jobsServiceStub.postJob.calls.count()).toEqual(1);
+    expect(jobsServiceStub.postJob.calls.first().args[0]).toEqual(fakeJobModel);
   }));
 
   it('onSubmit should close the dialog with "true" argument', async(() => {
     const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
     const component = fixture.debugElement.componentInstance;
-    component.model = fakeJobConfigModel;
+    component.model = fakeJobModel;
     component.onSubmit();
     expect(matDialogRefStub.close.calls.count()).toEqual(1);
     expect(matDialogRefStub.close.calls.first().args[0]).toEqual(true);
   }));
 
   it('should show error on submit error', async(() => {
-    jobsServiceStub.postJobConfig.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.postJob.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
     const component = fixture.debugElement.componentInstance;
-    component.model = fakeJobConfigModel;
+    component.model = fakeJobModel;
 
     component.onSubmit();
     fixture.detectChanges();

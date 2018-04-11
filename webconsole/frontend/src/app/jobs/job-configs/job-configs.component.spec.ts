@@ -14,12 +14,9 @@ import { FAKE_HTTP_ERROR, MatDialogRefStub, MatDialogStub } from '../../util/com
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
-import { JobConfigRequest, JobConfigResponse } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
-import { FAKE_JOB_CONFIG_LIST, FAKE_JOB_CONFIGS, JobsServiceStub } from '../jobs.test-util';
+import { FAKE_TRANSFER_JOB_RESPONSE, JobsServiceStub, EMPTY_TRANSFER_JOB_RESPONSE } from '../jobs.test-util';
 import { JobConfigsComponent } from './job-configs.component';
-
-const EMPTY_JOB_CONFIG_ARR: JobConfigResponse[] = [];
 
 let jobsServiceStub: JobsServiceStub;
 let matDialogStub: MatDialogStub;
@@ -31,8 +28,7 @@ describe('JobConfigsComponent', () => {
     jobsServiceStub = new JobsServiceStub();
     matDialogStub = new MatDialogStub();
     matDialogRefStub = new MatDialogRefStub();
-    jobsServiceStub.getJobConfigs.and.returnValue(Observable.of(FAKE_JOB_CONFIGS));
-    jobsServiceStub.deleteJobConfigs.and.returnValue(Observable.of(FAKE_JOB_CONFIG_LIST));
+    jobsServiceStub.getJobs.and.returnValue(Observable.of(FAKE_TRANSFER_JOB_RESPONSE));
     matDialogStub.open.and.returnValue(matDialogRefStub);
     matDialogRefStub.afterClosed.and.returnValue(Observable.of(false));
 
@@ -74,7 +70,7 @@ describe('JobConfigsComponent', () => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
     component.showLoadingSpinner = true;
-    jobsServiceStub.getJobConfigs.and.returnValue(Observable.never());
+    jobsServiceStub.getJobs.and.returnValue(Observable.never());
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -97,27 +93,27 @@ describe('JobConfigsComponent', () => {
     });
   }));
 
-  it('should contain the job config information', async(() => {
+  it('should contain the job information', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.textContent).toContain('fakeJobConfigId1');
-      expect(compiled.textContent).toContain('fakeSrcDir1');
-      expect(compiled.textContent).toContain('fakeBucket1');
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].name);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].transferSpec.onPremFiler.directoryPath);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].transferSpec.gcsDataSink.bucketName);
 
-      expect(compiled.textContent).toContain('fakeJobConfigId2');
-      expect(compiled.textContent).toContain('fakeSrcDir2');
-      expect(compiled.textContent).toContain('fakeBucket2');
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[1].name);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[1].transferSpec.onPremFiler.directoryPath);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[1].transferSpec.gcsDataSink.bucketName);
 
-      expect(compiled.textContent).toContain('fakeJobConfigId3');
-      expect(compiled.textContent).toContain('fakeSrcDir3');
-      expect(compiled.textContent).toContain('fakeBucket3');
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[2].name);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[2].transferSpec.onPremFiler.directoryPath);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[2].transferSpec.gcsDataSink.bucketName);
     });
   }));
 
-  it('should contain an add job configuration button', async(() => {
+  it('should contain an add job button', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
     component.showLoadingSpinner = false;
@@ -130,7 +126,7 @@ describe('JobConfigsComponent', () => {
     });
   }));
 
-  it('should open an add job config dialog when clicked', async(() => {
+  it('should open an add job dialog when clicked', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
     component.showLoadingSpinner = false;
@@ -145,10 +141,10 @@ describe('JobConfigsComponent', () => {
     });
   }));
 
-  it('should display an error message if getJobConfigs returns an error', async(() => {
+  it('should display an error message if getJobs returns an error', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
-    jobsServiceStub.getJobConfigs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.getJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -161,7 +157,7 @@ describe('JobConfigsComponent', () => {
 it('should retrieve the title and text from the HttpErrorResponseFormatter', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
-    jobsServiceStub.getJobConfigs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.getJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
     spyOn(HttpErrorResponseFormatter, 'getTitle').and.callFake(function(httpError) {
       expect(httpError).toBe(FAKE_HTTP_ERROR);
       return 'fakeFormattedTitle';
@@ -180,8 +176,8 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
     });
   }));
 
-  it('should open the add job config dialog if there are no job configurations', async(() => {
-    jobsServiceStub.getJobConfigs.and.returnValue(Observable.of(EMPTY_JOB_CONFIG_ARR));
+  it('should open the add job dialog if there are no jobs', async(() => {
+    jobsServiceStub.getJobs.and.returnValue(Observable.of(EMPTY_TRANSFER_JOB_RESPONSE));
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
@@ -192,97 +188,13 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
   }));
 
   it('should open the add job config dialog if there are no job configurations', async(() => {
-    jobsServiceStub.getJobConfigs.and.returnValue(Observable.of(EMPTY_JOB_CONFIG_ARR));
+    jobsServiceStub.getJobs.and.returnValue(Observable.of(EMPTY_TRANSFER_JOB_RESPONSE));
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       expect(matDialogStub.open).toHaveBeenCalled();
       expect(expect(matDialogStub.open.calls.first().args[0]).toBe(JobConfigAddDialogComponent));
-    });
-  }));
-
-  it('should delete the checked job configurations', async(() => {
-    const fixture = TestBed.createComponent(JobConfigsComponent);
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      const compiled = fixture.debugElement.nativeElement;
-      const checkbox1 = compiled.querySelector('#fakeJobConfigId1-input');
-      const checkbox2 = compiled.querySelector('#fakeJobConfigId3-input');
-      checkbox1.click();
-      checkbox2.click();
-      fixture.detectChanges();
-      fixture.whenStable().then(() => {
-        const deleteConfigButton = compiled.querySelector('.ingest-delete-job-config');
-        deleteConfigButton.click();
-        fixture.detectChanges();
-        fixture.whenStable().then(() => {
-          const component = fixture.debugElement.componentInstance;
-          expect(jobsServiceStub.deleteJobConfigs).toHaveBeenCalledWith(['fakeJobConfigId1', 'fakeJobConfigId3']);
-        });
-      });
-    });
-  }));
-
-  it('should not delete job configurations if none are checked', async(() => {
-    const fixture = TestBed.createComponent(JobConfigsComponent);
-    const component = fixture.debugElement.componentInstance;
-    const compiled = fixture.debugElement.nativeElement;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      const deleteConfigButton = compiled.querySelector('.ingest-delete-job-config');
-      deleteConfigButton.click();
-      fixture.detectChanges();
-      fixture.whenStable().then(() => {
-        expect(jobsServiceStub.deleteJobConfigs).not.toHaveBeenCalled();
-      });
-    });
-  }));
-
-  it('should open an error dialog if there is an error deleting job configurations', async(() => {
-    jobsServiceStub.deleteJobConfigs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
-    const fixture = TestBed.createComponent(JobConfigsComponent);
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      const compiled = fixture.debugElement.nativeElement;
-      const checkbox1 = compiled.querySelector('#fakeJobConfigId1-input');
-      const checkbox2 = compiled.querySelector('#fakeJobConfigId3-input');
-      checkbox1.click();
-      checkbox2.click();
-      fixture.detectChanges();
-      fixture.whenStable().then(() => {
-        const deleteConfigButton = compiled.querySelector('.ingest-delete-job-config');
-        deleteConfigButton.click();
-        fixture.detectChanges();
-        fixture.whenStable().then(() => {
-          expect(matDialogStub.open).toHaveBeenCalled();
-          expect(matDialogStub.open.calls.first().args[0]).toBe(ErrorDialogComponent);
-        });
-      });
-    });
-  }));
-
-  it('should open a job config dialog with the selected job config information', async(() => {
-    const fixture = TestBed.createComponent(JobConfigsComponent);
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      const compiled = fixture.debugElement.nativeElement;
-      const checkbox1 = compiled.querySelector('#fakeJobConfigId1-input');
-      checkbox1.click();
-      fixture.detectChanges();
-      fixture.whenStable().then(() => {
-        const deleteConfigButton = compiled.querySelector('.ingest-copy-job-config');
-        deleteConfigButton.click();
-        fixture.detectChanges();
-        fixture.whenStable().then(() => {
-          const component = fixture.debugElement.componentInstance;
-          const startingConfig: JobConfigRequest = matDialogStub.open.calls.first().args[1].data;
-          expect(matDialogStub.open).toHaveBeenCalled();
-          expect(startingConfig.jobConfigId).toContain(FAKE_JOB_CONFIGS[0].JobConfigId);
-          expect(startingConfig.fileSystemDirectory).toContain(FAKE_JOB_CONFIGS[0].JobSpec.onPremSrcDirectory);
-          expect(startingConfig.gcsBucket).toContain(FAKE_JOB_CONFIGS[0].JobSpec.gcsBucket);
-        });
-      });
     });
   }));
 

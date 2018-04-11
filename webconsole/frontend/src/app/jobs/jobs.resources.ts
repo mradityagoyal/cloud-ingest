@@ -3,118 +3,113 @@ import { Observable } from 'rxjs/Rx';
 
 import { TaskFailureType, TaskType, JobRunStatus } from '../proto/tasks.js';
 
-export class JobConfigRequest {
-  /**
-   * The job configuration id is a string that uniquely identified the job configuration. This is
-   * also referred to as a job "description" to the user.
-   */
-  jobConfigId: string;
-  gcsBucket: string;
-  fileSystemDirectory: string;
-  constructor(
-    jobConfigId: string,
-    gcsBucket: string,
-    fileSystemDirectory: string
-  ) { }
+
+export class GcsData {
+  constructor() {
+    this.bucketName = '';
+  }
+  bucketName: string;
+}
+
+export class OnPremisesFiler {
+  constructor() {
+    this.directoryPath = '';
+  }
+  directoryPath: string;
+}
+
+export class ScheduleDate {
+  year: number;
+  month: number;
+  day: number;
+  constructor() {
+    const currentDate = new Date();
+    this.year = currentDate.getUTCFullYear();
+    this.month = currentDate.getUTCMonth() + 1;
+    this.day = currentDate.getUTCDate();
+  }
+}
+
+export class Schedule {
+  scheduleStartDate: ScheduleDate;
+  scheduleEndDate: ScheduleDate;
+  constructor() {
+    this.scheduleStartDate = new ScheduleDate();
+    this.scheduleEndDate = new ScheduleDate();
+  }
+}
+
+export class TransferSpec {
+  gcsDataSink: GcsData;
+  onPremFiler: OnPremisesFiler;
+  constructor() {
+    this.gcsDataSink = new GcsData();
+    this.onPremFiler = new OnPremisesFiler();
+  }
+}
+
+export class TransferOperation {
+  name: string;
+  projectId: string;
+  startTime: string;
+  endTime: string;
+  status: string;
+  transferJobName: string;
+}
+
+export class TransferJob {
+  name: string;
+  description: string;
+  projectId: string;
+  transferSpec: TransferSpec;
+  status: string;
+  schedule: Schedule;
+  creationTime: string;
+  lastModificationTime: string;
+  latestOperation: TransferOperation;
+
+  constructor() {
+    this.schedule = new Schedule();
+    this.status = 'ENABLED';
+    this.transferSpec = new TransferSpec();
+  }
+
+}
+
+export class TransferCounters {
+  objectsFoundFromSource: number;
+  bytesFoundFromSource: number;
+  objectsFoundOnlyFromSink: number;
+  bytesFoundOnlyFromSink: number;
+  objectsFromSourceSkippedBySync: number;
+  bytesFromSourceSkippedBySync: number;
+  objectsCopiedToSink: number;
+  bytesCopiedToSink: number;
+  objectsDeletedFromSource: number;
+  bytesDeletedFromSource: number;
+  objectsDeletedFromSink: number;
+  bytesDeletedFromSink: number;
+  objectsFromSourceFailed: number;
+  bytesFromSourceFailed: number;
+  objectsFailedToDeleteFromSink: number;
+  bytesFailedToDeleteFromSink: number;
+  directoriesFoundFromSource: number;
+}
+
+export interface TransferJobResponse {
+  transferJobs: TransferJob[];
 }
 
 /**
- * A JobConfigResponse is an object returned by the backend that represents a job configuration.
+ * Maps Operation Status and their representations to readable strings.
  */
-export interface JobConfigResponse {
-  JobConfigId: string;
-  JobSpec: JobSpec;
-}
-
-/**
- * A JobSpec contains the information that describes the job.
- */
-export interface JobSpec {
-  gcsBucket: string;
-  onPremSrcDirectory: string;
-}
-
-/**
- * A Job contains infromation that describes a job configuration and the last
- * job run.
- */
-export interface Job {
-  // The job configuration id of the job.
-  JobConfigId: string;
-  // The job spec of the job configuration.
-  JobSpec: JobSpec;
-  // The job run id of the last job run.
-  JobRunId: string;
-  // The time that last job run was created.
-  JobCreationTime: string;
-  // The status of the last job run.
-  Status: JobRunStatus.Type;
-  // The counters of the last job run.
-  Counters: Counters;
-}
-
-export interface Counters {
-  totalTasks: number;
-  tasksCompleted: number;
-  tasksFailed: number;
-
-  totalTasksList: number;
-  tasksCompletedList: number;
-  tasksFailedList: number;
-
-  totalTasksCopy: number;
-  tasksCompletedCopy: number;
-  tasksFailedCopy: number;
-
-  totalTasksLoad: number;
-  tasksCompletedLoad: number;
-  tasksFailedLoad: number;
-
-  listFilesFound: number;
-  listBytesFound: number;
-  bytesCopied: number;
-}
-
-export interface Task {
-  JobConfigId: string;
-  JobRunId: string;
-  TaskId: string;
-  TaskSpec: string;
-  TaskType: number;
-  FailureType?: TaskFailureType.Type;
-  Status: number;
-  CreationTime: number;
-  LastModificationTime: string;
-  FailureMessage: string;
-}
-
-/**
- * Maps task type integers to string representations.
- */
-export const TASK_TYPE_TO_STRING_MAP = {};
-TASK_TYPE_TO_STRING_MAP[TaskType.Type.LIST] = 'List task';
-TASK_TYPE_TO_STRING_MAP[TaskType.Type.COPY] = 'Copy task';
-
-/**
- * Maps failure type enums to their string representations.
- */
-export const FAILURE_TYPE_TO_STRING_MAP = {};
-FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.UNUSED] = 'Unknown failure';
-FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.UNKNOWN] = 'Unexpected failure';
-FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.FILE_MODIFIED_FAILURE] = 'File Modified failure';
-FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.HASH_MISMATCH_FAILURE] = 'Hash mismatch failure';
-FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.PRECONDITION_FAILURE] = 'Precondition failure';
-FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.FILE_NOT_FOUND_FAILURE] = 'File not found failure';
-FAILURE_TYPE_TO_STRING_MAP[TaskFailureType.Type.PERMISSION_FAILURE] = 'Permission failure';
-
-/**
- * Maps job run status enums to their string representations.
- */
-export const JOB_RUN_STATUS_TO_STRING_MAP = {};
-JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.NOT_STARTED] = 'Not started';
-JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.IN_PROGRESS] = 'In Progress',
-JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.FAILED] = 'Failed';
-JOB_RUN_STATUS_TO_STRING_MAP[JobRunStatus.Type.SUCCESS] = 'Sucess';
+export const OPERATION_STATUS_TO_STRING_MAP = {};
+OPERATION_STATUS_TO_STRING_MAP['STATUS_UNSPECIFIED'] = 'Unspecified';
+OPERATION_STATUS_TO_STRING_MAP['IN_PROGRESS'] = 'In Progress',
+OPERATION_STATUS_TO_STRING_MAP['PAUSED'] = 'Paused';
+OPERATION_STATUS_TO_STRING_MAP['SUCCESS'] = 'Success';
+OPERATION_STATUS_TO_STRING_MAP['FAILED'] = 'Failed';
+OPERATION_STATUS_TO_STRING_MAP['ABORTED'] = 'Aborted';
 
 export const DEFAULT_BACKEND_PAGESIZE = 25;
 

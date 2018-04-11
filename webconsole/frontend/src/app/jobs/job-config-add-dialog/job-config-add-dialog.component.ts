@@ -5,7 +5,7 @@ import { Component, Inject } from '@angular/core';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
 
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
-import { JobConfigRequest } from '../jobs.resources';
+import { TransferJob, TransferSpec } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 
 @Component({
@@ -20,28 +20,25 @@ import { JobsService } from '../jobs.service';
 export class JobConfigAddDialogComponent {
   submittingForm = false;
   bigQueryTransferChecked = false;
-  model = new JobConfigRequest(
-        /** jobConfigId **/ '',
-        /** gcsBucket **/ '',
-        /** fileSystemDirectory **/ '');
+  model = new TransferJob();
   showError = false;
   errorTitle: string;
 
   /**
-   * Makes the JobConfig add dialog component.
+   * Makes the TransferJob add dialog component.
    *
-   * @param data An input JobConfigRequest to use as start configuration for the dialog.
+   * @param data An input TransferJob to use as start configuration for the dialog.
    */
   constructor(private readonly jobsService: JobsService,
               private readonly dialogRef: MatDialogRef<JobConfigAddDialogComponent>,
-              @Inject(MAT_DIALOG_DATA) public data: JobConfigRequest) {
+              @Inject(MAT_DIALOG_DATA) public data: TransferJob) {
                 this.model = data;
               }
 
   onSubmit() {
     this.submittingForm = true;
 
-    this.jobsService.postJobConfig(this.model).finally(() => {
+    this.jobsService.postJob(this.model).finally(() => {
         this.submittingForm = false;
       }).subscribe(
         (response) => {

@@ -6,18 +6,18 @@
 
 <form (ngSubmit)="onSubmit()" #jobConfigAddDialogForm="ngForm">
   <mat-form-field class="ingest-full-width">
-    <input id="jobConfigId"
-           name="jobConfigId"
+    <input id="jobDescription"
+           name="jobDescription"
            matInput
            required
-           [(ngModel)]="model.jobConfigId"
+           [(ngModel)]="model.description"
            pattern="[0-9A-Za-z _-]*"
-           #jobConfigId="ngModel"
+           #jobDescription="ngModel"
            placeholder="Description"
            i18n="Label for Job description input">
   </mat-form-field>
-  <span *ngIf="jobConfigId.invalid && (jobConfigId.dirty || jobConfigId.touched)" class="ingest-alert">
-    A job description can contain alphanumeric characters, hyphens, underscores and space.
+  <span *ngIf="jobDescription.invalid && (jobDescription.dirty || jobDescription.touched)" class="ingest-alert">
+    A job description can contain alphanumeric characters, hyphens, underscores and spaces.
   </span>
   <h4 i18n="Subtitle in a form for the fields of the source information for the source file system"> Source information: </h4>
   <mat-form-field class="ingest-full-width">
@@ -26,7 +26,7 @@
              name="fileSystemDirectory"
              matInput
              required
-             [(ngModel)]="model.fileSystemDirectory"
+             [(ngModel)]="model.transferSpec.onPremFiler.directoryPath"
              pattern="(^[a-zA-Z]:\\[\\\S|*\S]?.*$)|(^(/[^/ ]*)+/?$)"
              #fileSystemDirectory="ngModel"
              placeholder="Full path at source"
@@ -41,7 +41,7 @@
              name="gcsBucket"
              matInput
              required
-             [(ngModel)]="model.gcsBucket"
+             [(ngModel)]="model.transferSpec.gcsDataSink.bucketName"
              pattern="(\.|[0-9a-z_-])*"
              #gcsBucket="ngModel"
              placeholder="Google Cloud Storage bucket"

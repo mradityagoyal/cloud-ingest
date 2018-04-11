@@ -8,7 +8,7 @@ import { Observable } from 'rxjs/Observable';
 
 import { environment } from '../../environments/environment';
 import { TaskFailureType } from '../proto/tasks.js';
-import { JobConfigRequest, JobConfigResponse, Job, Task } from './jobs.resources';
+import { TransferJob, Schedule, TransferJobResponse } from './jobs.resources';
 
 const POST_HEADERS = {
     headers: new HttpHeaders().set('Content-Type', 'application/json')
@@ -23,70 +23,39 @@ export class JobsService {
   }
 
   /**
-   * Get the list of job configurations along with the latest job run
-   * information as a list.
+   * Gets a list of jobs.
    */
-  getJobConfigs(): Observable<Job[]> {
+  getJobs(): Observable<TransferJobResponse> {
     return this.project.switchMap(projectId => {
-        return this.http.get<Job[]>(
-            `${environment.apiUrl}/projects/${projectId}/jobconfigs`);
+        // Query all transfers.
+        const paramString = JSON.stringify({project_id : projectId});
+        return this.http.get<TransferJobResponse>(
+            `${environment.apiUrl}/v1/transferJobs`,
+             {params: {filter: paramString }});
     });
   }
 
   /**
-   * Get the job run information along with the job configuration information.
+   * Get the information of the latest job.
    */
-  getJobRun(configId: string): Observable<Job> {
+  getJob(jobId: string): Observable<TransferJob> {
     return this.project.switchMap(projectId => {
-        return this.http.get<Job>(
-            `${environment.apiUrl}/projects/${projectId}/jobrun/${configId}`
-        );
+        return this.http.get<TransferJob>(
+            `${environment.apiUrl}/v1/${jobId}`,
+            {params: {projectId}});
     });
   }
 
-  postJobConfig(config: JobConfigRequest): Observable<JobConfigResponse> {
+  /**
+   * Creates a TransferJob from the input job parameter.
+   */
+  postJob(job: TransferJob): Observable<TransferJob> {
     return this.project.switchMap(projectId => {
-        return this.http.post<JobConfigResponse>(
-            `${environment.apiUrl}/projects/${projectId}/jobconfigs`,
-            config, POST_HEADERS);
-    });
-  }
-
-  getTasksOfStatus(configId: string, status: number, lastModifiedBefore?: string): Observable<Task[]> {
-    let requestParameters = new HttpParams();
-    if (lastModifiedBefore != null) {
-        requestParameters = requestParameters.set('lastModifiedBefore', String(lastModifiedBefore));
-    }
-    return this.project.switchMap(projectId => {
-        return this.http.get<Task[]>(
-            `${environment.apiUrl}/projects/${projectId}/tasks/${configId}/status/${status}`,
-            {params: requestParameters}
-        );
-    });
-  }
-
-  getTasksOfFailureType(
-    configId: string,
-    failureType: TaskFailureType.Type,
-    lastModifiedBefore?: string): Observable<Task[]> {
-    let requestParameters = new HttpParams();
-    if (lastModifiedBefore != null) {
-        requestParameters = requestParameters.set('lastModifiedBefore', String(lastModifiedBefore));
-    }
-    return this.project.switchMap(projectId => {
-        return this.http.get<Task[]>(
-            `${environment.apiUrl}/projects/${projectId}/tasks/${configId}/failuretype/${failureType}`
-        );
-    });
-  }
-
-  deleteJobConfigs(
-      configIdList: string[]
-  ): Observable<string[]> {
-    return this.project.switchMap(projectId => {
-        return this.http.post<string[]>(
-            `${environment.apiUrl}/projects/${projectId}/jobconfigs/delete`,
-            configIdList, POST_HEADERS);
+        job.projectId = projectId;
+        job.schedule = new Schedule();
+        return this.http.post<TransferJob>(
+            `${environment.apiUrl}/v1/transferJobs`,
+            job, POST_HEADERS);
     });
   }
 }

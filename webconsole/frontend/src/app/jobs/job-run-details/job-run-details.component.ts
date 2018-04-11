@@ -10,7 +10,7 @@ import { Observable } from 'rxjs/Rx';
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
-import { JobConfigResponse, Job } from '../jobs.resources';
+import { TransferJob } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 
 const UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS = 10000;
@@ -21,27 +21,22 @@ const UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS = 10000;
   styleUrls: ['./job-run-details.component.css']
 })
 export class JobRunDetailsComponent implements OnInit, OnDestroy {
-  jobRun: Job;
+  job: TransferJob;
   errorTitle: string;
   errorMessage: string;
   showError: boolean;
-  jobConfigId: string;
-  jobRunId: string;
-  alive: boolean; // Used to control when the component should poll the job run info.
-
-  // The job config object that corresponds to this job run.
-  jobConfig: JobConfigResponse;
+  jobId: string;
+  alive: boolean; // Used to control when the component should poll the job.
 
   showLoadingSpinner: boolean;
 
   constructor(
     private route: ActivatedRoute,
     private router: Router,
-    private jobService: JobsService,
+    private jobsService: JobsService,
     private dialog: MatDialog
   ) {
-    this.jobConfigId = route.snapshot.paramMap.get('configId');
-    this.jobRunId = this.route.snapshot.paramMap.get('runId');
+    this.jobId = route.snapshot.paramMap.get('jobId');
   }
 
   ngOnInit() {
@@ -55,7 +50,7 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
      */
     .takeWhile(() => this.alive)
     .subscribe(() => {
-      this.updateJobRun();
+      this.updateJob();
     });
   }
 
@@ -65,9 +60,9 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
 
   private initialJobLoad() {
     // Combine the observables that get the job run and job config.
-    this.jobService.getJobRun(this.jobConfigId)
-    .subscribe((response: Job) => {
-      this.jobRun = response;
+    this.jobsService.getJob('transferJobs/' + this.jobId)
+    .subscribe((response: TransferJob) => {
+      this.job = response;
       this.showLoadingSpinner = false;
     }, (error: HttpErrorResponse) => {
       this.errorTitle = HttpErrorResponseFormatter.getTitle(error);
@@ -77,11 +72,10 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
     });
   }
 
-  private updateJobRun() {
-    this.jobService.getJobRun(this.jobConfigId)
-    .subscribe(
-      (response: Job) => {
-        this.jobRun = response;
+  private updateJob() {
+    this.jobsService.getJob('transferJobs/' + this.jobId).subscribe(
+      (response: TransferJob) => {
+        this.job = response;
       },
       (error: HttpErrorResponse) => {
         const errorContent: ErrorDialogContent = {

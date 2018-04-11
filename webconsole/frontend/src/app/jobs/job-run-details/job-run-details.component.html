@@ -1,83 +1,37 @@
 <h2>Job Run Details</h2>
 
-<ng-container *ngIf="showLoadingSpinner; then spinner; else jobrun"></ng-container>
+<ng-container *ngIf="showLoadingSpinner; then spinner; else jobContainer"></ng-container>
 <ng-template #spinner>
   <div class="ingest-pageload-spinner">
     <mat-spinner [diameter]="50" [strokeWidth]="3"></mat-spinner>
   </div>
 </ng-template>
 
-<ng-template #jobrun>
-  <div class="ingest-error-message" *ngIf="showError; else jobRunDetails">
+<ng-template #jobContainer>
+  <div class="ingest-error-message" *ngIf="showError; else jobDetails">
     <h3> There was an error getting the job run details. </h3>
     <strong class="ingest-error-title"> {{ errorTitle }} </strong>
     <p class="ingest-error-details">{{ errorMessage }}</p>
   </div>
 
-  <ng-template #jobRunDetails>
+  <ng-template #jobDetails>
     <dl>
       <dt>Job Config Id</dt>
-      <dd>{{ jobRun.JobConfigId }}</dd>
+      <dd>{{ job.name }}</dd>
       <dt>Job Run Id</dt>
-      <dd>{{ jobRun.JobRunId }}</dd>
+      <dd>{{ job.latestOperation.name }}</dd>
       <dt>Creation Time</dt>
-      <dd>{{ jobRun.JobCreationTime / 1000000 | date:'short' }}</dd>
+      <dd>{{ job.latestOperation.startTime | date:'short' }}</dd>
       <dt>Status</dt>
-      <dd>{{ jobRun.Status | jobStatus }}</dd>
+      <dd>{{ job.latestOperation.status | jobStatus }}</dd>
       <dt>Source directory</dt>
-      <dd>{{ jobRun.JobSpec.onPremSrcDirectory }}</dd>
+      <dd>{{ job.transferSpec.onPremFiler.directoryPath }}</dd>
       <dt>Destination bucket</dt>
-      <dd>{{ jobRun.JobSpec.gcsBucket }}</dd>
+      <dd>{{ job.transferSpec.gcsDataSink.bucketName }}</dd>
     </dl>
 
-    <mat-tab-group id="job-progress-tabs">
-      <mat-tab label="Overall Progress">
-        <dl>
-          <dt>Total Tasks</dt>
-          <dd>{{ jobRun.Counters.totalTasks }}</dd>
-          <dt>Tasks Completed</dt>
-          <dd>{{ jobRun.Counters.tasksCompleted }}</dd>
-          <dt>Tasks Failed</dt>
-          <dd>{{ jobRun.Counters.tasksFailed }}</dd>
-        </dl>
-      </mat-tab>
+    <!-- TODO: add the counters data -->
 
-      <ng-container *ngIf="jobRun.Counters.totalTasksList > 0">
-        <mat-tab label="Listing Progress">
-          <dl>
-            <dt>List Tasks</dt>
-            <dd>{{ jobRun.Counters.totalTasksList }}</dd>
-            <dt>List Tasks Completed</dt>
-            <dd>{{ jobRun.Counters.tasksCompletedList }}</dd>
-            <dt>List Tasks Failed</dt>
-            <dd>{{ jobRun.Counters.tasksFailedList }}</dd>
-            <dt>Files Found</dt>
-            <dd>{{ jobRun.Counters.listFilesFound }}</dd>
-            <dt>Bytes Found</dt>
-            <dd>{{ jobRun.Counters.listBytesFound }}</dd>
-          </dl>
-        </mat-tab>
-      </ng-container>
-
-      <ng-container *ngIf="jobRun.Counters.totalTasksCopy > 0">
-        <mat-tab label="Copy Progress">
-          <dl>
-            <dt>Total Files</dt>
-            <dd>{{ jobRun.Counters.totalTasksCopy }}</dd>
-            <dt>Files Completed</dt>
-            <dd>{{ jobRun.Counters.tasksCompletedCopy }}</dd>
-            <dt>Files Failed</dt>
-            <dd>{{ jobRun.Counters.tasksFailedCopy }}</dd>
-            <dt>Bytes Copied</dt>
-            <dd>{{ jobRun.Counters.bytesCopied }}</dd>
-          </dl>
-        </mat-tab>
-      </ng-container>
-    </mat-tab-group>
-    <a routerLink="/jobs/{{jobConfigId}}/{{jobRunId}}/tasks"
-    queryParamsHandling="merge">
-      View all tasks
-    </a>
   </ng-template>
 </ng-template>
 

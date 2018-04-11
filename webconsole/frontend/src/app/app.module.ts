@@ -11,6 +11,7 @@ import { AppRoutingModule } from './app-routing.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ProjectSelectComponent } from './project-select/project-select.component';
 import { LogsComponent } from './logs/logs.component';
+import { ErrorDialogModule } from './util/error-dialog/error-dialog.module';
 import { BandwidthControlComponent } from './bandwidth-control/bandwidth-control.component';
 
 @NgModule({
@@ -28,7 +29,8 @@ import { BandwidthControlComponent } from './bandwidth-control/bandwidth-control
     ReactiveFormsModule,
     AngularMaterialImporterModule,
     JobsModule,
-    AppRoutingModule,
+    ErrorDialogModule,
+    AppRoutingModule
   ],
   providers: [
     AuthService,

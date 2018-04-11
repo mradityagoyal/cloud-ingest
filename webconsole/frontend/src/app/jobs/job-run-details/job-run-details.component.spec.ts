@@ -11,7 +11,7 @@ import { FAKE_HTTP_ERROR, MatDialogStub } from '../../util/common.test-util';
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { JobStatusPipe } from '../job-status/job-status.pipe';
 import { JobsService } from '../jobs.service';
-import { FAKE_JOB_RUNS, JobsServiceStub } from '../jobs.test-util';
+import { FAKE_TRANSFER_JOB_RESPONSE, JobsServiceStub } from '../jobs.test-util';
 import { JobRunDetailsComponent } from './job-run-details.component';
 
 let jobsServiceStub: JobsServiceStub;
@@ -25,7 +25,7 @@ describe('JobRunDetailsComponent', () => {
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
     matDialogStub = new MatDialogStub();
-    jobsServiceStub.getJobRun.and.returnValue(Observable.of(FAKE_JOB_RUNS[0]));
+    jobsServiceStub.getJob.and.returnValue(Observable.of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]));
     // Disable polling for most tests.
     intervalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
     TestBed.configureTestingModule({
@@ -54,7 +54,7 @@ describe('JobRunDetailsComponent', () => {
   });
 
   it('should show a loading spinner when job details are loading', async(() => {
-    jobsServiceStub.getJobRun.and.returnValue(Observable.never());
+    jobsServiceStub.getJob.and.returnValue(Observable.never());
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -79,7 +79,7 @@ describe('JobRunDetailsComponent', () => {
   }));
 
   it('should show an error message when there is an error', async(() => {
-    jobsServiceStub.getJobRun.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.getJob.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -103,192 +103,33 @@ describe('JobRunDetailsComponent', () => {
     });
   }));
 
-  it('should display a #job-progress-tabs', async(() => {
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#job-progress-tabs');
-      expect(element).not.toBeNull();
-    });
-  }));
-
-  it('should display a overall tab when only overall progress is available', async(() => {
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#job-progress-tabs');
-      expect(element).not.toBeNull();
-      const tabs = element.querySelectorAll('.mat-tab-label');
-      expect(tabs.length).toEqual(1);
-      expect(tabs[0].textContent).toEqual('Overall Progress');
-    });
-  }));
-
-  it('should display a overall and list tabs when progress info is available', async(() => {
-    jobsServiceStub.getJobRun.and.returnValue(Observable.of(FAKE_JOB_RUNS[1]));
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#job-progress-tabs');
-      expect(element).not.toBeNull();
-      const tabs = element.querySelectorAll('.mat-tab-label');
-      expect(tabs.length).toEqual(2);
-      expect(tabs[0].textContent).toEqual('Overall Progress');
-      expect(tabs[1].textContent).toEqual('Listing Progress');
-    });
-  }));
-
-  it('should display a overall, list and copy tabs when progress is available',
-        async(() => {
-    jobsServiceStub.getJobRun.and.returnValue(Observable.of(FAKE_JOB_RUNS[2]));
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#job-progress-tabs');
-      expect(element).not.toBeNull();
-      const tabs = element.querySelectorAll('.mat-tab-label');
-      expect(tabs.length).toEqual(3);
-      expect(tabs[0].textContent).toEqual('Overall Progress');
-      expect(tabs[1].textContent).toEqual('Listing Progress');
-      expect(tabs[2].textContent).toEqual('Copy Progress');
-    });
-  }));
-
-  it('should display a overall, list, and copy tabs when progress is available',
-        async(() => {
-    jobsServiceStub.getJobRun.and.returnValue(Observable.of(FAKE_JOB_RUNS[3]));
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const element = compiled.querySelector('#job-progress-tabs');
-      expect(element).not.toBeNull();
-      const tabs = element.querySelectorAll('.mat-tab-label');
-      expect(tabs.length).toEqual(3);
-      expect(tabs[0].textContent).toEqual('Overall Progress');
-      expect(tabs[1].textContent).toEqual('Listing Progress');
-      expect(tabs[2].textContent).toEqual('Copy Progress');
-    });
-  }));
-
-  it('should show progress information in the overall progress tab', async(() => {
-    const jobRun = FAKE_JOB_RUNS[0];
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const tabGroup = compiled.querySelector('#job-progress-tabs');
-      expect(tabGroup).not.toBeNull();
-      const tabs = tabGroup.querySelectorAll('.mat-tab-label');
-      expect(tabs.length).toEqual(1);
-      expect(tabs[0].textContent).toEqual('Overall Progress');
-      const tabContents = compiled.querySelectorAll('.mat-tab-body-content');
-      expect(tabContents).not.toBeNull();
-      const infoList = tabContents[0].querySelector('dl');
-      expect(infoList).not.toBeNull();
-      const children = infoList.children;
-      expect(children.length).toEqual(6);
-      expect(compiled.innerText).toContain(jobRun.Counters.totalTasks);
-      expect(compiled.innerText).toContain(jobRun.Counters.tasksCompleted);
-      expect(compiled.innerText).toContain(jobRun.Counters.tasksFailed);
-    });
-  }));
-
-  it('should show progress information in the listing progress tab', async(() => {
-    const jobRun = FAKE_JOB_RUNS[1];
-    jobsServiceStub.getJobRun.and.returnValue(Observable.of(jobRun));
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const tabGroup = compiled.querySelector('#job-progress-tabs');
-      expect(tabGroup).not.toBeNull();
-      const tabs = fixture.debugElement.queryAll(By.css('.mat-tab-label'));
-      expect(tabs.length).toEqual(2);
-      expect(tabs[1].nativeElement.textContent).toEqual('Listing Progress');
-      tabs[1].nativeElement.click();
-      fixture.detectChanges();
-      fixture.whenStable().then(() => {
-        fixture.detectChanges();
-        expect(compiled.innerText).toContain(jobRun.Counters.totalTasksList);
-        expect(compiled.innerText).toContain(jobRun.Counters.tasksCompletedList);
-        expect(compiled.innerText).toContain(jobRun.Counters.tasksFailedList);
-        expect(compiled.innerText).toContain(jobRun.Counters.listFilesFound);
-        expect(compiled.innerText).toContain(jobRun.Counters.listBytesFound);
-      });
-    });
-  }));
-
-  it('should show progress information in the copy progress tab', async(() => {
-    const jobRun = FAKE_JOB_RUNS[2];
-    jobsServiceStub.getJobRun.and.returnValue(Observable.of(jobRun));
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      fixture.detectChanges();
-      const compiled = fixture.debugElement.nativeElement;
-      const tabGroup = compiled.querySelector('#job-progress-tabs');
-      expect(tabGroup).not.toBeNull();
-      const tabs = fixture.debugElement.queryAll(By.css('.mat-tab-label'));
-      expect(tabs.length).toEqual(3);
-      expect(tabs[2].nativeElement.textContent).toEqual('Copy Progress');
-      tabs[2].nativeElement.click();
-      fixture.detectChanges();
-      fixture.whenStable().then(() => {
-        expect(compiled.innerText).toContain(jobRun.Counters.totalTasksCopy);
-        expect(compiled.innerText).toContain(jobRun.Counters.tasksCompletedCopy);
-        expect(compiled.innerText).toContain(jobRun.Counters.tasksFailedCopy);
-        expect(compiled.innerText).toContain(jobRun.Counters.bytesCopied);
-      });
-    });
-  }));
-
-  it('should get the job run every ten seconds', fakeAsync((done) => {
+  it('should get the job every ten seconds', fakeAsync((done) => {
     intervalObservableCreateSpy.and.callThrough(); // enable polling
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
     // It should get the job runs four times: one initial loading plus 3 polling calls.
     tick(30000);
-    expect(jobsServiceStub.getJobRun.calls.count()).toEqual(4);
+    expect(jobsServiceStub.getJob.calls.count()).toEqual(4);
     discardPeriodicTasks();
   }));
 
-  it('should display the job config information', async(() => {
+  it('should display the job information', async(() => {
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.textContent).toContain('fakeJobConfigId0');
-      expect(compiled.textContent).toContain('fakeSrcDir1');
-      expect(compiled.textContent).toContain('fakeBucket1');
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].name);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].transferSpec.onPremFiler.directoryPath);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].transferSpec.gcsDataSink.bucketName);
     });
   }));
 
   it('should open the mat dialog stub with the error dialog', fakeAsync((done) => {
     // Load successfully on first call, but throw on second call.
-    jobsServiceStub.getJobRun.and.returnValues(Observable.of(FAKE_JOB_RUNS[0]), Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.getJob.and.returnValues(Observable.of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]), Observable.throw(FAKE_HTTP_ERROR));
     intervalObservableCreateSpy.and.callThrough();
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
