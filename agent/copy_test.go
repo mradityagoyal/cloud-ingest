@@ -411,6 +411,7 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 		{"dst_crc32c", int64(testCRC32C)},
 		{"dst_bytes", uint64(len(testFileContent))},
 		{"dst_modified_time", "modTime"},
+		{"src_crc32c", int64(testCRC32C)},
 		{"bytes_copied", int64(len(testFileContent))},
 	}
 	for _, wle := range wantLogEntry {

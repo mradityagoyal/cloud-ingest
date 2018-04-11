@@ -451,6 +451,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, t
 		logEntry["dst_crc32c"] = int64(dstCRC32C)
 		logEntry["dst_bytes"] = obj.Size
 		logEntry["dst_modified_time"] = obj.Updated
+		logEntry["src_crc32c"] = srcCRC32C
 	} else {
 		taskResParams["crc32c"] = srcCRC32C
 	}
