@@ -5,12 +5,12 @@ class BandwidthControl {
   public maxEnabled: boolean;
 
   constructor(enabled: boolean, bandwidth: number) {
-    this.maxEnabled = enabled
-    this.maxBandwidth = bandwidth
+    this.maxEnabled = enabled;
+    this.maxBandwidth = bandwidth;
   }
 
-  copy():BandwidthControl {
-    return new BandwidthControl(this.maxEnabled, this.maxBandwidth)
+  copy(): BandwidthControl {
+    return new BandwidthControl(this.maxEnabled, this.maxBandwidth);
   }
 }
 
@@ -25,36 +25,34 @@ export class BandwidthControlComponent implements OnInit {
   bandwidthControl: BandwidthControl;
   initialControl: BandwidthControl;
   writingValues: boolean;
-  readonly enabled = "Enabled";
-  readonly disabled = "Disabled";
 
   constructor() { }
 
   ngOnInit() {
-    this.initialControl = this.getInitialSettings()
-    this.bandwidthControl = this.initialControl.copy()
+    this.initialControl = this.getInitialSettings();
+    this.bandwidthControl = this.initialControl.copy();
   }
 
   getInitialSettings() {
     // TODO get current bandwidth settings for the project.
-    return new BandwidthControl(false, null)
+    return new BandwidthControl(false, null);
   }
 
   async writeValues(enabled: boolean, bandwidth: number) {
     // TODO send new bandwidth settings via transfer service API and update the
     // current value displayed to the user when the call returns successfully.
     console.log(this.bandwidthControl);
-    this.writingValues = true
+    this.writingValues = true;
     await sleep(2000);
-    this.writingValues = false
-    this.initialControl = new BandwidthControl(enabled, bandwidth)
-    this.bandwidthControl = this.initialControl.copy()
+    this.writingValues = false;
+    this.initialControl = new BandwidthControl(enabled, bandwidth);
+    this.bandwidthControl = this.initialControl.copy();
   }
 
   canSetCap() {
     return !this.writingValues &&
         this.bandwidthControl.maxBandwidth != null &&
-        this.initialControl.maxBandwidth != this.bandwidthControl.maxBandwidth
+        this.initialControl.maxBandwidth !== this.bandwidthControl.maxBandwidth;
   }
 }
 

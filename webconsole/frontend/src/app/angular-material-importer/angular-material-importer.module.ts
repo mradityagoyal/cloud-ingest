@@ -42,7 +42,7 @@ import { CdkTableModule } from '@angular/cdk/table';
                 MatTableModule,
                 MatToolbarModule,
                 MatTooltipModule,
-                MatTabsModule,],
+                MatTabsModule, ],
   exports: [MatAutocompleteModule,
                 MatButtonModule,
                 MatButtonToggleModule,
