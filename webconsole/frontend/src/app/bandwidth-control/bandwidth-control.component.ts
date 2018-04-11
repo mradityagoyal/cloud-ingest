@@ -9,7 +9,7 @@ class BandwidthControl {
     this.maxBandwidth = bandwidth
   }
 
-  BandwidthControl copy() {
+  copy():BandwidthControl {
     return new BandwidthControl(this.maxEnabled, this.maxBandwidth)
   }
 }
