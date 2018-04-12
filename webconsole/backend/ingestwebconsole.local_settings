@@ -1,2 +1,0 @@
-SPANNER_INSTANCE='cloud-ingest-spanner-instance'
-SPANNER_DATABASE='cloud-ingest-database'

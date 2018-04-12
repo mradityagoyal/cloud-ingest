@@ -1,7 +1,4 @@
 FRONTEND_DIR = webconsole/frontend
-BACKEND_DIR = webconsole/backend
-OPI_BACKEND_VIRTUALENV_PATH ?= $(HOME)/cloud-ingest-backend-env
-FULL_OPI_BACKEND_VIRTUALENV_PATH = $(OPI_BACKEND_VIRTUALENV_PATH)/opi-virtualenv
 GOPATH ?= $(shell go env GOPATH)
 OPI_API_URL = https://$(USER)-dev-opitransfer.sandbox.googleapis.com
 ifeq ($(OPI_GCP_PROJECT),)
@@ -45,18 +42,12 @@ go-mocks: ## Generate go mock files.
 	@$(foreach file, $(FILES_TO_MOCK), $(call generate_mock,$(file)))
 
 .PHONY: lint
-lint: lint-go lint-backend lint-frontend ## Run all code style validators.
+lint: lint-go lint-frontend ## Run all code style validators.
 
 .PHONY: lint-go
 lint-go: ## Run Go format.
 	@echo -e "\n== Formatting Go =="
 	@go fmt $(GO_TARGETS)
-
-.PHONY: lint-backend
-lint-backend: ## Lint backend code.
-	@echo -e "\n== Running Backend Lint =="
-	@find $(BACKEND_DIR) -type f -name "*.py" | egrep -ve "node_modules|\/proto\/" | \
-		xargs pylint --rcfile=.pylintrc
 
 .PHONY: lint-frontend
 lint-frontend: ## Lint frontend code.
@@ -64,20 +55,12 @@ lint-frontend: ## Lint frontend code.
 	@(cd $(FRONTEND_DIR) && ng lint --type-check)
 
 .PHONY: test
-test: test-go test-backend test-frontend ## Run all unit tests.
+test: test-go test-frontend ## Run all unit tests.
 
 .PHONY: test-go
 test-go: ## Run all go unit tests.
 	@echo -e "\n== Running Go Tests =="
 	@go test $(GO_TARGETS)
-
-.PHONY: test-backend
-test-backend: ## Backend unit tests.
-	@echo -e "\n== Running Backend Tests =="
-	@( \
-	    source $(FULL_OPI_BACKEND_VIRTUALENV_PATH)/bin/activate; \
-	    test $$VIRTUAL_ENV && INGEST_CONFIG_PATH=ingestwebconsole.test_settings python -m unittest discover $(BACKEND_DIR) && deactivate; \
-	)
 
 .PHONY: test-frontend
 test-frontend: ## Run unit tests for webconsole frontend.
@@ -95,8 +78,6 @@ endif
 .PHONY: end-to-end-test
 end-to-end-test: build-go ## Run an end-to-end test. This requires that you have a cloud project with spanner/pubsub deployed.
 	@echo -e "\n== Running End-To-End Test =="
-	$(eval export FULL_OPI_BACKEND_VIRTUALENV_PATH=$(FULL_OPI_BACKEND_VIRTUALENV_PATH))
-	$(eval export INGEST_CONFIG_PATH=ingestwebconsole.local_settings)
 	$(eval export GOPATH=$(GOPATH))
 ifndef OPI_GCP_PROJECT
 	$(GOPATH)/bin/e2etestrunner -logtostderr
@@ -105,15 +86,12 @@ else
 endif
 
 .PHONY: build
-build: setup build-go build-backend build-frontend ## Refresh dependencies, Build, test, and install everything.
+build: setup build-go build-frontend ## Refresh dependencies, Build, test, and install everything.
 
 .PHONY: build-go
 build-go: go-mocks lint-go test-go ## Build, test, and install Go binaries.
 	@echo -e "\n== Building/Installing Go Binaries =="
 	@go install -v $(GO_TARGETS)
-
-.PHONY: build-backend
-build-backend: lint-backend test-backend ## Check and test backend code.
 
 .PHONY: build-frontend
 build-frontend: lint-frontend test-frontend ## Check and test frontend code.
@@ -123,12 +101,10 @@ build-frontend: lint-frontend test-frontend ## Check and test frontend code.
 .PHONY: clean
 clean: ## Blow away all compiled artifacts and installed dependencies.
 	go clean -i $(GO_TARGETS)
-	rm -rf $(FRONTEND_DIR)/node_modules
-	rm -rf $(FULL_OPI_BACKEND_VIRTUALENV_PATH)
-	rmdir --ignore-fail-on-non-empty $(OPI_BACKEND_VIRTUALENV_PATH); true
+	rm -rf $(FRONTEND_DIR)/node_modules; true
 
 .PHONY: setup
-setup: setup-go setup-backend setup-frontend ## Run full setup of dependencies and environment.
+setup: setup-go setup-frontend ## Run full setup of dependencies and environment.
 
 .PHONY: setup-go
 setup-go: ## Install all needed go dependencies.
@@ -142,16 +118,6 @@ setup-go: ## Install all needed go dependencies.
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go get -u golang.org/x/time/rate
 
-.PHONY: setup-backend
-setup-backend: ## Install all needed backend dependencies.
-	@echo -e "\n== Installing/Updating Backend Dependencies =="
-	@mkdir -p $(FULL_OPI_BACKEND_VIRTUALENV_PATH)
-	@virtualenv $(FULL_OPI_BACKEND_VIRTUALENV_PATH)
-	@( \
-	    source $(FULL_OPI_BACKEND_VIRTUALENV_PATH)/bin/activate; \
-	    test $$VIRTUAL_ENV && pip install -r requirements.txt && deactivate; \
-	)
-
 .PHONY: setup-frontend
 setup-frontend: ## Install all needed frontend/JS dependencies.
 	@echo -e "\n== Installing/Updating Frontend Dependencies =="
@@ -164,8 +130,6 @@ help:
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-30s\033[0m %s\n", $$1, $$2}'
 	@echo -e "\nDefault Target: $(.DEFAULT_GOAL)"
 	@echo "User-supplied environment variables:"
-	@echo "  OPI_BACKEND_VIRTUALENV_PATH: Location where backend python virtualenv should"
-	@echo "                               live (default: $(OPI_BACKEND_VIRTUALENV_PATH))"
 	@echo "  SKIP_FRONTEND_TEST: If set, the frontend unit tests are skipped. Useful when"
 	@echo "                      no browser is available. (default: unset)"
 	@echo "  OPI_GCP_PROJECT: Google Cloud Platform project containing infrastructure to use"
