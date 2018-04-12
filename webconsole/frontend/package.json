@@ -4,9 +4,10 @@
   "license": "MIT",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "config": "python app_config.py",
+    "start": "npm run config && ng serve --environment=dev",
     "build": "ng build",
-    "test": "ng test",
+    "test": "npm run config && ng test",
     "lint": "ng lint",
     "e2e": "ng e2e"
   },
