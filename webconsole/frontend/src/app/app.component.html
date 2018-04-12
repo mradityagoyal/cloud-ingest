@@ -23,6 +23,11 @@
               i18n="Link to page displaying the application logs.">
             Logs
           </a>
+          <a mat-list-item routerLink="/agent"
+              queryParamsHandling="merge" id="agent-link"
+              i18n="Link to page displaying the agent download instructions.">
+            Agent
+          </a>
           <mat-list-item>
             <button mat-raised-button color="accent" mat-list-item (click)="signOut()">
               Signout

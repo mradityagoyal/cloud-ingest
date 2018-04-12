@@ -40,7 +40,6 @@ VERSION_FILE=$ASSET_DIR/VERSIONINFO.txt
 # Binary info.
 MAIN_SOURCE=agent/agentmain/agentmain.go
 BINARY_NAME=agent
-BINARY_PATH=$BINARY_NAME/bin
 
 # Validate input and state.
 [[ -d $RELEASE_DIR ]] || die "Directory $RELEASE_DIR does not exist."
@@ -96,14 +95,17 @@ for os_arch in ${BUILD_PLATFORMS[@]}; do
   echo "Building for $build_os/$build_arch..."
   mkdir -p $ARTIFACT_DIR/$os_arch
 
+  # Bundle the license.
+  cp $REPO_DIR/LICENSE $ARTIFACT_DIR/$os_arch
+
   if [[ $build_os == "windows" ]]; then
-    GOOS=$build_os GOARCH=$build_arch go build -ldflags "$ldflags" -o $ARTIFACT_DIR/$os_arch/$BINARY_PATH/$BINARY_NAME.exe $MAIN_SOURCE
+    GOOS=$build_os GOARCH=$build_arch go build -ldflags "$ldflags" -o $ARTIFACT_DIR/$os_arch/$BINARY_NAME.exe $MAIN_SOURCE
     pushd $ARTIFACT_DIR/$os_arch > /dev/null
-    zip -r -q $ASSET_DIR/$BINARY_NAME-$os_arch.zip $BINARY_NAME > /dev/null
+    zip -r -q $ASSET_DIR/$BINARY_NAME-$os_arch.zip *
     popd > /dev/null
   else
-    GOOS=$build_os GOARCH=$build_arch go build -ldflags "$ldflags" -o $ARTIFACT_DIR/$os_arch/$BINARY_PATH/$BINARY_NAME $MAIN_SOURCE
-    tar -czf $ASSET_DIR/$BINARY_NAME-$os_arch.tar.gz -C $ARTIFACT_DIR/$os_arch $BINARY_NAME
+    GOOS=$build_os GOARCH=$build_arch go build -ldflags "$ldflags" -o $ARTIFACT_DIR/$os_arch/$BINARY_NAME $MAIN_SOURCE
+    tar -czf $ASSET_DIR/$BINARY_NAME-$os_arch.tar.gz -C $ARTIFACT_DIR/$os_arch $BINARY_NAME LICENSE
   fi
 done
 popd > /dev/null
