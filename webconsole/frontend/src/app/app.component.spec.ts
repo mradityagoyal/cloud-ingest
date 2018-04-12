@@ -84,7 +84,7 @@ describe('AppComponent', () => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
       expect(compiled.querySelector('h1').textContent).
-          toContain(`Ingest Web Console - ${FAKE_USER}`);
+          toContain(`On-Premises Transfer Service Web Console - ${FAKE_USER}`);
     });
   }));
 

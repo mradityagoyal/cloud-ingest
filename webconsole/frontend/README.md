@@ -1,8 +1,6 @@
-# Ingest Web Console - Front-End
-The front-end of the Ingest Web Console is built with Angular2 and Typescript.
+# On-Premises Transfer Service Web Console - Front-End
+The front-end of the On-Premises Transfer Service Web Console is built with Angular2 and Typescript.
 [Angular CLI](https://cli.angular.io/) is used to serve, test, and lint the code.
-In order to use the Ingest Web Console front-end, you need to have the Ingest Web Console
-back-end up and running. See the back-end directory for instructions.
 
 ## Environment Set-up
 1. Follow the [instructions to install](https://github.com/angular/angular-cli#installation) Angular CLI and its prerequisites.

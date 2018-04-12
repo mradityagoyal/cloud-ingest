@@ -9,6 +9,6 @@ describe('webconsole-front-end App', () => {
 
   it('should display title', () => {
     page.navigateTo();
-    expect(page.getDisplayedTitleText()).toEqual('Ingest Web Console');
+    expect(page.getDisplayedTitleText()).toEqual('On-Premises Transfer Service Web Console');
   });
 });

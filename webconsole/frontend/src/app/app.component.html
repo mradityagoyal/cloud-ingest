@@ -3,7 +3,7 @@
   <ng-container *ngIf="isProjectSelected; else selectProject">
     <mat-toolbar color="primary" class="mat-elevation-z6 ingest-toolbar">
       <mat-icon class="ingest-toolbar-icon">cloud_upload</mat-icon>
-      <h1> Ingest Web Console - {{userName}}</h1>
+      <h1> On-Premises Transfer Service Web Console - {{userName}}</h1>
     </mat-toolbar>
     <mat-sidenav-container fullscreen class="ingest-sidenav-container">
       <mat-sidenav #sidenav mode="side" opened="true">
@@ -45,7 +45,7 @@
   </ng-template>
 </ng-container>
 <div *ngIf="authServiceInitialized && !loggedIn" class="ingest-sign-in" flex layout="row">
-  <h1> Welcome to the Ingest Web Console </h1>
+  <h1> Welcome to the On-Premises Transfer Service Web Console </h1>
   <p> To start, sign into your Google account. </p>
   <button mat-raised-button color="primary" mat-list-item (click)="signIn()" class="ingest-sign-in-button">
     Sign In
