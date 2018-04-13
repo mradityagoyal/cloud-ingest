@@ -32,7 +32,16 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
         transferJobName: 'transferJobs/OPI1',
         startTime: '2018-04-10T23:15:26.565769187Z',
         endTime: '1970-01-01T00:00:00Z',
-     }
+        counters: {
+          objectsFoundFromSource: 0,
+          objectsFromSourceFailed: 0,
+          objectsCopiedToSink: 0,
+          directoriesFoundFromSource: 0,
+          directoriesFailedToListFromSource: 0,
+          directoriesSuccessfullyListedFromSource: 0
+        },
+     },
+
      },
      {
       name: 'transferJobs/OPI2',
@@ -57,6 +66,14 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
         transferJobName: 'transferJobs/OPI2',
         startTime: '2018-04-10T23:16:26.565769187Z',
         endTime: '1970-01-01T00:00:00Z',
+        counters: {
+          objectsFoundFromSource: 0,
+          objectsFromSourceFailed: 0,
+          objectsCopiedToSink: 0,
+          directoriesFoundFromSource: 0,
+          directoriesFailedToListFromSource: 0,
+          directoriesSuccessfullyListedFromSource: 0
+        },
      }
      },
      {
@@ -82,6 +99,14 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
         transferJobName: 'transferJobs/OPI3',
         startTime: '2018-04-10T23:17:26.565769187Z',
         endTime: '1970-01-01T00:00:00Z',
+        counters: {
+          objectsFoundFromSource: 0,
+          objectsFromSourceFailed: 0,
+          objectsCopiedToSink: 0,
+          directoriesFoundFromSource: 0,
+          directoriesFailedToListFromSource: 0,
+          directoriesSuccessfullyListedFromSource: 0
+        },
      }
      }
   ]

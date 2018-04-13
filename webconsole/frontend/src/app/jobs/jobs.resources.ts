@@ -55,6 +55,7 @@ export class TransferOperation {
   endTime: string;
   status: string;
   transferJobName: string;
+  counters: TransferCounters;
 }
 
 export class TransferJob {
@@ -78,22 +79,11 @@ export class TransferJob {
 
 export class TransferCounters {
   objectsFoundFromSource: number;
-  bytesFoundFromSource: number;
-  objectsFoundOnlyFromSink: number;
-  bytesFoundOnlyFromSink: number;
-  objectsFromSourceSkippedBySync: number;
-  bytesFromSourceSkippedBySync: number;
-  objectsCopiedToSink: number;
-  bytesCopiedToSink: number;
-  objectsDeletedFromSource: number;
-  bytesDeletedFromSource: number;
-  objectsDeletedFromSink: number;
-  bytesDeletedFromSink: number;
   objectsFromSourceFailed: number;
-  bytesFromSourceFailed: number;
-  objectsFailedToDeleteFromSink: number;
-  bytesFailedToDeleteFromSink: number;
+  objectsCopiedToSink: number;
   directoriesFoundFromSource: number;
+  directoriesFailedToListFromSource: number;
+  directoriesSuccessfullyListedFromSource: number;
 }
 
 export interface TransferJobResponse {

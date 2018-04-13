@@ -6,7 +6,6 @@ import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
 import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
 import { JobsService } from './jobs.service';
-import { JobStatusPipe } from './job-status/job-status.pipe';
 import { JobsRoutingModule } from './jobs-routing.module';
 import { JobRunDetailsComponent } from './job-run-details/job-run-details.component';
 import { JobConfigsComponent } from './job-configs/job-configs.component';
@@ -23,7 +22,6 @@ import { JobConfigAddDialogComponent } from './job-config-add-dialog/job-config-
     JobsRoutingModule
   ],
   declarations: [
-    JobStatusPipe,
     JobRunDetailsComponent,
     JobConfigsComponent,
     JobConfigAddDialogComponent,

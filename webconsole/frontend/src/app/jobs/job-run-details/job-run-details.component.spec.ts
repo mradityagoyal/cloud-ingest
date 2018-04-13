@@ -9,7 +9,6 @@ import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { FAKE_HTTP_ERROR, MatDialogStub } from '../../util/common.test-util';
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
-import { JobStatusPipe } from '../job-status/job-status.pipe';
 import { JobsService } from '../jobs.service';
 import { FAKE_TRANSFER_JOB_RESPONSE, JobsServiceStub } from '../jobs.test-util';
 import { JobRunDetailsComponent } from './job-run-details.component';
@@ -31,7 +30,6 @@ describe('JobRunDetailsComponent', () => {
     TestBed.configureTestingModule({
       declarations: [
         JobRunDetailsComponent,
-        JobStatusPipe
       ],
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},

@@ -10,7 +10,7 @@ import { Observable } from 'rxjs/Rx';
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
-import { TransferJob } from '../jobs.resources';
+import { TransferJob, OPERATION_STATUS_TO_STRING_MAP } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 
 const UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS = 10000;
@@ -29,6 +29,9 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
   alive: boolean; // Used to control when the component should poll the job.
 
   showLoadingSpinner: boolean;
+
+  // Needed to export this variable to the template.
+  OPERATION_STATUS_TO_STRING_MAP = OPERATION_STATUS_TO_STRING_MAP;
 
   constructor(
     private route: ActivatedRoute,
