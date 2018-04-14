@@ -11,44 +11,20 @@ import { UserProfile } from './auth/auth.resources';
 import { NoopAnimationsModule} from '@angular/platform-browser/animations';
 import { ProjectSelectComponent } from './project-select/project-select.component';
 import { MatSnackBar } from '@angular/material';
-import { MatSnackBarStub } from './util/common.test-util';
+import { MatSnackBarStub, MockAuthService, FAKE_USER, ActivatedRouteStub } from './util/common.test-util';
 import 'rxjs/add/observable/of';
-
-const FAKE_USER = 'Fake User';
-const FAKE_AUTH = 'Fake Auth';
-
-class MockAuthService extends AuthService {
-  isSignedIn = true;
-
-  fakeUser: UserProfile = {
-    Name: FAKE_USER
-  };
-
-  init() { }
-
-  loadSignInStatus(): Promise<boolean> {
-    return Promise.resolve(this.isSignedIn);
-  }
-
-  getAuthorizationHeader(): string {
-    return FAKE_AUTH;
-  }
-
-  getCurrentUser(): UserProfile  {
-    return this.fakeUser;
-  }
-}
 
 let activatedRouteStub: ActivatedRoute;
 let matSnackBarStub: MatSnackBarStub;
+let mockAuthService: MockAuthService;
 
 describe('AppComponent', () => {
-  const mockAuthService = new MockAuthService();
 
   beforeEach(async(() => {
-    mockAuthService.isSignedIn = true;
     activatedRouteStub = new ActivatedRoute();
     activatedRouteStub.queryParams = Observable.of({project: 'fakeProjectId'});
+    mockAuthService = new MockAuthService(activatedRouteStub);
+    mockAuthService.isSignedIn = true;
     matSnackBarStub = new MatSnackBarStub();
 
     TestBed.configureTestingModule({

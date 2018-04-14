@@ -1,10 +1,16 @@
 import { AuthService } from './auth.service';
+import { ActivatedRouteStub } from '../util/common.test-util';
+import { Observable } from 'rxjs/Observable';
+import { ActivatedRoute } from '@angular/router';
 
 declare var gapi: any;
+let activatedRouteStub: ActivatedRoute;
 
 describe('AuthService', () => {
   beforeEach(() => {
-    this.authService = new AuthService();
+    activatedRouteStub = new ActivatedRoute();
+    activatedRouteStub.queryParams = Observable.of({project: 'fakeProjectId'});
+    this.authService = new AuthService(activatedRouteStub);
   });
 
   it('should fail loading user status if auth2 init fails', (async() => {

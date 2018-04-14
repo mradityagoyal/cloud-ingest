@@ -15,6 +15,11 @@ def exit_api_not_set_error():
               'environment variable to the API url and run again.')
         sys.exit(1)
 
+def exit_robot_account_not_set_error():
+    if not ROBOT_ACCOUNT:
+        print('ERROR: OPI_ROBOT_ACCOUNT variable not set. Please set the '
+              'OPI_ROBOT_ACCOUNT environment variable.')
+        sys.exit(1)
 
 # TODO: Define different API URLS for perf, prod and test environments.
 INGEST_API_URL = ''
@@ -23,11 +28,20 @@ try:
 except:
     exit_api_not_set_error()
 
+# TODO: Define different service accounts for perf, prod and test environments.
+ROBOT_ACCOUNT = ''
+try:
+    ROBOT_ACCOUNT = os.environ['OPI_ROBOT_ACCOUNT']
+except:
+    exit_robot_account_not_set_error()
+
 if not INGEST_API_URL:
     exit_api_not_set_error()
+if not ROBOT_ACCOUNT:
+    exit_robot_account_not_set_error()
 
 Environment = collections.namedtuple('Environment',
-                                     'filename client_id is_prod')
+                                     'filename client_id is_prod account')
 
 # The environment files to write.
 ENVIRONMENTS = [
@@ -35,21 +49,25 @@ ENVIRONMENTS = [
         filename='environment.perf.ts',
         client_id=
         '626613183123-o1l2r81kov2fuii2pc1p5e67k6facktt.apps.googleusercontent.com',
+        account=ROBOT_ACCOUNT,
         is_prod='true'),
     Environment(
         filename='environment.prod.ts',
         client_id=
         '23880221060-9pa2oef8ko1q8o45mvjfq5d6dfgf1qf0.apps.googleusercontent.com',
+        account=ROBOT_ACCOUNT,
         is_prod='true'),
     Environment(
         filename='environment.test.ts',
         client_id=
         '701178595865-por9ijjvgbjoka841c1mkki23tqka66a.apps.googleusercontent.com',
+        account=ROBOT_ACCOUNT,
         is_prod='true'),
     Environment(
         filename='environment.ts',
         client_id=
         '416127938080-vosnnsq7758ub1iai84ei3u1enstq8kp.apps.googleusercontent.com',
+        account=ROBOT_ACCOUNT,
         is_prod='false')
 ]
 
@@ -64,6 +82,7 @@ export const environment = {
   production: '$IS_PRODUCTION',
   apiUrl: '$API_URL',
   authClientId: '$AUTH_CLIENT_ID',
+  robotAccountEmail: '$ROBOT_ACCOUNT_EMAIL',
 };
 """)
 
@@ -76,4 +95,5 @@ for environment in ENVIRONMENTS:
             TEMPLATE.substitute(
                 IS_PRODUCTION=environment.is_prod,
                 API_URL=INGEST_API_URL,
-                AUTH_CLIENT_ID=environment.client_id))
+                AUTH_CLIENT_ID=environment.client_id,
+                ROBOT_ACCOUNT_EMAIL=environment.account))
