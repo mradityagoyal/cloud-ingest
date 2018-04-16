@@ -19,3 +19,6 @@ test_runs/
 
 # Release process working directory
 release/tmp-release-ephemeral
+
+# Generated environment files
+webconsole/frontend/src/environments
