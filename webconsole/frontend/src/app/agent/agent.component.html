@@ -1,8 +1,14 @@
-<h2>On-Prem Agent Setup Instructions:</h2>
+<h2>On-Premises Agent Setup Instructions:</h2>
 
 <mat-tab-group>
   <mat-tab label="Linux">
     <ol>
+      <li>One-time gcloud setup:
+        <ul>
+          <li>Download and install <a href="https://cloud.google.com/sdk/downloads#installation_options">gcloud</a> if it's not already on your system.</li>
+          <li>Run <br /> <code>gcloud auth application-default login</code><br />&nbsp;</li>
+        </ul>
+      </li>
       <li>Download and extract the on-prem agent: <a href="{{ AGENT_RELEASE_PREFIX }}/agent-linux_amd64.tar.gz">Linux (64-bit)</a></li>
       <li>In a shell window navigate to the path where you extracted the agent.</li>
       <li>Run <br /><code>./agent -projectid {{ projectId }}</code>
@@ -13,6 +19,12 @@
   </mat-tab>
   <mat-tab label="Windows">
     <ol>
+      <li>One-time gcloud setup:
+        <ul>
+          <li>Download and install <a href="https://cloud.google.com/sdk/downloads#installation_options">gcloud</a> if it's not already on your system.</li>
+          <li>Run <br /> <code>gcloud auth application-default login</code><br />&nbsp;</li>
+        </ul>
+      </li>
       <li>Download and extract the on-prem agent: <a href="{{ AGENT_RELEASE_PREFIX }}/agent-windows_amd64.zip">Windows (64-bit)</a></li>
       <li>In a shell window navigate to the path where you extracted the agent.</li>
       <li>Run <br /><code>agent.exe -projectid {{ projectId }}</code>
