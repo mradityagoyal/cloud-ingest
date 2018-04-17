@@ -99,15 +99,15 @@ describe('JobConfigsComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].name);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].description);
       expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].transferSpec.onPremFiler.directoryPath);
       expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0].transferSpec.gcsDataSink.bucketName);
 
-      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[1].name);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[1].description);
       expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[1].transferSpec.onPremFiler.directoryPath);
       expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[1].transferSpec.gcsDataSink.bucketName);
 
-      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[2].name);
+      expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[2].description);
       expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[2].transferSpec.onPremFiler.directoryPath);
       expect(compiled.textContent).toContain(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[2].transferSpec.gcsDataSink.bucketName);
     });

@@ -11,7 +11,7 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
   transferJobs: [
     {
       name: 'transferJobs/OPI1',
-      description: '',
+      description: 'Fake description 1.',
       projectId: 'testProjectId',
       status: 'ENABLED',
       schedule: new Schedule(),
@@ -45,7 +45,7 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
      },
      {
       name: 'transferJobs/OPI2',
-      description: '',
+      description: 'Fake description 2.',
       projectId: 'testProjectId',
       status: 'ENABLED',
       creationTime: '2018-04-10T23:16:26.565769187Z',
@@ -78,7 +78,7 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
      },
      {
       name: 'transferJobs/OPI3',
-      description: '',
+      description: 'Fake description 3.',
       schedule: new Schedule(),
       projectId: 'testProjectId',
       creationTime: '2018-04-10T23:16:26.565769187Z',

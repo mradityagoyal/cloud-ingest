@@ -29,12 +29,11 @@
 
         <!-- Description column -->
         <ng-container matColumnDef="JobDescription">
-          <mat-header-cell *matHeaderCellDef> ID </mat-header-cell>
+          <mat-header-cell *matHeaderCellDef> Description </mat-header-cell>
           <mat-cell class="ingest-break-word" *matCellDef="let job">
             <a routerLink="/jobs/{{job.name}}"
                queryParamsHandling="merge">
-               <!-- TODO: This should actually include the description taken in the parameters -->
-               {{ job.name }}
+               {{ job.description }}
             </a>
           </mat-cell>
         </ng-container>
@@ -54,7 +53,14 @@
         <!-- Status of the last job run  -->
         <ng-container matColumnDef="Status">
           <mat-header-cell *matHeaderCellDef> Status of the last run </mat-header-cell>
-          <mat-cell class="ingest-break-word" *matCellDef="let job"> {{ OPERATION_STATUS_TO_STRING_MAP[job.latestOperation.status] }} </mat-cell>
+          <mat-cell class="ingest-break-word" *matCellDef="let job">
+            <div *ngIf="job.latestOperation">
+                {{ OPERATION_STATUS_TO_STRING_MAP[job.latestOperation.status] }}
+            </div>
+            <div *ngIf="!job.latestOperation">
+                Not started
+            </div>
+          </mat-cell>
         </ng-container>
 
         <!-- The header, display the columns in the displayedColumns array -->
