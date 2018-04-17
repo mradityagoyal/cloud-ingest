@@ -38,6 +38,10 @@ export class JobConfigAddDialogComponent {
               }
 
   private postJob() {
+    if (this.model.transferSpec.gcsDataSink.objectPrefix !== '') {
+      this.model.transferSpec.gcsDataSink.objectPrefix = this.model.transferSpec.gcsDataSink.objectPrefix + '/';
+    }
+
     this.jobsService.postJob(this.model).finally(() => {
       this.submittingForm = false;
     }).subscribe(

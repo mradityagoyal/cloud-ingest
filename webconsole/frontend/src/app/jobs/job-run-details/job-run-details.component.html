@@ -24,6 +24,10 @@
       <dd>{{ job.transferSpec.onPremFiler.directoryPath }}</dd>
       <dt>Destination bucket</dt>
       <dd>{{ job.transferSpec.gcsDataSink.bucketName }}</dd>
+      <div *ngIf="job.transferSpec.gcsDataSink.objectPrefix">
+        <dt>Object Prefix</dt>
+        <dd>{{ job.transferSpec.gcsDataSink.objectPrefix }}</dd>
+      </div>
       <div *ngIf="job.latestOperation">
         <dt>Job Run Id</dt>
         <dd>{{ job.latestOperation.name }}</dd>

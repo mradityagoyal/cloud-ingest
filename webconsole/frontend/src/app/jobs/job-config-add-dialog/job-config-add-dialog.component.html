@@ -47,6 +47,30 @@
              placeholder="Google Cloud Storage bucket"
              i18n="Label for Google Cloud Storage bucket">
   </mat-form-field>
+  <table class="ingest-full-width" cellspacing="0">
+    <tr class="ingest-full-width">
+      <td style="width: 30%;">
+          Objects will be created in:
+      </td>
+      <td style="width: 60%;">
+        <mat-form-field class="ingest-full-width">
+          <span matPrefix style="color: grey;"> {{model.transferSpec.gcsDataSink.bucketName}}/ &nbsp;</span>
+          <input id="objectPrefix"
+                name="objectPrefix"
+                matInput
+                [(ngModel)]="model.transferSpec.gcsDataSink.objectPrefix"
+                #objectPrefix="ngModel"
+                placeholder="<Object Prefix>"
+                i18n="Label for the prefix set to Google Cloud Storage objects.">
+          <span matSuffix >
+            <span *ngIf="model.transferSpec.gcsDataSink.objectPrefix" style="color: grey;">
+              /
+            </span>
+          </span>
+        </mat-form-field>
+      </td>
+    </tr>
+  </table>
   <span *ngIf="gcsBucket.invalid && (gcsBucket.dirty || gcsBucket.touched)" class="ingest-alert">
     A GCS bucket can contain lowercase alphanumeric characters, hyphens, underscores and dots.
   </span>

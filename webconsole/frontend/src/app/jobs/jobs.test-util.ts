@@ -19,7 +19,8 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
       lastModificationTime: '2018-04-10T23:16:26.565769187Z',
       transferSpec: {
        gcsDataSink: {
-         bucketName: 'testBucket'
+         bucketName: 'testBucket',
+         objectPrefix: ''
         },
        onPremFiler: {
          directoryPath: '/test/path'
@@ -53,7 +54,8 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
       schedule: new Schedule(),
       transferSpec: {
        gcsDataSink: {
-         bucketName: 'testBucket2'
+         bucketName: 'testBucket2',
+         objectPrefix: ''
         },
        onPremFiler: {
          directoryPath: '/test/path2'
@@ -86,7 +88,8 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
       status: 'ENABLED',
       transferSpec: {
        gcsDataSink: {
-         bucketName: 'testBucket3'
+         bucketName: 'testBucket3',
+         objectPrefix: ''
         },
        onPremFiler: {
          directoryPath: '/test/path3'

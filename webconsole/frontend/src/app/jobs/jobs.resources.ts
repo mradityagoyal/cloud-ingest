@@ -7,8 +7,10 @@ import { TaskFailureType, TaskType, JobRunStatus } from '../proto/tasks.js';
 export class GcsData {
   constructor() {
     this.bucketName = '';
+    this.objectPrefix = '';
   }
   bucketName: string;
+  objectPrefix: string;
 }
 
 export class OnPremisesFiler {

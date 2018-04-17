@@ -84,6 +84,28 @@ describe('JobConfigAddDialogComponent', () => {
     expect(matDialogRefStub.close.calls.first().args[0]).toEqual(true);
   }));
 
+  it('onSubmit should append a trailing slash', fakeAsync(() => {
+    const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
+    const component = fixture.debugElement.componentInstance;
+    component.model = fakeJobModel;
+    fakeJobModel.transferSpec.gcsDataSink.objectPrefix = 'fakePrefix';
+    component.onSubmit();
+    tick(50);
+    expect(matDialogRefStub.close.calls.count()).toEqual(1);
+    expect(jobsServiceStub.postJob.calls.first().args[0].transferSpec.gcsDataSink.objectPrefix).toEqual('fakePrefix/');
+  }));
+
+  it('onSubmit should leave the field blank', fakeAsync(() => {
+    const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
+    const component = fixture.debugElement.componentInstance;
+    component.model = fakeJobModel;
+    fakeJobModel.transferSpec.gcsDataSink.objectPrefix = '';
+    component.onSubmit();
+    tick(50);
+    expect(matDialogRefStub.close.calls.count()).toEqual(1);
+    expect(jobsServiceStub.postJob.calls.first().args[0].transferSpec.gcsDataSink.objectPrefix).toEqual('');
+  }));
+
   it('should show error on submit error', async(() => {
     jobsServiceStub.postJob.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
