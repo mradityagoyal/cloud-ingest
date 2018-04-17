@@ -43,6 +43,10 @@
         <dd> {{ job.latestOperation.counters.objectsCopiedToSink }} </dd>
         <dt> Files failed to copy to Google Cloud Storage: </dt>
         <dd> {{ job.latestOperation.counters.objectsFromSourceFailed }} </dd>
+        <a target="_blank" href="https://pantheon.corp.google.com/storage/browser/{{ job.transferSpec.gcsDataSink.bucketName }}/cloud-ingest/logs/">
+          View audit logs.
+        </a>
+        (Audit logs might take some time to appear).
       </div>
     </dl>
 
