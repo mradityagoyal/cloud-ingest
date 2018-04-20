@@ -113,12 +113,12 @@ func TestListSuccessEmptyDir(t *testing.T) {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
 	}
-	// Check the log entry fields.
-	if msg.LogEntry["files_found"].(int64) != int64(0) {
-		t.Errorf("expected 0 files but found %d", msg.LogEntry["files_found"])
+	// Check the log fields.
+	if msg.AgentLogFields["files_found"].(int64) != int64(0) {
+		t.Errorf("expected 0 files but found %d", msg.AgentLogFields["files_found"])
 	}
-	if msg.LogEntry["bytes_found"].(int64) != int64(0) {
-		t.Errorf("expected 0 bytes but found %d", msg.LogEntry["bytes_found"])
+	if msg.AgentLogFields["bytes_found"].(int64) != int64(0) {
+		t.Errorf("expected 0 bytes but found %d", msg.AgentLogFields["bytes_found"])
 	}
 }
 
@@ -164,11 +164,11 @@ func TestListSuccessFlatDir(t *testing.T) {
 			expectedListResult.String(), writer.WrittenString())
 	}
 	// Check the log entry fields.
-	if msg.LogEntry["files_found"].(int64) != int64(10) {
-		t.Errorf("expected 0 files but found %d", msg.LogEntry["files_found"])
+	if msg.AgentLogFields["files_found"].(int64) != int64(10) {
+		t.Errorf("expected 0 files but found %d", msg.AgentLogFields["files_found"])
 	}
-	if msg.LogEntry["bytes_found"].(int64) != int64(100) {
-		t.Errorf("expected 0 bytes but found %d", msg.LogEntry["bytes_found"])
+	if msg.AgentLogFields["bytes_found"].(int64) != int64(100) {
+		t.Errorf("expected 0 bytes but found %d", msg.AgentLogFields["bytes_found"])
 	}
 }
 
@@ -224,14 +224,14 @@ func TestListSuccessNestedDir(t *testing.T) {
 			expectedListResult.String(), writer.WrittenString())
 	}
 
-	expectedLogEntry := dcp.LogEntry{
+	wantLogFields := LogFields{
 		"worker_id":        workerID,
 		"file_stat_errors": 0,
 		"files_found":      int64(10),
 		"bytes_found":      int64(100),
 		"dirs_found":       int64(2),
 	}
-	if !reflect.DeepEqual(msg.LogEntry, expectedLogEntry) {
-		t.Errorf("expected log entry: %+v, but found: %+v", expectedLogEntry, msg.LogEntry)
+	if !reflect.DeepEqual(msg.AgentLogFields, wantLogFields) {
+		t.Errorf("got logFields: %+v, want: %+v", msg.AgentLogFields, wantLogFields)
 	}
 }

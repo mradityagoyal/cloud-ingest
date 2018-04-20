@@ -159,7 +159,7 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	}
 
 	srcStats, _ := os.Stat(tmpFile)
-	wantLogEntry := dcp.LogEntry{
+	wantLogFields := LogFields{
 		"worker_id":         workerID,
 		"src_crc32c":        uint32(testCRC32C),
 		"dst_crc32c":        uint32(testCRC32C),
@@ -170,8 +170,8 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 		"src_modified_time": srcStats.ModTime(),
 		"dst_modified_time": gcsModTime,
 	}
-	if !reflect.DeepEqual(wantLogEntry, msg.LogEntry) {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogEntry, msg.LogEntry)
+	if !reflect.DeepEqual(wantLogFields, msg.LogFields) {
+		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, msg.LogFields)
 	}
 }
 
@@ -208,7 +208,7 @@ func TestCopyHanderDoResumable(t *testing.T) {
 	checkSuccessMsg("task", msg, t)
 
 	srcStats, _ := os.Stat(tmpFile)
-	wantLogEntry := dcp.LogEntry{
+	wantLogFields := LogFields{
 		"bytes_copied":      int64(10),
 		"dst_file":          "bucket/object",
 		"src_bytes":         int64(len(testFileContent)),
@@ -216,8 +216,8 @@ func TestCopyHanderDoResumable(t *testing.T) {
 		"src_modified_time": srcStats.ModTime(),
 		"worker_id":         workerID,
 	}
-	if !reflect.DeepEqual(wantLogEntry, msg.LogEntry) {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogEntry, msg.LogEntry)
+	if !reflect.DeepEqual(wantLogFields, msg.LogFields) {
+		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, msg.LogFields)
 	}
 
 	wantTaskResParams := taskResParams{
@@ -387,9 +387,9 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	var stats fakeStats
 
 	taskResParams := make(taskResParams)
-	logEntry := dcp.LogEntry{}
+	logFields := LogFields{}
 
-	err = h.copyResumableChunk(ctx, c, taskResParams, srcFile, stats, logEntry)
+	err = h.copyResumableChunk(ctx, c, taskResParams, srcFile, stats, logFields)
 	if err != nil {
 		t.Error("got ", err)
 	}
@@ -403,8 +403,8 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 		t.Errorf("want taskResParams bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(len(testFileContent)), val)
 	}
 
-	// Verify task logEntry.
-	var wantLogEntry = []struct {
+	// Verify task logFields.
+	var wantLogFields = []struct {
 		key string
 		val interface{}
 	}{
@@ -414,14 +414,14 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 		{"src_crc32c", int64(testCRC32C)},
 		{"bytes_copied", int64(len(testFileContent))},
 	}
-	for _, wle := range wantLogEntry {
+	for _, wle := range wantLogFields {
 		var val interface{}
 		var ok bool
-		if val, ok = logEntry[wle.key]; !ok {
-			t.Errorf("want logEntry key %v to exist, it didn't", wle.key)
+		if val, ok = logFields[wle.key]; !ok {
+			t.Errorf("want logFields key %v to exist, it didn't", wle.key)
 		}
 		if val != wle.val {
-			t.Errorf("want logEntry %s %[2]v/%[2]T, got %[3]v/%[3]T", wle.key, wle.val, val)
+			t.Errorf("want logFields %s %[2]v/%[2]T, got %[3]v/%[3]T", wle.key, wle.val, val)
 		}
 	}
 }
@@ -459,9 +459,9 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	var stats fakeStats
 
 	taskResParams := make(taskResParams)
-	logEntry := dcp.LogEntry{}
+	logFields := LogFields{}
 
-	err = h.copyResumableChunk(ctx, c, taskResParams, srcFile, stats, logEntry)
+	err = h.copyResumableChunk(ctx, c, taskResParams, srcFile, stats, logFields)
 	if err != nil {
 		t.Error("got ", err)
 	}
@@ -485,13 +485,13 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 		}
 	}
 
-	// Verify task logEntry.
-	val, ok := logEntry["bytes_copied"]
+	// Verify task logFields.
+	val, ok := logFields["bytes_copied"]
 	if !ok {
-		t.Error("want logEntry key bytes_copied to exist, it didn't")
+		t.Error("want logFields key bytes_copied to exist, it didn't")
 	}
 	if val != int64(10) {
-		t.Errorf("want logEntry bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(10), val)
+		t.Errorf("want logFields bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(10), val)
 	}
 }
 

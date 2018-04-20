@@ -20,7 +20,6 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/golang/glog"
 	"google.golang.org/api/googleapi"
@@ -53,14 +52,14 @@ func getFailureTypeFromError(err error) proto.TaskFailureType_Type {
 //   taskRRName is the task's relative resource name
 //   taskReqParams are the taskReqParams that the task was originally called with
 //   taskResParams are the response key/values as a result of this task request
-//   le is the logEntry for this task
+//   lf are the logFields for this task
 //   err defines whether the taskProgressMsg's Status is SUCCESS or FAILURE
-func buildTaskProgressMsg(taskRRName string, taskReqParams taskReqParams, taskResParams taskResParams, le dcp.LogEntry, err error) taskProgressMsg {
+func buildTaskProgressMsg(taskRRName string, taskReqParams taskReqParams, taskResParams taskResParams, lf LogFields, err error) taskProgressMsg {
 	msg := taskProgressMsg{
-		TaskRRName:    taskRRName,
-		TaskReqParams: taskReqParams,
-		TaskResParams: taskResParams,
-		LogEntry:      le,
+		TaskRRName:     taskRRName,
+		TaskReqParams:  taskReqParams,
+		TaskResParams:  taskResParams,
+		AgentLogFields: lf,
 	}
 	if err != nil {
 		msg.Status = "FAILURE"

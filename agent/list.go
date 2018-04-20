@@ -65,13 +65,13 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskReqParams t
 	srcDirectory, srcDirectoryOK := taskReqParams["src_directory"].(string)
 	generationNum, err := helpers.ToInt64(taskReqParams["expected_generation_num"])
 
-	logEntry := dcp.LogEntry{
+	logFields := LogFields{
 		"worker_id":        workerID,
 		"file_stat_errors": 0,
 	}
 
 	if !bucketNameOK || !objectNameOK || !srcDirectoryOK || err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, NewInvalidTaskReqParamsError(taskReqParams, err))
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, NewInvalidTaskReqParamsError(taskReqParams, err))
 	}
 
 	w := h.gcs.NewWriterWithCondition(ctx, bucketName, objectName,
@@ -84,13 +84,13 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskReqParams t
 
 	if _, err := fmt.Fprintln(w, taskRRName); err != nil {
 		w.CloseWithError(err)
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 	}
 
 	fileInfos, err := listDirectory(srcDirectory)
 	if err != nil {
 		w.CloseWithError(err)
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 	}
 	var bytesFound, filesFound, dirsFound int64
 	for _, fileInfo := range fileInfos {
@@ -98,7 +98,7 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskReqParams t
 		listFileEntry := dcp.ListFileEntry{fileInfo.IsDir(), fullPath}
 		if _, err := fmt.Fprintln(w, listFileEntry); err != nil {
 			w.CloseWithError(err)
-			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 		}
 		if fileInfo.IsDir() {
 			dirsFound++
@@ -109,12 +109,12 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskReqParams t
 	}
 
 	if err := w.Close(); err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 	}
 
-	logEntry["files_found"] = filesFound
-	logEntry["bytes_found"] = bytesFound
-	logEntry["dirs_found"] = dirsFound
+	logFields["files_found"] = filesFound
+	logFields["bytes_found"] = bytesFound
+	logFields["dirs_found"] = dirsFound
 
-	return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, nil)
+	return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, nil)
 }

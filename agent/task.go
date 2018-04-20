@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
@@ -37,7 +36,7 @@ type taskProgressMsg struct {
 	Status         string                     `json:"status"`
 	FailureType    proto.TaskFailureType_Type `json:"failure_reason"`
 	FailureMessage string                     `json:"failure_message"`
-	LogEntry       dcp.LogEntry               `json:"log_entry"`
+	AgentLogFields LogFields                  `json:"agent_log_fields"`
 	TaskReqParams  taskReqParams              `json:"task_req_params"`
 	TaskResParams  taskResParams              `json:"task_res_params"`
 }

@@ -145,36 +145,36 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string, taskReqParams t
 	if err != nil {
 		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, nil, NewInvalidTaskReqParamsError(taskReqParams, err))
 	}
-	logEntry := dcp.LogEntry{
+	logFields := LogFields{
 		"worker_id": workerID,
 		"src_file":  ctSpec.SrcFile,
 		"dst_file":  path.Join(ctSpec.DstBucket, ctSpec.DstObject),
 	}
 	resumedCopy, err := checkCopyTaskSpec(*ctSpec)
 	if err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, NewInvalidTaskReqParamsError(taskReqParams, err))
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, NewInvalidTaskReqParamsError(taskReqParams, err))
 	}
 
 	// Open the on-premises file, and check the file stats if necessary.
 	srcFile, err := os.Open(ctSpec.SrcFile)
 	if err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 	}
 	defer srcFile.Close()
 	stats, err := srcFile.Stat()
 	if err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 	}
 	// This populates the log entry for the audit logs and for tracking
 	// bytes. Bytes are only counted when the task moves to "success", so
 	// there won't be any double counting.
-	logEntry["src_bytes"] = stats.Size()
-	logEntry["src_modified_time"] = stats.ModTime()
+	logFields["src_bytes"] = stats.Size()
+	logFields["src_modified_time"] = stats.ModTime()
 	if resumedCopy {
 		// TODO(b/74009003): When implementing "synchronization" rethink how
 		// the file stat parameters are set and compared.
 		if err = checkResumableFileStats(ctSpec, stats); err != nil {
-			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 		}
 	}
 
@@ -184,35 +184,35 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string, taskReqParams t
 		// Start a copy. If the file is small enough (or BytesToCopy indicates so)
 		// copy the entire file now. Otherwise, begin a resumable copy.
 		if stats.Size() <= ctSpec.BytesToCopy || ctSpec.BytesToCopy <= 0 {
-			err = h.copyEntireFile(ctx, ctSpec, srcFile, stats, logEntry)
+			err = h.copyEntireFile(ctx, ctSpec, srcFile, stats, logFields)
 			if err != nil {
-				return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+				return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 			}
 		} else {
 			ctSpec.ResumableUploadId, err = h.prepareResumableCopy(
 				ctx, ctSpec, taskResParams, srcFile, stats)
 			if err != nil {
-				return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+				return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 			}
 			resumedCopy = true
 		}
 	}
 	if resumedCopy {
-		err = h.copyResumableChunk(ctx, ctSpec, taskResParams, srcFile, stats, logEntry)
+		err = h.copyResumableChunk(ctx, ctSpec, taskResParams, srcFile, stats, logFields)
 		if err != nil {
-			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 		}
 	}
 
 	// Now that data has been sent, check that the file stats haven't changed.
 	if err = checkFileStats(stats, srcFile); err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logEntry, err)
+		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
 	}
 
-	return buildTaskProgressMsg(taskRRName, taskReqParams, taskResParams, logEntry, nil)
+	return buildTaskProgressMsg(taskRRName, taskReqParams, taskResParams, logFields, nil)
 }
 
-func (h *CopyHandler) copyEntireFile(ctx context.Context, c *copyTaskSpec, srcFile *os.File, stats os.FileInfo, logEntry dcp.LogEntry) error {
+func (h *CopyHandler) copyEntireFile(ctx context.Context, c *copyTaskSpec, srcFile *os.File, stats os.FileInfo, logFields LogFields) error {
 	w := h.gcs.NewWriterWithCondition(ctx, c.DstBucket, c.DstObject,
 		helpers.GetGCSGenerationNumCondition(c.ExpectedGenerationNum))
 
@@ -276,10 +276,10 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *copyTaskSpec, srcFi
 
 	// Record some attributes.
 	dstAttrs := w.Attrs()
-	logEntry["dst_bytes"] = dstAttrs.Size
-	logEntry["dst_crc32c"] = dstAttrs.CRC32C
-	logEntry["dst_modified_time"] = dstAttrs.Updated
-	logEntry["src_crc32c"] = srcCRC32C
+	logFields["dst_bytes"] = dstAttrs.Size
+	logFields["dst_crc32c"] = dstAttrs.CRC32C
+	logFields["dst_modified_time"] = dstAttrs.Updated
+	logFields["src_crc32c"] = srcCRC32C
 
 	// Verify the CRC32C.
 	if dstAttrs.CRC32C != srcCRC32C {
@@ -370,9 +370,9 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec,
 }
 
 // copyResumableChunk sends a chunk of the srcFile to GCS as part of a resumable
-// copy task. This function also updates taskResParams and the logEntry, both of
+// copy task. This function also updates taskResParams and the logFields, both of
 // which are sent to the DCP.
-func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, taskResParams taskResParams, srcFile *os.File, stats os.FileInfo, logEntry dcp.LogEntry) error {
+func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, taskResParams taskResParams, srcFile *os.File, stats os.FileInfo, logFields LogFields) error {
 	bytesToCopy := c.BytesToCopy
 	if bytesToCopy <= 0 {
 		// c.BytesToCopy <= 0 indicates that the rest of the file should be copied.
@@ -448,15 +448,15 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, t
 				FailureType: proto.TaskFailureType_HASH_MISMATCH_FAILURE,
 			}
 		}
-		logEntry["dst_crc32c"] = int64(dstCRC32C)
-		logEntry["dst_bytes"] = obj.Size
-		logEntry["dst_modified_time"] = obj.Updated
-		logEntry["src_crc32c"] = srcCRC32C
+		logFields["dst_crc32c"] = int64(dstCRC32C)
+		logFields["dst_bytes"] = obj.Size
+		logFields["dst_modified_time"] = obj.Updated
+		logFields["src_crc32c"] = srcCRC32C
 	} else {
 		taskResParams["crc32c"] = srcCRC32C
 	}
 	taskResParams["bytes_copied"] = c.BytesCopied + int64(bytesRead)
-	logEntry["bytes_copied"] = c.BytesCopied + int64(bytesRead)
+	logFields["bytes_copied"] = c.BytesCopied + int64(bytesRead)
 
 	return nil
 }
