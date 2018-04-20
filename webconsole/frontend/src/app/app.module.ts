@@ -8,6 +8,7 @@ import { AppComponent } from './app.component';
 import { AuthInterceptor } from './auth/auth-interceptor';
 import { AuthService } from './auth/auth.service';
 import { AppRoutingModule } from './app-routing.module';
+import { BandwidthControlModule } from './bandwidth-control/bandwidth-control.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ProjectSelectComponent } from './project-select/project-select.component';
 import { LogsComponent } from './logs/logs.component';
@@ -30,6 +31,7 @@ import { BandwidthControlComponent } from './bandwidth-control/bandwidth-control
     FormsModule,
     ReactiveFormsModule,
     AngularMaterialImporterModule,
+    BandwidthControlModule,
     JobsModule,
     ErrorDialogModule,
     AppRoutingModule

@@ -1,6 +1,9 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
+import { BandwidthControlService } from './bandwidth-control.service';
+import { MaxBandwidthResponse } from './bandwidth-control.resources';
 
-class BandwidthControl {
+export class BandwidthControl {
   public maxBandwidth: number;
   public maxEnabled: boolean;
 
@@ -17,45 +20,64 @@ class BandwidthControl {
 @Component({
   selector: 'app-bandwidth-control',
   templateUrl: './bandwidth-control.component.html',
-  styleUrls: ['./bandwidth-control.component.css']
+  styleUrls: [
+    './bandwidth-control.component.css',
+    '../app.component.css',
+  ]
 })
 
 export class BandwidthControlComponent implements OnInit {
    @ViewChild('maxBandwidthInput') maxBandwidthInput: ElementRef;
   bandwidthControl: BandwidthControl;
   initialControl: BandwidthControl;
-  writingValues: boolean;
+  loading: boolean;
+  showLoadingError: boolean;
+  showSettingError: boolean;
 
-  constructor() { }
+  constructor(private readonly bwService: BandwidthControlService) { }
 
   ngOnInit() {
-    this.initialControl = this.getInitialSettings();
+    this.getInitialSettings();
+    this.initialControl = new BandwidthControl(false, null);
+    this.bandwidthControl = new BandwidthControl(false, null);
+  }
+
+  applyResponse(r: MaxBandwidthResponse) {
+    const bandwidth = r.hasMaxBandwidth ? Number(r.bandwidth) : null;
+    this.initialControl = new BandwidthControl(r.hasMaxBandwidth, bandwidth);
     this.bandwidthControl = this.initialControl.copy();
+    this.loading = false;
   }
 
   getInitialSettings() {
-    // TODO get current bandwidth settings for the project.
-    return new BandwidthControl(false, null);
+    this.loading = true;
+    this.bwService.getProjectMaxBandwidth().subscribe(
+      (response: MaxBandwidthResponse) => {
+        this.showLoadingError = false;
+        this.applyResponse(response);
+      },
+      (error: HttpErrorResponse) => {
+        this.showLoadingError = true;
+      }
+    );
   }
 
-  async writeValues(enabled: boolean, bandwidth: number) {
-    // TODO send new bandwidth settings via transfer service API and update the
-    // current value displayed to the user when the call returns successfully.
-    console.log(this.bandwidthControl);
-    this.writingValues = true;
-    await sleep(2000);
-    this.writingValues = false;
-    this.initialControl = new BandwidthControl(enabled, bandwidth);
-    this.bandwidthControl = this.initialControl.copy();
+  onSubmit(enabled: boolean, bandwidth: number) {
+    this.loading = true;
+    this.bwService.postProjectMaxBandwidth(enabled, bandwidth).subscribe(
+      (response: MaxBandwidthResponse) => {
+        this.showSettingError = false;
+        this.applyResponse(response);
+      },
+      (error: HttpErrorResponse) => {
+        this.showSettingError = true;
+      }
+    );
   }
 
   canSetCap() {
-    return !this.writingValues &&
+    return !this.loading &&
         this.bandwidthControl.maxBandwidth != null &&
         this.initialControl.maxBandwidth !== this.bandwidthControl.maxBandwidth;
   }
-}
-
-function sleep(ms) {
-  return new Promise(resolve => setTimeout(resolve, ms));
 }

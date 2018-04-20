@@ -27,3 +27,6 @@
   margin-left: 10px;
 }
 
+.ingest-error-message {
+  color: red;
+}
