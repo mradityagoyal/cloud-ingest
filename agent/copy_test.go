@@ -170,8 +170,8 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 		"src_modified_time": srcStats.ModTime(),
 		"dst_modified_time": gcsModTime,
 	}
-	if !reflect.DeepEqual(wantLogFields, msg.LogFields) {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, msg.LogFields)
+	if !reflect.DeepEqual(wantLogFields, msg.AgentLogFields) {
+		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, msg.AgentLogFields)
 	}
 }
 
@@ -216,8 +216,8 @@ func TestCopyHanderDoResumable(t *testing.T) {
 		"src_modified_time": srcStats.ModTime(),
 		"worker_id":         workerID,
 	}
-	if !reflect.DeepEqual(wantLogFields, msg.LogFields) {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, msg.LogFields)
+	if !reflect.DeepEqual(wantLogFields, msg.AgentLogFields) {
+		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, msg.AgentLogFields)
 	}
 
 	wantTaskResParams := taskResParams{
