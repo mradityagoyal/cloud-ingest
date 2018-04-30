@@ -85,6 +85,39 @@ func printVersionInfo() {
 	fmt.Printf("Git Commit: %s\nBuild Date: %s\n", buildCommit, buildDate)
 }
 
+// waitOnSubscription blocks until either the passed-in subscription exists, or
+// an error occurs (including context end). In all cases where we return without
+// the subscription existing, we return the relevant error.
+func waitOnSubscription(ctx context.Context, sub *pubsub.Subscription) error {
+	exists, err := sub.Exists(ctx)
+	if err != nil {
+		return err
+	}
+
+	t := time.NewTicker(10 * time.Second)
+
+	for !exists {
+		fmt.Printf("Waiting for subscription %s to exist. If this is the first run for this project, "+
+			"create your first transfer job.\n", sub.String())
+
+		select {
+		case <-t.C:
+			exists, err = sub.Exists(ctx)
+			if err != nil {
+				t.Stop()
+				return err
+			}
+		case <-ctx.Done():
+			t.Stop()
+			return ctx.Err()
+		}
+	}
+
+	t.Stop()
+	fmt.Printf("Subscription %s is ready!\n", sub.String())
+	return nil
+}
+
 func main() {
 	defer glog.Flush()
 	ctx := context.Background()
@@ -129,6 +162,11 @@ func main() {
 			listSub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
 			listTopic := pubSubClient.Topic(listProgressTopic)
 
+			// Wait for list subscription to exist.
+			if err := waitOnSubscription(ctx, listSub); err != nil {
+				glog.Fatalf("Could not find list subscription %s, error %+v", listSub.String(), err)
+			}
+
 			listProcessor := agent.WorkProcessor{
 				WorkSub:       listSub,
 				ProgressTopic: listTopic,
@@ -146,6 +184,11 @@ func main() {
 			copySub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
 			copySub.ReceiveSettings.MaxOutstandingMessages = numberThreads
 			copyTopic := pubSubClient.Topic(copyProgressTopic)
+
+			// Wait for copy subscription to exist.
+			if err := waitOnSubscription(ctx, copySub); err != nil {
+				glog.Fatalf("Could not find copy subscription %s, error %+v", copySub.String(), err)
+			}
 
 			copyProcessor := agent.WorkProcessor{
 				WorkSub:       copySub,
