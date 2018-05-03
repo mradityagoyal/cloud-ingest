@@ -17,16 +17,18 @@ package agent
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
 
 	"cloud.google.com/go/storage"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 // ListHandler is responsible for handling list tasks.
@@ -59,46 +61,43 @@ func listDirectory(dir string) ([]os.FileInfo, error) {
 	return fileInfos, nil
 }
 
-func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskReqParams taskReqParams) taskProgressMsg {
-	bucketName, bucketNameOK := taskReqParams["dst_list_result_bucket"].(string)
-	objectName, objectNameOK := taskReqParams["dst_list_result_object"].(string)
-	srcDirectory, srcDirectoryOK := taskReqParams["src_directory"].(string)
-	generationNum, err := helpers.ToInt64(taskReqParams["expected_generation_num"])
+func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+	listSpec := taskReqMsg.Spec.GetListSpec()
+	if listSpec == nil {
+		err := errors.New("ListHandler.Do taskReqMsg.Spec is not ListSpec")
+		return buildTaskRespMsg(taskReqMsg, nil, nil, err)
+	}
 
 	logFields := LogFields{
 		"worker_id":        workerID,
 		"file_stat_errors": 0,
 	}
 
-	if !bucketNameOK || !objectNameOK || !srcDirectoryOK || err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, NewInvalidTaskReqParamsError(taskReqParams, err))
-	}
-
-	w := h.gcs.NewWriterWithCondition(ctx, bucketName, objectName,
-		helpers.GetGCSGenerationNumCondition(generationNum))
+	w := h.gcs.NewWriterWithCondition(ctx, listSpec.DstListResultBucket, listSpec.DstListResultObject,
+		helpers.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
 
 	// Set the resumable upload chunk size.
 	if t, ok := w.(*storage.Writer); ok {
 		t.ChunkSize = h.resumableChunkSize
 	}
 
-	if _, err := fmt.Fprintln(w, taskRRName); err != nil {
+	if _, err := fmt.Fprintln(w, taskReqMsg.TaskRelRsrcName); err != nil {
 		w.CloseWithError(err)
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 	}
 
-	fileInfos, err := listDirectory(srcDirectory)
+	fileInfos, err := listDirectory(listSpec.SrcDirectory)
 	if err != nil {
 		w.CloseWithError(err)
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 	}
 	var bytesFound, filesFound, dirsFound int64
 	for _, fileInfo := range fileInfos {
-		fullPath := filepath.Join(srcDirectory, fileInfo.Name())
-		listFileEntry := dcp.ListFileEntry{fileInfo.IsDir(), fullPath}
+		fullPath := filepath.Join(listSpec.SrcDirectory, fileInfo.Name())
+		listFileEntry := ListFileEntry{fileInfo.IsDir(), fullPath}
 		if _, err := fmt.Fprintln(w, listFileEntry); err != nil {
 			w.CloseWithError(err)
-			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+			return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 		}
 		if fileInfo.IsDir() {
 			dirsFound++
@@ -109,12 +108,12 @@ func (h *ListHandler) Do(ctx context.Context, taskRRName string, taskReqParams t
 	}
 
 	if err := w.Close(); err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 	}
 
 	logFields["files_found"] = filesFound
 	logFields["bytes_found"] = bytesFound
 	logFields["dirs_found"] = dirsFound
 
-	return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, nil)
+	return buildTaskRespMsg(taskReqMsg, nil, logFields, nil)
 }

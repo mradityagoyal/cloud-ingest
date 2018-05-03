@@ -16,14 +16,15 @@ limitations under the License.
 package agent
 
 import (
-	"bytes"
 	"context"
-	"encoding/json"
 	"fmt"
 	"os"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/proto"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 var workerID string
@@ -38,8 +39,8 @@ func init() {
 
 // WorkHandler is an interface to handle different task types.
 type WorkHandler interface {
-	// Do handles the task with taskRRName and taskReqParams.
-	Do(ctx context.Context, taskRRName string, taskReqParams taskReqParams) taskProgressMsg
+	// Do handles the TaskReqMsg and returns a TaskRespMsg.
+	Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg
 }
 
 // WorkProcessor processes tasks of a certain type. It listens to subscription
@@ -52,40 +53,30 @@ type WorkProcessor struct {
 }
 
 func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
-	glog.Infof("Handling message: %s.", string(msg.Data))
-
-	msgMap := make(map[string]interface{})
-	decoder := json.NewDecoder(bytes.NewReader(msg.Data))
-	decoder.UseNumber()
-
-	// TODO(b/70812612): Define the work messages in a struct instead of
-	// map[string]interface{}.
-	if err := decoder.Decode(&msgMap); err != nil {
-		glog.Errorf("error decoding JSON msg string %s with error %v.",
-			string(msg.Data), err)
+	var taskReqMsg taskpb.TaskReqMsg
+	if err := proto.Unmarshal(msg.Data, &taskReqMsg); err != nil {
+		glog.Errorf("error decoding msg %s with error %v.", string(msg.Data), err)
 		// Non-recoverable error. Will Ack the message to avoid delivering again.
 		msg.Ack()
 		return
 	}
-	taskRRName, ok := msgMap["task_rr_name"].(string)
-	if !ok {
-		glog.Errorf("Can not get the full task id from message %s.", string(msg.Data))
-		// Here the taskRRName is unknown. Will Ack the message to avoid delivering again.
-		msg.Ack()
+	glog.Infof("Handling taskReqMsg: %v", taskReqMsg)
+	taskRespMsg := wp.Handler.Do(ctx, &taskReqMsg)
+	if !proto.Equal(taskReqMsg.Spec, taskRespMsg.ReqSpec) {
+		glog.Errorf("taskRespMsg.ReqSpec = %v, want: %v", taskRespMsg.ReqSpec, taskReqMsg.Spec)
+		// The taskRespMsg.ReqSpec must equal the taskReqMsg.Spec. This is an Agent
+		// coding error, do not ack the PubSub message.
 		return
 	}
-	taskReqParams := msgMap["task_req_params"].(map[string]interface{})
-
-	progressMsg := wp.Handler.Do(ctx, taskRRName, taskReqParams)
-
-	progressMsgJSON, err := json.Marshal(progressMsg)
+	glog.Infof("Returning taskRespMsg: %v", taskRespMsg)
+	serializedTaskRespMsg, err := proto.Marshal(taskRespMsg)
 	if err != nil {
-		glog.Errorf("Cannot marshal json %+v with err %v", progressMsg, err)
+		glog.Errorf("Cannot marshal pb %+v with err %v", taskRespMsg, err)
 		// This may be a transient error, will not Ack the messages to retry again
 		// when the message redelivered.
 		return
 	}
-	pubResult := wp.ProgressTopic.Publish(ctx, &pubsub.Message{Data: progressMsgJSON})
+	pubResult := wp.ProgressTopic.Publish(ctx, &pubsub.Message{Data: serializedTaskRespMsg})
 	if _, err := pubResult.Get(ctx); err != nil {
 		glog.Errorf("Can not publish list progress message with err: %v", err)
 		// Will not Ack the messages to retry again when the message redelivered.

@@ -1,0 +1,100 @@
+syntax = "proto3";
+
+package cloud_ingest_task;
+option go_package = "task_go_proto";
+
+// Specifies the task operation that a task performs.
+enum Type {
+  UNSET_TYPE = 0;    // Unknown task type.
+  LIST = 1;          // Lists the files in an on-premises directory.
+  PROCESS_LIST = 2;  // A task that processes the list task output.
+  COPY = 3;          // Upload a file from the on-premises directory to GCS.
+}
+
+// Specifies the current status of the cloud ingest task.
+enum Status {
+  UNSET_STATUS = 0;  // TaskStatus is unspecified.
+  UNQUEUED = 1;      // The task is unqueued waiting to be queued by the DCP.
+  QUEUED = 2;        // The task is in progress.
+  FAILED = 3;        // The task was completed but failed.
+  SUCCESS = 4;       // The task was completed and succeeded.
+}
+
+// Specifies the classes of failures that a task can have.
+enum FailureType {
+  UNSET_FAILURE_TYPE = 0;      // Not used.
+  UNKNOWN_FAILURE = 1;         // The failure type is not known or recognized.
+  FILE_MODIFIED_FAILURE = 2;   // The source file was modified during upload.
+  HASH_MISMATCH_FAILURE = 3;   // Source file hash does not match GCS file hash.
+  PRECONDITION_FAILURE = 4;    // Upload failed due to a precondition failure.
+  FILE_NOT_FOUND_FAILURE = 5;  // Agent asked to upload a non-existent file.
+  PERMISSION_FAILURE = 6;      // Agent lacks permission for requested action.
+}
+
+// Contains information about a task. A task is a unit of work, one of:
+// 1) listing the contents of a single directory
+// 2) processing a list file
+// 3) copying a single file
+// Tasks might be incremental and require multiple request-response round trips
+// to complete.
+message Spec {
+  oneof spec {
+    ListSpec list_spec = 1;
+    ProcessListSpec process_list_spec = 2;
+    CopySpec copy_spec = 3;
+  }
+}
+
+// Contains the information about a list task. A list task is responsible for
+// listing the contents of a directory.
+message ListSpec {
+  string dst_list_result_bucket = 1;  // GCS bucket for this list file.
+  string dst_list_result_object = 2;  // GCS object for this list file.
+  string src_directory = 3;           // On-Premises dir to list.
+  int64 expected_generation_num = 4;  // Expected GCS generation number.
+}
+
+// Contains the information about a process list task. A process list task is
+// responsible for listing a small chunk of the list task.
+message ProcessListSpec {
+  string dst_list_result_bucket = 1;  // GCS bucket for this list file.
+  string dst_list_result_object = 2;  // GCS object for this list file.
+  string src_directory = 3;           // On-Premises dir for this list file.
+  int64 byte_offset = 4;              // List file bytes processed so far.
+}
+
+// Contains the information about a copy task. A copy task is responsible for
+// copying a single file.
+message CopySpec {
+  string src_file = 1;                // The On-Premises source file.
+  string dst_bucket = 2;              // The GCS destination bucket.
+  string dst_object = 3;              // The GCS destination object.
+  int64 expected_generation_num = 4;  // The expected GCS generation number.
+  int64 bandwidth = 5;                // The bandwidth limit for this copy.
+
+  // Fields only for managing resumable copies.
+  int64 file_bytes = 6;             // The file size, in bytes.
+  int64 file_m_time = 7;             // The file modified time.
+  int64 bytes_copied = 8;           // The count of bytes copied so far.
+  uint32 crc32c = 9;                // The CRC32C of the bytes copied so far.
+  int64 bytes_to_copy = 10;         // Number of bytes to copy in a chunk.
+  string resumable_upload_id = 11;  // The resumable upload ID.
+}
+
+// Contains the message sent from the DCP to an Agent to issue a task request.
+message TaskReqMsg {
+  string task_rel_rsrc_name = 1;
+  Spec spec = 2;
+}
+
+// Contains the message sent from the Agent to the DCP in response to a task
+// request.
+message TaskRespMsg {
+  string task_rel_rsrc_name = 1;
+  string status = 2;  // TODO(b/79153431): Make this an enum.
+  FailureType failure_type = 3;
+  string failure_message = 4;
+  string agent_log_fields = 5;  // TODO(b/78596512): Proto~ify this.
+  Spec req_spec = 6;
+  Spec resp_spec = 7;
+}

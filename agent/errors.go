@@ -16,23 +16,14 @@ limitations under the License.
 package agent
 
 import (
-	"fmt"
-
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 type AgentError struct {
 	Msg         string
-	FailureType proto.TaskFailureType_Type
+	FailureType taskpb.FailureType
 }
 
 func (ae AgentError) Error() string {
 	return ae.Msg
-}
-
-func NewInvalidTaskReqParamsError(taskReqParams taskReqParams, err error) *AgentError {
-	return &AgentError{
-		Msg:         fmt.Sprintf("Invalid taskReqParams arguments: %+v, err: %v", taskReqParams, err),
-		FailureType: proto.TaskFailureType_UNKNOWN,
-	}
 }

@@ -20,45 +20,34 @@ import (
 	"context"
 	"fmt"
 	"os"
-	"reflect"
 	"sort"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
-func TestListNoTaskReqParams(t *testing.T) {
-	h := ListHandler{}
-	taskReqParams := taskReqParams{}
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkForInvalidTaskReqParamsArguments("task", msg, t)
+func testListSpec(srcDir string) *taskpb.Spec {
+	return &taskpb.Spec{
+		Spec: &taskpb.Spec_ListSpec{
+			ListSpec: &taskpb.ListSpec{
+				DstListResultBucket:   "bucket",
+				DstListResultObject:   "object",
+				SrcDirectory:          srcDir,
+				ExpectedGenerationNum: 0,
+			},
+		},
+	}
 }
 
-func TestListMissingOneTaskReqParams(t *testing.T) {
-	h := &ListHandler{}
-	taskReqParams := taskReqParams{
-		"dst_list_result_bucket":  "bucket",
-		"dst_list_result_object":  "object",
-		"src_directory":           "dir",
-		"expected_generation_num": 0,
+func testListTaskReqMsg(taskRelRsrcName, srcDir string) *taskpb.TaskReqMsg {
+	return &taskpb.TaskReqMsg{
+		TaskRelRsrcName: taskRelRsrcName,
+		Spec:            testListSpec(srcDir),
 	}
-	testMissingOneTaskReqParams(h, taskReqParams, t)
-}
-
-func TestListInvalidGenerationNum(t *testing.T) {
-	h := ListHandler{}
-	taskReqParams := taskReqParams{
-		"dst_list_result_bucket":  "bucket",
-		"dst_list_result_object":  "object",
-		"src_directory":           "dir",
-		"expected_generation_num": "not a number",
-	}
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkForInvalidTaskReqParamsArguments("task", msg, t)
 }
 
 func TestDirNotFound(t *testing.T) {
@@ -70,14 +59,9 @@ func TestDirNotFound(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	taskReqParams := taskReqParams{
-		"dst_list_result_bucket":  "bucket",
-		"dst_list_result_object":  "object",
-		"src_directory":           "dir does not exist",
-		"expected_generation_num": 0,
-	}
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkFailureWithType("task", proto.TaskFailureType_FILE_NOT_FOUND_FAILURE, msg, t)
+	taskReqParams := testListTaskReqMsg("task","dir does not exist")
+	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	checkFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
 	}
@@ -89,9 +73,9 @@ func TestListSuccessEmptyDir(t *testing.T) {
 
 	writer := &helpers.StringWriteCloser{}
 
-	taskRRName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
+	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	expectedListResult.WriteString(fmt.Sprintln(taskRRName))
+	expectedListResult.WriteString(fmt.Sprintln(taskRelRsrcName))
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
@@ -101,25 +85,22 @@ func TestListSuccessEmptyDir(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	taskReqParams := taskReqParams{
-		"dst_list_result_bucket":  "bucket",
-		"dst_list_result_object":  "object",
-		"src_directory":           tmpDir,
-		"expected_generation_num": 0,
-	}
-	msg := h.Do(context.Background(), taskRRName, taskReqParams)
-	checkSuccessMsg(taskRRName, msg, t)
+	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
+	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	checkSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
 	}
 	// Check the log fields.
-	if msg.AgentLogFields["files_found"].(int64) != int64(0) {
-		t.Errorf("expected 0 files but found %d", msg.AgentLogFields["files_found"])
+	/* TODO(b/78596512): Proto~ify the AgentLogFields (aka log entry) in the schema.
+	if taskRespMsg.AgentLogFields["files_found"].(int64) != int64(0) {
+		t.Errorf("expected 0 files but found %d", taskRespMsg.AgentLogFields["files_found"])
 	}
-	if msg.AgentLogFields["bytes_found"].(int64) != int64(0) {
-		t.Errorf("expected 0 bytes but found %d", msg.AgentLogFields["bytes_found"])
+	if taskRespMsg.AgentLogFields["bytes_found"].(int64) != int64(0) {
+		t.Errorf("expected 0 bytes but found %d", taskRespMsg.AgentLogFields["bytes_found"])
 	}
+	*/
 }
 
 func TestListSuccessFlatDir(t *testing.T) {
@@ -128,9 +109,9 @@ func TestListSuccessFlatDir(t *testing.T) {
 
 	writer := &helpers.StringWriteCloser{}
 
-	taskRRName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
+	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	expectedListResult.WriteString(fmt.Sprintln(taskRRName))
+	expectedListResult.WriteString(fmt.Sprintln(taskRelRsrcName))
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
@@ -143,7 +124,7 @@ func TestListSuccessFlatDir(t *testing.T) {
 	// The result of the list are sorted.
 	sort.Strings(filePaths)
 	for _, path := range filePaths {
-		expectedListResult.WriteString(fmt.Sprintln(dcp.ListFileEntry{false, path}))
+		expectedListResult.WriteString(fmt.Sprintln(ListFileEntry{false, path}))
 	}
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -151,25 +132,22 @@ func TestListSuccessFlatDir(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	taskReqParams := taskReqParams{
-		"dst_list_result_bucket":  "bucket",
-		"dst_list_result_object":  "object",
-		"src_directory":           tmpDir,
-		"expected_generation_num": 0,
-	}
-	msg := h.Do(context.Background(), taskRRName, taskReqParams)
-	checkSuccessMsg(taskRRName, msg, t)
+	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
+	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	checkSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
 	}
 	// Check the log entry fields.
-	if msg.AgentLogFields["files_found"].(int64) != int64(10) {
-		t.Errorf("expected 0 files but found %d", msg.AgentLogFields["files_found"])
+	/* TODO(b/78596512): Proto~ify the AgentLogFields (aka log entry) in the schema.
+	if taskRespMsg.AgentLogFields["files_found"].(int64) != int64(10) {
+		t.Errorf("expected 0 files but found %d", taskRespMsg.AgentLogFields["files_found"])
 	}
-	if msg.AgentLogFields["bytes_found"].(int64) != int64(100) {
-		t.Errorf("expected 0 bytes but found %d", msg.AgentLogFields["bytes_found"])
+	if taskRespMsg.AgentLogFields["bytes_found"].(int64) != int64(100) {
+		t.Errorf("expected 0 bytes but found %d", taskRespMsg.AgentLogFields["bytes_found"])
 	}
+	*/
 }
 
 func TestListSuccessNestedDir(t *testing.T) {
@@ -178,17 +156,17 @@ func TestListSuccessNestedDir(t *testing.T) {
 
 	writer := &helpers.StringWriteCloser{}
 
-	taskRRName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
+	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	expectedListResult.WriteString(fmt.Sprintln(taskRRName))
+	expectedListResult.WriteString(fmt.Sprintln(taskRelRsrcName))
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
 	emptyDir := helpers.CreateTmpDir(tmpDir, "empty-dir-")
 	defer os.RemoveAll(tmpDir)
 
-	expectedListResult.WriteString(fmt.Sprintln(dcp.ListFileEntry{true, emptyDir}))
-	expectedListResult.WriteString(fmt.Sprintln(dcp.ListFileEntry{true, nestedTmpDir}))
+	expectedListResult.WriteString(fmt.Sprintln(ListFileEntry{true, emptyDir}))
+	expectedListResult.WriteString(fmt.Sprintln(ListFileEntry{true, nestedTmpDir}))
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 0)
@@ -199,7 +177,7 @@ func TestListSuccessNestedDir(t *testing.T) {
 	// The result of the list are in sorted order.
 	sort.Strings(filePaths)
 	for _, path := range filePaths {
-		expectedListResult.WriteString(fmt.Sprintln(dcp.ListFileEntry{false, path}))
+		expectedListResult.WriteString(fmt.Sprintln(ListFileEntry{false, path}))
 	}
 	// Create some files in the sub-dir. These should not be in the list output.
 	for i := 0; i < 10; i++ {
@@ -211,14 +189,9 @@ func TestListSuccessNestedDir(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	taskReqParams := taskReqParams{
-		"dst_list_result_bucket":  "bucket",
-		"dst_list_result_object":  "object",
-		"src_directory":           tmpDir,
-		"expected_generation_num": 0,
-	}
-	msg := h.Do(context.Background(), taskRRName, taskReqParams)
-	checkSuccessMsg(taskRRName, msg, t)
+	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
+	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	checkSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -231,7 +204,7 @@ func TestListSuccessNestedDir(t *testing.T) {
 		"bytes_found":      int64(100),
 		"dirs_found":       int64(2),
 	}
-	if !reflect.DeepEqual(msg.AgentLogFields, wantLogFields) {
-		t.Errorf("got logFields: %+v, want: %+v", msg.AgentLogFields, wantLogFields)
+	if taskRespMsg.AgentLogFields != wantLogFields.String() {
+		t.Errorf("got logFields: %+v, want: %+v", taskRespMsg.AgentLogFields, wantLogFields)
 	}
 }

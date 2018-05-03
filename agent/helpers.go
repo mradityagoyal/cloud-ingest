@@ -20,54 +20,54 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/golang/glog"
 	"google.golang.org/api/googleapi"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
-func getFailureTypeFromError(err error) proto.TaskFailureType_Type {
+func getFailureTypeFromError(err error) taskpb.FailureType {
 	if os.IsNotExist(err) {
-		return proto.TaskFailureType_FILE_NOT_FOUND_FAILURE
+		return taskpb.FailureType_FILE_NOT_FOUND_FAILURE
 	}
 	if os.IsPermission(err) {
-		return proto.TaskFailureType_PERMISSION_FAILURE
+		return taskpb.FailureType_PERMISSION_FAILURE
 	}
 	if t, ok := err.(*googleapi.Error); ok {
 		switch t.Code {
 		case http.StatusPreconditionFailed:
-			return proto.TaskFailureType_PRECONDITION_FAILURE
+			return taskpb.FailureType_PRECONDITION_FAILURE
 		case http.StatusForbidden:
-			return proto.TaskFailureType_PERMISSION_FAILURE
+			return taskpb.FailureType_PERMISSION_FAILURE
 		case http.StatusUnauthorized:
-			return proto.TaskFailureType_PERMISSION_FAILURE
+			return taskpb.FailureType_PERMISSION_FAILURE
 		}
 	}
 	if t, ok := err.(AgentError); ok {
 		return t.FailureType
 	}
-	return proto.TaskFailureType_UNKNOWN
+	return taskpb.FailureType_UNKNOWN_FAILURE
 }
 
-// buildTaskProgressMsg constructs and returns a taskProgressMsg from the params;
-//   taskRRName is the task's relative resource name
-//   taskReqParams are the taskReqParams that the task was originally called with
-//   taskResParams are the response key/values as a result of this task request
+// buildTaskRespMsg constructs and returns a taskResMsg from the params;
+//   taskReqMsg is the taskpb.TaskReqMsg that the task was originally called with
+//   respSpec is the taskpb.Spec the updated task spec as a result of this task request
 //   lf are the logFields for this task
 //   err defines whether the taskProgressMsg's Status is SUCCESS or FAILURE
-func buildTaskProgressMsg(taskRRName string, taskReqParams taskReqParams, taskResParams taskResParams, lf LogFields, err error) taskProgressMsg {
-	msg := taskProgressMsg{
-		TaskRRName:     taskRRName,
-		TaskReqParams:  taskReqParams,
-		TaskResParams:  taskResParams,
-		AgentLogFields: lf,
+func buildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, lf LogFields, err error) *taskpb.TaskRespMsg {
+	taskRespMsg := &taskpb.TaskRespMsg{
+		TaskRelRsrcName: taskReqMsg.TaskRelRsrcName,
+		ReqSpec:         taskReqMsg.Spec,
+		RespSpec:        respSpec,
+		AgentLogFields:  lf.String(),
 	}
 	if err != nil {
-		msg.Status = "FAILURE"
-		msg.FailureType = getFailureTypeFromError(err)
-		msg.FailureMessage = fmt.Sprint(err)
-		glog.Warningf("Encountered error in processing msg: %+v.", msg)
+		taskRespMsg.Status = "FAILURE"
+		taskRespMsg.FailureType = getFailureTypeFromError(err)
+		taskRespMsg.FailureMessage = fmt.Sprint(err)
+		glog.Warningf("Encountered error in processing taskReqMsg: %+v, err: %v", taskReqMsg, err)
 	} else {
-		msg.Status = "SUCCESS"
+		taskRespMsg.Status = "SUCCESS"
 	}
-	return msg
+	return taskRespMsg
 }

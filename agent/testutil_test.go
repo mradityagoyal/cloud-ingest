@@ -16,50 +16,30 @@ limitations under the License.
 package agent
 
 import (
-	"context"
-	"strings"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
-func checkFailureWithType(taskRRName string, failureType proto.TaskFailureType_Type, msg taskProgressMsg, t *testing.T) {
-	if msg.TaskRRName != taskRRName {
-		t.Errorf("want task id \"%s\", got \"%s\"", taskRRName, msg.TaskRRName)
+func checkFailureWithType(taskRelRsrcName string, failureType taskpb.FailureType, taskRespMsg *taskpb.TaskRespMsg, t *testing.T) {
+	if taskRespMsg.TaskRelRsrcName != taskRelRsrcName {
+		t.Errorf("want task id \"%s\", got \"%s\"", taskRelRsrcName, taskRespMsg.TaskRelRsrcName)
 	}
-	if msg.Status != "FAILURE" {
-		t.Errorf("want task fail, found: %s", msg.Status)
+	if taskRespMsg.Status != "FAILURE" {
+		t.Errorf("want task fail, found: %s", taskRespMsg.Status)
 	}
-	if msg.FailureType != failureType {
+	if taskRespMsg.FailureType != failureType {
 		t.Errorf("want task to fail with %s type, got: %s",
-			proto.TaskFailureType_Type_name[int32(failureType)],
-			proto.TaskFailureType_Type_name[int32(msg.FailureType)])
+			taskpb.FailureType_name[int32(failureType)],
+			taskpb.FailureType_name[int32(taskRespMsg.FailureType)])
 	}
 }
 
-func checkForInvalidTaskReqParamsArguments(taskRRName string, msg taskProgressMsg, t *testing.T) {
-	checkFailureWithType(taskRRName, proto.TaskFailureType_UNKNOWN, msg, t)
-	if !strings.Contains(msg.FailureMessage, "Invalid taskReqParams arguments") {
-		t.Errorf("failure message want \"Invalid taskReqParams arguments\", got: %s",
-			msg.FailureMessage)
+func checkSuccessMsg(taskRelRsrcName string, taskRespMsg *taskpb.TaskRespMsg, t *testing.T) {
+	if taskRespMsg.TaskRelRsrcName != taskRelRsrcName {
+		t.Errorf("want task id \"%s\", got \"%s\"", taskRelRsrcName, taskRespMsg.TaskRelRsrcName)
 	}
-}
-
-func checkSuccessMsg(taskRRName string, msg taskProgressMsg, t *testing.T) {
-	if msg.TaskRRName != taskRRName {
-		t.Errorf("want task id \"%s\", got \"%s\"", taskRRName, msg.TaskRRName)
-	}
-	if msg.Status != "SUCCESS" {
-		t.Errorf("want message success, got: %s", msg.Status)
-	}
-}
-
-func testMissingOneTaskReqParams(h WorkHandler, taskReqParams taskReqParams, t *testing.T) {
-	for param := range taskReqParams {
-		paramVal := taskReqParams[param]
-		delete(taskReqParams, param)
-		msg := h.Do(context.Background(), "task", taskReqParams)
-		checkForInvalidTaskReqParamsArguments("task", msg, t)
-		taskReqParams[param] = paramVal
+	if taskRespMsg.Status != "SUCCESS" {
+		t.Errorf("want message success, got: %s", taskRespMsg.Status)
 	}
 }

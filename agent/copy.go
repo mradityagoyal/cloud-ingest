@@ -36,10 +36,9 @@ import (
 
 	"cloud.google.com/go/storage"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/golang/protobuf/proto"
 
 	"golang.org/x/net/context/ctxhttp"
 	"golang.org/x/sync/semaphore"
@@ -49,11 +48,14 @@ import (
 	"google.golang.org/api/option"
 	raw "google.golang.org/api/storage/v1"
 	htransport "google.golang.org/api/transport/http"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 const (
 	defaultCopyMemoryLimit int64 = 1 << 30 // Default memory limit is 1 GB.
 	userAgent = "google-cloud-ingest-on-premises-agent"
+	MTIME_ATTR_NAME string = "goog-reserved-file-mtime"
 )
 
 var (
@@ -103,21 +105,21 @@ func NewCopyHandler(storageClient *storage.Client, resumableChunkSize int, hc *h
 	}
 }
 
-func checkResumableFileStats(c *copyTaskSpec, stats os.FileInfo) error {
+func checkResumableFileStats(c *taskpb.CopySpec, stats os.FileInfo) error {
 	if c.FileBytes != stats.Size() {
 		return AgentError{
 			Msg: fmt.Sprintf(
 				"File size changed during the copy. Expected:%+v, got:%+v",
 				c.FileBytes, stats.Size()),
-			FailureType: proto.TaskFailureType_FILE_MODIFIED_FAILURE,
+			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
-	if c.FileMtime != stats.ModTime().Unix() {
+	if c.FileMTime != stats.ModTime().Unix() {
 		return AgentError{
 			Msg: fmt.Sprintf(
 				"File mtime changed during the copy. Expected:%+v, got:%+v",
-				c.FileMtime, stats.ModTime().Unix()),
-			FailureType: proto.TaskFailureType_FILE_MODIFIED_FAILURE,
+				c.FileMTime, stats.ModTime().Unix()),
+			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
 	return nil
@@ -133,37 +135,38 @@ func checkFileStats(beforeStats os.FileInfo, f *os.File) error {
 			Msg: fmt.Sprintf(
 				"File stats changed during the copy. Before stats:%+v, after stats: %+v",
 				beforeStats, afterStats),
-			FailureType: proto.TaskFailureType_FILE_MODIFIED_FAILURE,
+			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
 	return nil
 }
 
-func (h *CopyHandler) Do(ctx context.Context, taskRRName string, taskReqParams taskReqParams) taskProgressMsg {
-	// Parse and check the task params.
-	ctSpec, err := copyTaskSpecFromTaskReqParams(taskReqParams)
-	if err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, nil, NewInvalidTaskReqParamsError(taskReqParams, err))
+func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+	if taskReqMsg.Spec.GetCopySpec() == nil {
+		err := errors.New("CopyHandler.Do taskReqMsg.Spec is not CopySpec")
+		return buildTaskRespMsg(taskReqMsg, nil, nil, err)
 	}
+	reqCopySpec := proto.Clone(taskReqMsg.Spec.GetCopySpec()).(*taskpb.CopySpec)
 	logFields := LogFields{
 		"worker_id": workerID,
-		"src_file":  ctSpec.SrcFile,
-		"dst_file":  path.Join(ctSpec.DstBucket, ctSpec.DstObject),
+		"src_file":  reqCopySpec.SrcFile,
+		"dst_file":  path.Join(reqCopySpec.DstBucket, reqCopySpec.DstObject),
 	}
-	resumedCopy, err := checkCopyTaskSpec(*ctSpec)
+
+	resumedCopy, err := checkCopyTaskSpec(reqCopySpec)
 	if err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, NewInvalidTaskReqParamsError(taskReqParams, err))
+		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 	}
 
 	// Open the on-premises file, and check the file stats if necessary.
-	srcFile, err := os.Open(ctSpec.SrcFile)
+	srcFile, err := os.Open(reqCopySpec.SrcFile)
 	if err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 	}
 	defer srcFile.Close()
 	stats, err := srcFile.Stat()
 	if err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 	}
 	// This populates the log entry for the audit logs and for tracking
 	// bytes. Bytes are only counted when the task moves to "success", so
@@ -173,53 +176,54 @@ func (h *CopyHandler) Do(ctx context.Context, taskRRName string, taskReqParams t
 	if resumedCopy {
 		// TODO(b/74009003): When implementing "synchronization" rethink how
 		// the file stat parameters are set and compared.
-		if err = checkResumableFileStats(ctSpec, stats); err != nil {
-			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+		if err = checkResumableFileStats(reqCopySpec, stats); err != nil {
+			return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 		}
 	}
 
 	// Copy the entire file or start a resumable copy.
-	taskResParams := make(taskResParams)
+	respSpec := proto.Clone(taskReqMsg.Spec).(*taskpb.Spec)
+	respCopySpec := respSpec.GetCopySpec()
 	if !resumedCopy {
 		// Start a copy. If the file is small enough (or BytesToCopy indicates so)
 		// copy the entire file now. Otherwise, begin a resumable copy.
-		if stats.Size() <= ctSpec.BytesToCopy || ctSpec.BytesToCopy <= 0 {
-			err = h.copyEntireFile(ctx, ctSpec, srcFile, stats, logFields)
+		if stats.Size() <= reqCopySpec.BytesToCopy || reqCopySpec.BytesToCopy <= 0 {
+			err = h.copyEntireFile(ctx, reqCopySpec, srcFile, stats, logFields)
 			if err != nil {
-				return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+				return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 			}
 		} else {
-			ctSpec.ResumableUploadId, err = h.prepareResumableCopy(
-				ctx, ctSpec, taskResParams, srcFile, stats)
+			reqCopySpec.ResumableUploadId, err = h.prepareResumableCopy(
+				ctx, reqCopySpec, respCopySpec, srcFile, stats)
 			if err != nil {
-				return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+				return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 			}
 			resumedCopy = true
 		}
 	}
 	if resumedCopy {
-		err = h.copyResumableChunk(ctx, ctSpec, taskResParams, srcFile, stats, logFields)
+		err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, logFields)
 		if err != nil {
-			return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+			return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 		}
 	}
 
 	// Now that data has been sent, check that the file stats haven't changed.
 	if err = checkFileStats(stats, srcFile); err != nil {
-		return buildTaskProgressMsg(taskRRName, taskReqParams, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
 	}
 
-	return buildTaskProgressMsg(taskRRName, taskReqParams, taskResParams, logFields, nil)
+	return buildTaskRespMsg(taskReqMsg, respSpec, logFields, nil)
 }
 
-func (h *CopyHandler) copyEntireFile(ctx context.Context, c *copyTaskSpec, srcFile *os.File, stats os.FileInfo, logFields LogFields) error {
+func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, logFields LogFields) error {
 	w := h.gcs.NewWriterWithCondition(ctx, c.DstBucket, c.DstObject,
 		helpers.GetGCSGenerationNumCondition(c.ExpectedGenerationNum))
 
 	bufSize := stats.Size()
 	if t, ok := w.(*storage.Writer); ok {
 		t.Metadata = map[string]string{
-			dcp.MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
+			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
 		}
 		if bufSize > int64(h.resumableChunkSize) {
 			bufSize = int64(h.resumableChunkSize)
@@ -286,7 +290,7 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *copyTaskSpec, srcFi
 		return AgentError{
 			Msg: fmt.Sprintf("CRC32C mismatch for file %s (%d) against object %s (%d)",
 				c.SrcFile, srcCRC32C, c.DstObject, dstAttrs.CRC32C),
-			FailureType: proto.TaskFailureType_HASH_MISMATCH_FAILURE,
+			FailureType: taskpb.FailureType_HASH_MISMATCH_FAILURE,
 		}
 	}
 
@@ -305,9 +309,9 @@ func contentType(srcFile io.Reader) string {
 
 // prepareResumableCopy makes a request to GCS to begin a resumable copy, and
 // returns a resuambleUploadId which may be used for the lifetime of this copy.
-// This function also adds fields to taskResParams which get sent to the DCP to
-// update the task params for future work on this resumable copy task.
-func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec, taskResParams taskResParams, srcFile io.Reader, stats os.FileInfo) (resumableUploadId string, err error) {
+// This function also updates the respCopySpec which get sent to the DCP to
+// update the task spec for future work on this resumable copy task.
+func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySpec, respCopySpec *taskpb.CopySpec, srcFile io.Reader, stats os.FileInfo) (resumableUploadId string, err error) {
 	// Create the request URL.
 	urlParams := make(gensupport.URLParams)
 	urlParams.Set("ifGenerationMatch", fmt.Sprint(c.ExpectedGenerationNum))
@@ -321,7 +325,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec,
 		Name:   c.DstObject,
 		Bucket: c.DstBucket,
 		Metadata: map[string]string{
-			dcp.MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
+			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
 		},
 	}
 	body := new(bytes.Buffer)
@@ -356,10 +360,10 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec,
 		return "", err
 	}
 
-	// This function was successful, update the resumable-copy params.
-	taskResParams["file_bytes"] = stats.Size()
-	taskResParams["file_mtime"] = stats.ModTime().Unix()
-	taskResParams["resumable_upload_id"] = res.Header.Get("Location")
+	// This function was successful, update the respCopySpec.
+	respCopySpec.FileBytes = stats.Size()
+	respCopySpec.FileMTime = stats.ModTime().Unix()
+	respCopySpec.ResumableUploadId = res.Header.Get("Location")
 
 	// TODO(b/74009190): Consider renaming this, or somehow indicating that
 	// this is a full URL. The Agent needs to be aware that this is a full
@@ -370,9 +374,9 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *copyTaskSpec,
 }
 
 // copyResumableChunk sends a chunk of the srcFile to GCS as part of a resumable
-// copy task. This function also updates taskResParams and the logFields, both of
+// copy task. This function also updates respCopySpec and the logFields, both of
 // which are sent to the DCP.
-func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, taskResParams taskResParams, srcFile *os.File, stats os.FileInfo, logFields LogFields) error {
+func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec, respCopySpec *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, logFields LogFields) error {
 	bytesToCopy := c.BytesToCopy
 	if bytesToCopy <= 0 {
 		// c.BytesToCopy <= 0 indicates that the rest of the file should be copied.
@@ -406,7 +410,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, t
 	if !final && err != nil {
 		return err
 	}
-	srcCRC32C := int64(crc32pkg.Update(uint32(c.CRC32C), CRC32CTable, buf))
+	srcCRC32C := crc32pkg.Update(uint32(c.Crc32C), CRC32CTable, buf)
 
 	// Add bandwidth control to the HTTP request body.
 	rlr, err := NewRateLimitedReader(ctx, bytes.NewReader(buf), rate.Limit(c.Bandwidth))
@@ -441,11 +445,11 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, t
 		}
 
 		// Check the CRC32C.
-		if dstCRC32C != uint32(srcCRC32C) {
+		if dstCRC32C != srcCRC32C {
 			return AgentError{
 				Msg: fmt.Sprintf("CRC32C mismatch for file %s (%d) against object %s (%d)",
 					c.SrcFile, srcCRC32C, c.DstObject, dstCRC32C),
-				FailureType: proto.TaskFailureType_HASH_MISMATCH_FAILURE,
+				FailureType: taskpb.FailureType_HASH_MISMATCH_FAILURE,
 			}
 		}
 		logFields["dst_crc32c"] = int64(dstCRC32C)
@@ -453,9 +457,9 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *copyTaskSpec, t
 		logFields["dst_modified_time"] = obj.Updated
 		logFields["src_crc32c"] = srcCRC32C
 	} else {
-		taskResParams["crc32c"] = srcCRC32C
+		respCopySpec.Crc32C = srcCRC32C
 	}
-	taskResParams["bytes_copied"] = c.BytesCopied + int64(bytesRead)
+	respCopySpec.BytesCopied = c.BytesCopied + int64(bytesRead)
 	logFields["bytes_copied"] = c.BytesCopied + int64(bytesRead)
 
 	return nil

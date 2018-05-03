@@ -17,6 +17,9 @@ package agent
 
 import (
 	"encoding/json"
+	"fmt"
+	"sort"
+	"strings"
 )
 
 type LogFields map[string]interface{}
@@ -27,4 +30,17 @@ func (lf LogFields) val(key string) int64 {
 		return int64(0)
 	}
 	return value
+}
+
+func (lf LogFields) String() string {
+	var keys []string
+	for k, _ := range lf {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	var kv []string
+	for _, k := range keys {
+		kv = append(kv, fmt.Sprintf("%v:%v", k, lf[k]))
+	}
+	return strings.Join(kv, " ")
 }

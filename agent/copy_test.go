@@ -22,19 +22,19 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp"
-	"github.com/GoogleCloudPlatform/cloud-ingest/dcp/proto"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 	"golang.org/x/sync/semaphore"
 	raw "google.golang.org/api/storage/v1"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 const (
@@ -43,48 +43,38 @@ const (
 	testTenByteCRC32C = 1069694901 // CRC32C of the first 10-bytes of testFileContent.
 )
 
-func testingTaskReqParams() taskReqParams {
-	taskReqParams := make(taskReqParams)
-	taskReqParams["src_file"] = "file"
-	taskReqParams["dst_bucket"] = "bucket"
-	taskReqParams["dst_object"] = "object"
-	taskReqParams["expected_generation_num"] = 0
-	taskReqParams["file_bytes"] = 0
-	taskReqParams["file_mtime"] = 0
-	taskReqParams["bytes_copied"] = 0
-	taskReqParams["bytes_to_copy"] = 0
-	taskReqParams["resumable_upload_id"] = ""
-	taskReqParams["crc32c"] = 0
-	return taskReqParams
+func testCopySpec(expGenNum, bytesToCopy int64, ruID string) *taskpb.Spec {
+	return &taskpb.Spec{
+		Spec: &taskpb.Spec_CopySpec{
+			CopySpec: &taskpb.CopySpec{
+				DstBucket:             "bucket",
+				DstObject:             "object",
+				SrcFile:               "file",
+				ExpectedGenerationNum: expGenNum,
+				FileBytes:             0,
+				FileMTime:             0,
+				BytesCopied:           0,
+				BytesToCopy:           bytesToCopy,
+				ResumableUploadId:     ruID,
+				Crc32C:                0,
+			},
+		},
+	}
 }
 
-func TestNoTaskReqParams(t *testing.T) {
-	h := CopyHandler{}
-	taskReqParams := taskReqParams{}
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkForInvalidTaskReqParamsArguments("task", msg, t)
-}
-
-func TestCopyMissingOneTaskReqParams(t *testing.T) {
-	h := &CopyHandler{}
-	taskReqParams := testingTaskReqParams()
-	testMissingOneTaskReqParams(h, taskReqParams, t)
-}
-
-func TestCopyInvalidGenerationNum(t *testing.T) {
-	h := CopyHandler{}
-	taskReqParams := testingTaskReqParams()
-	taskReqParams["expected_generation_num"] = "not a number"
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkForInvalidTaskReqParamsArguments("task", msg, t)
+func testCopyTaskReqMsg() *taskpb.TaskReqMsg {
+	return &taskpb.TaskReqMsg{
+		TaskRelRsrcName: "task",
+		Spec:            testCopySpec(0, 0, ""),
+	}
 }
 
 func TestSourceNotFound(t *testing.T) {
 	h := CopyHandler{}
-	taskReqParams := testingTaskReqParams()
-	taskReqParams["src_file"] = "file does not exist"
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkFailureWithType("task", proto.TaskFailureType_FILE_NOT_FOUND_FAILURE, msg, t)
+	taskReqMsg := testCopyTaskReqMsg()
+	taskReqMsg.Spec.GetCopySpec().SrcFile = "file does not exist"
+	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	checkFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 }
 
 func TestAcquireBufferMemoryFail(t *testing.T) {
@@ -101,10 +91,10 @@ func TestAcquireBufferMemoryFail(t *testing.T) {
 
 	copyMemoryLimit = 5
 	h := CopyHandler{mockGCS, 10, nil, semaphore.NewWeighted(5), nil}
-	taskReqParams := testingTaskReqParams()
-	taskReqParams["src_file"] = tmpFile
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkFailureWithType("task", proto.TaskFailureType_UNKNOWN, msg, t)
+	taskReqMsg := testCopyTaskReqMsg()
+	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
+	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	checkFailureWithType("task", taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
 }
 
 func TestCRC32CMismtach(t *testing.T) {
@@ -123,10 +113,10 @@ func TestCRC32CMismtach(t *testing.T) {
 
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{mockGCS, 5, nil, semaphore.NewWeighted(copyMemoryLimit), nil}
-	taskReqParams := testingTaskReqParams()
-	taskReqParams["src_file"] = tmpFile
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkFailureWithType("task", proto.TaskFailureType_HASH_MISMATCH_FAILURE, msg, t)
+	taskReqMsg := testCopyTaskReqMsg()
+	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
+	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	checkFailureWithType("task", taskpb.FailureType_HASH_MISMATCH_FAILURE, taskRespMsg, t)
 }
 
 func TestCopyEntireFileSuccess(t *testing.T) {
@@ -149,10 +139,10 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{mockGCS, 5, nil, semaphore.NewWeighted(copyMemoryLimit), nil}
-	taskReqParams := testingTaskReqParams()
-	taskReqParams["src_file"] = tmpFile
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkSuccessMsg("task", msg, t)
+	taskReqMsg := testCopyTaskReqMsg()
+	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
+	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	checkSuccessMsg("task", taskRespMsg, t)
 	if writer.WrittenString() != testFileContent {
 		t.Errorf("written string want \"%s\", got \"%s\"",
 			testFileContent, writer.WrittenString())
@@ -170,8 +160,8 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 		"src_modified_time": srcStats.ModTime(),
 		"dst_modified_time": gcsModTime,
 	}
-	if !reflect.DeepEqual(wantLogFields, msg.AgentLogFields) {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, msg.AgentLogFields)
+	if wantLogFields.String() != taskRespMsg.AgentLogFields {
+		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, taskRespMsg.AgentLogFields)
 	}
 }
 
@@ -181,8 +171,8 @@ func TestCopyHanderDoResumable(t *testing.T) {
 		// This bogus response serves both the prepareResumableCopy and
 		// copyResumableChunk requests.
 		object := &raw.Object{
-			Name:    "dst_o",
-			Bucket:  "dst_b",
+			Name:    "object",
+			Bucket:  "bucket",
 			Crc32c:  encodeUint32(testCRC32C),
 			Size:    uint64(len(testFileContent)),
 			Updated: "modTime",
@@ -201,11 +191,11 @@ func TestCopyHanderDoResumable(t *testing.T) {
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 
-	taskReqParams := testingTaskReqParams()
-	taskReqParams["src_file"] = tmpFile
-	taskReqParams["bytes_to_copy"] = 10
-	msg := h.Do(context.Background(), "task", taskReqParams)
-	checkSuccessMsg("task", msg, t)
+	taskReqMsg := testCopyTaskReqMsg()
+	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
+	taskReqMsg.Spec.GetCopySpec().BytesToCopy = 10
+	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	checkSuccessMsg("task", taskRespMsg, t)
 
 	srcStats, _ := os.Stat(tmpFile)
 	wantLogFields := LogFields{
@@ -216,25 +206,27 @@ func TestCopyHanderDoResumable(t *testing.T) {
 		"src_modified_time": srcStats.ModTime(),
 		"worker_id":         workerID,
 	}
-	if !reflect.DeepEqual(wantLogFields, msg.AgentLogFields) {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, msg.AgentLogFields)
+	if wantLogFields.String() != taskRespMsg.AgentLogFields {
+		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, taskRespMsg.AgentLogFields)
 	}
 
-	wantTaskResParams := taskResParams{
-		"bytes_copied":        int64(10),
-		"crc32c":              int64(testTenByteCRC32C),
-		"file_bytes":          int64(len(testFileContent)),
-		"file_mtime":          int64(srcStats.ModTime().Unix()),
-		"resumable_upload_id": "testResumableUploadId",
-	}
-	if !reflect.DeepEqual(wantTaskResParams, msg.TaskResParams) {
-		t.Errorf("taskResParams want: %+v, got: %+v", wantTaskResParams, msg.TaskResParams)
+	wantTaskRespSpec := testCopyTaskReqMsg().Spec
+	wantTaskRespSpec.GetCopySpec().SrcFile = tmpFile
+	wantTaskRespSpec.GetCopySpec().BytesToCopy = 10
+	wantTaskRespSpec.GetCopySpec().BytesCopied = 10
+	wantTaskRespSpec.GetCopySpec().Crc32C = testTenByteCRC32C
+	wantTaskRespSpec.GetCopySpec().FileBytes = int64(len(testFileContent))
+	wantTaskRespSpec.GetCopySpec().FileMTime = srcStats.ModTime().Unix()
+	wantTaskRespSpec.GetCopySpec().ResumableUploadId = "testResumableUploadId"
+	if !proto.Equal(wantTaskRespSpec, taskRespMsg.RespSpec) {
+		t.Errorf("taskRespMsg.RespSpec = %v, want: %v", taskRespMsg.RespSpec, wantTaskRespSpec)
 	}
 }
 
 // For testing purposes, this fakes an os.FileInfo object (which is the result
 // of an os.File.Stat() call).
 type fakeStats struct{}
+
 func (f fakeStats) Name() string       { return "fake name" }
 func (f fakeStats) Size() int64        { return 1234 }
 func (f fakeStats) Mode() os.FileMode  { return os.FileMode(0) }
@@ -253,7 +245,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 		// Verify the req URL.
 		var wantURL = []string{
 			"https://www.googleapis.com/upload/storage/v1/",
-			"b/dst_b/o",
+			"b/bucket/o",
 			"alt=json",
 			"ifGenerationMatch=77",
 			"uploadType=resumable",
@@ -267,7 +259,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 		// Verify the req headers.
 		var wantHeaders = map[string][]string{
 			"Content-Type":            {"application/json; charset=UTF-8"},
-			"Content-Length":          {"87"},
+			"Content-Length":          {"89"},
 			"User-Agent":              {userAgent},
 			"X-Upload-Content-Length": {"1234"},
 			"X-Upload-Content-Type":   {"text/plain; charset=utf-8"},
@@ -293,13 +285,13 @@ func TestPrepareResumableCopy(t *testing.T) {
 		if err != nil {
 			t.Error("couldn't decode req.Body for testing, err:", err)
 		}
-		if o.Name != "dst_o" {
-			t.Errorf("want object name dst_o, got %s", o.Name)
+		if o.Name != "object" {
+			t.Errorf("want object name object, got %s", o.Name)
 		}
-		if o.Bucket != "dst_b" {
-			t.Errorf("want object bucket dst_b, got %s", o.Bucket)
+		if o.Bucket != "bucket" {
+			t.Errorf("want object bucket bucket, got %s", o.Bucket)
 		}
-		if modtime, ok := o.Metadata[dcp.MTIME_ATTR_NAME]; !ok || modtime != "1234567890" {
+		if modtime, ok := o.Metadata[MTIME_ATTR_NAME]; !ok || modtime != "1234567890" {
 			t.Errorf("want object metadata mtime 12345890, got %v", modtime)
 		}
 
@@ -313,9 +305,8 @@ func TestPrepareResumableCopy(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	c := &copyTaskSpec{"src_f", "dst_b", "dst_o", 77, 0, 0, 0, 0, 0, 10 /*bytesToCopy*/, ""}
-	taskResParams := make(taskResParams)
-
+	reqCopySpec := testCopySpec(77, 10, "").GetCopySpec()
+	respCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
@@ -325,7 +316,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	resumableUploadId, err := h.prepareResumableCopy(ctx, c, taskResParams, srcFile, stats)
+	resumableUploadId, err := h.prepareResumableCopy(ctx, reqCopySpec, respCopySpec, srcFile, stats)
 	if err != nil {
 		t.Error("got ", err)
 	}
@@ -333,24 +324,12 @@ func TestPrepareResumableCopy(t *testing.T) {
 		t.Error("want resumableUploadId testResumableUploadId, got ", resumableUploadId)
 	}
 
-	// Verify the task response.
-	var wantTaskResParams = []struct {
-		key string
-		val interface{}
-	}{
-		{"file_bytes", int64(1234)},
-		{"file_mtime", int64(1234567890)},
-		{"resumable_upload_id", "testResumableUploadId"},
-	}
-	for _, wtr := range wantTaskResParams {
-		var val interface{}
-		var ok bool
-		if val, ok = taskResParams[wtr.key]; !ok {
-			t.Errorf("want taskResParams key %v to exist, it didn't", wtr.key)
-		}
-		if val != wtr.val {
-			t.Errorf("want taskResParams %s %[2]v/%[2]T, got %[3]v/%[3]T", wtr.key, wtr.val, val)
-		}
+	wantRespCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
+	wantRespCopySpec.FileBytes = 1234
+	wantRespCopySpec.FileMTime = 1234567890
+	wantRespCopySpec.ResumableUploadId = "testResumableUploadId"
+	if !proto.Equal(respCopySpec, wantRespCopySpec) {
+		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
 	}
 }
 
@@ -358,8 +337,8 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
 		object := &raw.Object{
-			Name:    "dst_o",
-			Bucket:  "dst_b",
+			Name:    "object",
+			Bucket:  "bucket",
 			Crc32c:  encodeUint32(testCRC32C),
 			Size:    uint64(len(testFileContent)),
 			Updated: "modTime",
@@ -375,8 +354,8 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	c := &copyTaskSpec{"src_f", "dst_b", "dst_o", 77, 0, 0, 0, 0, 0, 100 /*bytesToCopy*/, "ruID"}
-
+	reqCopySpec := testCopySpec(77, 100, "ruID").GetCopySpec()
+	respCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
@@ -386,21 +365,16 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	taskResParams := make(taskResParams)
 	logFields := LogFields{}
-
-	err = h.copyResumableChunk(ctx, c, taskResParams, srcFile, stats, logFields)
+	err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, logFields)
 	if err != nil {
 		t.Error("got ", err)
 	}
 
-	// Verify task parameter updates.
-	val, ok := taskResParams["bytes_copied"]
-	if !ok {
-		t.Error("want taskResParams key bytes_copied to exist, it didn't")
-	}
-	if val != int64(len(testFileContent)) {
-		t.Errorf("want taskResParams bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(len(testFileContent)), val)
+	wantRespCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
+	wantRespCopySpec.BytesCopied = int64(len(testFileContent))
+	if !proto.Equal(respCopySpec, wantRespCopySpec) {
+		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
 	}
 
 	// Verify task logFields.
@@ -411,7 +385,7 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 		{"dst_crc32c", int64(testCRC32C)},
 		{"dst_bytes", uint64(len(testFileContent))},
 		{"dst_modified_time", "modTime"},
-		{"src_crc32c", int64(testCRC32C)},
+		{"src_crc32c", uint32(testCRC32C)},
 		{"bytes_copied", int64(len(testFileContent))},
 	}
 	for _, wle := range wantLogFields {
@@ -430,8 +404,8 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
 		object := &raw.Object{
-			Name:    "dst_o",
-			Bucket:  "dst_b",
+			Name:    "object",
+			Bucket:  "bucket",
 			Crc32c:  encodeUint32(testCRC32C),
 			Size:    uint64(len(testFileContent)),
 			Updated: "modTime",
@@ -447,8 +421,8 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	c := &copyTaskSpec{"src_f", "dst_b", "dst_o", 77, 0, 0, 0, 0, 0, 10 /*bytesToCopy*/, "ruID"}
-
+	reqCopySpec := testCopySpec(77, 10, "ruID").GetCopySpec()
+	respCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
@@ -458,31 +432,18 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	taskResParams := make(taskResParams)
 	logFields := LogFields{}
 
-	err = h.copyResumableChunk(ctx, c, taskResParams, srcFile, stats, logFields)
+	err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, logFields)
 	if err != nil {
 		t.Error("got ", err)
 	}
 
-	// Verify the task response.
-	var wantTaskResParams = []struct {
-		key string
-		val interface{}
-	}{
-		{"crc32c", int64(testTenByteCRC32C)},
-		{"bytes_copied", int64(10)},
-	}
-	for _, wtr := range wantTaskResParams {
-		var val interface{}
-		var ok bool
-		if val, ok = taskResParams[wtr.key]; !ok {
-			t.Errorf("want taskResParams key %v to exist, it didn't", wtr.key)
-		}
-		if val != wtr.val {
-			t.Errorf("want taskResParams %s %[2]v/%[2]T, got %[3]v/%[3]T", wtr.key, wtr.val, val)
-		}
+	wantRespCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
+	wantRespCopySpec.BytesCopied = 10
+	wantRespCopySpec.Crc32C = testTenByteCRC32C
+	if !proto.Equal(respCopySpec, wantRespCopySpec) {
+		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
 	}
 
 	// Verify task logFields.
