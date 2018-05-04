@@ -8,15 +8,12 @@ endif
 # Add new top-level Go packages here.
 GO_TARGETS = \
 	./agent/... \
-	./dcp/... \
 	./gcloud/... \
 	./helpers/... \
 	./tests/...
 
 # Add individual files needing mocking here.
 FILES_TO_MOCK = \
-	dcp/listresultreader.go \
-	dcp/objectmetadatareader.go \
 	gcloud/gcsclient.go \
 	gcloud/pubsubclient.go \
 	gcloud/spannerclient.go \
