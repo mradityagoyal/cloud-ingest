@@ -25,8 +25,8 @@ import (
 	"fmt"
 	crc32pkg "hash/crc32" // Alias to disambiguate from usage.
 	"io"
-	"math"
 	"io/ioutil"
+	"math"
 	"net/http"
 	"os"
 	"path"
@@ -53,9 +53,9 @@ import (
 )
 
 const (
-	defaultCopyMemoryLimit int64 = 1 << 30 // Default memory limit is 1 GB.
-	userAgent = "google-cloud-ingest-on-premises-agent"
-	MTIME_ATTR_NAME string = "goog-reserved-file-mtime"
+	defaultCopyMemoryLimit int64  = 1 << 30 // Default memory limit is 1 GB.
+	userAgent                     = "google-cloud-ingest-on-premises-agent"
+	MTIME_ATTR_NAME        string = "goog-reserved-file-mtime"
 )
 
 var (
@@ -92,7 +92,7 @@ type CopyHandler struct {
 	memoryLimiter      *semaphore.Weighted
 
 	// Exposed here only for testing purposes.
-	httpDoFunc func (context.Context, *http.Client, *http.Request) (*http.Response, error)
+	httpDoFunc func(context.Context, *http.Client, *http.Request) (*http.Response, error)
 }
 
 func NewCopyHandler(storageClient *storage.Client, resumableChunkSize int, hc *http.Client) *CopyHandler {
@@ -236,6 +236,9 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 		return fmt.Errorf(
 			"memory buffer limit for copy tasks is %d bytes, but task requires %d bytes",
 			copyMemoryLimit, bufSize)
+	} else if bufSize < 1 {
+		// Never allow a non-positive buf size (mainly for empty files).
+		bufSize = 1
 	}
 	if err := h.memoryLimiter.Acquire(ctx, bufSize); err != nil {
 		return err

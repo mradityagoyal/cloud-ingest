@@ -59,7 +59,7 @@ func TestDirNotFound(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := ListHandler{gcs: mockGCS}
-	taskReqParams := testListTaskReqMsg("task","dir does not exist")
+	taskReqParams := testListTaskReqMsg("task", "dir does not exist")
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	checkFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {

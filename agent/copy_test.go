@@ -165,6 +165,53 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	}
 }
 
+func TestCopyEntireFileEmpty(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	gcsModTime := time.Now()
+	writer := helpers.NewStringWriteCloser(&storage.ObjectAttrs{
+		CRC32C:  uint32(0),
+		Size:    int64(0),
+		Updated: gcsModTime,
+	})
+
+	tmpFile := helpers.CreateTmpFile("", "test-agent", "")
+	defer os.Remove(tmpFile)
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().NewWriterWithCondition(
+		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
+
+	copyMemoryLimit = defaultCopyMemoryLimit
+	h := CopyHandler{mockGCS, 5, nil, semaphore.NewWeighted(copyMemoryLimit), nil}
+	taskReqMsg := testCopyTaskReqMsg()
+	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
+	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	checkSuccessMsg("task", taskRespMsg, t)
+	if writer.WrittenString() != "" {
+		t.Errorf("written string want \"%s\", got \"%s\"",
+			"", writer.WrittenString())
+	}
+
+	srcStats, _ := os.Stat(tmpFile)
+	wantLogFields := LogFields{
+		"worker_id":         workerID,
+		"src_crc32c":        uint32(0),
+		"dst_crc32c":        uint32(0),
+		"src_bytes":         int64(0),
+		"dst_bytes":         int64(0),
+		"src_file":          tmpFile,
+		"dst_file":          "bucket/object",
+		"src_modified_time": srcStats.ModTime(),
+		"dst_modified_time": gcsModTime,
+	}
+	if wantLogFields.String() != taskRespMsg.AgentLogFields {
+		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, taskRespMsg.AgentLogFields)
+	}
+
+}
+
 func TestCopyHanderDoResumable(t *testing.T) {
 	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
