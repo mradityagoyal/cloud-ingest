@@ -32,11 +32,11 @@ import (
 )
 
 const (
-	listProgressTopic string = "cloud-ingest-list-progress"
-	copyProgressTopic string = "cloud-ingest-copy-progress"
+	defaultListProgressTopic = "cloud-ingest-list-progress"
+	defaultCopyProgressTopic = "cloud-ingest-copy-progress"
 
-	listSubscription string = "cloud-ingest-list"
-	copySubscription string = "cloud-ingest-copy"
+	defaultListSubscription = "cloud-ingest-list"
+	defaultCopySubscription = "cloud-ingest-copy"
 )
 
 var (
@@ -45,6 +45,11 @@ var (
 	maxPubSubLeaseExtenstion time.Duration
 	credsFile                string
 	chunkSize                int
+
+	listProgressTopic string
+	copyProgressTopic string
+	listSubscription  string
+	copySubscription  string
 
 	skipProcessListTasks bool
 	skipProcessCopyTasks bool
@@ -77,6 +82,15 @@ func init() {
 		"Skip processing copy tasks.")
 	flag.BoolVar(&printVersion, "version", false,
 		"Print build/version info and exit.")
+
+	flag.StringVar(&listProgressTopic, "list-progress-topic", defaultListProgressTopic,
+		"Listing progress topic, if different from default.")
+	flag.StringVar(&copyProgressTopic, "copy-progress-topic", defaultCopyProgressTopic,
+		"Copy progress topic, if different from default.")
+	flag.StringVar(&listSubscription, "list-subscription", defaultListSubscription,
+		"Listing subscription, if different from default.")
+	flag.StringVar(&copySubscription, "copy-subscription", defaultCopySubscription,
+		"Copy subscription, if different from default.")
 	flag.Parse()
 }
 
