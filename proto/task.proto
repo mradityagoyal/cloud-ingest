@@ -70,11 +70,13 @@ message CopySpec {
   string dst_bucket = 2;              // The GCS destination bucket.
   string dst_object = 3;              // The GCS destination object.
   int64 expected_generation_num = 4;  // The expected GCS generation number.
-  int64 bandwidth = 5;                // The bandwidth limit for this copy.
+
+  // Fields for bandwidth management.
+  int64 bandwidth = 5;                        // This copy's bandwidth limit.
 
   // Fields only for managing resumable copies.
   int64 file_bytes = 6;             // The file size, in bytes.
-  int64 file_m_time = 7;             // The file modified time.
+  int64 file_m_time = 7;            // The file modified time (UnixNano).
   int64 bytes_copied = 8;           // The count of bytes copied so far.
   uint32 crc32c = 9;                // The CRC32C of the bytes copied so far.
   int64 bytes_to_copy = 10;         // Number of bytes to copy in a chunk.
@@ -94,7 +96,48 @@ message TaskRespMsg {
   string status = 2;  // TODO(b/79153431): Make this an enum.
   FailureType failure_type = 3;
   string failure_message = 4;
-  string agent_log_fields = 5;  // TODO(b/78596512): Proto~ify this.
+  Log log = 5;
   Spec req_spec = 6;
   Spec resp_spec = 7;
+}
+
+// Contains log information for a task. This message is suitable for the "Log"
+// field in the LogEntries Spanner table. Note that this info is eventually
+// dumped into the user's GCS bucket.
+message Log {
+  oneof log {
+    ListLog list_log = 1;
+    ProcessListLog process_list_log = 2;
+    CopyLog copy_log = 3;
+  }
+}
+
+// Contains log fields for a List task.
+message ListLog {
+  int64 files_found = 1;
+  int64 bytes_found = 2;
+  int64 file_stat_errors = 3;
+  int64 dirs_found = 4;
+}
+
+// Contains log fields for a ProcessList task.
+message ProcessListLog {
+  int64 entries_processed = 1;
+  int64 starting_offset = 2;
+  int64 ending_offset = 3;
+}
+
+// Contains log fields for a Copy task.
+message CopyLog {
+  string src_file = 1;
+  int64 src_bytes = 2;
+  int64 src_m_time = 3;  // UnixNano.
+  uint32 src_crc32c = 4;
+
+  string dst_file = 5;
+  int64 dst_bytes = 6;
+  int64 dst_m_time = 7;  // UnixNano.
+  uint32 dst_crc32c = 8;
+
+  int64 bytes_copied = 9;
 }

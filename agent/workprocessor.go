@@ -17,8 +17,6 @@ package agent
 
 import (
 	"context"
-	"fmt"
-	"os"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/golang/glog"
@@ -26,16 +24,6 @@ import (
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
-
-var workerID string
-
-func init() {
-	hostname, err := os.Hostname()
-	if err != nil {
-		glog.Fatal("Initialization failed, cannot get host name.")
-	}
-	workerID = fmt.Sprintf("%s-%d", hostname, os.Getpid())
-}
 
 // WorkHandler is an interface to handle different task types.
 type WorkHandler interface {

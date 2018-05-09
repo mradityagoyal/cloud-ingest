@@ -31,6 +31,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"time"
 
 	"golang.org/x/time/rate"
 
@@ -114,11 +115,11 @@ func checkResumableFileStats(c *taskpb.CopySpec, stats os.FileInfo) error {
 			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
-	if c.FileMTime != stats.ModTime().Unix() {
+	if c.FileMTime != stats.ModTime().UnixNano() {
 		return AgentError{
 			Msg: fmt.Sprintf(
 				"File mtime changed during the copy. Expected:%+v, got:%+v",
-				c.FileMTime, stats.ModTime().Unix()),
+				c.FileMTime, stats.ModTime().UnixNano()),
 			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
@@ -147,37 +148,42 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		return buildTaskRespMsg(taskReqMsg, nil, nil, err)
 	}
 	reqCopySpec := proto.Clone(taskReqMsg.Spec.GetCopySpec()).(*taskpb.CopySpec)
-	logFields := LogFields{
-		"worker_id": workerID,
-		"src_file":  reqCopySpec.SrcFile,
-		"dst_file":  path.Join(reqCopySpec.DstBucket, reqCopySpec.DstObject),
+
+	log := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{
+				SrcFile: reqCopySpec.SrcFile,
+				DstFile: path.Join(reqCopySpec.DstBucket, reqCopySpec.DstObject),
+			},
+		},
 	}
+	cl := log.GetCopyLog()
 
 	resumedCopy, err := checkCopyTaskSpec(reqCopySpec)
 	if err != nil {
-		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
 	// Open the on-premises file, and check the file stats if necessary.
 	srcFile, err := os.Open(reqCopySpec.SrcFile)
 	if err != nil {
-		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 	defer srcFile.Close()
 	stats, err := srcFile.Stat()
 	if err != nil {
-		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 	// This populates the log entry for the audit logs and for tracking
 	// bytes. Bytes are only counted when the task moves to "success", so
 	// there won't be any double counting.
-	logFields["src_bytes"] = stats.Size()
-	logFields["src_modified_time"] = stats.ModTime()
+	cl.SrcBytes = stats.Size()
+	cl.SrcMTime = stats.ModTime().UnixNano()
 	if resumedCopy {
 		// TODO(b/74009003): When implementing "synchronization" rethink how
 		// the file stat parameters are set and compared.
 		if err = checkResumableFileStats(reqCopySpec, stats); err != nil {
-			return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+			return buildTaskRespMsg(taskReqMsg, nil, log, err)
 		}
 	}
 
@@ -188,42 +194,42 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		// Start a copy. If the file is small enough (or BytesToCopy indicates so)
 		// copy the entire file now. Otherwise, begin a resumable copy.
 		if stats.Size() <= reqCopySpec.BytesToCopy || reqCopySpec.BytesToCopy <= 0 {
-			err = h.copyEntireFile(ctx, reqCopySpec, srcFile, stats, logFields)
+			err = h.copyEntireFile(ctx, reqCopySpec, srcFile, stats, log)
 			if err != nil {
-				return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+				return buildTaskRespMsg(taskReqMsg, nil, log, err)
 			}
 		} else {
 			reqCopySpec.ResumableUploadId, err = h.prepareResumableCopy(
 				ctx, reqCopySpec, respCopySpec, srcFile, stats)
 			if err != nil {
-				return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+				return buildTaskRespMsg(taskReqMsg, nil, log, err)
 			}
 			resumedCopy = true
 		}
 	}
 	if resumedCopy {
-		err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, logFields)
+		err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, log)
 		if err != nil {
-			return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+			return buildTaskRespMsg(taskReqMsg, nil, log, err)
 		}
 	}
 
 	// Now that data has been sent, check that the file stats haven't changed.
 	if err = checkFileStats(stats, srcFile); err != nil {
-		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
-	return buildTaskRespMsg(taskReqMsg, respSpec, logFields, nil)
+	return buildTaskRespMsg(taskReqMsg, respSpec, log, nil)
 }
 
-func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, logFields LogFields) error {
+func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, log *taskpb.Log) error {
 	w := h.gcs.NewWriterWithCondition(ctx, c.DstBucket, c.DstObject,
 		helpers.GetGCSGenerationNumCondition(c.ExpectedGenerationNum))
 
 	bufSize := stats.Size()
 	if t, ok := w.(*storage.Writer); ok {
 		t.Metadata = map[string]string{
-			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
+			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().UnixNano(), 10),
 		}
 		if bufSize > int64(h.resumableChunkSize) {
 			bufSize = int64(h.resumableChunkSize)
@@ -283,10 +289,12 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 
 	// Record some attributes.
 	dstAttrs := w.Attrs()
-	logFields["dst_bytes"] = dstAttrs.Size
-	logFields["dst_crc32c"] = dstAttrs.CRC32C
-	logFields["dst_modified_time"] = dstAttrs.Updated
-	logFields["src_crc32c"] = srcCRC32C
+	cl := log.GetCopyLog()
+	cl.DstBytes = dstAttrs.Size
+	cl.DstCrc32C = dstAttrs.CRC32C
+	cl.DstMTime = dstAttrs.Updated.UnixNano()
+	cl.SrcCrc32C = srcCRC32C
+	cl.BytesCopied = stats.Size()
 
 	// Verify the CRC32C.
 	if dstAttrs.CRC32C != srcCRC32C {
@@ -328,7 +336,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 		Name:   c.DstObject,
 		Bucket: c.DstBucket,
 		Metadata: map[string]string{
-			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
+			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().UnixNano(), 10),
 		},
 	}
 	body := new(bytes.Buffer)
@@ -365,7 +373,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 
 	// This function was successful, update the respCopySpec.
 	respCopySpec.FileBytes = stats.Size()
-	respCopySpec.FileMTime = stats.ModTime().Unix()
+	respCopySpec.FileMTime = stats.ModTime().UnixNano()
 	respCopySpec.ResumableUploadId = res.Header.Get("Location")
 
 	// TODO(b/74009190): Consider renaming this, or somehow indicating that
@@ -377,9 +385,9 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 }
 
 // copyResumableChunk sends a chunk of the srcFile to GCS as part of a resumable
-// copy task. This function also updates respCopySpec and the logFields, both of
+// copy task. This function also updates respCopySpec and the log, both of
 // which are sent to the DCP.
-func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec, respCopySpec *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, logFields LogFields) error {
+func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec, respCopySpec *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, log *taskpb.Log) error {
 	bytesToCopy := c.BytesToCopy
 	if bytesToCopy <= 0 {
 		// c.BytesToCopy <= 0 indicates that the rest of the file should be copied.
@@ -455,15 +463,20 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 				FailureType: taskpb.FailureType_HASH_MISMATCH_FAILURE,
 			}
 		}
-		logFields["dst_crc32c"] = int64(dstCRC32C)
-		logFields["dst_bytes"] = obj.Size
-		logFields["dst_modified_time"] = obj.Updated
-		logFields["src_crc32c"] = srcCRC32C
+		cl := log.GetCopyLog()
+		cl.DstCrc32C = dstCRC32C
+		cl.DstBytes = int64(obj.Size)
+		var t time.Time
+		if err := t.UnmarshalText([]byte(obj.Updated)); err != nil {
+			return err
+		}
+		cl.DstMTime = t.UnixNano()
+		cl.SrcCrc32C = srcCRC32C
 	} else {
 		respCopySpec.Crc32C = srcCRC32C
 	}
 	respCopySpec.BytesCopied = c.BytesCopied + int64(bytesRead)
-	logFields["bytes_copied"] = c.BytesCopied + int64(bytesRead)
+	log.GetCopyLog().BytesCopied = c.BytesCopied + int64(bytesRead)
 
 	return nil
 }

@@ -149,19 +149,25 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	}
 
 	srcStats, _ := os.Stat(tmpFile)
-	wantLogFields := LogFields{
-		"worker_id":         workerID,
-		"src_crc32c":        uint32(testCRC32C),
-		"dst_crc32c":        uint32(testCRC32C),
-		"src_bytes":         int64(len(testFileContent)),
-		"dst_bytes":         int64(len(testFileContent)),
-		"src_file":          tmpFile,
-		"dst_file":          "bucket/object",
-		"src_modified_time": srcStats.ModTime(),
-		"dst_modified_time": gcsModTime,
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{
+				SrcFile:   tmpFile,
+				SrcBytes:  int64(len(testFileContent)),
+				SrcMTime:  srcStats.ModTime().UnixNano(),
+				SrcCrc32C: testCRC32C,
+
+				DstFile:   "bucket/object",
+				DstBytes:  int64(len(testFileContent)),
+				DstMTime:  gcsModTime.UnixNano(),
+				DstCrc32C: testCRC32C,
+
+				BytesCopied: int64(len(testFileContent)),
+			},
+		},
 	}
-	if wantLogFields.String() != taskRespMsg.AgentLogFields {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, taskRespMsg.AgentLogFields)
+	if !proto.Equal(taskRespMsg.Log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", taskRespMsg.Log, wantLog)
 	}
 }
 
@@ -195,21 +201,20 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	}
 
 	srcStats, _ := os.Stat(tmpFile)
-	wantLogFields := LogFields{
-		"worker_id":         workerID,
-		"src_crc32c":        uint32(0),
-		"dst_crc32c":        uint32(0),
-		"src_bytes":         int64(0),
-		"dst_bytes":         int64(0),
-		"src_file":          tmpFile,
-		"dst_file":          "bucket/object",
-		"src_modified_time": srcStats.ModTime(),
-		"dst_modified_time": gcsModTime,
-	}
-	if wantLogFields.String() != taskRespMsg.AgentLogFields {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, taskRespMsg.AgentLogFields)
-	}
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{
+				SrcFile:  tmpFile,
+				SrcMTime: srcStats.ModTime().UnixNano(),
 
+				DstFile:  "bucket/object",
+				DstMTime: gcsModTime.UnixNano(),
+			},
+		},
+	}
+	if !proto.Equal(taskRespMsg.Log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", taskRespMsg.Log, wantLog)
+	}
 }
 
 func TestCopyHanderDoResumable(t *testing.T) {
@@ -222,7 +227,7 @@ func TestCopyHanderDoResumable(t *testing.T) {
 			Bucket:  "bucket",
 			Crc32c:  encodeUint32(testCRC32C),
 			Size:    uint64(len(testFileContent)),
-			Updated: "modTime",
+			Updated: "2012-11-01T22:08:41+00:00",
 		}
 		body := new(bytes.Buffer)
 		_ = json.NewEncoder(body).Encode(object)
@@ -245,16 +250,21 @@ func TestCopyHanderDoResumable(t *testing.T) {
 	checkSuccessMsg("task", taskRespMsg, t)
 
 	srcStats, _ := os.Stat(tmpFile)
-	wantLogFields := LogFields{
-		"bytes_copied":      int64(10),
-		"dst_file":          "bucket/object",
-		"src_bytes":         int64(len(testFileContent)),
-		"src_file":          tmpFile,
-		"src_modified_time": srcStats.ModTime(),
-		"worker_id":         workerID,
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{
+				SrcFile:  tmpFile,
+				SrcBytes: int64(len(testFileContent)),
+				SrcMTime: srcStats.ModTime().UnixNano(),
+
+				DstFile:  "bucket/object",
+
+				BytesCopied: 10,
+			},
+		},
 	}
-	if wantLogFields.String() != taskRespMsg.AgentLogFields {
-		t.Errorf("log entry want: %+v, got: %+v", wantLogFields, taskRespMsg.AgentLogFields)
+	if !proto.Equal(taskRespMsg.Log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", taskRespMsg.Log, wantLog)
 	}
 
 	wantTaskRespSpec := testCopyTaskReqMsg().Spec
@@ -263,7 +273,7 @@ func TestCopyHanderDoResumable(t *testing.T) {
 	wantTaskRespSpec.GetCopySpec().BytesCopied = 10
 	wantTaskRespSpec.GetCopySpec().Crc32C = testTenByteCRC32C
 	wantTaskRespSpec.GetCopySpec().FileBytes = int64(len(testFileContent))
-	wantTaskRespSpec.GetCopySpec().FileMTime = srcStats.ModTime().Unix()
+	wantTaskRespSpec.GetCopySpec().FileMTime = srcStats.ModTime().UnixNano()
 	wantTaskRespSpec.GetCopySpec().ResumableUploadId = "testResumableUploadId"
 	if !proto.Equal(wantTaskRespSpec, taskRespMsg.RespSpec) {
 		t.Errorf("taskRespMsg.RespSpec = %v, want: %v", taskRespMsg.RespSpec, wantTaskRespSpec)
@@ -277,7 +287,7 @@ type fakeStats struct{}
 func (f fakeStats) Name() string       { return "fake name" }
 func (f fakeStats) Size() int64        { return 1234 }
 func (f fakeStats) Mode() os.FileMode  { return os.FileMode(0) }
-func (f fakeStats) ModTime() time.Time { return time.Unix(1234567890, 0) }
+func (f fakeStats) ModTime() time.Time { return time.Unix(0, 1234567890000000000) }
 func (f fakeStats) IsDir() bool        { return false }
 func (f fakeStats) Sys() interface{}   { return nil }
 
@@ -306,7 +316,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 		// Verify the req headers.
 		var wantHeaders = map[string][]string{
 			"Content-Type":            {"application/json; charset=UTF-8"},
-			"Content-Length":          {"89"},
+			"Content-Length":          {"98"},
 			"User-Agent":              {userAgent},
 			"X-Upload-Content-Length": {"1234"},
 			"X-Upload-Content-Type":   {"text/plain; charset=utf-8"},
@@ -338,7 +348,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 		if o.Bucket != "bucket" {
 			t.Errorf("want object bucket bucket, got %s", o.Bucket)
 		}
-		if modtime, ok := o.Metadata[MTIME_ATTR_NAME]; !ok || modtime != "1234567890" {
+		if modtime, ok := o.Metadata[MTIME_ATTR_NAME]; !ok || modtime != "1234567890000000000" {
 			t.Errorf("want object metadata mtime 12345890, got %v", modtime)
 		}
 
@@ -373,7 +383,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 
 	wantRespCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
 	wantRespCopySpec.FileBytes = 1234
-	wantRespCopySpec.FileMTime = 1234567890
+	wantRespCopySpec.FileMTime = 1234567890000000000
 	wantRespCopySpec.ResumableUploadId = "testResumableUploadId"
 	if !proto.Equal(respCopySpec, wantRespCopySpec) {
 		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
@@ -388,7 +398,7 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 			Bucket:  "bucket",
 			Crc32c:  encodeUint32(testCRC32C),
 			Size:    uint64(len(testFileContent)),
-			Updated: "modTime",
+			Updated: "2012-11-01T22:08:41+00:00",
 		}
 		body := new(bytes.Buffer)
 		_ = json.NewEncoder(body).Encode(object)
@@ -412,8 +422,12 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	logFields := LogFields{}
-	err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, logFields)
+	log := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{},
+		},
+	}
+	err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, log)
 	if err != nil {
 		t.Error("got ", err)
 	}
@@ -424,26 +438,20 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
 	}
 
-	// Verify task logFields.
-	var wantLogFields = []struct {
-		key string
-		val interface{}
-	}{
-		{"dst_crc32c", int64(testCRC32C)},
-		{"dst_bytes", uint64(len(testFileContent))},
-		{"dst_modified_time", "modTime"},
-		{"src_crc32c", uint32(testCRC32C)},
-		{"bytes_copied", int64(len(testFileContent))},
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{
+				SrcCrc32C: testCRC32C,
+
+				DstBytes:  int64(len(testFileContent)),
+				DstCrc32C: testCRC32C,
+				DstMTime: 1351807721000000000,
+				BytesCopied: int64(len(testFileContent)),
+			},
+		},
 	}
-	for _, wle := range wantLogFields {
-		var val interface{}
-		var ok bool
-		if val, ok = logFields[wle.key]; !ok {
-			t.Errorf("want logFields key %v to exist, it didn't", wle.key)
-		}
-		if val != wle.val {
-			t.Errorf("want logFields %s %[2]v/%[2]T, got %[3]v/%[3]T", wle.key, wle.val, val)
-		}
+	if !proto.Equal(log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", log, wantLog)
 	}
 }
 
@@ -455,7 +463,7 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 			Bucket:  "bucket",
 			Crc32c:  encodeUint32(testCRC32C),
 			Size:    uint64(len(testFileContent)),
-			Updated: "modTime",
+			Updated: "2012-11-01T22:08:41+00:00",
 		}
 		body := new(bytes.Buffer)
 		_ = json.NewEncoder(body).Encode(object)
@@ -479,9 +487,12 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	logFields := LogFields{}
-
-	err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, logFields)
+	log := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{},
+		},
+	}
+	err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, log)
 	if err != nil {
 		t.Error("got ", err)
 	}
@@ -493,13 +504,13 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
 	}
 
-	// Verify task logFields.
-	val, ok := logFields["bytes_copied"]
-	if !ok {
-		t.Error("want logFields key bytes_copied to exist, it didn't")
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{BytesCopied: 10},
+		},
 	}
-	if val != int64(10) {
-		t.Errorf("want logFields bytes_copied %[1]v/%[1]T, got %[2]v/%[2]T", int64(10), val)
+	if !proto.Equal(log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", log, wantLog)
 	}
 }
 

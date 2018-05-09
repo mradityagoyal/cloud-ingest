@@ -26,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
+	"github.com/golang/protobuf/proto"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -92,15 +93,15 @@ func TestListSuccessEmptyDir(t *testing.T) {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
 	}
-	// Check the log fields.
-	/* TODO(b/78596512): Proto~ify the AgentLogFields (aka log entry) in the schema.
-	if taskRespMsg.AgentLogFields["files_found"].(int64) != int64(0) {
-		t.Errorf("expected 0 files but found %d", taskRespMsg.AgentLogFields["files_found"])
+
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_ListLog{
+			ListLog: &taskpb.ListLog{},
+		},
 	}
-	if taskRespMsg.AgentLogFields["bytes_found"].(int64) != int64(0) {
-		t.Errorf("expected 0 bytes but found %d", taskRespMsg.AgentLogFields["bytes_found"])
+	if !proto.Equal(taskRespMsg.Log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", taskRespMsg.Log, wantLog)
 	}
-	*/
 }
 
 func TestListSuccessFlatDir(t *testing.T) {
@@ -139,15 +140,18 @@ func TestListSuccessFlatDir(t *testing.T) {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
 	}
-	// Check the log entry fields.
-	/* TODO(b/78596512): Proto~ify the AgentLogFields (aka log entry) in the schema.
-	if taskRespMsg.AgentLogFields["files_found"].(int64) != int64(10) {
-		t.Errorf("expected 0 files but found %d", taskRespMsg.AgentLogFields["files_found"])
+
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_ListLog{
+			ListLog: &taskpb.ListLog{
+				FilesFound: 10,
+				BytesFound: 100,
+			},
+		},
 	}
-	if taskRespMsg.AgentLogFields["bytes_found"].(int64) != int64(100) {
-		t.Errorf("expected 0 bytes but found %d", taskRespMsg.AgentLogFields["bytes_found"])
+	if !proto.Equal(taskRespMsg.Log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", taskRespMsg.Log, wantLog)
 	}
-	*/
 }
 
 func TestListSuccessNestedDir(t *testing.T) {
@@ -197,14 +201,17 @@ func TestListSuccessNestedDir(t *testing.T) {
 			expectedListResult.String(), writer.WrittenString())
 	}
 
-	wantLogFields := LogFields{
-		"worker_id":        workerID,
-		"file_stat_errors": 0,
-		"files_found":      int64(10),
-		"bytes_found":      int64(100),
-		"dirs_found":       int64(2),
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_ListLog{
+			ListLog: &taskpb.ListLog{
+				FilesFound:     10,
+				BytesFound:     100,
+				FileStatErrors: 0,
+				DirsFound:      2,
+			},
+		},
 	}
-	if taskRespMsg.AgentLogFields != wantLogFields.String() {
-		t.Errorf("got logFields: %+v, want: %+v", taskRespMsg.AgentLogFields, wantLogFields)
+	if !proto.Equal(taskRespMsg.Log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", taskRespMsg.Log, wantLog)
 	}
 }

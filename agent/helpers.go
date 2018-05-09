@@ -54,12 +54,12 @@ func getFailureTypeFromError(err error) taskpb.FailureType {
 //   respSpec is the taskpb.Spec the updated task spec as a result of this task request
 //   lf are the logFields for this task
 //   err defines whether the taskProgressMsg's Status is SUCCESS or FAILURE
-func buildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, lf LogFields, err error) *taskpb.TaskRespMsg {
+func buildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, log *taskpb.Log, err error) *taskpb.TaskRespMsg {
 	taskRespMsg := &taskpb.TaskRespMsg{
 		TaskRelRsrcName: taskReqMsg.TaskRelRsrcName,
 		ReqSpec:         taskReqMsg.Spec,
 		RespSpec:        respSpec,
-		AgentLogFields:  lf.String(),
+		Log:             log,
 	}
 	if err != nil {
 		taskRespMsg.Status = "FAILURE"

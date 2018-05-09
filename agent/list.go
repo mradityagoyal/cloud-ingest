@@ -68,9 +68,8 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		return buildTaskRespMsg(taskReqMsg, nil, nil, err)
 	}
 
-	logFields := LogFields{
-		"worker_id":        workerID,
-		"file_stat_errors": 0,
+	log := &taskpb.Log{
+		Log: &taskpb.Log_ListLog{ListLog: &taskpb.ListLog{}},
 	}
 
 	w := h.gcs.NewWriterWithCondition(ctx, listSpec.DstListResultBucket, listSpec.DstListResultObject,
@@ -83,13 +82,13 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 
 	if _, err := fmt.Fprintln(w, taskReqMsg.TaskRelRsrcName); err != nil {
 		w.CloseWithError(err)
-		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
 	fileInfos, err := listDirectory(listSpec.SrcDirectory)
 	if err != nil {
 		w.CloseWithError(err)
-		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 	var bytesFound, filesFound, dirsFound int64
 	for _, fileInfo := range fileInfos {
@@ -97,7 +96,7 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		listFileEntry := ListFileEntry{fileInfo.IsDir(), fullPath}
 		if _, err := fmt.Fprintln(w, listFileEntry); err != nil {
 			w.CloseWithError(err)
-			return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+			return buildTaskRespMsg(taskReqMsg, nil, log, err)
 		}
 		if fileInfo.IsDir() {
 			dirsFound++
@@ -108,12 +107,13 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	}
 
 	if err := w.Close(); err != nil {
-		return buildTaskRespMsg(taskReqMsg, nil, logFields, err)
+		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
-	logFields["files_found"] = filesFound
-	logFields["bytes_found"] = bytesFound
-	logFields["dirs_found"] = dirsFound
+	ll := log.GetListLog()
+	ll.FilesFound = filesFound
+	ll.BytesFound = bytesFound
+	ll.DirsFound = dirsFound
 
-	return buildTaskRespMsg(taskReqMsg, nil, logFields, nil)
+	return buildTaskRespMsg(taskReqMsg, nil, log, nil)
 }
