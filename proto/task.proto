@@ -72,11 +72,12 @@ message CopySpec {
   int64 expected_generation_num = 4;  // The expected GCS generation number.
 
   // Fields for bandwidth management.
-  int64 bandwidth = 5;                        // This copy's bandwidth limit.
+  int64 bandwidth = 5;              // This copy's bandwidth limit.
+  int64 queue_time = 12;            // Time when the task is queued.
 
   // Fields only for managing resumable copies.
   int64 file_bytes = 6;             // The file size, in bytes.
-  int64 file_m_time = 7;            // The file modified time (UnixNano).
+  int64 file_m_time = 7;            // The file modified time.
   int64 bytes_copied = 8;           // The count of bytes copied so far.
   uint32 crc32c = 9;                // The CRC32C of the bytes copied so far.
   int64 bytes_to_copy = 10;         // Number of bytes to copy in a chunk.
