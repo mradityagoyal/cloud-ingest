@@ -206,7 +206,6 @@ func TestListSuccessNestedDir(t *testing.T) {
 			ListLog: &taskpb.ListLog{
 				FilesFound:     10,
 				BytesFound:     100,
-				FileStatErrors: 0,
 				DirsFound:      2,
 			},
 		},
