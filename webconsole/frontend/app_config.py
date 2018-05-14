@@ -21,14 +21,14 @@ def exit_robot_account_not_set_error():
               'OPI_ROBOT_ACCOUNT environment variable.')
         sys.exit(1)
 
-# TODO: Define different API URLS for perf, prod and test environments.
+# TODO: Define different API URLS for prod and test environments.
 INGEST_API_URL = ''
 try:
     INGEST_API_URL = os.environ['OPI_API_URL']
 except:
     exit_api_not_set_error()
 
-# TODO: Define different service accounts for perf, prod and test environments.
+# TODO: Define different service accounts for prod and test environments.
 ROBOT_ACCOUNT = ''
 try:
     ROBOT_ACCOUNT = os.environ['OPI_ROBOT_ACCOUNT']
@@ -46,27 +46,15 @@ Environment = collections.namedtuple('Environment',
 # The environment files to write.
 ENVIRONMENTS = [
     Environment(
-        filename='environment.perf.ts',
-        client_id=
-        '626613183123-o1l2r81kov2fuii2pc1p5e67k6facktt.apps.googleusercontent.com',
-        account=ROBOT_ACCOUNT,
-        is_prod='true'),
-    Environment(
         filename='environment.prod.ts',
         client_id=
         '23880221060-9pa2oef8ko1q8o45mvjfq5d6dfgf1qf0.apps.googleusercontent.com',
         account=ROBOT_ACCOUNT,
         is_prod='true'),
     Environment(
-        filename='environment.test.ts',
-        client_id=
-        '701178595865-por9ijjvgbjoka841c1mkki23tqka66a.apps.googleusercontent.com',
-        account=ROBOT_ACCOUNT,
-        is_prod='true'),
-    Environment(
         filename='environment.ts',
         client_id=
-        '416127938080-vosnnsq7758ub1iai84ei3u1enstq8kp.apps.googleusercontent.com',
+        '701178595865-por9ijjvgbjoka841c1mkki23tqka66a.apps.googleusercontent.com',
         account=ROBOT_ACCOUNT,
         is_prod='false')
 ]
