@@ -14,4 +14,4 @@ RUN go get -d golang.org/x/time/rate
 
 RUN go install -v ./agent/...
 
-ENTRYPOINT ["./agentmain"]
+ENTRYPOINT ["agentmain"]
