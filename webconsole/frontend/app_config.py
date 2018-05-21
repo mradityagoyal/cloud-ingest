@@ -48,7 +48,7 @@ ENVIRONMENTS = [
     Environment(
         filename='environment.prod.ts',
         client_id=
-        '23880221060-9pa2oef8ko1q8o45mvjfq5d6dfgf1qf0.apps.googleusercontent.com',
+        '342921335261-7c1jvv8175oaj9m68fgnot2jl786h7on.apps.googleusercontent.com',
         account=ROBOT_ACCOUNT,
         is_prod='true'),
     Environment(
