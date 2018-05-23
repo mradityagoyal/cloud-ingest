@@ -198,4 +198,124 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
     });
   }));
 
+  it('should pause the checked jobs', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox1 = compiled.querySelector('#transferJobs\\/OPI1-input');
+      const checkbox2 = compiled.querySelector('#transferJobs\\/OPI3-input');
+      checkbox1.click();
+      checkbox2.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const pauseConfigButton = compiled.querySelector('.ingest-pause-job');
+        pauseConfigButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          const component = fixture.debugElement.componentInstance;
+          expect(jobsServiceStub.pauseJobs).toHaveBeenCalledWith(['transferJobs/OPI1', 'transferJobs/OPI3']);
+        });
+      });
+    });
+  }));
+
+  it('should not pause jobs if none are checked', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    const component = fixture.debugElement.componentInstance;
+    const compiled = fixture.debugElement.nativeElement;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const pauseConfigButton = compiled.querySelector('.ingest-pause-job');
+      pauseConfigButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        expect(jobsServiceStub.pauseJobs).not.toHaveBeenCalled();
+      });
+    });
+  }));
+
+  it('should open an error dialog if there is an error pausing job configurations', async(() => {
+    jobsServiceStub.pauseJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox1 = compiled.querySelector('#transferJobs\\/OPI1-input');
+      const checkbox2 = compiled.querySelector('#transferJobs\\/OPI3-input');
+      checkbox1.click();
+      checkbox2.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const pauseConfigButton = compiled.querySelector('.ingest-pause-job');
+        pauseConfigButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          expect(matDialogStub.open).toHaveBeenCalled();
+          expect(matDialogStub.open.calls.first().args[0]).toBe(ErrorDialogComponent);
+        });
+      });
+    });
+  }));
+
+  it('should resume the checked jobs', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox1 = compiled.querySelector('#transferJobs\\/OPI1-input');
+      const checkbox2 = compiled.querySelector('#transferJobs\\/OPI3-input');
+      checkbox1.click();
+      checkbox2.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const resumeConfigButton = compiled.querySelector('.ingest-resume-job');
+        resumeConfigButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          const component = fixture.debugElement.componentInstance;
+          expect(jobsServiceStub.resumeJobs).toHaveBeenCalledWith(['transferJobs/OPI1', 'transferJobs/OPI3']);
+        });
+      });
+    });
+  }));
+
+  it('should not resume jobs if none are checked', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    const component = fixture.debugElement.componentInstance;
+    const compiled = fixture.debugElement.nativeElement;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const resumeConfigButton = compiled.querySelector('.ingest-resume-job');
+      resumeConfigButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        expect(jobsServiceStub.resumeJobs).not.toHaveBeenCalled();
+      });
+    });
+  }));
+
+  it('should open an error dialog if there is an error resuming job configurations', async(() => {
+    jobsServiceStub.resumeJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox1 = compiled.querySelector('#transferJobs\\/OPI1-input');
+      const checkbox2 = compiled.querySelector('#transferJobs\\/OPI3-input');
+      checkbox1.click();
+      checkbox2.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const resumeConfigButton = compiled.querySelector('.ingest-resume-job');
+        resumeConfigButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          expect(matDialogStub.open).toHaveBeenCalled();
+          expect(matDialogStub.open.calls.first().args[0]).toBe(ErrorDialogComponent);
+        });
+      });
+    });
+  }));
+
 });

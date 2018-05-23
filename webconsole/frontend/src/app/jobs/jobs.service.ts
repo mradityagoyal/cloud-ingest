@@ -5,10 +5,13 @@ import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
 import { Injectable } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
-
+import { forkJoin } from 'rxjs/observable/forkJoin';
+import { mergeMap } from 'rxjs/operators';
+import { zip } from 'rxjs/observable/zip';
+import { combineLatest } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { TaskFailureType } from '../proto/tasks.js';
-import { TransferJob, Schedule, TransferJobResponse } from './jobs.resources';
+import { TransferJob, Schedule, TransferJobResponse, PauseTransferJobRequest, ResumeTransferJobRequest } from './jobs.resources';
 
 const POST_HEADERS = {
     headers: new HttpHeaders().set('Content-Type', 'application/json')
@@ -57,5 +60,43 @@ export class JobsService {
             `${environment.apiUrl}/v1/transferJobs`,
             job, POST_HEADERS);
     });
+  }
+
+  private pauseJob(job: string): Observable<TransferJob> {
+    return this.project.switchMap(projectId => {
+      const pauseTransferJobRequest: PauseTransferJobRequest = {
+        name: job,
+        projectId: projectId,
+      };
+      return this.http.post<TransferJob>(`${environment.apiUrl}/v1/${job}:pause`,
+      pauseTransferJobRequest, POST_HEADERS);
+    });
+  }
+
+  private resumeJob(job: string): Observable<TransferJob> {
+    return this.project.switchMap(projectId => {
+      const resumeTransferJobRequest: ResumeTransferJobRequest = {
+        name: job,
+        projectId: projectId,
+      };
+      return this.http.post<TransferJob>(`${environment.apiUrl}/v1/${job}:resume`,
+      resumeTransferJobRequest, POST_HEADERS);
+    });
+  }
+
+  pauseJobs(jobs: string[]): Observable<TransferJob[]> {
+    const pauseJobRequests = [];
+    for (const job of jobs) {
+      pauseJobRequests.push(this.pauseJob(job));
+    }
+    return Observable.combineLatest(pauseJobRequests).take(1);
+  }
+
+  resumeJobs(jobs: string[]): Observable<TransferJob[]> {
+    const resumeJobRequests = [];
+    for (const job of jobs) {
+      resumeJobRequests.push(this.resumeJob(job));
+    }
+    return Observable.combineLatest(resumeJobRequests).take(1);
   }
 }

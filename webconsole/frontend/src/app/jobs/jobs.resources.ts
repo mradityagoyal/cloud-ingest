@@ -79,6 +79,16 @@ export class TransferJob {
 
 }
 
+export interface PauseTransferJobRequest {
+  name: string;
+  projectId: string;
+}
+
+export interface ResumeTransferJobRequest {
+  name: string;
+  projectId: string;
+}
+
 export class TransferCounters {
   objectsFoundFromSource: number;
   objectsFromSourceFailed: number;
@@ -99,6 +109,7 @@ export const OPERATION_STATUS_TO_STRING_MAP = {};
 OPERATION_STATUS_TO_STRING_MAP['STATUS_UNSPECIFIED'] = 'Unspecified';
 OPERATION_STATUS_TO_STRING_MAP['IN_PROGRESS'] = 'In Progress',
 OPERATION_STATUS_TO_STRING_MAP['PAUSED'] = 'Paused';
+OPERATION_STATUS_TO_STRING_MAP['PAUSING'] = 'Pausing',
 OPERATION_STATUS_TO_STRING_MAP['SUCCESS'] = 'Success';
 OPERATION_STATUS_TO_STRING_MAP['FAILED'] = 'Failed';
 OPERATION_STATUS_TO_STRING_MAP['ABORTED'] = 'Aborted';

@@ -8,6 +8,8 @@ import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { TransferJob, SimpleDataSource, OPERATION_STATUS_TO_STRING_MAP, TransferJobResponse } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
+import { IfObservable } from 'rxjs/observable/IfObservable';
+import { Observable } from 'rxjs/Observable';
 
 @Component({
   selector: 'app-job-configs',
@@ -21,6 +23,17 @@ export class JobConfigsComponent implements OnInit {
   errorTitle: string;
   displayErrorMessage = false;
   jobs: TransferJob[];
+  /**
+   * A map of jobConfigId -> isChecked. Indicates if the box for a particular config id has been
+   * checked. If the key does not exist, it hasn't been checked.
+   * Passed to the add job configuration dialog.
+   */
+  checkedCheckboxes: { [key: string]: boolean; } = {};
+
+  /**
+   * The number of checkboxes that have been checked.
+   */
+  numChecked = 0;
 
   // Need to declare this variable here to use it in the template.
   OPERATION_STATUS_TO_STRING_MAP = OPERATION_STATUS_TO_STRING_MAP;
@@ -44,7 +57,7 @@ export class JobConfigsComponent implements OnInit {
     this.updateJobs();
   }
 
-  private updateJobs(): void {
+  updateJobs(): void {
     this.showLoadingSpinner = true;
     this.jobsService.getJobs().subscribe(
       (response: TransferJobResponse) => {
@@ -84,5 +97,70 @@ export class JobConfigsComponent implements OnInit {
       }
     });
   }
+
+  onCheckboxClick(event: MatCheckboxChange) {
+      let count = 0;
+      for (const key in this.checkedCheckboxes) {
+        if (this.checkedCheckboxes[key] === true) {
+          count++;
+        }
+      }
+      this.numChecked = count;
+  }
+
+  private getSelectedJobConfigs(): string[] {
+    const selectedJobConfigs = [];
+    for (const key in this.checkedCheckboxes) {
+      if (this.checkedCheckboxes[key] === true) {
+        selectedJobConfigs.push(key);
+       }
+     }
+    return selectedJobConfigs;
+  }
+
+  resumeSelectedJobs() {
+    const selectedJobConfigs = this.getSelectedJobConfigs();
+     this.jobsService.resumeJobs(selectedJobConfigs).subscribe(
+       (response: TransferJob[]) => {
+          this.updateJobs();
+       }, (errorResponse: HttpErrorResponse) => {
+            this.updateJobs();
+            const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+            const errorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
+            const errorContent: ErrorDialogContent = {
+              errorTitle: errorTitle,
+              errorMessage: errorMessage
+            };
+            this.dialog.open(ErrorDialogComponent, {
+              data: errorContent
+            });
+          },
+        () => {
+          console.log('complete');
+        });
+  }
+
+  pauseSelectedJobs() {
+    const selectedJobConfigs = this.getSelectedJobConfigs();
+    const pausedJobs: Observable<TransferJob[]> = this.jobsService.pauseJobs(selectedJobConfigs);
+    pausedJobs.subscribe(
+       (response: TransferJob[]) => {
+          this.updateJobs();
+       }, (errorResponse: HttpErrorResponse) => {
+            this.updateJobs();
+            const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+            const errorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
+            const errorContent: ErrorDialogContent = {
+              errorTitle: errorTitle,
+              errorMessage: errorMessage
+            };
+            this.dialog.open(ErrorDialogComponent, {
+              data: errorContent
+            });
+          },
+          () => {
+            console.log('complete');
+          });
+    }
 
 }

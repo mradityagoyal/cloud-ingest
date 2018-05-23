@@ -119,4 +119,6 @@ export class JobsServiceStub {
   public getJobs = jasmine.createSpy('getJobs');
   public postJob = jasmine.createSpy('postJobConfig');
   public getJob = jasmine.createSpy('getJobRun');
+  public pauseJobs = jasmine.createSpy('pauseJobs');
+  public resumeJobs = jasmine.createSpy('resumeJobs');
 }

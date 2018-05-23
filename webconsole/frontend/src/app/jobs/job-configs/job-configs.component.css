@@ -16,3 +16,7 @@
 .ingest-break-word {
   word-break: break-all;
 }
+
+.ingest-margin-checkbox {
+  margin: 0 10px;
+}

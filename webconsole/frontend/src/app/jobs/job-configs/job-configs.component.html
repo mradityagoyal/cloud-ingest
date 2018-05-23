@@ -4,6 +4,15 @@
     <mat-icon class="mat-24" aria-label="Add a Job">add_box</mat-icon>
     Add a job
   </button>
+  <button mat-raised-button class="ingest-pause-job ingest-config-button" (click)="pauseSelectedJobs()" [disabled]="numChecked === 0">
+       <mat-icon class="mat-24" >pause</mat-icon>
+       Pause selected
+  </button>
+
+  <button mat-raised-button class="ingest-resume-job ingest-config-button" (click)="resumeSelectedJobs()" [disabled]="numChecked === 0">
+      <mat-icon class="mat-24" >play_arrow</mat-icon>
+      Resume selected
+ </button>
 </div>
 <ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else content"></ng-container>
 <ng-template #loadingSpinner>
@@ -31,10 +40,12 @@
         <ng-container matColumnDef="JobDescription">
           <mat-header-cell *matHeaderCellDef> Description </mat-header-cell>
           <mat-cell class="ingest-break-word" *matCellDef="let job">
+            <mat-checkbox id="{{job.name}}" (change)="onCheckboxClick($event)" [(ngModel)]="checkedCheckboxes[job.name]">
             <a routerLink="/jobs/{{job.name}}"
                queryParamsHandling="merge">
                {{ job.description }}
             </a>
+            </mat-checkbox>
           </mat-cell>
         </ng-container>
 
