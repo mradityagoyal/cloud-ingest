@@ -2,6 +2,7 @@ import 'rxjs/add/operator/map';
 import 'rxjs/add/operator/switchMap';
 
 import { HttpClient, HttpHeaders, HttpParams } from '@angular/common/http';
+import { Response } from '@angular/http';
 import { Injectable } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
 import { Observable } from 'rxjs/Observable';
@@ -11,7 +12,8 @@ import { zip } from 'rxjs/observable/zip';
 import { combineLatest } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
 import { TaskFailureType } from '../proto/tasks.js';
-import { TransferJob, Schedule, TransferJobResponse, PauseTransferJobRequest, ResumeTransferJobRequest } from './jobs.resources';
+import { TransferJob, Schedule, TransferJobResponse, PauseTransferJobRequest,
+  ResumeTransferJobRequest, DeleteTransferJobRequest } from './jobs.resources';
 
 const POST_HEADERS = {
     headers: new HttpHeaders().set('Content-Type', 'application/json')
@@ -62,6 +64,9 @@ export class JobsService {
     });
   }
 
+  /**
+   * Returns an observable that pauses an input job.
+   */
   private pauseJob(job: string): Observable<TransferJob> {
     return this.project.switchMap(projectId => {
       const pauseTransferJobRequest: PauseTransferJobRequest = {
@@ -73,6 +78,9 @@ export class JobsService {
     });
   }
 
+  /**
+   * Returns an observable that resumes an input job.
+   */
   private resumeJob(job: string): Observable<TransferJob> {
     return this.project.switchMap(projectId => {
       const resumeTransferJobRequest: ResumeTransferJobRequest = {
@@ -81,6 +89,21 @@ export class JobsService {
       };
       return this.http.post<TransferJob>(`${environment.apiUrl}/v1/${job}:resume`,
       resumeTransferJobRequest, POST_HEADERS);
+    });
+  }
+
+  /**
+   * Returns an observable that deletes an input job.
+   */
+  private deleteJob(job: string): Observable<Response> {
+    return this.project.switchMap(projectId => {
+      const deleteTransferJobRequest: DeleteTransferJobRequest = {
+        jobName: job,
+        projectId: projectId,
+      };
+      return this.http.request<Response>('delete', `${environment.apiUrl}/v1/${job}`, {
+        body: deleteTransferJobRequest
+      });
     });
   }
 
@@ -98,5 +121,13 @@ export class JobsService {
       resumeJobRequests.push(this.resumeJob(job));
     }
     return Observable.combineLatest(resumeJobRequests).take(1);
+  }
+
+  deleteJobs(jobs: string[]): Observable<Response[]> {
+    const deleteJobRequests = [];
+    for (const job of jobs) {
+      deleteJobRequests.push(this.deleteJob(job));
+    }
+    return Observable.combineLatest(deleteJobRequests).take(1);
   }
 }

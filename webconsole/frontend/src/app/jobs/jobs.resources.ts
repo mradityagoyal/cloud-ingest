@@ -89,6 +89,19 @@ export interface ResumeTransferJobRequest {
   projectId: string;
 }
 
+export interface DeleteTransferJobRequest {
+  jobName: string;
+  projectId: string;
+}
+
+/**
+ * Holds information about a checked item in the job configurations page.
+ */
+export interface CheckedItemInfo {
+  isChecked: boolean;
+  isSafeToDelete: boolean;
+}
+
 export class TransferCounters {
   objectsFoundFromSource: number;
   objectsFromSourceFailed: number;

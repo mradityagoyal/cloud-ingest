@@ -98,7 +98,7 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
      latestOperation: {
         name: 'transferOperations/OPI3',
         projectId: 'testProjectId',
-        status: 'IN_PROGRESS',
+        status: 'PAUSED',
         transferJobName: 'transferJobs/OPI3',
         startTime: '2018-04-10T23:17:26.565769187Z',
         endTime: '1970-01-01T00:00:00Z',
@@ -121,4 +121,5 @@ export class JobsServiceStub {
   public getJob = jasmine.createSpy('getJobRun');
   public pauseJobs = jasmine.createSpy('pauseJobs');
   public resumeJobs = jasmine.createSpy('resumeJobs');
+  public deleteJobs = jasmine.createSpy('deleteJobs');
 }

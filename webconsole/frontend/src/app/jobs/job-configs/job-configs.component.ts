@@ -1,9 +1,10 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { MatCheckboxChange, MatDialog } from '@angular/material';
+import { MatCheckboxChange, MatDialog, MatTooltipModule } from '@angular/material';
 
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
+import { Response } from '@angular/http';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { TransferJob, SimpleDataSource, OPERATION_STATUS_TO_STRING_MAP, TransferJobResponse } from '../jobs.resources';
@@ -22,7 +23,22 @@ export class JobConfigsComponent implements OnInit {
   errorMessage: string;
   errorTitle: string;
   displayErrorMessage = false;
-  jobs: TransferJob[];
+  /**
+   * Indicates if the jobs that are currently checked can be deleted or not.
+   */
+  checkedJobsCanBeDeleted = false;
+
+  /**
+   * Holds a map from a job name to its corresponding transfer job.
+   */
+  jobNameToJobMap: Map<string, TransferJob>;
+
+  /**
+   * If the number of requested jobs is more than 0 this boolean is set to true,
+   * otherwise, false.
+   */
+  hasJobs = false;
+
   /**
    * A map of jobConfigId -> isChecked. Indicates if the box for a particular config id has been
    * checked. If the key does not exist, it hasn't been checked.
@@ -37,6 +53,11 @@ export class JobConfigsComponent implements OnInit {
 
   // Need to declare this variable here to use it in the template.
   OPERATION_STATUS_TO_STRING_MAP = OPERATION_STATUS_TO_STRING_MAP;
+
+  /**
+   * A list of the statuses when the job is safe to delete.
+   */
+  readonly canDeleteStatuses = ['PAUSED', 'FAILED', 'SUCCESS', 'ABORTED'];
 
   /**
    * Passed to the add job configuration dialog.
@@ -62,16 +83,16 @@ export class JobConfigsComponent implements OnInit {
     this.jobsService.getJobs().subscribe(
       (response: TransferJobResponse) => {
         if (!response.transferJobs) {
-          this.jobs = [];
-        } else {
-          this.jobs = response.transferJobs;
-        }
-        this.showLoadingSpinner = false;
-        if (this.jobs.length === 0) {
+          this.hasJobs = false;
           this.openAddJobConfigDialog();
         } else {
-          this.dataSource = new SimpleDataSource(this.jobs);
+          this.hasJobs = true;
+          this.jobNameToJobMap = new Map<string, TransferJob>(
+            response.transferJobs.map(x => [x.name, x] as [string, TransferJob])
+          );
+          this.dataSource = new SimpleDataSource(response.transferJobs);
         }
+        this.showLoadingSpinner = false;
       },
       (error: HttpErrorResponse) => {
         this.errorTitle = HttpErrorResponseFormatter.getTitle(error);
@@ -100,12 +121,18 @@ export class JobConfigsComponent implements OnInit {
 
   onCheckboxClick(event: MatCheckboxChange) {
       let count = 0;
+      let checkedCanBeDeleted = true;
       for (const key in this.checkedCheckboxes) {
         if (this.checkedCheckboxes[key] === true) {
           count++;
+          if (this.jobNameToJobMap.get(key).latestOperation &&
+            !this.canDeleteStatuses.includes(this.jobNameToJobMap.get(key).latestOperation.status)) {
+            checkedCanBeDeleted = false;
+          }
         }
       }
       this.numChecked = count;
+      this.checkedJobsCanBeDeleted = checkedCanBeDeleted && (this.numChecked > 0);
   }
 
   private getSelectedJobConfigs(): string[] {
@@ -162,5 +189,27 @@ export class JobConfigsComponent implements OnInit {
             console.log('complete');
           });
     }
+
+    deleteSelectedJobs() {
+      const selectedJobConfigs = this.getSelectedJobConfigs();
+      this.jobsService.deleteJobs(selectedJobConfigs).subscribe(
+         (response: Response[]) => {
+            this.updateJobs();
+         }, (errorResponse: HttpErrorResponse) => {
+              this.updateJobs();
+              const errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
+              const errorMessage = HttpErrorResponseFormatter.getMessage(errorResponse);
+              const errorContent: ErrorDialogContent = {
+                errorTitle: errorTitle,
+                errorMessage: errorMessage
+              };
+              this.dialog.open(ErrorDialogComponent, {
+                data: errorContent
+              });
+            },
+            () => {
+              console.log('complete');
+            });
+      }
 
 }

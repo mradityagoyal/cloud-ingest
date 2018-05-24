@@ -13,6 +13,15 @@
       <mat-icon class="mat-24" >play_arrow</mat-icon>
       Resume selected
  </button>
+ <span matTooltip="Only paused, aborted or completed jobs can be deleted."
+      [matTooltipPosition]="'after'"
+      [matTooltipDisabled]="numChecked === 0 || checkedJobsCanBeDeleted">
+  <button mat-raised-button
+          class="ingest-delete-job ingest-config-button" (click)="deleteSelectedJobs()" [disabled]="!checkedJobsCanBeDeleted">
+      <mat-icon class="mat-24" >delete</mat-icon>
+      Delete selected
+  </button>
+</span>
 </div>
 <ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else content"></ng-container>
 <ng-template #loadingSpinner>
@@ -30,7 +39,7 @@
   <!-- The main content template contains the job configs table, or a message telling the user there are no job configs -->
   <ng-template #mainContent>
 
-    <div *ngIf="jobs.length === 0; else jobsTable">
+    <div *ngIf="!hasJobs; else jobsTable">
       <h4> There are no jobs. Click the 'Add a job' button at the top of the screen.  </h4>
     </div>
     <ng-template #jobsTable>

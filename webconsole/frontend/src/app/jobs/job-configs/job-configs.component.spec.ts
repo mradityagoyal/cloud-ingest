@@ -318,4 +318,68 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
     });
   }));
 
+  it('should allow to delete a paused job ', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox2 = compiled.querySelector('#transferJobs\\/OPI3-input');
+      checkbox2.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const deleteJobButton = compiled.querySelector('.ingest-delete-job');
+        deleteJobButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          const component = fixture.debugElement.componentInstance;
+          expect(jobsServiceStub.deleteJobs).toHaveBeenCalledWith(['transferJobs/OPI3']);
+        });
+      });
+    });
+  }));
+
+
+  it('should not delete a job in progress', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox1 = compiled.querySelector('#transferJobs\\/OPI1-input');
+      const checkbox2 = compiled.querySelector('#transferJobs\\/OPI2-input');
+      checkbox1.click();
+      checkbox2.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const deleteJobButton = compiled.querySelector('.ingest-delete-job');
+        deleteJobButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          const component = fixture.debugElement.componentInstance;
+          expect(jobsServiceStub.deleteJobs).not.toHaveBeenCalled();
+        });
+      });
+    });
+  }));
+
+  it('should open an error dialog if there is an error deleting a job', async(() => {
+    jobsServiceStub.deleteJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox = compiled.querySelector('#transferJobs\\/OPI3-input');
+      checkbox.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const deleteJobButton = compiled.querySelector('.ingest-delete-job');
+        deleteJobButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          expect(matDialogStub.open).toHaveBeenCalled();
+          expect(matDialogStub.open.calls.first().args[0]).toBe(ErrorDialogComponent);
+        });
+      });
+    });
+  }));
+
 });
