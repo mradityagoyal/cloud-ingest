@@ -19,7 +19,10 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
+	"io"
 	"io/ioutil"
+	"net"
 	"net/http"
 	"os"
 	"strings"
@@ -257,7 +260,7 @@ func TestCopyHanderDoResumable(t *testing.T) {
 				SrcBytes: int64(len(testFileContent)),
 				SrcMTime: srcStats.ModTime().UnixNano(),
 
-				DstFile:  "bucket/object",
+				DstFile: "bucket/object",
 
 				BytesCopied: 10,
 			},
@@ -443,9 +446,9 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 			CopyLog: &taskpb.CopyLog{
 				SrcCrc32C: testCRC32C,
 
-				DstBytes:  int64(len(testFileContent)),
-				DstCrc32C: testCRC32C,
-				DstMTime: 1351807721000000000,
+				DstBytes:    int64(len(testFileContent)),
+				DstCrc32C:   testCRC32C,
+				DstMTime:    1351807721000000000,
 				BytesCopied: int64(len(testFileContent)),
 			},
 		},
@@ -605,6 +608,32 @@ func TestCodecUint32(t *testing.T) {
 		}
 		if d != u {
 			t.Errorf("got %d, want input %d", d, u)
+		}
+	}
+}
+
+func TestShouldRetry(t *testing.T) {
+	testCases := []struct {
+		status int
+		err    error
+		want   bool
+	}{
+		{status: 200, want: false},
+		{status: 308, want: false},
+		{status: 403, want: false},
+		{status: 429, want: true},
+		{status: 500, want: true},
+		{status: 503, want: true},
+		{status: 600, want: false},
+		{err: io.EOF, want: false},
+		{err: errors.New("random badness"), want: false},
+		{err: io.ErrUnexpectedEOF, want: true},
+		{err: &net.AddrError{}, want: false},              // Not temporary.
+		{err: &net.DNSError{IsTimeout: true}, want: true}, // Temporary.
+	}
+	for _, tt := range testCases {
+		if got := shouldRetry(tt.status, tt.err); got != tt.want {
+			t.Errorf("shouldRetry(%d, %v) = %t; want %t", tt.status, tt.err, got, tt.want)
 		}
 	}
 }

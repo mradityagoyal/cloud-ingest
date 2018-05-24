@@ -27,6 +27,7 @@ import (
 	"io"
 	"io/ioutil"
 	"math"
+	"net"
 	"net/http"
 	"os"
 	"path"
@@ -342,7 +343,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 	body := new(bytes.Buffer)
 	err = json.NewEncoder(body).Encode(object)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("json.NewEncoder(body).Encode(object) err: %v", err)
 	}
 
 	// Create the request headers.
@@ -356,32 +357,32 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 	// Stitch all the pieces together into an HTTP request.
 	req, err := http.NewRequest("POST", url, body)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("http.NewRequest err: %v", err)
 	}
 	req.Header = reqHeaders
 	googleapi.Expand(req.URL, map[string]string{"bucket": c.DstBucket})
 
 	// Send the HTTP request!
-	res, err := h.httpDoFunc(ctx, h.hc, req)
+	resp, err := h.httpDoFunc(ctx, h.hc, req)
 	if err != nil {
-		return "", err
+		return "", fmt.Errorf("httpDoFunc err: %v", err)
 	}
-	defer googleapi.CloseBody(res)
-	if err = googleapi.CheckResponse(res); err != nil {
+	defer googleapi.CloseBody(resp)
+	if err = googleapi.CheckResponse(resp); err != nil {
 		return "", err
 	}
 
 	// This function was successful, update the respCopySpec.
 	respCopySpec.FileBytes = stats.Size()
 	respCopySpec.FileMTime = stats.ModTime().UnixNano()
-	respCopySpec.ResumableUploadId = res.Header.Get("Location")
+	respCopySpec.ResumableUploadId = resp.Header.Get("Location")
 
 	// TODO(b/74009190): Consider renaming this, or somehow indicating that
 	// this is a full URL. The Agent needs to be aware that this is a full
 	// URL, however the DCP really only cares that this is some sort of ID.
 	//
 	// Return the resumableUploadId.
-	return res.Header.Get("Location"), nil
+	return resp.Header.Get("Location"), nil
 }
 
 // copyResumableChunk sends a chunk of the srcFile to GCS as part of a resumable
@@ -402,7 +403,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 			copyMemoryLimit, bytesToCopy)
 	}
 	if err := h.memoryLimiter.Acquire(ctx, bytesToCopy); err != nil {
-		return err
+		return fmt.Errorf("memoryLimiter.Acquire err: %v", err)
 	}
 	defer h.memoryLimiter.Release(bytesToCopy)
 	buf := make([]byte, bytesToCopy)
@@ -419,40 +420,76 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 	buf = buf[:bytesRead]
 	final := err == io.EOF
 	if !final && err != nil {
-		return err
+		return fmt.Errorf("srcFile.Read non-io.EOF err: %v", err)
 	}
 	srcCRC32C := crc32pkg.Update(uint32(c.Crc32C), CRC32CTable, buf)
 
-	// Add bandwidth control to the HTTP request body.
-	rlr, err := NewRateLimitedReader(ctx, bytes.NewReader(buf), rate.Limit(c.Bandwidth))
-	if err != nil {
-		return err
-	}
+	// This loop will retry multiple times if the HTTP response returns a retryable error.
+	var backoff Backoff
+	var delay time.Duration
+	var resp *http.Response
+	var rlr io.Reader
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-time.After(delay):
+		}
 
-	// Perform the copy!
-	res, err := h.resumedCopyRequest(
-		ctx, c.ResumableUploadId, rlr, c.BytesCopied, int64(bytesRead), final)
-	if err != nil {
-		return err
+		// Make a copy of the read bytes so that if we have to retry the send we don't have
+		// to re-read from the srcFile (potentially hitting an on-premises NFS).
+		copyBuf := make([]byte, len(buf))
+		copy(copyBuf, buf)
+
+		// Add bandwidth control to the HTTP request body.
+		rlr, err = NewRateLimitedReader(ctx, bytes.NewReader(copyBuf), rate.Limit(c.Bandwidth))
+		if err != nil {
+			return fmt.Errorf("NewRateLimitedReader err: %v", err)
+		}
+
+		// Perform the copy!
+		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, rlr, c.BytesCopied, int64(bytesRead), final)
+
+		var status int
+		if resp != nil {
+			status = resp.StatusCode
+		}
+
+		// Check if we should retry the request.
+		if shouldRetry(status, err) {
+			var retry bool
+			if delay, retry = backoff.GetDelay(); retry {
+				if resp != nil && resp.Body != nil {
+					resp.Body.Close()
+				}
+				continue
+			}
+		}
+		break
 	}
-	defer googleapi.CloseBody(res)
-	if err = googleapi.CheckResponse(res); err != nil {
+	if resp != nil && resp.Body != nil {
+		defer resp.Body.Close()
+	}
+	if err != nil {
+		return fmt.Errorf("resumedCopyRequest err: %v", err)
+	}
+	if err = googleapi.CheckResponse(resp); err != nil {
 		return err
 	}
 
 	if final {
-		if statusResumeIncomplete(res) {
+		if statusResumeIncomplete(resp) {
 			return errors.New("statusResumeIncomplete was true for final copy")
 		}
 
 		// Parse the object from the http response.
 		obj := &raw.Object{}
-		if err = gensupport.DecodeResponse(&obj, res); err != nil {
-			return err
+		if err = gensupport.DecodeResponse(&obj, resp); err != nil {
+			return fmt.Errorf("gensupport.DecodeResponse err: %v", err)
 		}
 		var dstCRC32C uint32
 		if dstCRC32C, err = decodeUint32(obj.Crc32c); err != nil {
-			return err
+			return fmt.Errorf("decodeUint32 err: %v", err)
 		}
 
 		// Check the CRC32C.
@@ -468,7 +505,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		cl.DstBytes = int64(obj.Size)
 		var t time.Time
 		if err := t.UnmarshalText([]byte(obj.Updated)); err != nil {
-			return err
+			return fmt.Errorf("t.UnmarshalText err: %v", err)
 		}
 		cl.DstMTime = t.UnixNano()
 		cl.SrcCrc32C = srcCRC32C
@@ -513,10 +550,10 @@ func (h *CopyHandler) resumedCopyRequest(ctx context.Context, URL string, data i
 	return h.httpDoFunc(ctx, h.hc, req)
 }
 
-func statusResumeIncomplete(res *http.Response) bool {
+func statusResumeIncomplete(resp *http.Response) bool {
 	// This is how the server signals "status resume incomplete"
 	// when X-Guploader-No-308 is set to "yes":
-	return res != nil && res.Header.Get("X-Http-Status-Code-Override") == "308"
+	return resp != nil && resp.Header.Get("X-Http-Status-Code-Override") == "308"
 }
 
 // Decode a uint32 encoded in Base64 in big-endian byte order.
@@ -535,4 +572,22 @@ func decodeUint32(b64 string) (uint32, error) {
 func encodeUint32(u uint32) string {
 	b := []byte{byte(u >> 24), byte(u >> 16), byte(u >> 8), byte(u)}
 	return base64.StdEncoding.EncodeToString(b)
+}
+
+// shouldRetry returns true if the HTTP response / error indicates that the
+// request should be attempted again.
+func shouldRetry(status int, err error) bool {
+	if 500 <= status && status <= 599 {
+		return true
+	}
+	if status == http.StatusTooManyRequests {
+		return true
+	}
+	if err == io.ErrUnexpectedEOF {
+		return true
+	}
+	if err, ok := err.(net.Error); ok {
+		return err.Temporary()
+	}
+	return false
 }
