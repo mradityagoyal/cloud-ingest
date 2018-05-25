@@ -11,7 +11,6 @@ import { AppRoutingModule } from './app-routing.module';
 import { BandwidthControlModule } from './bandwidth-control/bandwidth-control.module';
 import { JobsModule } from './jobs/jobs.module';
 import { ProjectSelectComponent } from './project-select/project-select.component';
-import { LogsComponent } from './logs/logs.component';
 import { ErrorDialogModule } from './util/error-dialog/error-dialog.module';
 import { AgentComponent } from './agent/agent.component';
 import { BandwidthControlComponent } from './bandwidth-control/bandwidth-control.component';
@@ -20,7 +19,6 @@ import { BandwidthControlComponent } from './bandwidth-control/bandwidth-control
   declarations: [
     AppComponent,
     ProjectSelectComponent,
-    LogsComponent,
     AgentComponent,
     BandwidthControlComponent
   ],

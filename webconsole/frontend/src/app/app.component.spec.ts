@@ -70,7 +70,7 @@ describe('AppComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      expect(compiled.querySelectorAll('a').length).toBe(4);
+      expect(compiled.querySelectorAll('a').length).toBe(3);
 
       const signOutButton = compiled.querySelector('button');
       expect(signOutButton).not.toBeNull();
