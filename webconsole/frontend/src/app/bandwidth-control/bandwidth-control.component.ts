@@ -43,7 +43,7 @@ export class BandwidthControlComponent implements OnInit {
   }
 
   applyResponse(r: MaxBandwidthResponse) {
-    const bandwidth = r.hasMaxBandwidth ? Number(r.bandwidth) : null;
+    const bandwidth = r.hasMaxBandwidth ? Number(r.bandwidth)>>20 : null;
     this.initialControl = new BandwidthControl(r.hasMaxBandwidth, bandwidth);
     this.bandwidthControl = this.initialControl.copy();
     this.loading = false;
@@ -64,7 +64,7 @@ export class BandwidthControlComponent implements OnInit {
 
   onSubmit(enabled: boolean, bandwidth: number) {
     this.loading = true;
-    this.bwService.postProjectMaxBandwidth(enabled, bandwidth).subscribe(
+    this.bwService.postProjectMaxBandwidth(enabled, bandwidth<<20).subscribe(
       (response: MaxBandwidthResponse) => {
         this.showSettingError = false;
         this.applyResponse(response);

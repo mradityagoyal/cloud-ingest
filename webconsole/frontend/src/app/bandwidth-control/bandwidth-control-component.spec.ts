@@ -93,7 +93,7 @@ describe('BandwidthControlComponent', () => {
     button.click();
     expect(serviceStub.postProjectMaxBandwidth.calls.count()).toEqual(1);
     expect(serviceStub.postProjectMaxBandwidth.calls.first().args[0]).toEqual(true);
-    expect(serviceStub.postProjectMaxBandwidth.calls.first().args[1]).toEqual(123);
+    expect(serviceStub.postProjectMaxBandwidth.calls.first().args[1]).toEqual(123<<20);
   }));
 
   it('should show error on loading error', async(() => {
