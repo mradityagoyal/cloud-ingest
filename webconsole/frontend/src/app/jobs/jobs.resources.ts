@@ -1,8 +1,6 @@
 import { DataSource } from '@angular/cdk/collections';
 import { Observable } from 'rxjs/Rx';
 
-import { TaskFailureType, TaskType, JobRunStatus } from '../proto/tasks.js';
-
 
 export class GcsData {
   constructor() {

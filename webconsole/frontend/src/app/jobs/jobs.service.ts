@@ -11,7 +11,6 @@ import { mergeMap } from 'rxjs/operators';
 import { zip } from 'rxjs/observable/zip';
 import { combineLatest } from 'rxjs/operators';
 import { environment } from '../../environments/environment';
-import { TaskFailureType } from '../proto/tasks.js';
 import { TransferJob, Schedule, TransferJobResponse, PauseTransferJobRequest,
   ResumeTransferJobRequest, DeleteTransferJobRequest } from './jobs.resources';
 
