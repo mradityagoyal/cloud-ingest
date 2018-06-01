@@ -166,6 +166,7 @@ func main() {
 			defer wg.Done()
 			listSub := pubSubClient.Subscription(pubsubPrefix + listSubscription)
 			listSub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
+			listSub.ReceiveSettings.MaxOutstandingMessages = numberThreads
 			listTopic := pubSubClient.Topic(pubsubPrefix + listProgressTopic)
 
 			// Wait for list subscription to exist.
