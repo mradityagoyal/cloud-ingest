@@ -1,18 +1,19 @@
-import { TestBed, async, inject } from '@angular/core/testing';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
+import { async, TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material';
+import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ActivatedRoute } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
-import { ProjectSelectModule } from './project-select/project-select.module';
-import { Observable } from 'rxjs/Observable';
-import { AppComponent } from './app.component';
+import { Observable, of } from 'rxjs';
+
 import { AngularMaterialImporterModule } from './angular-material-importer/angular-material-importer.module';
+import { AppComponent } from './app.component';
 import { AuthService } from './auth/auth.service';
-import { UserProfile } from './auth/auth.resources';
-import { NoopAnimationsModule} from '@angular/platform-browser/animations';
 import { ProjectSelectComponent } from './project-select/project-select.component';
-import { MatSnackBar } from '@angular/material';
-import { MatSnackBarStub, MockAuthService, FAKE_USER, ActivatedRouteStub } from './util/common.test-util';
-import 'rxjs/add/observable/of';
+import { ProjectSelectModule } from './project-select/project-select.module';
+import { FAKE_USER, MatSnackBarStub, MockAuthService } from './util/common.test-util';
+
+
 
 let activatedRouteStub: ActivatedRoute;
 let matSnackBarStub: MatSnackBarStub;
@@ -22,7 +23,7 @@ describe('AppComponent', () => {
 
   beforeEach(async(() => {
     activatedRouteStub = new ActivatedRoute();
-    activatedRouteStub.queryParams = Observable.of({project: 'fakeProjectId'});
+    activatedRouteStub.queryParams = of({project: 'fakeProjectId'});
     mockAuthService = new MockAuthService(activatedRouteStub);
     mockAuthService.isSignedIn = true;
     matSnackBarStub = new MatSnackBarStub();
@@ -130,7 +131,7 @@ describe('AppComponent', () => {
   }));
 
   it('should show a project selection component if no project is selected', async(() => {
-    activatedRouteStub.queryParams = Observable.of({project: ''});
+    activatedRouteStub.queryParams = of({project: ''});
     const fixture = TestBed.createComponent(AppComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {

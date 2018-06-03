@@ -1,21 +1,19 @@
-import { async, ComponentFixture, discardPeriodicTasks, fakeAsync, TestBed, tick } from '@angular/core/testing';
+import { async, ComponentFixture, discardPeriodicTasks, fakeAsync, inject, TestBed, tick } from '@angular/core/testing';
 import { MatDialog } from '@angular/material';
-import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { RouterTestingModule } from '@angular/router/testing';
-import { Observable } from 'rxjs/Observable';
-import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
+import { never, of, throwError as observableThrowError } from 'rxjs';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { FAKE_HTTP_ERROR, MatDialogStub } from '../../util/common.test-util';
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { JobsService } from '../jobs.service';
 import { FAKE_TRANSFER_JOB_RESPONSE, JobsServiceStub } from '../jobs.test-util';
-import { JobRunDetailsComponent } from './job-run-details.component';
+import { ENABLE_POLLING, JobRunDetailsComponent } from './job-run-details.component';
+
 
 let jobsServiceStub: JobsServiceStub;
 let matDialogStub: MatDialogStub;
-let intervalObservableCreateSpy: any;
 
 describe('JobRunDetailsComponent', () => {
   let component: JobRunDetailsComponent;
@@ -24,16 +22,16 @@ describe('JobRunDetailsComponent', () => {
   beforeEach(async(() => {
     jobsServiceStub = new JobsServiceStub();
     matDialogStub = new MatDialogStub();
-    jobsServiceStub.getJob.and.returnValue(Observable.of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]));
-    // Disable polling for most tests.
-    intervalObservableCreateSpy = spyOn(IntervalObservable, 'create').and.returnValue(Observable.never());
+    jobsServiceStub.getJob.and.returnValue(of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]));
+
     TestBed.configureTestingModule({
       declarations: [
         JobRunDetailsComponent,
       ],
       providers: [
         {provide: JobsService, useValue: jobsServiceStub},
-        {provide: MatDialog, useValue: matDialogStub}
+        {provide: MatDialog, useValue: matDialogStub},
+        {provide: ENABLE_POLLING, useValue: false},
       ],
       imports: [
         NoopAnimationsModule,
@@ -52,7 +50,7 @@ describe('JobRunDetailsComponent', () => {
   });
 
   it('should show a loading spinner when job details are loading', async(() => {
-    jobsServiceStub.getJob.and.returnValue(Observable.never());
+    jobsServiceStub.getJob.and.returnValue(never());
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -77,7 +75,7 @@ describe('JobRunDetailsComponent', () => {
   }));
 
   it('should show an error message when there is an error', async(() => {
-    jobsServiceStub.getJob.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.getJob.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     fixture = TestBed.createComponent(JobRunDetailsComponent);
     component = fixture.componentInstance;
     fixture.detectChanges();
@@ -102,14 +100,15 @@ describe('JobRunDetailsComponent', () => {
   }));
 
   it('should get the job every ten seconds', fakeAsync((done) => {
-    intervalObservableCreateSpy.and.callThrough(); // enable polling
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    // It should get the job runs four times: one initial loading plus 3 polling calls.
-    tick(30000);
-    expect(jobsServiceStub.getJob.calls.count()).toEqual(4);
-    discardPeriodicTasks();
+    inject([ENABLE_POLLING], (enablePolling: true) => {
+      fixture = TestBed.createComponent(JobRunDetailsComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      // It should get the job runs four times: one initial loading plus 3 polling calls.
+      tick(30000);
+      expect(jobsServiceStub.getJob.calls.count()).toEqual(4);
+      discardPeriodicTasks();
+    });
   }));
 
   it('should display the job information', async(() => {
@@ -126,16 +125,17 @@ describe('JobRunDetailsComponent', () => {
   }));
 
   it('should open the mat dialog stub with the error dialog', fakeAsync((done) => {
-    // Load successfully on first call, but throw on second call.
-    jobsServiceStub.getJob.and.returnValues(Observable.of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]), Observable.throw(FAKE_HTTP_ERROR));
-    intervalObservableCreateSpy.and.callThrough();
-    fixture = TestBed.createComponent(JobRunDetailsComponent);
-    component = fixture.componentInstance;
-    fixture.detectChanges();
-    tick(10000); // Tick for long enough until the app makes a polling call.
-    expect(matDialogStub.open).toHaveBeenCalled();
-    expect(matDialogStub.open.calls.mostRecent().args[0]).toBe(ErrorDialogComponent);
-    discardPeriodicTasks();
+    inject([ENABLE_POLLING], (enablePolling: true) => {
+      // Load successfully on first call, but throw on second call.
+      jobsServiceStub.getJob.and.returnValues(of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]), observableThrowError(FAKE_HTTP_ERROR));
+      fixture = TestBed.createComponent(JobRunDetailsComponent);
+      component = fixture.componentInstance;
+      fixture.detectChanges();
+      tick(10000); // Tick for long enough until the app makes a polling call.
+      expect(matDialogStub.open).toHaveBeenCalled();
+      expect(matDialogStub.open.calls.mostRecent().args[0]).toBe(ErrorDialogComponent);
+      discardPeriodicTasks();
+    });
   }));
 
 });

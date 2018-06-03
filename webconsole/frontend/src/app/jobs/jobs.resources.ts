@@ -1,5 +1,5 @@
 import { DataSource } from '@angular/cdk/collections';
-import { Observable } from 'rxjs/Rx';
+import { Observable, of } from 'rxjs';
 
 
 export class GcsData {
@@ -136,7 +136,7 @@ export class SimpleDataSource<T> extends DataSource<T> {
   }
 
   connect(): Observable<T[]> {
-    return Observable.of(this.items);
+    return of(this.items);
   }
 
   disconnect() {}

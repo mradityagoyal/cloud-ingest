@@ -1,7 +1,6 @@
 /**
  * This file contains fakes for the tests in the jobs directory.
  */
-import { TaskFailureType } from '../proto/tasks.js';
 import { TransferJobResponse, Schedule } from './jobs.resources';
 
 

@@ -1,7 +1,7 @@
-import { AuthService } from './auth.service';
-import { ActivatedRouteStub } from '../util/common.test-util';
-import { Observable } from 'rxjs/Observable';
 import { ActivatedRoute } from '@angular/router';
+import { Observable, of } from 'rxjs';
+
+import { AuthService } from './auth.service';
 
 declare var gapi: any;
 let activatedRouteStub: ActivatedRoute;
@@ -9,7 +9,7 @@ let activatedRouteStub: ActivatedRoute;
 describe('AuthService', () => {
   beforeEach(() => {
     activatedRouteStub = new ActivatedRoute();
-    activatedRouteStub.queryParams = Observable.of({project: 'fakeProjectId'});
+    activatedRouteStub.queryParams = of({project: 'fakeProjectId'});
     this.authService = new AuthService(activatedRouteStub);
   });
 

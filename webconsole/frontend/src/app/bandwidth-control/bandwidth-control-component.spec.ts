@@ -1,14 +1,17 @@
-import 'rxjs/add/observable/of';
+
+import {throwError as observableThrowError,  Observable, of, never } from 'rxjs';
+
 
 import { async, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { Observable } from 'rxjs/Observable';
 
 import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
 import { FAKE_HTTP_ERROR } from '../util/common.test-util';
-import { BandwidthControlService } from './bandwidth-control.service';
 import { BandwidthControl, BandwidthControlComponent } from './bandwidth-control.component';
+import { BandwidthControlService } from './bandwidth-control.service';
+
+
 
 let serviceStub: BandwidthControlServiceStub;
 const FAKE_RESPONSE = {
@@ -26,7 +29,7 @@ describe('BandwidthControlComponent', () => {
 
   beforeEach(async(() => {
     serviceStub = new BandwidthControlServiceStub();
-    serviceStub.getProjectMaxBandwidth.and.returnValue(Observable.of(FAKE_RESPONSE));
+    serviceStub.getProjectMaxBandwidth.and.returnValue(of(FAKE_RESPONSE));
     TestBed.configureTestingModule({
       declarations: [
         BandwidthControlComponent
@@ -52,7 +55,7 @@ describe('BandwidthControlComponent', () => {
     const fixture = TestBed.createComponent(BandwidthControlComponent);
     const component = fixture.debugElement.componentInstance;
     component.loading = true;
-    serviceStub.getProjectMaxBandwidth.and.returnValue(Observable.never());
+    serviceStub.getProjectMaxBandwidth.and.returnValue(never());
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -85,7 +88,7 @@ describe('BandwidthControlComponent', () => {
   it('onSubmit should call bandwidth control service post max bandwidth', async(() => {
     const fixture = TestBed.createComponent(BandwidthControlComponent);
     const component = fixture.debugElement.componentInstance;
-    serviceStub.postProjectMaxBandwidth.and.returnValue(Observable.of(FAKE_RESPONSE));
+    serviceStub.postProjectMaxBandwidth.and.returnValue(of(FAKE_RESPONSE));
     const compiled = fixture.debugElement.nativeElement;
     const button = compiled.querySelector('.ingest-submit-button');
 
@@ -93,11 +96,11 @@ describe('BandwidthControlComponent', () => {
     button.click();
     expect(serviceStub.postProjectMaxBandwidth.calls.count()).toEqual(1);
     expect(serviceStub.postProjectMaxBandwidth.calls.first().args[0]).toEqual(true);
-    expect(serviceStub.postProjectMaxBandwidth.calls.first().args[1]).toEqual(123<<20);
+    expect(serviceStub.postProjectMaxBandwidth.calls.first().args[1]).toEqual(123 << 20);
   }));
 
   it('should show error on loading error', async(() => {
-    serviceStub.getProjectMaxBandwidth.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    serviceStub.getProjectMaxBandwidth.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(BandwidthControlComponent);
     const component = fixture.debugElement.componentInstance;
 
@@ -112,7 +115,7 @@ describe('BandwidthControlComponent', () => {
   }));
 
   it('should show error on submit error', async(() => {
-    serviceStub.postProjectMaxBandwidth.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    serviceStub.postProjectMaxBandwidth.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(BandwidthControlComponent);
     const component = fixture.debugElement.componentInstance;
     const compiled = fixture.debugElement.nativeElement;

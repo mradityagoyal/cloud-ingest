@@ -1,16 +1,15 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit } from '@angular/core';
-import { MatCheckboxChange, MatDialog, MatTooltipModule } from '@angular/material';
+import { Response } from '@angular/http';
+import { MatCheckboxChange, MatDialog } from '@angular/material';
+import { Observable, of } from 'rxjs';
 
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
-import { Response } from '@angular/http';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
-import { TransferJob, SimpleDataSource, OPERATION_STATUS_TO_STRING_MAP, TransferJobResponse } from '../jobs.resources';
+import { OPERATION_STATUS_TO_STRING_MAP, SimpleDataSource, TransferJob, TransferJobResponse } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
-import { IfObservable } from 'rxjs/observable/IfObservable';
-import { Observable } from 'rxjs/Observable';
 
 @Component({
   selector: 'app-job-configs',

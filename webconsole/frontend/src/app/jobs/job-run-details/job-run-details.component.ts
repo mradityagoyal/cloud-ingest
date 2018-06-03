@@ -1,19 +1,18 @@
-import 'rxjs/add/operator/takeWhile';
-
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit } from '@angular/core';
+import { Component, Inject, InjectionToken, OnDestroy, OnInit } from '@angular/core';
 import { MatDialog } from '@angular/material';
 import { ActivatedRoute, Router } from '@angular/router';
-import { IntervalObservable } from 'rxjs/observable/IntervalObservable';
-import { Observable } from 'rxjs/Rx';
+import { interval } from 'rxjs';
+import { takeWhile } from 'rxjs/operators';
 
 import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.component';
 import { ErrorDialogContent } from '../../util/error-dialog/error-dialog.resources';
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
-import { TransferJob, OPERATION_STATUS_TO_STRING_MAP } from '../jobs.resources';
+import { OPERATION_STATUS_TO_STRING_MAP, TransferJob } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
 
 const UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS = 10000;
+export const ENABLE_POLLING = new InjectionToken<boolean>('ENABLE_POLLING');
 
 @Component({
   selector: 'app-job-run-details',
@@ -26,7 +25,9 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
   errorMessage: string;
   showError: boolean;
   jobId: string;
-  alive: boolean; // Used to control when the component should poll the job.
+  // Used to control when the component should poll the job. Determines if the
+  // component is alive.
+  alive: boolean;
 
   showLoadingSpinner: boolean;
 
@@ -37,7 +38,8 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
     private route: ActivatedRoute,
     private router: Router,
     private jobsService: JobsService,
-    private dialog: MatDialog
+    private dialog: MatDialog,
+    @Inject(ENABLE_POLLING) public enablePolling: boolean,
   ) {
     this.jobId = route.snapshot.paramMap.get('jobId');
   }
@@ -45,16 +47,17 @@ export class JobRunDetailsComponent implements OnInit, OnDestroy {
   ngOnInit() {
     this.showLoadingSpinner = true;
     this.alive = true;
-    // this.getJobConfig();
     this.initialJobLoad();
-    IntervalObservable.create(UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS)
-    /**
-     * TODO(b/66414686): This observable should not emit if the job has completed.
-     */
-    .takeWhile(() => this.alive)
-    .subscribe(() => {
-      this.updateJob();
-    });
+    if (this.enablePolling) {
+      interval(UPDATE_JOB_RUN_POLLING_INTERVAL_MILLISECONDS).pipe(
+        /**
+         * TODO(b/66414686): This observable should not emit if the job has completed.
+         */
+        takeWhile(() => this.alive),
+        ).subscribe(() => {
+          this.updateJob();
+        });
+    }
   }
 
   ngOnDestroy() {

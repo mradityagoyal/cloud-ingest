@@ -1,4 +1,4 @@
-import 'rxjs/add/operator/finally';
+
 
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, Inject } from '@angular/core';
@@ -42,16 +42,16 @@ export class JobConfigAddDialogComponent {
       this.model.transferSpec.gcsDataSink.objectPrefix = this.model.transferSpec.gcsDataSink.objectPrefix + '/';
     }
 
-    this.jobsService.postJob(this.model).finally(() => {
-      this.submittingForm = false;
-    }).subscribe(
+    this.jobsService.postJob(this.model).subscribe(
       () => {
         this.dialogRef.close(/**configSuccessfullyPosted**/ true);
+        this.submittingForm = false;
       },
       (errorResponse: HttpErrorResponse) => {
         this.showError = true;
         this.errorTitle = HttpErrorResponseFormatter.getTitle(errorResponse);
         console.error(`${this.errorTitle} \n` + HttpErrorResponseFormatter.getMessage(errorResponse));
+        this.submittingForm = false;
       }
     );
   }

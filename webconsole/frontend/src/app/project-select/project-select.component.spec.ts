@@ -1,13 +1,15 @@
-import { async, ComponentFixture, TestBed, inject } from '@angular/core/testing';
 import { HttpClient } from '@angular/common/http';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
+import { async, ComponentFixture, inject, TestBed } from '@angular/core/testing';
 import { NavigationExtras } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
+import { elementAt } from 'rxjs/operators';
+
+import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
 import { ProjectSelectComponent } from './project-select.component';
 import { ProjectSelectModule } from './project-select.module';
-import { AngularMaterialImporterModule } from '../angular-material-importer/angular-material-importer.module';
 import { GoogleCloudApiProjectsResponse, GoogleCloudProject } from './project-select.resources';
-import 'rxjs/add/operator/elementAt';
+
 
 const FAKE_API_RESPONSE: GoogleCloudApiProjectsResponse = {
   projects: [
@@ -78,7 +80,8 @@ describe('ProjectSelectComponent', () => {
         fixture.whenStable().then(() => {
           fixture.detectChanges();
           // Take the second emit of the filtered projects. The first one is just the initial one.
-          component.filteredGoogleCloudProjects.elementAt(1).subscribe((projects: GoogleCloudProject[]) => {
+          component.filteredGoogleCloudProjects.pipe(
+            elementAt(1)).subscribe((projects: GoogleCloudProject[]) => {
             expect(projects).toContain(FAKE_API_RESPONSE.projects[2]);
             expect(projects).not.toContain(FAKE_API_RESPONSE.projects[0]);
             expect(projects).not.toContain(FAKE_API_RESPONSE.projects[1]);

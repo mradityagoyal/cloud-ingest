@@ -1,11 +1,14 @@
-import { Component, OnInit } from '@angular/core';
+
+
+
 import { HttpClient, HttpParams } from '@angular/common/http';
-import { Router, NavigationExtras } from '@angular/router';
-import { GoogleCloudProject, GoogleCloudApiProjectsResponse } from './project-select.resources';
+import { Component } from '@angular/core';
 import { FormControl } from '@angular/forms';
-import { Observable } from 'rxjs/Observable';
-import 'rxjs/add/operator/startWith';
-import 'rxjs/add/operator/map';
+import { NavigationExtras, Router } from '@angular/router';
+import { Observable } from 'rxjs';
+import { map, startWith } from 'rxjs/operators';
+
+import { GoogleCloudApiProjectsResponse, GoogleCloudProject } from './project-select.resources';
 
 @Component({
   selector: 'app-project-select',
@@ -52,9 +55,9 @@ export class ProjectSelectComponent {
    * the input box.
    */
   private setFilteredProjects() {
-    this.filteredGoogleCloudProjects = this.gcsProjectIdControl.valueChanges
-      .startWith(null)
-      .map(val => val ? this.filter(val) : this.googleCloudProjects.slice(0, 3));
+    this.filteredGoogleCloudProjects = this.gcsProjectIdControl.valueChanges.pipe(
+      startWith(null),
+      map(val => val ? this.filter(val) : this.googleCloudProjects.slice(0, 3)));
   }
 
   private filter(val: string): GoogleCloudProject[] {

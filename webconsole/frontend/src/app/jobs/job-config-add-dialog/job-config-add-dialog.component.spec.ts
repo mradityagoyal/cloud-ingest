@@ -1,18 +1,18 @@
-import { JobsServiceStub, FAKE_TRANSFER_JOB_RESPONSE } from '../jobs.test-util';
-import 'rxjs/add/observable/of';
-
-import { async, fakeAsync, tick, TestBed } from '@angular/core/testing';
+import { async, fakeAsync, TestBed, tick } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { Observable } from 'rxjs/Observable';
+import { throwError as observableThrowError, of } from 'rxjs';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
-import { FAKE_HTTP_ERROR, MatDialogRefStub, MockAuthService, AuthServiceStub } from '../../util/common.test-util';
-import { TransferJob, TransferJobResponse } from '../jobs.resources';
 import { AuthService } from '../../auth/auth.service';
+import { AuthServiceStub, FAKE_HTTP_ERROR, MatDialogRefStub } from '../../util/common.test-util';
+import { TransferJob } from '../jobs.resources';
 import { JobsService } from '../jobs.service';
+import { FAKE_TRANSFER_JOB_RESPONSE, JobsServiceStub } from '../jobs.test-util';
 import { JobConfigAddDialogComponent } from './job-config-add-dialog.component';
+
+
 
 let jobsServiceStub: JobsServiceStub;
 let matDialogRefStub: MatDialogRefStub;
@@ -29,7 +29,7 @@ describe('JobConfigAddDialogComponent', () => {
     authServiceStub = new AuthServiceStub();
     authServiceStub.grantBucketPermissionsIfNotExist.and.returnValue(Promise.resolve(true));
     authServiceStub.grantPubsubTopicPermissionsIfNotExists.and.returnValue(Promise.resolve(true));
-    jobsServiceStub.postJob.and.returnValue(Observable.of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]));
+    jobsServiceStub.postJob.and.returnValue(of(FAKE_TRANSFER_JOB_RESPONSE.transferJobs[0]));
     fakeJobModel = new TransferJob();
     TestBed.configureTestingModule({
       declarations: [
@@ -107,7 +107,7 @@ describe('JobConfigAddDialogComponent', () => {
   }));
 
   it('should show error on submit error', async(() => {
-    jobsServiceStub.postJob.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.postJob.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(JobConfigAddDialogComponent);
     const component = fixture.debugElement.componentInstance;
     component.model = fakeJobModel;

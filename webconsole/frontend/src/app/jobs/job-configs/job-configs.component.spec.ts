@@ -1,13 +1,8 @@
-import 'rxjs/add/observable/never';
-import 'rxjs/add/observable/of';
-import 'rxjs/add/observable/throw';
-import 'rxjs/add/operator/delay';
-
 import { async, TestBed } from '@angular/core/testing';
 import { FormsModule } from '@angular/forms';
 import { MatDialog } from '@angular/material';
 import { RouterTestingModule } from '@angular/router/testing';
-import { Observable } from 'rxjs/Observable';
+import { Observable, of, throwError as observableThrowError, never } from 'rxjs';
 
 import { AngularMaterialImporterModule } from '../../angular-material-importer/angular-material-importer.module';
 import { FAKE_HTTP_ERROR, MatDialogRefStub, MatDialogStub } from '../../util/common.test-util';
@@ -15,7 +10,7 @@ import { ErrorDialogComponent } from '../../util/error-dialog/error-dialog.compo
 import { HttpErrorResponseFormatter } from '../../util/error.resources';
 import { JobConfigAddDialogComponent } from '../job-config-add-dialog/job-config-add-dialog.component';
 import { JobsService } from '../jobs.service';
-import { FAKE_TRANSFER_JOB_RESPONSE, JobsServiceStub, EMPTY_TRANSFER_JOB_RESPONSE } from '../jobs.test-util';
+import { EMPTY_TRANSFER_JOB_RESPONSE, FAKE_TRANSFER_JOB_RESPONSE, JobsServiceStub } from '../jobs.test-util';
 import { JobConfigsComponent } from './job-configs.component';
 
 let jobsServiceStub: JobsServiceStub;
@@ -28,9 +23,9 @@ describe('JobConfigsComponent', () => {
     jobsServiceStub = new JobsServiceStub();
     matDialogStub = new MatDialogStub();
     matDialogRefStub = new MatDialogRefStub();
-    jobsServiceStub.getJobs.and.returnValue(Observable.of(FAKE_TRANSFER_JOB_RESPONSE));
+    jobsServiceStub.getJobs.and.returnValue(of(FAKE_TRANSFER_JOB_RESPONSE));
     matDialogStub.open.and.returnValue(matDialogRefStub);
-    matDialogRefStub.afterClosed.and.returnValue(Observable.of(false));
+    matDialogRefStub.afterClosed.and.returnValue(of(false));
 
     TestBed.configureTestingModule({
       declarations: [
@@ -70,7 +65,7 @@ describe('JobConfigsComponent', () => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
     component.showLoadingSpinner = true;
-    jobsServiceStub.getJobs.and.returnValue(Observable.never());
+    jobsServiceStub.getJobs.and.returnValue(never());
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -144,7 +139,7 @@ describe('JobConfigsComponent', () => {
   it('should display an error message if getJobs returns an error', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
-    jobsServiceStub.getJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.getJobs.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();
@@ -157,7 +152,7 @@ describe('JobConfigsComponent', () => {
 it('should retrieve the title and text from the HttpErrorResponseFormatter', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
-    jobsServiceStub.getJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.getJobs.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     spyOn(HttpErrorResponseFormatter, 'getTitle').and.callFake(function(httpError) {
       expect(httpError).toBe(FAKE_HTTP_ERROR);
       return 'fakeFormattedTitle';
@@ -177,7 +172,7 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
   }));
 
   it('should open the add job dialog if there are no jobs', async(() => {
-    jobsServiceStub.getJobs.and.returnValue(Observable.of(EMPTY_TRANSFER_JOB_RESPONSE));
+    jobsServiceStub.getJobs.and.returnValue(of(EMPTY_TRANSFER_JOB_RESPONSE));
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
@@ -188,7 +183,7 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
   }));
 
   it('should open the add job config dialog if there are no job configurations', async(() => {
-    jobsServiceStub.getJobs.and.returnValue(Observable.of(EMPTY_TRANSFER_JOB_RESPONSE));
+    jobsServiceStub.getJobs.and.returnValue(of(EMPTY_TRANSFER_JOB_RESPONSE));
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
@@ -236,7 +231,7 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
   }));
 
   it('should open an error dialog if there is an error pausing job configurations', async(() => {
-    jobsServiceStub.pauseJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.pauseJobs.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
@@ -296,7 +291,7 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
   }));
 
   it('should open an error dialog if there is an error resuming job configurations', async(() => {
-    jobsServiceStub.resumeJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.resumeJobs.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
@@ -362,7 +357,7 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
   }));
 
   it('should open an error dialog if there is an error deleting a job', async(() => {
-    jobsServiceStub.deleteJobs.and.returnValue(Observable.throw(FAKE_HTTP_ERROR));
+    jobsServiceStub.deleteJobs.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(JobConfigsComponent);
     fixture.detectChanges();
     fixture.whenStable().then(() => {
