@@ -18,7 +18,7 @@
   </div>
   <mat-form-field floatLabel="always" class="ingest-max-bandwidth-form-field">
     <mat-label>Max bandwidth</mat-label>
-    <input matInput name="maxBandwidth" type="number"
+    <input matInput name="maxBandwidth" type="number" min="0"
         placeholder="Enter cap here"
         [(ngModel)]="bandwidthControl.maxBandwidth">
     <span matSuffix>megabytes/second</span>

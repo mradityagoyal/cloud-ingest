@@ -64,6 +64,9 @@ export class BandwidthControlComponent implements OnInit {
 
   onSubmit(enabled: boolean, bandwidth: number) {
     this.loading = true;
+    if (bandwidth < 0) {
+      bandwidth = 0
+    }
     this.bwService.postProjectMaxBandwidth(enabled, bandwidth << 20).subscribe(
       (response: MaxBandwidthResponse) => {
         this.showSettingError = false;

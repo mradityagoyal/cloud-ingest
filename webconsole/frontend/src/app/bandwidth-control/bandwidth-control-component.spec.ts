@@ -99,6 +99,20 @@ describe('BandwidthControlComponent', () => {
     expect(serviceStub.postProjectMaxBandwidth.calls.first().args[1]).toEqual(123 << 20);
   }));
 
+  it('onSubmit should not send negative bandwidth', async(() => {
+    const fixture = TestBed.createComponent(BandwidthControlComponent);
+    const component = fixture.debugElement.componentInstance;
+    serviceStub.postProjectMaxBandwidth.and.returnValue(Observable.of(FAKE_RESPONSE));
+    const compiled = fixture.debugElement.nativeElement;
+    const button = compiled.querySelector('.ingest-submit-button');
+
+    component.bandwidthControl = new BandwidthControl(true, -123);
+    button.click();
+    expect(serviceStub.postProjectMaxBandwidth.calls.count()).toEqual(1);
+    expect(serviceStub.postProjectMaxBandwidth.calls.first().args[0]).toEqual(true);
+    expect(serviceStub.postProjectMaxBandwidth.calls.first().args[1]).toEqual(0);
+  }));
+
   it('should show error on loading error', async(() => {
     serviceStub.getProjectMaxBandwidth.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
     const fixture = TestBed.createComponent(BandwidthControlComponent);
