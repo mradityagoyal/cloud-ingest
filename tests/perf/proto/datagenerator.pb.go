@@ -6,15 +6,12 @@ Package pb_perf is a generated protocol buffer package.
 
 It is generated from these files:
 	tests/perf/proto/datagenerator.proto
-	tests/perf/proto/jobs.proto
 
 It has these top-level messages:
 	UniformDistribution
 	Directory
 	FileSystem
 	DataGeneratorConfig
-	JobConfig
-	LoadTestingConfiguration
 */
 package pb_perf
 

@@ -19,7 +19,6 @@ FILES_TO_MOCK = \
 	gcloud/spannerclient.go \
 	helpers/clock.go \
 	helpers/random.go \
-	tests/perf/jobservice.go
 
 # NOTE: If/When we decide to move mocks to a separate directory and their own
 #       packages, this will have to switch to the reflection-based mockgen.
@@ -28,7 +27,7 @@ define generate_mock
 	$(eval src = $(1))
 	$(eval dst = $(dir $(1))mock_$(notdir $(1)))
 	$(eval pkg = $(notdir $(patsubst %/,%,$(dir $(1)))))
-	mockgen -source $(src) -destination $(dst) -package $(pkg);
+	$(GOPATH)/bin/mockgen -source $(src) -destination $(dst) -package $(pkg);
 endef
 
 # TODO: Generate proto
@@ -98,7 +97,7 @@ build-frontend: lint-frontend test-frontend ## Check and test frontend code.
 .PHONY: clean
 clean: ## Blow away all compiled artifacts and installed dependencies.
 	go clean -i $(GO_TARGETS)
-	rm -rf $(FRONTEND_DIR)/node_modules; true
+	rm -rf $(FRONTEND_DIR)/node_modules release/tmp-release-ephemeral; true
 
 .PHONY: setup
 setup: setup-go setup-frontend ## Run full setup of dependencies and environment.
