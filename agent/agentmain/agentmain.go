@@ -66,12 +66,12 @@ func init() {
 		"The service account JSON key file. Use the default credentials if empty.")
 	flag.IntVar(&chunkSize, "chunk-size", 1<<25,
 		"The resumable upload chuck size, default 32MB.")
-	flag.IntVar(&numberThreads, "threads", 0,
+	flag.IntVar(&numberThreads, "threads", 100,
 		"The number of threads to process the copy tasks. If 0, will use the "+
-			"default Pub/Sub client value (1000)")
+			"default Pub/Sub client value (1000).")
 	flag.DurationVar(&maxPubSubLeaseExtenstion, "pubsub-lease-extension", 0,
 		"The max duration to extend the leases for a Pub/Sub message. If 0, will "+
-			"use the default Pub/Sub client value (10 mins)")
+			"use the default Pub/Sub client value (10 mins).")
 
 	flag.BoolVar(&skipProcessListTasks, "skip-list", false,
 		"Skip processing list tasks.")
