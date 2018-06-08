@@ -152,23 +152,23 @@ func (c *PubSubClient) Topic(id string) PSTopic {
 }
 
 func (t *PubSubTopic) Publish(ctx context.Context, msg *pubsub.Message) PSPublishResult {
-	return t.Publish(ctx, msg)
+	return t.topic.Publish(ctx, msg)
 }
 
 func (t *PubSubTopic) Stop() {
-	t.Stop()
+	t.topic.Stop()
 }
 
 func (t *PubSubTopic) ID() string {
-	return t.ID()
+	return t.topic.ID()
 }
 
 func (t *PubSubTopic) Delete(ctx context.Context) error {
-	return t.Delete(ctx)
+	return t.topic.Delete(ctx)
 }
 
 func (t *PubSubTopic) Exists(ctx context.Context) (bool, error) {
-	return t.Exists(ctx)
+	return t.topic.Exists(ctx)
 }
 
 func (c *PubSubClient) Subscription(id string) PSSubscription {
@@ -176,15 +176,15 @@ func (c *PubSubClient) Subscription(id string) PSSubscription {
 }
 
 func (s *PubSubSubscription) Receive(ctx context.Context, f func(context.Context, *pubsub.Message)) error {
-	return s.Receive(ctx, f)
+	return s.sub.Receive(ctx, f)
 }
 
 func (s *PubSubSubscription) ID() string {
-	return s.ID()
+	return s.sub.ID()
 }
 
 func (s *PubSubSubscription) Delete(ctx context.Context) error {
-	return s.Delete(ctx)
+	return s.sub.Delete(ctx)
 }
 
 func (s *PubSubSubscription) Config(ctx context.Context) (PSSubscriptionConfig, error) {
@@ -196,11 +196,11 @@ func (s *PubSubSubscription) Config(ctx context.Context) (PSSubscriptionConfig, 
 }
 
 func (s *PubSubSubscription) Exists(ctx context.Context) (bool, error) {
-	return s.Exists(ctx)
+	return s.sub.Exists(ctx)
 }
 
 func (p *PubSubPublishResult) Get(ctx context.Context) (serverID string, err error) {
-	return p.Get(ctx)
+	return p.result.Get(ctx)
 }
 
 func NewPubSubSubscriptionConfig(topic PSTopic) PSSubscriptionConfig {

@@ -27,6 +27,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent"
+	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/golang/glog"
 	"google.golang.org/api/option"
 )
@@ -34,6 +35,7 @@ import (
 const (
 	listProgressTopic = "cloud-ingest-list-progress"
 	copyProgressTopic = "cloud-ingest-copy-progress"
+	pulseTopic        = "cloud-ingest-pulse"
 
 	listSubscription = "cloud-ingest-list"
 	copySubscription = "cloud-ingest-copy"
@@ -51,6 +53,9 @@ var (
 	skipProcessListTasks bool
 	skipProcessCopyTasks bool
 	printVersion         bool
+
+	pulseFrequency int
+	pulseRun       bool //used to start or stop pulse
 
 	// Fields used to display version information. These defaults are
 	// overridden when the release script builds in values through ldflags.
@@ -82,6 +87,9 @@ func init() {
 
 	flag.StringVar(&pubsubPrefix, "pubsub-prefix", "",
 		"Prefix of Pub/Sub topics and subscriptions names.")
+
+	flag.IntVar(&pulseFrequency, "pulse-frequency", 10, "the number of seconds the agent will wait before sending a pulse")
+	flag.BoolVar(&pulseRun, "pulse-run", false, "Send pulse")
 
 	flag.Parse()
 }
@@ -124,6 +132,37 @@ func waitOnSubscription(ctx context.Context, sub *pubsub.Subscription) error {
 	return nil
 }
 
+// waitOnTopic blocks until either the passed-in PSTopic exists, or
+// an error occurs (including context end). In all cases where we return without
+// the PSTopic existing, we return the relevant error.
+func waitOnTopic(ctx context.Context, topic gcloud.PSTopic) error {
+	exists, err := topic.Exists(ctx)
+	if err != nil {
+		return err
+	}
+
+	t := time.NewTicker(10 * time.Second)
+	for !exists {
+		fmt.Printf("Waiting for Topic %s to exist.", topic.ID())
+
+		select {
+		case <-t.C:
+			exists, err = topic.Exists(ctx)
+			if err != nil {
+				t.Stop()
+				return err
+			}
+		case <-ctx.Done():
+			t.Stop()
+			return ctx.Err()
+		}
+	}
+
+	t.Stop()
+	fmt.Printf("Topic %s is ready!\n", topic.ID())
+	return nil
+}
+
 func main() {
 	defer glog.Flush()
 	ctx := context.Background()
@@ -159,7 +198,25 @@ func main() {
 		glog.Fatalf("Can't create http.Client, error: %+v\n", httpcErr)
 	}
 
+	if pulseRun {
+		pulseTopic := gcloud.NewPubSubTopicWrapper(pubSubClient.Topic(pubsubPrefix + pulseTopic))
+
+		// Wait for pulse topic to exist.
+		err := waitOnTopic(ctx, pulseTopic)
+		if err != nil {
+			glog.Fatalf("Could not get PulseTopic: %s \n error: %v ", pulseTopic.ID(), err)
+		}
+
+		ph, err := agent.NewPulseHandler(pulseTopic, int32(pulseFrequency))
+		if err != nil {
+			glog.Fatalf("Could not create a PulseHandler with Topic: %v and Frequency: %v \n error: %v ", pulseTopic, pulseFrequency, err)
+		}
+
+		go ph.Run(ctx)
+	}
+
 	var wg sync.WaitGroup
+
 	if !skipProcessListTasks {
 		wg.Add(1)
 		go func() {
@@ -168,10 +225,16 @@ func main() {
 			listSub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
 			listSub.ReceiveSettings.MaxOutstandingMessages = numberThreads
 			listTopic := pubSubClient.Topic(pubsubPrefix + listProgressTopic)
+			listTopicWrapper := gcloud.NewPubSubTopicWrapper(listTopic)
 
 			// Wait for list subscription to exist.
 			if err := waitOnSubscription(ctx, listSub); err != nil {
 				glog.Fatalf("Could not find list subscription %s, error %+v", listSub.String(), err)
+			}
+
+			// Wait for list topic to exist.
+			if err := waitOnTopic(ctx, listTopicWrapper); err != nil {
+				glog.Fatalf("Could not find list topic %s, error %+v", listTopicWrapper.ID(), err)
 			}
 
 			listProcessor := agent.WorkProcessor{
@@ -191,10 +254,16 @@ func main() {
 			copySub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
 			copySub.ReceiveSettings.MaxOutstandingMessages = numberThreads
 			copyTopic := pubSubClient.Topic(pubsubPrefix + copyProgressTopic)
+			copyTopicWrapper := gcloud.NewPubSubTopicWrapper(copyTopic)
 
 			// Wait for copy subscription to exist.
 			if err := waitOnSubscription(ctx, copySub); err != nil {
 				glog.Fatalf("Could not find copy subscription %s, error %+v", copySub.String(), err)
+			}
+
+			// Wait for copy topic to exist.
+			if err := waitOnTopic(ctx, copyTopicWrapper); err != nil {
+				glog.Fatalf("Could not find copy topic %s, error %+v", copyTopicWrapper.ID(), err)
 			}
 
 			copyProcessor := agent.WorkProcessor{
