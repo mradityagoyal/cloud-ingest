@@ -102,7 +102,7 @@ describe('BandwidthControlComponent', () => {
   it('onSubmit should not send negative bandwidth', async(() => {
     const fixture = TestBed.createComponent(BandwidthControlComponent);
     const component = fixture.debugElement.componentInstance;
-    serviceStub.postProjectMaxBandwidth.and.returnValue(Observable.of(FAKE_RESPONSE));
+    serviceStub.postProjectMaxBandwidth.and.returnValue(of(FAKE_RESPONSE));
     const compiled = fixture.debugElement.nativeElement;
     const button = compiled.querySelector('.ingest-submit-button');
 

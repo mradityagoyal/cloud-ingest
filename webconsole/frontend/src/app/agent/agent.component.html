@@ -17,20 +17,4 @@
       </li>
     </ol>
   </mat-tab>
-  <mat-tab label="Windows">
-    <ol>
-      <li>One-time gcloud setup:
-        <ul>
-          <li>Download and install <a href="https://cloud.google.com/sdk/downloads#installation_options">gcloud</a> if it's not already on your system.</li>
-          <li>Run <br /> <code>gcloud auth application-default login</code><br />&nbsp;</li>
-        </ul>
-      </li>
-      <li>Download and extract the on-prem agent: <a href="{{ AGENT_RELEASE_PREFIX }}/agent-windows_amd64.zip">Windows (64-bit)</a></li>
-      <li>In a shell window navigate to the path where you extracted the agent.</li>
-      <li>Run <br /><code>agent.exe -projectid {{ projectId }}</code>
-        <br /><br />
-        To specify an agent log directory other than your system's default temp directory, add <code>-log_dir &lt;dir&gt;</code>
-      </li>
-    </ol>
-  </mat-tab>
 </mat-tab-group>

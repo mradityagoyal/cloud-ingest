@@ -1,6 +1,7 @@
 FRONTEND_DIR = webconsole/frontend
 GOPATH ?= $(shell go env GOPATH)
 OPI_API_URL = https://$(USER)-dev-opitransfer.sandbox.googleapis.com
+OPI_ROBOT_ACCOUNT = cloud-ingest-dcp@cloud-ingest-dev.iam.gserviceaccount.com
 ifeq ($(OPI_GCP_PROJECT),)
 OPI_GCP_PROJECT := $(shell gcloud config get-value project 2>/dev/null)
 endif
@@ -62,7 +63,7 @@ test-go: ## Run all go unit tests.
 test-frontend: ## Run unit tests for webconsole frontend.
 	@echo -e "\n== Running Frontend Tests =="
 ifndef SKIP_FRONTEND_TEST
-	@(cd $(FRONTEND_DIR) && OPI_API_URL=$(OPI_API_URL) npm test -- --watch=false)
+	@(cd $(FRONTEND_DIR) && OPI_API_URL=$(OPI_API_URL) OPI_ROBOT_ACCOUNT=$(OPI_ROBOT_ACCOUNT) npm test -- --watch=false)
 else
 	@echo -n `tput setaf 1` # Red text
 	@echo "======================================"

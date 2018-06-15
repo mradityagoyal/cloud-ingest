@@ -22,7 +22,12 @@ command -v gsutil > /dev/null 2>&1 || die "gsutil is not installed. Bailing!"
 
 # Add supported platforms here, as they're needed. These are cross-compiled by
 # Go without having to be built on the local platform. Neat!
-BUILD_PLATFORMS=(linux_amd64 windows_amd64)
+#
+# For the full supported grid, see:
+# https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63
+#
+# e.g. To add Windows, add 'windows_amd64' to this list.
+BUILD_PLATFORMS=(linux_amd64)
 
 # Git repo stuff.
 GIT_COMMIT_ID=$1
