@@ -19,6 +19,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"sort"
@@ -27,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
+	"google.golang.org/api/googleapi"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -61,6 +63,56 @@ func listDirectory(dir string) ([]os.FileInfo, error) {
 	return fileInfos, nil
 }
 
+type listingFileMetadata struct {
+	bytes, files, dirs int64
+}
+
+func newListFileEntry(fileInfo os.FileInfo, srcDir string) *ListFileEntry {
+	fullPath := filepath.Join(srcDir, fileInfo.Name())
+	return &ListFileEntry{fileInfo.IsDir(), fullPath}
+}
+
+// getListingUploadChunkSize decides how big the write buffer needs to be for uploading
+// the listing file to GCS, based on the loaded listing.
+func getListingUploadChunkSize(fileInfos []os.FileInfo, srcDir string, maxSize int) (int, error) {
+	if maxSize < googleapi.MinUploadChunkSize {
+		return 0, fmt.Errorf("invalid max chunk size %d", maxSize)
+	}
+	result := 0
+	lineOverhead := len(srcDir) + 4 // file type, comma, path sep, newline.
+	for _, fileInfo := range fileInfos {
+		result += len(fileInfo.Name()) + lineOverhead
+		if result >= maxSize {
+			return maxSize, nil
+		}
+	}
+
+	// Always allocate at least the minimum.
+	if result < googleapi.MinUploadChunkSize {
+		result = googleapi.MinUploadChunkSize
+	}
+
+	return result, nil
+}
+
+func writeListingFile(fileInfos []os.FileInfo, srcDir string, w io.Writer) (*listingFileMetadata, error) {
+	var bytesFound, filesFound, dirsFound int64
+	for _, fileInfo := range fileInfos {
+		listFileEntry := newListFileEntry(fileInfo, srcDir)
+		if _, err := fmt.Fprintln(w, listFileEntry); err != nil {
+			return nil, err
+		}
+		if fileInfo.IsDir() {
+			dirsFound++
+		} else {
+			filesFound++
+			bytesFound += fileInfo.Size()
+		}
+	}
+
+	return &listingFileMetadata{bytes: bytesFound, files: filesFound, dirs: dirsFound}, nil
+}
+
 func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {
@@ -75,9 +127,19 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	w := h.gcs.NewWriterWithCondition(ctx, listSpec.DstListResultBucket, listSpec.DstListResultObject,
 		helpers.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
 
+	fileInfos, err := listDirectory(listSpec.SrcDirectory)
+	if err != nil {
+		w.CloseWithError(err)
+		return buildTaskRespMsg(taskReqMsg, nil, log, err)
+	}
+
 	// Set the resumable upload chunk size.
 	if t, ok := w.(*storage.Writer); ok {
-		t.ChunkSize = h.resumableChunkSize
+		t.ChunkSize, err = getListingUploadChunkSize(fileInfos, listSpec.SrcDirectory, h.resumableChunkSize)
+		if err != nil {
+			w.CloseWithError(err)
+			return buildTaskRespMsg(taskReqMsg, nil, log, err)
+		}
 	}
 
 	if _, err := fmt.Fprintln(w, taskReqMsg.TaskRelRsrcName); err != nil {
@@ -85,25 +147,10 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
-	fileInfos, err := listDirectory(listSpec.SrcDirectory)
+	listMD, err := writeListingFile(fileInfos, listSpec.SrcDirectory, w)
 	if err != nil {
 		w.CloseWithError(err)
 		return buildTaskRespMsg(taskReqMsg, nil, log, err)
-	}
-	var bytesFound, filesFound, dirsFound int64
-	for _, fileInfo := range fileInfos {
-		fullPath := filepath.Join(listSpec.SrcDirectory, fileInfo.Name())
-		listFileEntry := ListFileEntry{fileInfo.IsDir(), fullPath}
-		if _, err := fmt.Fprintln(w, listFileEntry); err != nil {
-			w.CloseWithError(err)
-			return buildTaskRespMsg(taskReqMsg, nil, log, err)
-		}
-		if fileInfo.IsDir() {
-			dirsFound++
-		} else {
-			filesFound++
-			bytesFound += fileInfo.Size()
-		}
 	}
 
 	if err := w.Close(); err != nil {
@@ -111,9 +158,9 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	}
 
 	ll := log.GetListLog()
-	ll.FilesFound = filesFound
-	ll.BytesFound = bytesFound
-	ll.DirsFound = dirsFound
+	ll.FilesFound = listMD.files
+	ll.BytesFound = listMD.bytes
+	ll.DirsFound = listMD.dirs
 
 	return buildTaskRespMsg(taskReqMsg, nil, log, nil)
 }

@@ -21,8 +21,10 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"reflect"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 )
@@ -144,4 +146,43 @@ func CreateTmpDir(dir, prefix string) string {
 		log.Fatal(err)
 	}
 	return tmpDir
+}
+
+// FakeFileInfo is a pass-through stub implementation of os.FileInfo.
+// See: https://golang.org/pkg/os/#FileInfo
+//
+// Incidentally, its Sys implementation will always return nil.
+type FakeFileInfo struct {
+	name    string      // base name of the file
+	size    int64       // length in bytes for regular files; system-dependent for others
+	mode    os.FileMode // file mode bits
+	modTime time.Time   // modification time
+}
+
+func NewFakeFileInfo(name string, size int64, mode os.FileMode, modTime time.Time) *FakeFileInfo {
+	return &FakeFileInfo{name: name, size: size, mode: mode, modTime: modTime}
+}
+
+func (f *FakeFileInfo) Name() string {
+	return f.name
+}
+
+func (f *FakeFileInfo) Size() int64 {
+	return f.size
+}
+
+func (f *FakeFileInfo) Mode() os.FileMode {
+	return f.mode
+}
+
+func (f *FakeFileInfo) ModTime() time.Time {
+	return f.modTime
+}
+
+func (f *FakeFileInfo) IsDir() bool {
+	return f.Mode().IsDir()
+}
+
+func (f *FakeFileInfo) Sys() interface{} {
+	return nil
 }
