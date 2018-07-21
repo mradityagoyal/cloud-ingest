@@ -56,6 +56,13 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		// coding error, do not ack the PubSub message.
 		return
 	}
+	if ctx.Err() == context.Canceled {
+		glog.Errorf("Context is canceled, not sending taskRespMsg: %v", taskRespMsg)
+		// When the context is canceled midway through processing a request, instead of
+		// surfacing an error which propagates to the DCP just don't send the response.
+		// The work will remain on PubSub and eventually be taken up by another worker.
+		return
+	}
 	glog.Infof("Returning taskRespMsg: %v", taskRespMsg)
 	serializedTaskRespMsg, err := proto.Marshal(taskRespMsg)
 	if err != nil {
@@ -66,8 +73,8 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 	}
 	pubResult := wp.ProgressTopic.Publish(ctx, &pubsub.Message{Data: serializedTaskRespMsg})
 	if _, err := pubResult.Get(ctx); err != nil {
-		glog.Errorf("Can not publish list progress message with err: %v", err)
-		// Will not Ack the messages to retry again when the message redelivered.
+		glog.Errorf("Can not publish progress message with err: %v", err)
+		// Don't ack the messages, retry again when the message is redelivered.
 		return
 	}
 	msg.Ack()
