@@ -125,7 +125,7 @@ func TestListSuccessFlatDir(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		filePaths[i] = helpers.CreateTmpFile(tmpDir, "test-file-", fileContent)
 	}
-	// The result of the list are sorted.
+	// The results of the list are sorted.
 	sort.Strings(filePaths)
 	for _, path := range filePaths {
 		expectedListResult.WriteString(fmt.Sprintln(ListFileEntry{false, path}))
@@ -157,6 +157,47 @@ func TestListSuccessFlatDir(t *testing.T) {
 	}
 }
 
+func TestListFailsFileWithNewline(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	writer := &helpers.StringWriteCloser{}
+
+	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
+	var expectedListResult bytes.Buffer
+	expectedListResult.WriteString(fmt.Sprintln(taskRelRsrcName))
+
+	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
+	defer os.RemoveAll(tmpDir)
+
+	fileContent := "0123456789"
+	filePaths := make([]string, 11)
+	for i := 0; i < 10; i++ {
+		filePaths[i] = helpers.CreateTmpFile(tmpDir, "test-file-", fileContent)
+	}
+	filePaths[10] = helpers.CreateTmpFile(tmpDir, "test-file-with-\n-newline", fileContent)
+
+	// The results of the list are sorted.
+	sort.Strings(filePaths)
+	for _, path := range filePaths {
+		expectedListResult.WriteString(fmt.Sprintln(ListFileEntry{false, path}))
+	}
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().NewWriterWithCondition(
+		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
+
+	h := ListHandler{gcs: mockGCS}
+	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
+	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
+	// term, we will escape file with newlines.
+	checkFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
+	if writer.WrittenString() != "" {
+		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
+	}
+}
+
 func TestListSuccessNestedDir(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -181,7 +222,7 @@ func TestListSuccessNestedDir(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		filePaths = append(filePaths, helpers.CreateTmpFile(tmpDir, "test-file-", fileContent))
 	}
-	// The result of the list are in sorted order.
+	// The results of the list are in sorted order.
 	sort.Strings(filePaths)
 	for _, path := range filePaths {
 		expectedListResult.WriteString(fmt.Sprintln(ListFileEntry{false, path}))

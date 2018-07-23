@@ -23,6 +23,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
@@ -60,6 +61,11 @@ func listDirectory(dir string) ([]os.FileInfo, error) {
 	sort.Slice(fileInfos, func(i, j int) bool {
 		return fileInfos[i].Name() < fileInfos[j].Name()
 	})
+	for _, fileInfo := range fileInfos {
+		if strings.Contains(fileInfo.Name(), "\n") {
+			return nil, errors.New("The listing contains file with newlines.")
+		}
+	}
 	return fileInfos, nil
 }
 
