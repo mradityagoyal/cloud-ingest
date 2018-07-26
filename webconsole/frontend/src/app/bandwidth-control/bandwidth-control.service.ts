@@ -22,17 +22,15 @@ export class BandwidthControlService {
   getProjectMaxBandwidth(): Observable<MaxBandwidthResponse> {
     return this.project.pipe(switchMap(projectId => {
       return this.http.get<MaxBandwidthResponse>(
-          `${environment.apiUrl}/v1/projects`,
-          {params: {projectId: projectId}});
+          `${environment.apiUrl}/v1/projects/${projectId}`);
     }));
   }
 
   postProjectMaxBandwidth(hasMaxBandwidth: boolean, bandwidth: number): Observable<MaxBandwidthResponse> {
     return this.project.pipe(switchMap(projectId => {
         return this.http.post<MaxBandwidthResponse>(
-            `${environment.apiUrl}/v1/projects`,
+            `${environment.apiUrl}/v1/projects/${projectId}`,
             {
-              projectId: projectId,
               hasMaxBandwidth: hasMaxBandwidth,
               bandwidth: bandwidth,
             }, POST_HEADERS);
