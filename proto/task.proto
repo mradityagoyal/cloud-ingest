@@ -14,10 +14,9 @@ enum Type {
 // Specifies the current status of the cloud ingest task.
 enum Status {
   UNSET_STATUS = 0;  // TaskStatus is unspecified.
-  UNQUEUED = 1;      // The task is unqueued waiting to be queued by the DCP.
-  QUEUED = 2;        // The task is in progress.
-  FAILED = 3;        // The task was completed but failed.
-  SUCCESS = 4;       // The task was completed and succeeded.
+  QUEUED = 1;        // The task is in progress.
+  FAILED = 2;        // The task was completed but failed.
+  SUCCESS = 3;       // The task was completed and succeeded.
 }
 
 // Specifies the classes of failures that a task can have.
@@ -55,7 +54,7 @@ message ListSpec {
 }
 
 // Contains the information about a process list task. A process list task is
-// responsible for listing a small chunk of the list task.
+// responsible for processing the list file produced by a list task.
 message ProcessListSpec {
   string dst_list_result_bucket = 1;  // GCS bucket for this list file.
   string dst_list_result_object = 2;  // GCS object for this list file.
@@ -72,12 +71,11 @@ message CopySpec {
   int64 expected_generation_num = 4;  // The expected GCS generation number.
 
   // Fields for bandwidth management.
-  int64 bandwidth = 5;              // This copy's bandwidth limit.
-  int64 queue_time = 12;            // Time when the task is queued.
+  int64 bandwidth = 5;  // This copy's bandwidth limit, 0 means inf bandwidth.
 
   // Fields only for managing resumable copies.
   int64 file_bytes = 6;             // The file size, in bytes.
-  int64 file_m_time = 7;            // The file modified time.
+  int64 file_m_time = 7;            // The file modified time (UnixNano).
   int64 bytes_copied = 8;           // The count of bytes copied so far.
   uint32 crc32c = 9;                // The CRC32C of the bytes copied so far.
   int64 bytes_to_copy = 10;         // Number of bytes to copy in a chunk.
@@ -103,7 +101,7 @@ message TaskRespMsg {
 }
 
 // Contains log information for a task. This message is suitable for the "Log"
-// field in the LogEntries Spanner table. Note that this info is eventually
+// field in the LogEntries Spanner queue. Note that this info is eventually
 // dumped into the user's GCS bucket.
 message Log {
   oneof log {
