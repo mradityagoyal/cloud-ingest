@@ -6,16 +6,16 @@ threadsafe: yes
 handlers:
 
 - url: /(.+\.(js|map|css))$
-  static_files: dist/\1
-  upload: dist/(.*)
+  static_files: dist/webconsole-front-end/\1
+  upload: dist/webconsole-front-end/(.*)
   secure: always
 
 # Serve index.html for (/jobs, and /jobs/:configId/:runId) routes.
 # TODO(b/66955251): Let the web-front end framework handles the bad routes
 # instead of showing ugly App Engine 404 page.
 - url: /|/jobs|/jobs/.*
-  static_files: dist/index.html
-  upload: dist/index.html
+  static_files: dist/webconsole-front-end/index.html
+  upload: dist/webconsole-front-end/index.html
   secure: always
 
 # Skip files not needed for static serving
