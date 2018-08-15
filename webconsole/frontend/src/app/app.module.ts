@@ -14,13 +14,15 @@ import { ProjectSelectComponent } from './project-select/project-select.componen
 import { ErrorDialogModule } from './util/error-dialog/error-dialog.module';
 import { AgentComponent } from './agent/agent.component';
 import { BandwidthControlComponent } from './bandwidth-control/bandwidth-control.component';
+import { PulseComponent } from './pulse/pulse.component';
 
 @NgModule({
   declarations: [
     AppComponent,
     ProjectSelectComponent,
     AgentComponent,
-    BandwidthControlComponent
+    BandwidthControlComponent,
+    PulseComponent,
   ],
   imports: [
     BrowserModule,

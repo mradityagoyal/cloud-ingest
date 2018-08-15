@@ -1,0 +1,47 @@
+<h2>On-Premises Agent Monitoring:</h2>
+
+<ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else content"></ng-container>
+<ng-template #spinner>
+  <div class="ingest-pageload-spinner">
+    <mat-spinner [diameter]="50" [strokeWidth]="3"></mat-spinner>
+  </div>
+</ng-template>
+<ng-template #content>
+	<!-- Show error message div. If no error, show #mainContent -->
+  <div class="ingest-error-message" *ngIf="displayErrorMessage; else mainContent">
+    <h3> Coming soon. </h3>
+    <strong> {{ errorTitle }} </strong>
+    <pre> {{ errorMessage }} </pre>
+  </div>
+ 	<!-- The main content template contains the job configs table, or a message telling the user there are no job configs -->
+  <ng-template #mainContent>
+  	<dl>
+    	<dt>Active Agents</dt>
+	</dl>
+  	<div *ngIf="!hasAgents; else pulseTable">
+  		<h4> No running agents. </h4>
+  	</div>
+  	<ng-template #pulseTable>
+		<mat-table #table [dataSource]="activeAgentDataSource">
+
+			<!-- Agent ID Column containing host name and process ID -->
+			<ng-container matColumnDef="agentID">
+				<mat-header-cell *matHeaderCellDef> Agent ID </mat-header-cell>
+				<mat-cell class="ingest-break-word" *matCellDef="let agent"> {{ agent.agentId }} </mat-cell>
+			</ng-container>
+
+			<!-- Last Pulse Received Column -->
+			<ng-container matColumnDef="pulseReceived">
+				<mat-header-cell *matHeaderCellDef> Last Pulse Received (UTC Time)</mat-header-cell>
+				<mat-cell class="ingest-break-word" *matCellDef="let agent">
+					{{ agent.lastPulseReceived | date:'medium' }}
+				</mat-cell>
+			</ng-container>
+
+			<mat-header-row *matHeaderRowDef="agentsDisplayedColumns"></mat-header-row>
+    		<mat-row *matRowDef="let row; columns: agentsDisplayedColumns;"></mat-row>
+		</mat-table>
+	</ng-template>
+	</ng-template>
+</ng-template>
+

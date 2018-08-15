@@ -18,10 +18,15 @@
               i18n="Link to page to configure bandwidth control for the project">
             Bandwidth Control
           </a>
+          <a mat-list-item routerLink="/pulse"
+              queryParamsHandling="merge" id="pulse-link"
+              il8n="Link to page displaying agent monitoring information.">
+            Agent Monitoring
+          </a>
           <a mat-list-item routerLink="/agent"
               queryParamsHandling="merge" id="agent-link"
               i18n="Link to page displaying the agent download instructions.">
-            Agent
+            Agent Setup
           </a>
           <mat-list-item>
             <button mat-raised-button color="accent" mat-list-item (click)="signOut()">
