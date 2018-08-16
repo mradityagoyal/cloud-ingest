@@ -143,7 +143,7 @@ func waitOnTopic(ctx context.Context, topic gcloud.PSTopic) error {
 
 	t := time.NewTicker(10 * time.Second)
 	for !exists {
-		fmt.Printf("Waiting for Topic %s to exist.", topic.ID())
+		fmt.Printf("Waiting for topic %s to exist.\n", topic.ID())
 
 		select {
 		case <-t.C:
@@ -198,24 +198,27 @@ func main() {
 		glog.Fatalf("Can't create http.Client, error: %+v\n", httpcErr)
 	}
 
-	if pulseRun {
-		pulseTopic := gcloud.NewPubSubTopicWrapper(pubSubClient.Topic(pubsubPrefix + pulseTopic))
-
-		// Wait for pulse topic to exist.
-		err := waitOnTopic(ctx, pulseTopic)
-		if err != nil {
-			glog.Fatalf("Could not get PulseTopic: %s \n error: %v ", pulseTopic.ID(), err)
-		}
-
-		ph, err := agent.NewPulseHandler(pulseTopic, int32(pulseFrequency))
-		if err != nil {
-			glog.Fatalf("Could not create a PulseHandler with Topic: %v and Frequency: %v \n error: %v ", pulseTopic, pulseFrequency, err)
-		}
-
-		go ph.Run(ctx)
-	}
-
 	var wg sync.WaitGroup
+
+	if pulseRun {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			pulseTopicWrapper := gcloud.NewPubSubTopicWrapper(pubSubClient.Topic(pubsubPrefix + pulseTopic))
+
+			// Wait for pulse topic to exist.
+			if err := waitOnTopic(ctx, pulseTopicWrapper); err != nil {
+				glog.Fatalf("Could not get PulseTopic: %s \n error: %v ", pulseTopicWrapper.ID(), err)
+			}
+
+			ph, err := agent.NewPulseHandler(pulseTopicWrapper, int32(pulseFrequency))
+			if err != nil {
+				glog.Fatalf("Could not create a PulseHandler with Topic: %v and Frequency: %v \n error: %v ", pulseTopicWrapper.ID(), pulseFrequency, err)
+			}
+
+			ph.Run(ctx)
+		}()
+	}
 
 	if !skipProcessListTasks {
 		wg.Add(1)
