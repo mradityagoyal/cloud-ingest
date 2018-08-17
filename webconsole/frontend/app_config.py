@@ -41,7 +41,8 @@ if not ROBOT_ACCOUNT:
     exit_robot_account_not_set_error()
 
 Environment = collections.namedtuple('Environment',
-                                     'filename client_id is_prod account')
+                                     'filename client_id is_prod account '
+                                     'pub_sub_prefix')
 
 # The environment files to write.
 ENVIRONMENTS = [
@@ -50,20 +51,19 @@ ENVIRONMENTS = [
         client_id=
         '342921335261-7c1jvv8175oaj9m68fgnot2jl786h7on.apps.googleusercontent.com',
         account=ROBOT_ACCOUNT,
-        is_prod='true'),
+        is_prod='true',
+        pub_sub_prefix=''),
     Environment(
         filename='environment.ts',
         client_id=
         '701178595865-por9ijjvgbjoka841c1mkki23tqka66a.apps.googleusercontent.com',
         account=ROBOT_ACCOUNT,
-        is_prod='false')
+        is_prod='false',
+        pub_sub_prefix='test-')
 ]
 
 # The directory with the environment files.
 ENV_DIRECTORY = 'src/environments/'
-
-# The production values for each one of the environments.
-IS_PROD_VALUES = ['true', 'true', 'true', 'false']
 
 TEMPLATE = string.Template("""
 export const environment = {
@@ -71,6 +71,7 @@ export const environment = {
   apiUrl: '$API_URL',
   authClientId: '$AUTH_CLIENT_ID',
   robotAccountEmail: '$ROBOT_ACCOUNT_EMAIL',
+  pubSubPrefix: '$PUBSUB_TOPIC_PREFIX',
 };
 """)
 
@@ -84,4 +85,5 @@ for environment in ENVIRONMENTS:
                 IS_PRODUCTION=environment.is_prod,
                 API_URL=INGEST_API_URL,
                 AUTH_CLIENT_ID=environment.client_id,
-                ROBOT_ACCOUNT_EMAIL=environment.account))
+                ROBOT_ACCOUNT_EMAIL=environment.account,
+                PUBSUB_TOPIC_PREFIX=environment.pub_sub_prefix))

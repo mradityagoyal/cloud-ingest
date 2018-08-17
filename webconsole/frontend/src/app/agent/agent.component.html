@@ -11,7 +11,7 @@
       </li>
       <li>Download and extract the on-prem agent: <a href="{{ AGENT_RELEASE_PREFIX }}/agent-linux_amd64.tar.gz">Linux (64-bit)</a></li>
       <li>In a shell window navigate to the path where you extracted the agent.</li>
-      <li>Run <br /><code>./agent -projectid {{ projectId }}</code>
+      <li>Run <br /><code>./agent <ng-container *ngIf="PUBSUB_PREFIX">--pubsub-prefix={{ PUBSUB_PREFIX }}</ng-container> --projectid={{ projectId }}</code>
         <br /><br />
         To specify an agent log directory other than your system's default temp directory, add <code>-log_dir &lt;dir&gt;</code>
       </li>
