@@ -18,6 +18,7 @@ import (
 	"context"
 	"os"
 	"time"
+	"fmt"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
@@ -48,7 +49,7 @@ func GetHostName() (string, error) {
 
 // Returns ProcessId as a string
 func GetProcessId() string {
-	return string(os.Getpid())
+	return fmt.Sprintf("%d", os.Getpid())
 }
 
 // Takes two strings and returns the AgentId Proto
