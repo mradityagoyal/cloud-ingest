@@ -10,13 +10,6 @@ out-tsc/
 node_modules/
 package-lock.json
 
-# e2e build artifacts
-e2e/*.js
-e2e/*.map
-
-# Test run output directory
-test_runs/
-
 # Release process working directory
 release/tmp-release-ephemeral
 

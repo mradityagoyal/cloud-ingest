@@ -2,24 +2,17 @@ FRONTEND_DIR = webconsole/frontend
 GOPATH ?= $(shell go env GOPATH)
 OPI_API_URL = https://$(USER)-dev-opitransfer.sandbox.googleapis.com
 OPI_ROBOT_ACCOUNT = cloud-ingest-dcp@cloud-ingest-dev.iam.gserviceaccount.com
-ifeq ($(OPI_GCP_PROJECT),)
-OPI_GCP_PROJECT := $(shell gcloud config get-value project 2>/dev/null)
-endif
 
 # Add new top-level Go packages here.
 GO_TARGETS = \
 	./agent/... \
 	./gcloud/... \
-	./helpers/... \
-	./tests/...
+	./helpers/...
 
 # Add individual files needing mocking here.
 FILES_TO_MOCK = \
 	gcloud/gcsclient.go \
-	gcloud/pubsubclient.go \
-	gcloud/spannerclient.go \
-	helpers/clock.go \
-	helpers/random.go \
+	gcloud/pubsubclient.go
 
 # NOTE: If/When we decide to move mocks to a separate directory and their own
 #       packages, this will have to switch to the reflection-based mockgen.
@@ -72,16 +65,6 @@ else
 	@echo -n `tput sgr0` # Reset
 endif
 
-.PHONY: end-to-end-test
-end-to-end-test: build-go ## Run an end-to-end test. This requires that you have a cloud project with spanner/pubsub deployed.
-	@echo -e "\n== Running End-To-End Test =="
-	$(eval export GOPATH=$(GOPATH))
-ifndef OPI_GCP_PROJECT
-	$(GOPATH)/bin/e2etestrunner -logtostderr
-else
-	$(GOPATH)/bin/e2etestrunner -project-id $(OPI_GCP_PROJECT) -logtostderr
-endif
-
 .PHONY: build
 build: setup build-go build-frontend ## Refresh dependencies, Build, test, and install everything.
 
@@ -107,7 +90,6 @@ setup: setup-go setup-frontend ## Run full setup of dependencies and environment
 setup-go: ## Install all needed go dependencies.
 	@echo -e "\n== Installing/Updating Go Dependencies =="
 	go get -u cloud.google.com/go/pubsub
-	go get -u cloud.google.com/go/spanner
 	go get -u github.com/golang/glog
 	go get -u github.com/golang/groupcache/lru
 	go get -u github.com/golang/mock/gomock
@@ -129,8 +111,5 @@ help:
 	@echo "User-supplied environment variables:"
 	@echo "  SKIP_FRONTEND_TEST: If set, the frontend unit tests are skipped. Useful when"
 	@echo "                      no browser is available. (default: unset)"
-	@echo "  OPI_GCP_PROJECT: Google Cloud Platform project containing infrastructure to use"
-	@echo "                   with any live test."
-	@echo "                   (default: output of 'gcloud config get-value project')"
 
 .DEFAULT_GOAL := build

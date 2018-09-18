@@ -16,9 +16,9 @@ package agent
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
-	"fmt"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
