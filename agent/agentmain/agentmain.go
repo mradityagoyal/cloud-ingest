@@ -89,7 +89,7 @@ func init() {
 		"Prefix of Pub/Sub topics and subscriptions names.")
 
 	flag.IntVar(&pulseFrequency, "pulse-frequency", 10, "the number of seconds the agent will wait before sending a pulse")
-	flag.BoolVar(&pulseRun, "pulse-run", false, "Send pulse")
+	flag.BoolVar(&pulseRun, "pulse-run", true, "Send pulse")
 
 	flag.Parse()
 }
