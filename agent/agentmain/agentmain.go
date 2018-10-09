@@ -77,6 +77,8 @@ func init() {
 	flag.DurationVar(&maxPubSubLeaseExtenstion, "pubsub-lease-extension", 0,
 		"The max duration to extend the leases for a Pub/Sub message. If 0, will "+
 			"use the default Pub/Sub client value (10 mins).")
+	flag.Uint64Var(&glog.MaxSize, "max-log-size", 1<<28,
+		"The maximum size of a log file in bytes, default 268435456 bytes(256MB).")
 
 	flag.BoolVar(&skipProcessListTasks, "skip-list", false,
 		"Skip processing list tasks.")
