@@ -1,7 +1,7 @@
 <h2>On-Premises Agent Monitoring:</h2>
 
 <ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else content"></ng-container>
-<ng-template #spinner>
+<ng-template #loadingSpinner>
   <div class="ingest-pageload-spinner">
     <mat-spinner [diameter]="50" [strokeWidth]="3"></mat-spinner>
   </div>
