@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package cloud_ingest_control;
+option go_package = "control_go_proto";
+
+// Specifies bandwidth allocated to a job run.
+message JobRunBandwidth {
+  string jobrun_rel_rsrc_name = 1;
+  int64 bandwidth = 2;
+}
+
+// Specifies the control messages to send to the agents for a specific project.
+message Control {
+  // The bandwidth associated for each active job run in the project.
+  repeated JobRunBandwidth job_runs_bandwidths = 1;
+}

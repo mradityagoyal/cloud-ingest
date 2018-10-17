@@ -28,6 +28,7 @@ enum FailureType {
   PRECONDITION_FAILURE = 4;    // Upload failed due to a precondition failure.
   FILE_NOT_FOUND_FAILURE = 5;  // Agent asked to upload a non-existent file.
   PERMISSION_FAILURE = 6;      // Agent lacks permission for requested action.
+  NOT_ACTIVE_JOBRUN = 7;       // The task job run is not active.
 }
 
 // Contains information about a task. A task is a unit of work, one of:
@@ -85,6 +86,7 @@ message CopySpec {
 // Contains the message sent from the DCP to an Agent to issue a task request.
 message TaskReqMsg {
   string task_rel_rsrc_name = 1;
+  string jobrun_rel_rsrc_name = 3;
   Spec spec = 2;
 }
 

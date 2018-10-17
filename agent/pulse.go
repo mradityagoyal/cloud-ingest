@@ -53,13 +53,13 @@ func GetProcessId() string {
 }
 
 // Takes two strings and returns the AgentId Proto
-func PulseLocalIds(host_name, process_id string) *pulsepb.AgentId {
-	return &pulsepb.AgentId{host_name, process_id}
+func PulseLocalIds(hostName, processID string) *pulsepb.AgentId {
+	return &pulsepb.AgentId{HostName: hostName, ProcessId: processID}
 }
 
 // Takes a pointer to an AgentId Proto and an int (frequency) returns Pulse message
 func MakeAgentPulse(id *pulsepb.AgentId, frequency int32) *pulsepb.Msg {
-	return &pulsepb.Msg{id, frequency}
+	return &pulsepb.Msg{AgentId: id, Frequency: frequency}
 }
 
 // Creates the Serialized Pulse Message
