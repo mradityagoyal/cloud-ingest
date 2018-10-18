@@ -1,0 +1,36 @@
+syntax = "proto3";
+
+package cloud_ingest_listfile;
+option go_package = "listfile_go_proto";
+
+// List File Header specification.
+message ListFileHeader {
+  // The Job Run Version of the job that produced this list file.
+  string job_run_version = 1;
+}
+
+// List File Entry specification.
+message ListFileEntry {
+  oneof entry {
+    FileInfo file_info = 1;
+    DirectoryInfo directory_info = 2;
+  }
+}
+
+// Represents a single file’s metadata.
+message FileInfo {
+  // Full path of the file in the format used by the local OS.
+  string path = 1;
+
+  // Last modified time of the file in seconds since the epoch.
+  int64 last_modified_time = 2;
+
+  // The size of the file in bytes.
+  int64 size = 3;
+}
+
+// Represents a single directory's metadata.
+message DirectoryInfo {
+  // The full path of the directory in the format used by the local OS.
+  string path = 1;
+}
