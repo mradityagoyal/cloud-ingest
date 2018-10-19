@@ -19,6 +19,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"hash/fnv"
 	"net/http"
 	"os"
 	"sync"
@@ -36,9 +37,11 @@ const (
 	listProgressTopic = "cloud-ingest-list-progress"
 	copyProgressTopic = "cloud-ingest-copy-progress"
 	pulseTopic        = "cloud-ingest-pulse"
+	controlTopic      = "cloud-ingest-control"
 
-	listSubscription = "cloud-ingest-list"
-	copySubscription = "cloud-ingest-copy"
+	listSubscription    = "cloud-ingest-list"
+	copySubscription    = "cloud-ingest-copy"
+	controlSubscription = "cloud-ingest-control"
 )
 
 var (
@@ -92,6 +95,8 @@ func init() {
 
 	flag.IntVar(&pulseFrequency, "pulse-frequency", 10, "the number of seconds the agent will wait before sending a pulse")
 	flag.BoolVar(&pulseRun, "pulse-run", true, "Send pulse")
+
+	flag.BoolVar(&agent.ControlEnabled, "enable-agent-control", true, "Enable the agent to be controlled by the service backend.")
 
 	flag.Parse()
 }
@@ -163,6 +168,28 @@ func waitOnTopic(ctx context.Context, topic gcloud.PSTopic) error {
 	t.Stop()
 	fmt.Printf("Topic %s is ready!\n", topic.ID())
 	return nil
+}
+
+func subscribeToControlTopic(ctx context.Context, client *pubsub.Client, topic *pubsub.Topic) (*pubsub.Subscription, error) {
+	hostname, err := agent.GetHostName()
+	if err != nil {
+		return nil, err
+	}
+	h := fnv.New64a()
+	h.Write([]byte(hostname))
+	h.Write([]byte(agent.GetProcessId()))
+
+	subID := fmt.Sprintf("%s%s-%d", pubsubPrefix, controlSubscription, h.Sum64())
+	sub := client.Subscription(subID)
+	exists, err := sub.Exists(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		glog.Infof("Subscription %s already exists, probably another agent created it before.", sub.String())
+		return sub, nil
+	}
+	return client.CreateSubscription(ctx, subID, pubsub.SubscriptionConfig{Topic: topic})
 }
 
 func main() {
@@ -278,6 +305,33 @@ func main() {
 			}
 
 			copyProcessor.Process(ctx)
+		}()
+	}
+
+	if agent.ControlEnabled {
+		if !pulseRun {
+			glog.Fatalf("Command line flag 'pulse-run' should be enabled.")
+		}
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			controlTopic := pubSubClient.Topic(pubsubPrefix + controlTopic)
+			controlTopicWrapper := gcloud.NewPubSubTopicWrapper(controlTopic)
+
+			// Wait for copy topic to exist.
+			if err := waitOnTopic(ctx, controlTopicWrapper); err != nil {
+				glog.Fatalf("Could not find control topic %s, error %+v", controlTopicWrapper.ID(), err)
+			}
+
+			controlSub, err := subscribeToControlTopic(ctx, pubSubClient, controlTopic)
+			if err != nil {
+				glog.Fatalf("Could not create subscription to control topic %v, with err: %v", controlTopic, err)
+			}
+
+			ch := agent.NewControlHandler(controlSub)
+			if err := ch.HandleControlMessages(ctx); err != nil {
+				glog.Fatalf("Failed handling control messages with err: %v.", err)
+			}
 		}()
 	}
 
