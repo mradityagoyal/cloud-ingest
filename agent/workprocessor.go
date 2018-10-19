@@ -17,6 +17,8 @@ package agent
 
 import (
 	"context"
+	"fmt"
+	"sync"
 
 	"cloud.google.com/go/pubsub"
 	"github.com/golang/glog"
@@ -24,6 +26,23 @@ import (
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
+
+var (
+	// ControlEnabled determines if agent control feature is enabled.
+	ControlEnabled bool
+
+	// Mutex to protect activeJobRuns access.
+	mu sync.RWMutex
+	// A map between the active jobruns and the associated BW for each job run.
+	activeJobRuns map[string]int64
+)
+
+// UpdateJobRunsBW updates the mapping between job runs and the associated BW.
+func UpdateJobRunsBW(jobrunsBW map[string]int64) {
+	mu.Lock()
+	activeJobRuns = jobrunsBW
+	mu.Unlock()
+}
 
 // WorkHandler is an interface to handle different task types.
 type WorkHandler interface {
@@ -48,8 +67,22 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		msg.Ack()
 		return
 	}
-	glog.Infof("Handling taskReqMsg: %v", taskReqMsg)
-	taskRespMsg := wp.Handler.Do(ctx, &taskReqMsg)
+
+	mu.RLock()
+	isActiveJob := !ControlEnabled || activeJobRuns[taskReqMsg.JobrunRelRsrcName] != 0
+	mu.RUnlock()
+
+	var taskRespMsg *taskpb.TaskRespMsg
+	if isActiveJob {
+		glog.Infof("Handling taskReqMsg: %v", taskReqMsg)
+		taskRespMsg = wp.Handler.Do(ctx, &taskReqMsg)
+	} else {
+		taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, AgentError{
+			Msg:         fmt.Sprintf("job run %s is not active", taskReqMsg.JobrunRelRsrcName),
+			FailureType: taskpb.FailureType_NOT_ACTIVE_JOBRUN,
+		})
+	}
+
 	if !proto.Equal(taskReqMsg.Spec, taskRespMsg.ReqSpec) {
 		glog.Errorf("taskRespMsg.ReqSpec = %v, want: %v", taskRespMsg.ReqSpec, taskReqMsg.Spec)
 		// The taskRespMsg.ReqSpec must equal the taskReqMsg.Spec. This is an Agent

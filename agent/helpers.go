@@ -65,7 +65,9 @@ func buildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, log 
 		taskRespMsg.Status = "FAILURE"
 		taskRespMsg.FailureType = getFailureTypeFromError(err)
 		taskRespMsg.FailureMessage = fmt.Sprint(err)
-		glog.Warningf("Encountered error in processing taskReqMsg: %+v, err: %v", taskReqMsg, err)
+		if taskRespMsg.FailureType != taskpb.FailureType_NOT_ACTIVE_JOBRUN {
+			glog.Warningf("Encountered error in processing taskReqMsg: %+v, err: %v", taskReqMsg, err)
+		}
 	} else {
 		taskRespMsg.Status = "SUCCESS"
 	}
