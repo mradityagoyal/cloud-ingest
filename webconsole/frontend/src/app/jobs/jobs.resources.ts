@@ -104,6 +104,7 @@ export class TransferCounters {
   objectsFoundFromSource: number;
   objectsFromSourceFailed: number;
   objectsCopiedToSink: number;
+  bytesCopiedToSink: number;
   directoriesFoundFromSource: number;
   directoriesFailedToListFromSource: number;
   directoriesSuccessfullyListedFromSource: number;

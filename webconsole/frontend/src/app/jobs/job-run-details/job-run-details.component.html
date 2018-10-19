@@ -29,8 +29,6 @@
         <dd>{{ job.transferSpec.gcsDataSink.objectPrefix }}</dd>
       </div>
       <div *ngIf="job.latestOperation">
-        <dt>Job Run Id</dt>
-        <dd>{{ job.latestOperation.name }}</dd>
         <dt>Creation Time</dt>
         <dd>{{ job.latestOperation.startTime | date:'short' }}</dd>
         <dt>Status</dt>
@@ -41,12 +39,16 @@
         <dd> {{ job.latestOperation.counters.directoriesSuccessfullyListedFromSource }} </dd>
         <dt> Directories failed to list: </dt>
         <dd> {{ job.latestOperation.counters.directoriesFailedToListFromSource }} </dd>
+        <dt *ngIf="job.latestOperation && job.latestOperation.endTime"> Transfer End Time </dt>
+        <dd>{{ job.latestOperation.endTime | date:'short' }}</dd>
         <dt> Files found: </dt>
         <dd> {{ job.latestOperation.counters.objectsFoundFromSource }} </dd>
         <dt> Files copied to Google Cloud Storage: </dt>
         <dd> {{ job.latestOperation.counters.objectsCopiedToSink }} </dd>
         <dt> Files failed to copy to Google Cloud Storage: </dt>
         <dd> {{ job.latestOperation.counters.objectsFromSourceFailed }} </dd>
+        <dt *ngIf="job.latestOperation && job.latestOperation.counters && job.latestOperation.counters.bytesCopiedToSink"> Bytes moved </dt>
+        <dd>{{ job.latestOperation.counters.bytesCopiedToSink }}</dd>
         <a target="_blank" href="https://pantheon.corp.google.com/storage/browser/{{ job.transferSpec.gcsDataSink.bucketName }}/cloud-ingest/logs/">
           View audit logs.
         </a>

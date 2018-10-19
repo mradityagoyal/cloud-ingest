@@ -38,7 +38,8 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
           objectsCopiedToSink: 0,
           directoriesFoundFromSource: 0,
           directoriesFailedToListFromSource: 0,
-          directoriesSuccessfullyListedFromSource: 0
+          directoriesSuccessfullyListedFromSource: 0,
+          bytesCopiedToSink: 0,
         },
      },
 
@@ -73,7 +74,8 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
           objectsCopiedToSink: 0,
           directoriesFoundFromSource: 0,
           directoriesFailedToListFromSource: 0,
-          directoriesSuccessfullyListedFromSource: 0
+          directoriesSuccessfullyListedFromSource: 0,
+          bytesCopiedToSink: 0,
         },
      }
      },
@@ -107,7 +109,8 @@ export const FAKE_TRANSFER_JOB_RESPONSE: TransferJobResponse = {
           objectsCopiedToSink: 0,
           directoriesFoundFromSource: 0,
           directoriesFailedToListFromSource: 0,
-          directoriesSuccessfullyListedFromSource: 0
+          directoriesSuccessfullyListedFromSource: 0,
+          bytesCopiedToSink: 0,
         },
      }
      }

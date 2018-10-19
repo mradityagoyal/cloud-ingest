@@ -48,7 +48,7 @@ describe('PulseComponent', () => {
     fixture.whenStable().then(() => {
       fixture.detectChanges();
       const compiled = fixture.debugElement.nativeElement;
-      const spinner = complied.querySelector('mat-spinner');
+      const spinner = compiled.querySelector('mat-spinner');
       expect(spinner).not.toBeNull();
     });
   }));
