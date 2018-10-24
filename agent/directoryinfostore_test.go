@@ -61,6 +61,34 @@ func TestDirectoryInfoStoreAddSizeIncreases(t *testing.T) {
 	}
 }
 
+func TestDirectoryInfoStoreAddDuplicate(t *testing.T) {
+	dirInfos := []listpb.DirectoryInfo{{Path: "a/path/to/dir/that/is/before/path2"}, {Path: "b/path/to/a/dir"}, {Path: "c/path/to/a/dir/that/is/after/path2"}}
+	dirStore := NewDirectoryInfoStore()
+	for _, dirInfo := range dirInfos {
+		err := dirStore.Add(dirInfo)
+		if err != nil {
+			t.Fatalf("got error %v", err)
+		}
+	}
+	if len(dirStore.directoryInfos) != len(dirInfos) {
+		t.Fatalf("want len(dirStore.directoryInfos) = %d, got %d", len(dirInfos), len(dirStore.directoryInfos))
+	}
+	err := dirStore.Add(dirInfos[1])
+	if err == nil {
+		t.Fatal("want error, got nil")
+	}
+	if len(dirStore.directoryInfos) != len(dirInfos) {
+		t.Fatalf("want len(dirStore.directoryInfos) = %d, got %d", len(dirInfos), len(dirStore.directoryInfos))
+	}
+	sort.Slice(dirInfos, func(i, j int) bool {
+		return dirInfos[i].Path < dirInfos[j].Path
+	})
+	actualDirInfos := dirStore.DirectoryInfos()
+	if !cmp.Equal(dirInfos, actualDirInfos) {
+		t.Errorf("want directory infos %v, got %v", dirInfos, actualDirInfos)
+	}
+}
+
 func TestDirectoryInfoStoreAddInvalidDirInfo(t *testing.T) {
 	dirStore := NewDirectoryInfoStore()
 	if err := dirStore.Add(listpb.DirectoryInfo{}); err == nil {

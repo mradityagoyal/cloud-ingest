@@ -24,6 +24,8 @@ import (
 
 const directoryInfoProtoOverhead = 48
 
+// DirectoryInfoStore stores a sorted list of DirectoryInfos and keeps track of the approximate
+// number of bytes used to store them.
 type DirectoryInfoStore struct {
 	directoryInfos []listpb.DirectoryInfo
 	size           int
@@ -33,13 +35,20 @@ func NewDirectoryInfoStore() *DirectoryInfoStore {
 	return &DirectoryInfoStore{directoryInfos: make([]listpb.DirectoryInfo, 0), size: 0}
 }
 
+// Add adds the given dirInfo to the DirectoryInfoStore.
+// If the given dirInfo is already stored in the DirectoryInfoStore or an invalid dirInfo
+// is passed (dirInfo.Path is not set), Add returns an error.
 func (s *DirectoryInfoStore) Add(dirInfo listpb.DirectoryInfo) error {
 	if len(dirInfo.Path) == 0 {
 		return errors.New("DirectoryInfoStore.Add: dirInfo.Path cannot be an empty string")
 	}
 	index := sort.Search(len(s.directoryInfos), func(i int) bool {
-		return s.directoryInfos[i].Path > dirInfo.Path
+		return s.directoryInfos[i].Path >= dirInfo.Path
 	})
+	if index != len(s.directoryInfos) && s.directoryInfos[index].Path == dirInfo.Path {
+		// Directory is already in the store, don't add a duplicate
+		return errors.New("DirectoryInfoStore.Add: given dirInfo is already present in store")
+	}
 	s.directoryInfos = append(s.directoryInfos, listpb.DirectoryInfo{})
 	copy(s.directoryInfos[index+1:], s.directoryInfos[index:])
 	s.directoryInfos[index] = dirInfo
@@ -47,14 +56,18 @@ func (s *DirectoryInfoStore) Add(dirInfo listpb.DirectoryInfo) error {
 	return nil
 }
 
+// Size returns an approximation of the bytes currently used by the DirectoryInfoStore.
 func (s *DirectoryInfoStore) Size() int {
 	return s.size
 }
 
+// DirectoryInfos returns a sorted list of the DirectoryInfos stored in the DirectoryInfoStore.
 func (s *DirectoryInfoStore) DirectoryInfos() []listpb.DirectoryInfo {
 	return s.directoryInfos
 }
 
+// RemoveFirst removes the first DirectoryInfo from the DirectoryInfoStore as determined by case
+// sensitive alphabetical order. If there are no DirectoryInfos in the store, nil is returned.
 func (s *DirectoryInfoStore) RemoveFirst() *listpb.DirectoryInfo {
 	if len(s.directoryInfos) == 0 {
 		return nil
