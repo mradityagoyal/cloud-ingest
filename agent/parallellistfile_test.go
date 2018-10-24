@@ -16,56 +16,24 @@ limitations under the License.
 package agent
 
 import (
+	"bytes"
 	"testing"
-	"testing/iotest"
 
 	"github.com/golang/protobuf/proto"
 
 	listpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
 )
 
-type bufferReader struct {
-	buf []byte
-}
-
-func min(a, b int) int {
-	if a < b {
-		return a
-	}
-	return b
-}
-
-func (r *bufferReader) Read(result []byte) (int, error) {
-	var i int
-	for i = 0; i < min(len(r.buf), len(result)); i++ {
-		result[i] = r.buf[i]
-	}
-	r.buf = r.buf[i:]
-	return i, nil
-}
-
-type bufferWriter struct {
-	buf []byte
-}
-
-func (w *bufferWriter) Write(input []byte) (int, error) {
-	for _, b := range input {
-		w.buf = append(w.buf, b)
-	}
-	return len(input), nil
-}
-
 func TestWriteAndReadSingleProtobuf(t *testing.T) {
 	jobRunVersion := "1.0.0"
 	header := &listpb.ListFileHeader{JobRunVersion: jobRunVersion}
-	w := &bufferWriter{buf: make([]byte, 0)}
-	err := writeProtobuf(w, header)
+	var buf bytes.Buffer
+	err := writeProtobuf(&buf, header)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
-	r := &bufferReader{buf: w.buf}
 	readHeader := &listpb.ListFileHeader{}
-	err = parseProtobuf(r, readHeader)
+	err = parseProtobuf(&buf, readHeader)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
@@ -78,8 +46,8 @@ func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 	protobufs := make([]proto.Message, 0)
 	results := make([]proto.Message, 0)
 	header1 := &listpb.ListFileHeader{JobRunVersion: "1.0.0"}
-	w := &bufferWriter{buf: make([]byte, 0)}
-	err := writeProtobuf(w, header1)
+	var buf bytes.Buffer
+	err := writeProtobuf(&buf, header1)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
@@ -87,7 +55,7 @@ func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 	results = append(results, &listpb.ListFileHeader{})
 
 	fileInfo1 := &listpb.FileInfo{Path: "Path/to/file/1", LastModifiedTime: 123456, Size: 5}
-	err = writeProtobuf(w, fileInfo1)
+	err = writeProtobuf(&buf, fileInfo1)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
@@ -95,7 +63,7 @@ func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 	results = append(results, &listpb.FileInfo{})
 
 	fileInfo2 := &listpb.FileInfo{Path: "Path/to/file/2", LastModifiedTime: 12345, Size: 25}
-	err = writeProtobuf(w, fileInfo2)
+	err = writeProtobuf(&buf, fileInfo2)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
@@ -103,7 +71,7 @@ func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 	results = append(results, &listpb.FileInfo{})
 
 	header2 := &listpb.ListFileHeader{JobRunVersion: "1.0.1"}
-	err = writeProtobuf(w, header2)
+	err = writeProtobuf(&buf, header2)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
@@ -111,16 +79,15 @@ func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 	results = append(results, &listpb.ListFileHeader{})
 
 	directory := &listpb.DirectoryInfo{Path: "directoryName"}
-	err = writeProtobuf(w, directory)
+	err = writeProtobuf(&buf, directory)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
 	protobufs = append(protobufs, directory)
 	results = append(results, &listpb.DirectoryInfo{})
 
-	r := &bufferReader{buf: w.buf}
 	for i, protobuf := range protobufs {
-		err = parseProtobuf(r, results[i])
+		err = parseProtobuf(&buf, results[i])
 		if err != nil {
 			t.Fatalf("Got error %v", err)
 		}
@@ -133,14 +100,13 @@ func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 func TestWriteAndReadProtobufsIncompleteRead(t *testing.T) {
 	jobRunVersion := "1.0.0"
 	header := &listpb.ListFileHeader{JobRunVersion: jobRunVersion}
-	w := &bufferWriter{buf: make([]byte, 0)}
-	err := writeProtobuf(w, header)
+	var buf bytes.Buffer
+	err := writeProtobuf(&buf, header)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
-	r := iotest.HalfReader(&bufferReader{buf: w.buf})
 	readHeader := &listpb.ListFileHeader{}
-	err = parseProtobuf(r, readHeader)
+	err = parseProtobuf(&buf, readHeader)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
