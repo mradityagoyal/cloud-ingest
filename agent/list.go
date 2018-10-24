@@ -119,6 +119,10 @@ func writeListingFile(fileInfos []os.FileInfo, srcDir string, w io.Writer) (*lis
 	return &listingFileMetadata{bytes: bytesFound, files: filesFound, dirs: dirsFound}, nil
 }
 
+func (h *ListHandler) Type() string {
+	return "list"
+}
+
 func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {

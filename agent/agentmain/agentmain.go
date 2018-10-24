@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/statslog"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/golang/glog"
 	"google.golang.org/api/option"
@@ -59,6 +60,8 @@ var (
 
 	pulseFrequency int
 	pulseRun       bool //used to start or stop pulse
+
+	enableStatsLog bool
 
 	// Fields used to display version information. These defaults are
 	// overridden when the release script builds in values through ldflags.
@@ -97,6 +100,7 @@ func init() {
 	flag.BoolVar(&pulseRun, "pulse-run", true, "Send pulse")
 
 	flag.BoolVar(&agent.ControlEnabled, "enable-agent-control", true, "Enable the agent to be controlled by the service backend.")
+	flag.BoolVar(&enableStatsLog, "enable-stats-log", true, "Enable stats logging to INFO logs.")
 
 	flag.Parse()
 }
@@ -249,6 +253,12 @@ func main() {
 		}()
 	}
 
+	var sl *statslog.StatsLog
+	if enableStatsLog {
+		sl = statslog.New()
+		go sl.PeriodicallyLogStats(ctx)
+	}
+
 	if !skipProcessListTasks {
 		wg.Add(1)
 		go func() {
@@ -273,6 +283,7 @@ func main() {
 				WorkSub:       listSub,
 				ProgressTopic: listTopic,
 				Handler:       agent.NewListHandler(storageClient, chunkSize),
+				StatsLog:      sl,
 			}
 			listProcessor.Process(ctx)
 		}()
@@ -302,6 +313,7 @@ func main() {
 				WorkSub:       copySub,
 				ProgressTopic: copyTopic,
 				Handler:       agent.NewCopyHandler(storageClient, chunkSize, httpc),
+				StatsLog:      sl,
 			}
 
 			copyProcessor.Process(ctx)

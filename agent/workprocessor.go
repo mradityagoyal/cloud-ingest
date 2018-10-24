@@ -19,8 +19,10 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/statslog"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
@@ -48,6 +50,9 @@ func UpdateJobRunsBW(jobrunsBW map[string]int64) {
 type WorkHandler interface {
 	// Do handles the TaskReqMsg and returns a TaskRespMsg.
 	Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg
+
+	// Type returns a string of the Handler's type.
+	Type() string
 }
 
 // WorkProcessor processes tasks of a certain type. It listens to subscription
@@ -57,6 +62,7 @@ type WorkProcessor struct {
 	WorkSub       *pubsub.Subscription
 	ProgressTopic *pubsub.Topic
 	Handler       WorkHandler
+	StatsLog      *statslog.StatsLog
 }
 
 func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
@@ -74,8 +80,10 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 
 	var taskRespMsg *taskpb.TaskRespMsg
 	if isActiveJob {
-		glog.Infof("Handling taskReqMsg: %v", taskReqMsg)
+		start := time.Now()
 		taskRespMsg = wp.Handler.Do(ctx, &taskReqMsg)
+		wp.StatsLog.AddSample(wp.Handler.Type(), time.Now().Sub(start))
+
 	} else {
 		taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, AgentError{
 			Msg:         fmt.Sprintf("job run %s is not active", taskReqMsg.JobrunRelRsrcName),
@@ -96,7 +104,6 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		// The work will remain on PubSub and eventually be taken up by another worker.
 		return
 	}
-	glog.Infof("Returning taskRespMsg: %v", taskRespMsg)
 	serializedTaskRespMsg, err := proto.Marshal(taskRespMsg)
 	if err != nil {
 		glog.Errorf("Cannot marshal pb %+v with err %v", taskRespMsg, err)

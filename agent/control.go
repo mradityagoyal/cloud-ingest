@@ -63,7 +63,6 @@ func (ch *ControlHandler) processMessage(ctx context.Context, msg *pubsub.Messag
 		// Non-recoverable error. Will Ack the message to avoid delivering again.
 		return
 	}
-	glog.Infof("Handling controlMsg: %v", controlMsg)
 	jobrunsBW := make(map[string]int64)
 	for _, jobBW := range controlMsg.JobRunsBandwidths {
 		jobrunsBW[jobBW.JobrunRelRsrcName] = jobBW.Bandwidth

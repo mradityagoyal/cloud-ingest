@@ -143,6 +143,10 @@ func checkFileStats(beforeStats os.FileInfo, f *os.File) error {
 	return nil
 }
 
+func (h *CopyHandler) Type() string {
+	return "copy"
+}
+
 func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
 	if taskReqMsg.Spec.GetCopySpec() == nil {
 		err := errors.New("CopyHandler.Do taskReqMsg.Spec is not CopySpec")
