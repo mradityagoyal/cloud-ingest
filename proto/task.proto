@@ -60,10 +60,10 @@ message Spec {
 // Contains the information about a list task. A list task is responsible for
 // listing the contents of a directory.
 message ListSpec {
-  string dst_list_result_bucket = 1;  // GCS bucket for this list file.
-  string dst_list_result_object = 2;  // GCS object for this list file.
-  string src_directory = 3;           // On-Premises dir to list.
-  int64 expected_generation_num = 4;  // Expected GCS generation number.
+  string dst_list_result_bucket = 1;    // GCS bucket for this list file.
+  string dst_list_result_object = 2;    // GCS object for this list file.
+  repeated string src_directories = 3;  // On-Premises directories to list.
+  int64 expected_generation_num = 4;    // Expected GCS generation number.
 }
 
 // Contains the information about a process list task. A process list task is
