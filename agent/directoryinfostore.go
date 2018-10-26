@@ -52,7 +52,7 @@ func (s *DirectoryInfoStore) Add(dirInfo listpb.DirectoryInfo) error {
 	s.directoryInfos = append(s.directoryInfos, listpb.DirectoryInfo{})
 	copy(s.directoryInfos[index+1:], s.directoryInfos[index:])
 	s.directoryInfos[index] = dirInfo
-	s.size += len(dirInfo.Path) + directoryInfoProtoOverhead
+	s.size += approximateSizeOfDirInfo(dirInfo)
 	return nil
 }
 
@@ -74,5 +74,15 @@ func (s *DirectoryInfoStore) RemoveFirst() *listpb.DirectoryInfo {
 	}
 	dirInfo := s.directoryInfos[0]
 	s.directoryInfos = s.directoryInfos[1:]
+	s.size -= approximateSizeOfDirInfo(dirInfo)
 	return &dirInfo
+}
+
+// Len returns the number of directories stored in the DirectoryInfoStore.
+func (s *DirectoryInfoStore) Len() int {
+	return len(s.directoryInfos)
+}
+
+func approximateSizeOfDirInfo(dirInfo listpb.DirectoryInfo) int {
+	return len(dirInfo.Path) + directoryInfoProtoOverhead
 }

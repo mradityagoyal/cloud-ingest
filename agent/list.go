@@ -69,10 +69,6 @@ func listDirectory(dir string) ([]os.FileInfo, error) {
 	return fileInfos, nil
 }
 
-type listingFileMetadata struct {
-	bytes, files, dirs int64
-}
-
 func newListFileEntry(fileInfo os.FileInfo, srcDir string) *ListFileEntry {
 	fullPath := filepath.Join(srcDir, fileInfo.Name())
 	return &ListFileEntry{fileInfo.IsDir(), fullPath}

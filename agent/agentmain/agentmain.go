@@ -48,14 +48,18 @@ const (
 	// of outstanding copy messages from the max number of concurrent copy
 	// operations. Bassically, this keeps more messages in a buffer for performance.
 	copyOutstandingMsgsFactor = 5
+
+	useDepthFirstListing = false
 )
 
 var (
-	projectID                string
-	numberThreads            int
-	maxPubSubLeaseExtenstion time.Duration
-	credsFile                string
-	chunkSize                int
+	projectID                 string
+	numberThreads             int
+	numberConcurrentListTasks int
+	maxPubSubLeaseExtenstion  time.Duration
+	credsFile                 string
+	copyTaskChunkSize         int
+	listTaskChunkSize         int
 
 	pubsubPrefix string
 
@@ -67,6 +71,9 @@ var (
 	pulseRun       bool //used to start or stop pulse
 
 	enableStatsLog bool
+
+	listFileSizeThreshold          int
+	maxMemoryForListingDirectories int
 
 	// Fields used to display version information. These defaults are
 	// overridden when the release script builds in values through ldflags.
@@ -80,11 +87,15 @@ func init() {
 		"The Pub/Sub topics and subscriptions project id. Must be set!")
 	flag.StringVar(&credsFile, "creds-file", "",
 		"The service account JSON key file. Use the default credentials if empty.")
-	flag.IntVar(&chunkSize, "chunk-size", 1<<25,
-		"The resumable upload chuck size, default 32MB.")
+	flag.IntVar(&copyTaskChunkSize, "copy-task-chunk-size", 1<<25,
+		"The resumable upload chunk size used for copy tasks, defaults to 32MB.")
+	flag.IntVar(&listTaskChunkSize, "list-task-chunk-size", 8*1024*1024,
+		"The resumable upload chunk size used for list tasks, defaults to 8MiB.")
 	flag.IntVar(&numberThreads, "threads", 100,
 		"The number of threads to process the copy tasks. If 0, will use the "+
 			"default Pub/Sub client value (1000).")
+	flag.IntVar(&numberConcurrentListTasks, "number-concurrent-list-tasks", 4,
+		"The maximum number of list tasks the agent will process at any given time.")
 	flag.DurationVar(&maxPubSubLeaseExtenstion, "pubsub-lease-extension", 0,
 		"The max duration to extend the leases for a Pub/Sub message. If 0, will "+
 			"use the default Pub/Sub client value (10 mins).")
@@ -106,6 +117,11 @@ func init() {
 
 	flag.BoolVar(&agent.ControlEnabled, "enable-agent-control", true, "Enable the agent to be controlled by the service backend.")
 	flag.BoolVar(&enableStatsLog, "enable-stats-log", true, "Enable stats logging to INFO logs.")
+
+	flag.IntVar(&listFileSizeThreshold, "list-file-size-threshold", 10000,
+		"List tasks will keep listing directories until the number of listed files and directories exceeds this threshold, or until there are no more files/directories to list")
+	flag.IntVar(&maxMemoryForListingDirectories, "max-memory-for-listing-directories", 20,
+		"Maximum amount of memory agent will use in total (not per task) to store directories before writing them to a list file. Value is in MiB.")
 
 	flag.Parse()
 }
@@ -300,7 +316,7 @@ func main() {
 			defer wg.Done()
 			listSub := pubSubClient.Subscription(pubsubPrefix + listSubscription)
 			listSub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
-			listSub.ReceiveSettings.MaxOutstandingMessages = numberThreads
+			listSub.ReceiveSettings.MaxOutstandingMessages = numberConcurrentListTasks
 			listSub.ReceiveSettings.Synchronous = true
 			listTopic := pubSubClient.Topic(pubsubPrefix + listProgressTopic)
 			listTopicWrapper := gcloud.NewPubSubTopicWrapper(listTopic)
@@ -315,11 +331,24 @@ func main() {
 				glog.Fatalf("Could not find list topic %s, error %+v", listTopicWrapper.ID(), err)
 			}
 
-			listProcessor := agent.WorkProcessor{
-				WorkSub:       listSub,
-				ProgressTopic: listTopic,
-				Handler:       agent.NewListHandler(storageClient, chunkSize),
-				StatsLog:      sl,
+			var listProcessor agent.WorkProcessor
+			if useDepthFirstListing {
+				// Convert maxMemoryForListingDirectories to bytes and divide it equally between
+				// the list task processing threads.
+				allowedDirBytes := maxMemoryForListingDirectories * 1024 * 1024 / numberConcurrentListTasks
+				listProcessor = agent.WorkProcessor{
+					WorkSub:       listSub,
+					ProgressTopic: listTopic,
+					Handler:       agent.NewDepthFirstListHandler(storageClient, listTaskChunkSize, listFileSizeThreshold, allowedDirBytes),
+					StatsLog:      sl,
+				}
+			} else {
+				listProcessor = agent.WorkProcessor{
+					WorkSub:       listSub,
+					ProgressTopic: listTopic,
+					Handler:       agent.NewListHandler(storageClient, listTaskChunkSize),
+					StatsLog:      sl,
+				}
 			}
 			listProcessor.Process(ctx)
 		}()
@@ -349,7 +378,7 @@ func main() {
 			copyProcessor := agent.WorkProcessor{
 				WorkSub:       copySub,
 				ProgressTopic: copyTopic,
-				Handler:       agent.NewCopyHandler(storageClient, numberThreads, chunkSize, httpc),
+				Handler:       agent.NewCopyHandler(storageClient, numberThreads, copyTaskChunkSize, httpc),
 				StatsLog:      sl,
 			}
 
