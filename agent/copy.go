@@ -26,15 +26,12 @@ import (
 	crc32pkg "hash/crc32" // Alias to disambiguate from usage.
 	"io"
 	"io/ioutil"
-	"math"
 	"net"
 	"net/http"
 	"os"
 	"path"
 	"strconv"
 	"time"
-
-	"golang.org/x/time/rate"
 
 	"cloud.google.com/go/storage"
 
@@ -257,16 +254,6 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 	defer h.memoryLimiter.Release(bufSize)
 	buf := make([]byte, bufSize)
 
-	// Set up bandwidth control.
-	maxBucketSize := math.MaxInt32
-	limiter := rate.NewLimiter(rate.Limit(c.Bandwidth), maxBucketSize)
-	if c.Bandwidth <= 0 {
-		limiter = rate.NewLimiter(rate.Inf, maxBucketSize)
-	}
-	if err := limiter.WaitN(ctx, maxBucketSize); err != nil {
-		return fmt.Errorf("error draining new rate limiter, err: %v", err)
-	}
-
 	// Perform the copy (by writing to the gcsWriter).
 	var srcCRC32C uint32
 	for {
@@ -278,15 +265,15 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 			w.CloseWithError(err)
 			return err
 		}
+		if err := bwLimiter.WaitN(ctx, n); err != nil {
+			return err
+		}
 		_, err = w.Write(buf[:n])
 		if err != nil {
 			w.CloseWithError(err)
 			return err
 		}
 		srcCRC32C = crc32pkg.Update(srcCRC32C, CRC32CTable, buf[:n])
-		if err := limiter.WaitN(ctx, n); err != nil {
-			return err
-		}
 	}
 	if err := w.Close(); err != nil {
 		return err
@@ -432,7 +419,6 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 	var backoff Backoff
 	var delay time.Duration
 	var resp *http.Response
-	var rlr io.Reader
 	for {
 		select {
 		case <-ctx.Done():
@@ -446,10 +432,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		copy(copyBuf, buf)
 
 		// Add bandwidth control to the HTTP request body.
-		rlr, err = NewRateLimitedReader(ctx, bytes.NewReader(copyBuf), rate.Limit(c.Bandwidth))
-		if err != nil {
-			return fmt.Errorf("NewRateLimitedReader err: %v", err)
-		}
+		rlr := NewRateLimitedReader(ctx, bytes.NewReader(copyBuf), bwLimiter)
 
 		// Perform the copy!
 		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, rlr, c.BytesCopied, int64(bytesRead), final)

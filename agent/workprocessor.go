@@ -18,6 +18,7 @@ package agent
 import (
 	"context"
 	"fmt"
+	"math"
 	"sync"
 	"time"
 
@@ -25,6 +26,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/statslog"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"golang.org/x/time/rate"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -37,12 +39,26 @@ var (
 	mu sync.RWMutex
 	// A map between the active jobruns and the associated BW for each job run.
 	activeJobRuns map[string]int64
+
+	bwLimiter = rate.NewLimiter(rate.Inf, math.MaxInt32)
 )
 
 // UpdateJobRunsBW updates the mapping between job runs and the associated BW.
 func UpdateJobRunsBW(jobrunsBW map[string]int64) {
+	// Currently, we do not have a way to set per job run BW control. The APIs only
+	// allows setting project level BW. For future extensions, DCP distribute the
+	// total project BW over the active job runs. Here we aggregate it again to control
+	// the BW on a project level.
+	var agentBW int64
+	for _, bw := range jobrunsBW {
+		agentBW += bw
+	}
 	mu.Lock()
 	activeJobRuns = jobrunsBW
+	if diff := math.Abs(float64(agentBW) - float64(bwLimiter.Limit())); diff > 0.0000001 {
+		glog.Infof("Updating the BW limits, old: %v, new: %v.", bwLimiter.Limit(), rate.Limit(agentBW))
+		bwLimiter.SetLimit(rate.Limit(agentBW))
+	}
 	mu.Unlock()
 }
 
