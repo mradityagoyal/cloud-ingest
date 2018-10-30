@@ -40,7 +40,7 @@ var (
 	// A map between the active jobruns and the associated BW for each job run.
 	activeJobRuns map[string]int64
 
-	bwLimiter = rate.NewLimiter(rate.Inf, math.MaxInt32)
+	bwLimiter = rate.NewLimiter(rate.Limit(math.MaxInt64), math.MaxInt32)
 )
 
 // UpdateJobRunsBW updates the mapping between job runs and the associated BW.
@@ -56,7 +56,7 @@ func UpdateJobRunsBW(jobrunsBW map[string]int64) {
 	mu.Lock()
 	activeJobRuns = jobrunsBW
 	if diff := math.Abs(float64(agentBW) - float64(bwLimiter.Limit())); diff > 0.0000001 {
-		glog.Infof("Updating the BW limits, old: %v, new: %v.", bwLimiter.Limit(), rate.Limit(agentBW))
+		glog.Infof("Updating the BW limits, old: %.fMB/s, new: %.fMB/s.", bwLimiter.Limit()/1000000.0, rate.Limit(agentBW/1000000))
 		bwLimiter.SetLimit(rate.Limit(agentBW))
 	}
 	mu.Unlock()
