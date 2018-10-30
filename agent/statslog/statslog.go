@@ -48,7 +48,9 @@ func (sl *StatsLog) PeriodicallyLogStats(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			glog.Info("Context ended, exiting PeriodicallyLogStats")
+			if err := ctx.Err(); err != nil {
+				glog.Infof("PeriodicallyLogStats ctx ended with err: %v", err)
+			}
 			return
 		case <-sl.ticker.C:
 			sl.calcStatsAndLog()
