@@ -26,8 +26,9 @@ func NewRateLimitedReader(ctx context.Context, r io.Reader, l *rate.Limiter) io.
 func (rlr rateLimitedReader) Read(buf []byte) (n int, err error) {
 	// Shrink the read buf if necessary. This ensures the read doesn't just
 	// block for one massive copy, and instead hands out data every second.
-	if len(buf) > int(rlr.limiter.Limit()) {
-		buf = buf[0:int(rlr.limiter.Limit())]
+	l := rlr.limiter.Limit()
+	if rate.Limit(len(buf)) > l {
+		buf = buf[0:int(l)]
 	}
 	// Perform the read.
 	if n, err = rlr.reader.Read(buf); err != nil {
