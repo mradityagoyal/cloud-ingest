@@ -48,6 +48,9 @@ func TestMakeAgentPulse(t *testing.T) {
 	if testpulse.Frequency != 10 {
 		t.Errorf("host name was incorrect, got: %d, want: %d.", testpulse.Frequency, 10)
 	}
+	if testpulse.AgentVersion == "" {
+		t.Errorf("agent version wasn't set")
+	}
 }
 
 // Test if Serialization and deserialization works and returns the same message.

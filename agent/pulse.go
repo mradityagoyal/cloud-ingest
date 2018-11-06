@@ -59,7 +59,7 @@ func PulseLocalIds(hostName, processID string) *pulsepb.AgentId {
 
 // Takes a pointer to an AgentId Proto and an int (frequency) returns Pulse message
 func MakeAgentPulse(id *pulsepb.AgentId, frequency int32) *pulsepb.Msg {
-	return &pulsepb.Msg{AgentId: id, Frequency: frequency}
+	return &pulsepb.Msg{AgentId: id, Frequency: frequency, AgentVersion: "0.0.0"}
 }
 
 // Creates the Serialized Pulse Message
