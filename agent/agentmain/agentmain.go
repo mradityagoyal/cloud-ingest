@@ -266,6 +266,7 @@ func main() {
 			listSub := pubSubClient.Subscription(pubsubPrefix + listSubscription)
 			listSub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
 			listSub.ReceiveSettings.MaxOutstandingMessages = numberThreads
+			listSub.ReceiveSettings.Synchronous = true
 			listTopic := pubSubClient.Topic(pubsubPrefix + listProgressTopic)
 			listTopicWrapper := gcloud.NewPubSubTopicWrapper(listTopic)
 
@@ -296,6 +297,7 @@ func main() {
 			copySub := pubSubClient.Subscription(pubsubPrefix + copySubscription)
 			copySub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
 			copySub.ReceiveSettings.MaxOutstandingMessages = numberThreads
+			copySub.ReceiveSettings.Synchronous = true
 			copyTopic := pubSubClient.Topic(pubsubPrefix + copyProgressTopic)
 			copyTopicWrapper := gcloud.NewPubSubTopicWrapper(copyTopic)
 
