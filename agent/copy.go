@@ -265,9 +265,14 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 			w.CloseWithError(err)
 			return err
 		}
+		mu.RLock()
+		// TODO(b/119415296): Avoid locking the global mutex while we are waiting
+		// for tokens from the limiter.
 		if err := bwLimiter.WaitN(ctx, n); err != nil {
+			mu.RUnlock()
 			return err
 		}
+		mu.RUnlock()
 		_, err = w.Write(buf[:n])
 		if err != nil {
 			w.CloseWithError(err)
@@ -432,7 +437,9 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		copy(copyBuf, buf)
 
 		// Add bandwidth control to the HTTP request body.
+		mu.RLock()
 		rlr := NewRateLimitedReader(ctx, bytes.NewReader(copyBuf), bwLimiter)
+		mu.RUnlock()
 
 		// Perform the copy!
 		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, rlr, c.BytesCopied, int64(bytesRead), final)

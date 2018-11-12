@@ -35,7 +35,7 @@ var (
 	// ControlEnabled determines if agent control feature is enabled.
 	ControlEnabled bool
 
-	// Mutex to protect activeJobRuns access.
+	// Mutex to protect activeJobRuns and bwLimiter access.
 	mu sync.RWMutex
 	// A map between the active jobruns and the associated BW for each job run.
 	activeJobRuns map[string]int64
@@ -57,7 +57,11 @@ func UpdateJobRunsBW(jobrunsBW map[string]int64) {
 	activeJobRuns = jobrunsBW
 	if diff := math.Abs(float64(agentBW) - float64(bwLimiter.Limit())); diff > 0.0000001 {
 		glog.Infof("Updating the BW limits, old: %.fMB/s, new: %.fMB/s.", bwLimiter.Limit()/1000000.0, rate.Limit(agentBW/1000000))
-		bwLimiter.SetLimit(rate.Limit(agentBW))
+		burst := math.MaxInt32
+		if agentBW < int64(burst) {
+			burst = int(agentBW)
+		}
+		bwLimiter = rate.NewLimiter(rate.Limit(agentBW), burst)
 	}
 	mu.Unlock()
 }

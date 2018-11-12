@@ -17,6 +17,7 @@ package agent
 
 import (
 	"context"
+	"math"
 	"testing"
 	"time"
 
@@ -94,18 +95,18 @@ func TestProcessMessage(t *testing.T) {
 				JobRunsBandwidths: []*controlpb.JobRunBandwidth{
 					&controlpb.JobRunBandwidth{
 						JobrunRelRsrcName: "job-3",
-						Bandwidth:         30,
+						Bandwidth:         math.MaxInt64,
 					},
 				},
 			}),
 			ts:   now.Add(30 * time.Second),
-			want: map[string]int64{"job-3": int64(30)},
+			want: map[string]int64{"job-3": math.MaxInt64},
 		},
 		{
 			desc: "invalid message data bytes",
 			msg:  []byte("Invalid message"),
 			ts:   now.Add(40 * time.Second),
-			want: map[string]int64{"job-3": int64(30)},
+			want: map[string]int64{"job-3": math.MaxInt64},
 		},
 	}
 
