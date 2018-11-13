@@ -32,10 +32,10 @@ go-mocks: ## Generate go mock files.
 	@$(foreach file, $(FILES_TO_MOCK), $(call generate_mock,$(file)))
 
 .PHONY: lint
-lint: lint-go lint-frontend ## Run all code style validators.
+lint: lint-agent lint-frontend ## Run all code style validators.
 
-.PHONY: lint-go
-lint-go: ## Run Go format.
+.PHONY: lint-agent
+lint-agent: ## Run Go format.
 	@echo -e "\n== Formatting Go =="
 	@go fmt $(GO_TARGETS)
 
@@ -45,10 +45,10 @@ lint-frontend: ## Lint frontend code.
 	@(cd $(FRONTEND_DIR) && ng lint --type-check)
 
 .PHONY: test
-test: test-go test-frontend ## Run all unit tests.
+test: test-agent test-frontend ## Run all unit tests.
 
-.PHONY: test-go
-test-go: ## Run all go unit tests.
+.PHONY: test-agent
+test-agent: ## Run all go unit tests.
 	@echo -e "\n== Running Go Tests =="
 	@go test $(GO_TARGETS)
 
@@ -66,10 +66,10 @@ else
 endif
 
 .PHONY: build
-build: setup build-go build-frontend ## Refresh dependencies, Build, test, and install everything.
+build: setup build-agent build-frontend ## Refresh dependencies, Build, test, and install everything.
 
-.PHONY: build-go
-build-go: go-mocks lint-go test-go ## Build, test, and install Go binaries.
+.PHONY: build-agent
+build-agent: go-mocks lint-agent test-agent ## Build, test, and install Go binaries.
 	@echo -e "\n== Building/Installing Go Binaries =="
 	@go install -v $(GO_TARGETS)
 
@@ -84,10 +84,10 @@ clean: ## Blow away all compiled artifacts and installed dependencies.
 	rm -rf $(FRONTEND_DIR)/node_modules release/tmp-release-ephemeral; true
 
 .PHONY: setup
-setup: setup-go setup-frontend ## Run full setup of dependencies and environment.
+setup: setup-agent setup-frontend ## Run full setup of dependencies and environment.
 
-.PHONY: setup-go
-setup-go: ## Install all needed go dependencies.
+.PHONY: setup-agent
+setup-agent: ## Install all needed go dependencies.
 	@echo -e "\n== Installing/Updating Go Dependencies =="
 	go get -u cloud.google.com/go/pubsub
 	go get -u github.com/golang/glog
@@ -96,6 +96,7 @@ setup-go: ## Install all needed go dependencies.
 	go get -u github.com/golang/mock/mockgen
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go get -u golang.org/x/time/rate
+	go get -u github.com/google/go-cmp/cmp
 
 .PHONY: setup-frontend
 setup-frontend: ## Install all needed frontend/JS dependencies.
