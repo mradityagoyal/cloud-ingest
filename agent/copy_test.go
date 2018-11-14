@@ -365,8 +365,13 @@ func TestPrepareResumableCopy(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	reqCopySpec := testCopySpec(77, 10, "").GetCopySpec()
-	respCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
+	copySpec := testCopySpec(77, 10, "").GetCopySpec()
+
+	wantRespCopySpec := proto.Clone(copySpec).(*taskpb.CopySpec)
+	wantRespCopySpec.FileBytes = 1234
+	wantRespCopySpec.FileMTime = 1234567890000000000
+	wantRespCopySpec.ResumableUploadId = "testResumableUploadId"
+
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
@@ -376,20 +381,11 @@ func TestPrepareResumableCopy(t *testing.T) {
 	defer srcFile.Close()
 	var stats fakeStats
 
-	resumableUploadId, err := h.prepareResumableCopy(ctx, reqCopySpec, respCopySpec, srcFile, stats)
-	if err != nil {
+	if err := h.prepareResumableCopy(ctx, copySpec, srcFile, stats); err != nil {
 		t.Error("got ", err)
 	}
-	if resumableUploadId != "testResumableUploadId" {
-		t.Error("want resumableUploadId testResumableUploadId, got ", resumableUploadId)
-	}
-
-	wantRespCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
-	wantRespCopySpec.FileBytes = 1234
-	wantRespCopySpec.FileMTime = 1234567890000000000
-	wantRespCopySpec.ResumableUploadId = "testResumableUploadId"
-	if !proto.Equal(respCopySpec, wantRespCopySpec) {
-		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
+	if !proto.Equal(copySpec, wantRespCopySpec) {
+		t.Errorf("copySpec = %v, want: %v", copySpec, wantRespCopySpec)
 	}
 }
 
@@ -414,8 +410,11 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	reqCopySpec := testCopySpec(77, 100, "ruID").GetCopySpec()
-	respCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
+	copySpec := testCopySpec(77, 100, "ruID").GetCopySpec()
+
+	wantRespCopySpec := proto.Clone(copySpec).(*taskpb.CopySpec)
+	wantRespCopySpec.BytesCopied = int64(len(testFileContent))
+
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
@@ -430,15 +429,13 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 			CopyLog: &taskpb.CopyLog{},
 		},
 	}
-	err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, log)
+	err = h.copyResumableChunk(ctx, copySpec, srcFile, stats, log.GetCopyLog())
 	if err != nil {
 		t.Error("got ", err)
 	}
 
-	wantRespCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
-	wantRespCopySpec.BytesCopied = int64(len(testFileContent))
-	if !proto.Equal(respCopySpec, wantRespCopySpec) {
-		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
+	if !proto.Equal(copySpec, wantRespCopySpec) {
+		t.Errorf("copySpec = %v, want: %v", copySpec, wantRespCopySpec)
 	}
 
 	wantLog := &taskpb.Log{
@@ -479,8 +476,12 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	}
 
 	ctx := context.Background()
-	reqCopySpec := testCopySpec(77, 10, "ruID").GetCopySpec()
-	respCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
+	copySpec := testCopySpec(77, 10, "ruID").GetCopySpec()
+
+	wantRespCopySpec := proto.Clone(copySpec).(*taskpb.CopySpec)
+	wantRespCopySpec.BytesCopied = 10
+	wantRespCopySpec.Crc32C = testTenByteCRC32C
+
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
@@ -495,16 +496,13 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 			CopyLog: &taskpb.CopyLog{},
 		},
 	}
-	err = h.copyResumableChunk(ctx, reqCopySpec, respCopySpec, srcFile, stats, log)
+	err = h.copyResumableChunk(ctx, copySpec, srcFile, stats, log.GetCopyLog())
 	if err != nil {
 		t.Error("got ", err)
 	}
 
-	wantRespCopySpec := proto.Clone(reqCopySpec).(*taskpb.CopySpec)
-	wantRespCopySpec.BytesCopied = 10
-	wantRespCopySpec.Crc32C = testTenByteCRC32C
-	if !proto.Equal(respCopySpec, wantRespCopySpec) {
-		t.Errorf("respCopySpec = %v, want: %v", respCopySpec, wantRespCopySpec)
+	if !proto.Equal(copySpec, wantRespCopySpec) {
+		t.Errorf("copySpec = %v, want: %v", copySpec, wantRespCopySpec)
 	}
 
 	wantLog := &taskpb.Log{
