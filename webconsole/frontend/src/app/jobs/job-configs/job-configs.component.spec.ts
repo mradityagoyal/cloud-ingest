@@ -215,6 +215,28 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
     });
   }));
 
+  it('should delete the checked jobs', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const compiled = fixture.debugElement.nativeElement;
+      const checkbox1 = compiled.querySelector('#transferJobs\\/OPI1-input');
+      const checkbox2 = compiled.querySelector('#transferJobs\\/OPI3-input');
+      checkbox1.click();
+      checkbox2.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        const pauseConfigButton = compiled.querySelector('.ingest-delete-job ');
+        pauseConfigButton.click();
+        fixture.detectChanges();
+        fixture.whenStable().then(() => {
+          const component = fixture.debugElement.componentInstance;
+          expect(jobsServiceStub.deleteJobs).toHaveBeenCalledWith(['transferJobs/OPI1', 'transferJobs/OPI3']);
+        });
+      });
+    });
+  }));
+
   it('should not pause jobs if none are checked', async(() => {
     const fixture = TestBed.createComponent(JobConfigsComponent);
     const component = fixture.debugElement.componentInstance;
@@ -229,6 +251,22 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
       });
     });
   }));
+
+  it('should not delete jobs if none are checked', async(() => {
+    const fixture = TestBed.createComponent(JobConfigsComponent);
+    const component = fixture.debugElement.componentInstance;
+    const compiled = fixture.debugElement.nativeElement;
+    fixture.detectChanges();
+    fixture.whenStable().then(() => {
+      const pauseConfigButton = compiled.querySelector('.ingest-delete-job');
+      pauseConfigButton.click();
+      fixture.detectChanges();
+      fixture.whenStable().then(() => {
+        expect(jobsServiceStub.deleteJobs).not.toHaveBeenCalled();
+      });
+    });
+  }));
+
 
   it('should open an error dialog if there is an error pausing job configurations', async(() => {
     jobsServiceStub.pauseJobs.and.returnValue(observableThrowError(FAKE_HTTP_ERROR));
@@ -328,29 +366,6 @@ it('should retrieve the title and text from the HttpErrorResponseFormatter', asy
         fixture.whenStable().then(() => {
           const component = fixture.debugElement.componentInstance;
           expect(jobsServiceStub.deleteJobs).toHaveBeenCalledWith(['transferJobs/OPI3']);
-        });
-      });
-    });
-  }));
-
-
-  it('should not delete a job in progress', async(() => {
-    const fixture = TestBed.createComponent(JobConfigsComponent);
-    fixture.detectChanges();
-    fixture.whenStable().then(() => {
-      const compiled = fixture.debugElement.nativeElement;
-      const checkbox1 = compiled.querySelector('#transferJobs\\/OPI1-input');
-      const checkbox2 = compiled.querySelector('#transferJobs\\/OPI2-input');
-      checkbox1.click();
-      checkbox2.click();
-      fixture.detectChanges();
-      fixture.whenStable().then(() => {
-        const deleteJobButton = compiled.querySelector('.ingest-delete-job');
-        deleteJobButton.click();
-        fixture.detectChanges();
-        fixture.whenStable().then(() => {
-          const component = fixture.debugElement.componentInstance;
-          expect(jobsServiceStub.deleteJobs).not.toHaveBeenCalled();
         });
       });
     });

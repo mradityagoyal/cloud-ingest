@@ -13,15 +13,12 @@
       <mat-icon class="mat-24" >play_arrow</mat-icon>
       Resume selected
  </button>
- <span matTooltip="Only paused, aborted or completed jobs can be deleted."
-      [matTooltipPosition]="'after'"
-      [matTooltipDisabled]="numChecked === 0 || checkedJobsCanBeDeleted">
+
   <button mat-raised-button
-          class="ingest-delete-job ingest-config-button" (click)="deleteSelectedJobs()" [disabled]="!checkedJobsCanBeDeleted">
+          class="ingest-delete-job ingest-config-button" (click)="deleteSelectedJobs()" [disabled]="numChecked === 0">
       <mat-icon class="mat-24" >delete</mat-icon>
       Delete selected
   </button>
-</span>
 </div>
 <ng-container *ngIf="showLoadingSpinner; then loadingSpinner; else content"></ng-container>
 <ng-template #loadingSpinner>

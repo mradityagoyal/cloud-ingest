@@ -24,7 +24,7 @@ describe('PulseComponent', () => {
     TestBed.configureTestingModule({
       declarations: [ PulseComponent ],
       providers: [
-        {provide: PulseComponent, useValue: serviceStub}
+        {provide: PulseService, useValue: serviceStub}
       ],
       imports: [
         BrowserAnimationsModule,
@@ -43,7 +43,8 @@ describe('PulseComponent', () => {
   it('should show a loading spinner while the agents are loading', async(() => {
     const fixture = TestBed.createComponent(PulseComponent);
     const component = fixture.debugElement.componentInstance;
-    component.loading = true;
+    component.showLoadingSpinner = true;
+    serviceStub.getAgents.and.returnValue(never());
     fixture.detectChanges();
     fixture.whenStable().then(() => {
       fixture.detectChanges();

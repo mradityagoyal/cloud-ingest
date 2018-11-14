@@ -22,10 +22,6 @@ export class JobConfigsComponent implements OnInit {
   errorMessage: string;
   errorTitle: string;
   displayErrorMessage = false;
-  /**
-   * Indicates if the jobs that are currently checked can be deleted or not.
-   */
-  checkedJobsCanBeDeleted = false;
 
   /**
    * Holds a map from a job name to its corresponding transfer job.
@@ -52,11 +48,6 @@ export class JobConfigsComponent implements OnInit {
 
   // Need to declare this variable here to use it in the template.
   OPERATION_STATUS_TO_STRING_MAP = OPERATION_STATUS_TO_STRING_MAP;
-
-  /**
-   * A list of the statuses when the job is safe to delete.
-   */
-  readonly canDeleteStatuses = ['PAUSED', 'FAILED', 'SUCCESS', 'ABORTED'];
 
   /**
    * Passed to the add job configuration dialog.
@@ -91,6 +82,8 @@ export class JobConfigsComponent implements OnInit {
           );
           this.dataSource = new SimpleDataSource(response.transferJobs);
         }
+        // Reload the checkboxes
+        this.updateNumCheckedCheckboxes();
         this.showLoadingSpinner = false;
       },
       (error: HttpErrorResponse) => {
@@ -118,20 +111,18 @@ export class JobConfigsComponent implements OnInit {
     });
   }
 
-  onCheckboxClick(event: MatCheckboxChange) {
-      let count = 0;
-      let checkedCanBeDeleted = true;
+  private updateNumCheckedCheckboxes() {
+    let count = 0;
       for (const key in this.checkedCheckboxes) {
         if (this.checkedCheckboxes[key] === true) {
           count++;
-          if (this.jobNameToJobMap.get(key).latestOperation &&
-            !this.canDeleteStatuses.includes(this.jobNameToJobMap.get(key).latestOperation.status)) {
-            checkedCanBeDeleted = false;
-          }
         }
       }
       this.numChecked = count;
-      this.checkedJobsCanBeDeleted = checkedCanBeDeleted && (this.numChecked > 0);
+  }
+
+  onCheckboxClick(event: MatCheckboxChange) {
+    this.updateNumCheckedCheckboxes();
   }
 
   private getSelectedJobConfigs(): string[] {
@@ -162,7 +153,7 @@ export class JobConfigsComponent implements OnInit {
             });
           },
         () => {
-          console.log('complete');
+          console.log('resume jobs completed');
         });
   }
 
@@ -185,7 +176,7 @@ export class JobConfigsComponent implements OnInit {
             });
           },
           () => {
-            console.log('complete');
+            console.log('pause jobs flow completed');
           });
     }
 
@@ -193,6 +184,14 @@ export class JobConfigsComponent implements OnInit {
       const selectedJobConfigs = this.getSelectedJobConfigs();
       this.jobsService.deleteJobs(selectedJobConfigs).subscribe(
          (response: Response[]) => {
+            // If the message is successful, delete the jobs from the internal
+            // map as well.
+            for (const jobConfig in selectedJobConfigs) {
+              if (selectedJobConfigs.hasOwnProperty(jobConfig)) {
+                delete this.checkedCheckboxes[selectedJobConfigs[jobConfig]];
+              }
+            }
+            console.log('about to update');
             this.updateJobs();
          }, (errorResponse: HttpErrorResponse) => {
               this.updateJobs();
@@ -207,7 +206,7 @@ export class JobConfigsComponent implements OnInit {
               });
             },
             () => {
-              console.log('complete');
+              console.log('deletion flow completed');
             });
       }
 

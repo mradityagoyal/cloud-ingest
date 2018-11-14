@@ -14,7 +14,6 @@ const UPDATE_ACTIVE_AGENTS_POLLING_INTERVAL_MILLISECONDS = 6000;
 
 @Component({
   selector: 'app-pulse',
-  providers: [PulseService],
   templateUrl: './pulse.component.html',
   styleUrls: ['./pulse.component.css']
 })
