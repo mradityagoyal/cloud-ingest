@@ -108,6 +108,7 @@ message CopyBundleSpec {
 message TaskReqMsg {
   string task_rel_rsrc_name = 1;
   string jobrun_rel_rsrc_name = 3;
+  string job_run_version = 4;
   Spec spec = 2;
 }
 
@@ -117,6 +118,7 @@ message TaskReqMsg {
 // files, examine the CopyBundleSpec within the resp_spec.
 message TaskRespMsg {
   string task_rel_rsrc_name = 1;
+  string job_run_version = 8;
   string status = 2;  // TODO(b/79153431): Make this an enum.
   FailureType failure_type = 3;
   string failure_message = 4;
