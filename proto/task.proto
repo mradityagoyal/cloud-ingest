@@ -9,6 +9,7 @@ enum Type {
   LIST = 1;          // Lists the files in an on-premises directory.
   PROCESS_LIST = 2;  // A task that processes the list task output.
   COPY = 3;          // Upload a file from the on-premises directory to GCS.
+  COPY_BUNDLE = 4;   // Upload a bundle of files from on-premises to GCS.
 }
 
 // Specifies the current status of the cloud ingest task.
@@ -17,7 +18,6 @@ enum Status {
   QUEUED = 1;        // The task is in progress.
   FAILED = 2;        // The task was completed but failed.
   SUCCESS = 3;       // The task was completed and succeeded.
-  COPY_BUNDLE = 4;   // Upload a bundle of files from on-premises to GCS.
 }
 
 // Specifies the classes of failures that a task can have.
