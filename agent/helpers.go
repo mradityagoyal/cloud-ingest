@@ -27,6 +27,9 @@ import (
 )
 
 func getFailureTypeFromError(err error) taskpb.FailureType {
+	if err == nil {
+		return taskpb.FailureType_UNSET_FAILURE_TYPE
+	}
 	if os.IsNotExist(err) {
 		return taskpb.FailureType_FILE_NOT_FOUND_FAILURE
 	}

@@ -31,6 +31,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"sync"
 	"time"
 
 	"cloud.google.com/go/storage"
@@ -89,17 +90,23 @@ type CopyHandler struct {
 	resumableChunkSize int
 	hc                 *http.Client
 	memoryLimiter      *semaphore.Weighted
+	// concurrentCopySem is semaphore to limit the number of concurrent goroutines uploading files.
+	concurrentCopySem *semaphore.Weighted
 
 	// Exposed here only for testing purposes.
 	httpDoFunc func(context.Context, *http.Client, *http.Request) (*http.Response, error)
 }
 
-func NewCopyHandler(storageClient *storage.Client, resumableChunkSize int, hc *http.Client) *CopyHandler {
+// NewCopyHandler creates a CopyHandler with storage.Client and http.Client. The
+// resumableChunkSize is the chunk size used for resumable uploads. The maxParallelism
+// is the max number of goroutines copying files concurrently.
+func NewCopyHandler(storageClient *storage.Client, maxParallelism int, resumableChunkSize int, hc *http.Client) *CopyHandler {
 	return &CopyHandler{
 		gcs:                gcloud.NewGCSClient(storageClient),
 		resumableChunkSize: resumableChunkSize,
 		hc:                 hc,
 		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
+		concurrentCopySem:  semaphore.NewWeighted(int64(maxParallelism)),
 		httpDoFunc:         ctxhttp.Do,
 	}
 }
@@ -145,6 +152,8 @@ func (h *CopyHandler) Type() string {
 }
 
 func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopyLog, error) {
+	h.concurrentCopySem.Acquire(ctx, 1)
+	defer h.concurrentCopySem.Release(1)
 	cl := &taskpb.CopyLog{
 		SrcFile: copySpec.SrcFile,
 		DstFile: path.Join(copySpec.DstBucket, copySpec.DstObject),
@@ -152,18 +161,18 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 
 	resumedCopy, err := checkCopyTaskSpec(copySpec)
 	if err != nil {
-		return nil, err
+		return cl, err
 	}
 
 	// Open the on-premises file, and check the file stats if necessary.
 	srcFile, err := os.Open(copySpec.SrcFile)
 	if err != nil {
-		return nil, err
+		return cl, err
 	}
 	defer srcFile.Close()
 	stats, err := srcFile.Stat()
 	if err != nil {
-		return nil, err
+		return cl, err
 	}
 	// This populates the log entry for the audit logs and for tracking
 	// bytes. Bytes are only counted when the task moves to "success", so
@@ -174,7 +183,7 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 		// TODO(b/74009003): When implementing "synchronization" rethink how
 		// the file stat parameters are set and compared.
 		if err = checkResumableFileStats(copySpec, stats); err != nil {
-			return nil, err
+			return cl, err
 		}
 	}
 
@@ -185,11 +194,11 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 		if stats.Size() <= copySpec.BytesToCopy || copySpec.BytesToCopy <= 0 {
 			err = h.copyEntireFile(ctx, copySpec, srcFile, stats, cl)
 			if err != nil {
-				return nil, err
+				return cl, err
 			}
 		} else {
 			if err := h.prepareResumableCopy(ctx, copySpec, srcFile, stats); err != nil {
-				return nil, err
+				return cl, err
 			}
 			resumedCopy = true
 		}
@@ -197,34 +206,82 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 	if resumedCopy {
 		err = h.copyResumableChunk(ctx, copySpec, srcFile, stats, cl)
 		if err != nil {
-			return nil, err
+			return cl, err
 		}
 	}
 
 	// Now that data has been sent, check that the file stats haven't changed.
 	if err = checkFileStats(stats, srcFile); err != nil {
-		return nil, err
+		return cl, err
 	}
 
 	return cl, nil
 }
 
-func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
-	if taskReqMsg.Spec.GetCopySpec() == nil {
-		err := errors.New("CopyHandler.Do taskReqMsg.Spec is not CopySpec")
-		return buildTaskRespMsg(taskReqMsg, nil, nil, err)
+func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, error) {
+	var err error
+	var log taskpb.CopyBundleLog
+	for _, bf := range bs.BundledFiles {
+		if bf.Status == taskpb.Status_SUCCESS {
+			log.FilesCopied++
+			log.BytesCopied += bf.CopyLog.BytesCopied
+		} else {
+			log.FilesFailed++
+			log.BytesFailed += bf.CopyLog.SrcBytes
+			if err == nil {
+				err = AgentError{
+					Msg:         "CopyBundle task failed, please check the spec for detailed per file error",
+					FailureType: taskpb.FailureType_UNKNOWN_FAILURE,
+				}
+			}
+		}
 	}
-	copySpec := proto.Clone(taskReqMsg.Spec.GetCopySpec()).(*taskpb.CopySpec)
+	return &log, err
+}
 
-	cl, err := h.handleCopySpec(ctx, copySpec)
-	if err != nil {
-		return buildTaskRespMsg(taskReqMsg, nil, nil, err)
+func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, error) {
+	var wg sync.WaitGroup
+	for _, bf := range bundleSpec.BundledFiles {
+		wg.Add(1)
+		go func(bf *taskpb.BundledFile) {
+			defer wg.Done()
+			var err error
+			bf.CopyLog, err = h.handleCopySpec(ctx, bf.CopySpec)
+			bf.FailureType = getFailureTypeFromError(err)
+			bf.FailureMessage = fmt.Sprint(err)
+			if err == nil {
+				bf.Status = taskpb.Status_SUCCESS
+			} else {
+				bf.Status = taskpb.Status_FAILED
+			}
+		}(bf)
 	}
-	return buildTaskRespMsg(
-		taskReqMsg,
-		&taskpb.Spec{Spec: &taskpb.Spec_CopySpec{copySpec}},
-		&taskpb.Log{Log: &taskpb.Log_CopyLog{cl}},
-		nil)
+	wg.Wait()
+	return getBundleLogAndError(bundleSpec)
+}
+
+func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+	var respSpec *taskpb.Spec
+	var log *taskpb.Log
+	var err error
+
+	if taskReqMsg.Spec.GetCopySpec() != nil {
+		var cl *taskpb.CopyLog
+		copySpec := proto.Clone(taskReqMsg.Spec.GetCopySpec()).(*taskpb.CopySpec)
+		cl, err = h.handleCopySpec(ctx, copySpec)
+		respSpec = &taskpb.Spec{Spec: &taskpb.Spec_CopySpec{copySpec}}
+		log = &taskpb.Log{Log: &taskpb.Log_CopyLog{cl}}
+	} else if taskReqMsg.Spec.GetCopyBundleSpec() != nil {
+		var cbl *taskpb.CopyBundleLog
+		bundleSpec := proto.Clone(taskReqMsg.Spec.GetCopyBundleSpec()).(*taskpb.CopyBundleSpec)
+		cbl, err = h.handleCopyBundleSpec(ctx, bundleSpec)
+		respSpec = &taskpb.Spec{Spec: &taskpb.Spec_CopyBundleSpec{bundleSpec}}
+		log = &taskpb.Log{Log: &taskpb.Log_CopyBundleLog{cbl}}
+	} else {
+		err = errors.New("CopyHandler.Do taskReqMsg.Spec is neither CopySpec nor CopyBundleSpec")
+	}
+
+	return buildTaskRespMsg(taskReqMsg, respSpec, log, err)
 }
 
 func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, cl *taskpb.CopyLog) error {

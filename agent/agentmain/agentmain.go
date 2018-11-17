@@ -43,6 +43,11 @@ const (
 	listSubscription    = "cloud-ingest-list"
 	copySubscription    = "cloud-ingest-copy"
 	controlSubscription = "cloud-ingest-control"
+
+	// copyOutstandingMsgsFactor is the multiplication factor to calculate the max number
+	// of outstanding copy messages from the max number of concurrent copy
+	// operations. Bassically, this keeps more messages in a buffer for performance.
+	copyOutstandingMsgsFactor = 5
 )
 
 var (
@@ -326,7 +331,7 @@ func main() {
 			defer wg.Done()
 			copySub := pubSubClient.Subscription(pubsubPrefix + copySubscription)
 			copySub.ReceiveSettings.MaxExtension = maxPubSubLeaseExtenstion
-			copySub.ReceiveSettings.MaxOutstandingMessages = numberThreads
+			copySub.ReceiveSettings.MaxOutstandingMessages = numberThreads * copyOutstandingMsgsFactor
 			copySub.ReceiveSettings.Synchronous = true
 			copyTopic := pubSubClient.Topic(pubsubPrefix + copyProgressTopic)
 			copyTopicWrapper := gcloud.NewPubSubTopicWrapper(copyTopic)
@@ -344,7 +349,7 @@ func main() {
 			copyProcessor := agent.WorkProcessor{
 				WorkSub:       copySub,
 				ProgressTopic: copyTopic,
-				Handler:       agent.NewCopyHandler(storageClient, chunkSize, httpc),
+				Handler:       agent.NewCopyHandler(storageClient, numberThreads, chunkSize, httpc),
 				StatsLog:      sl,
 			}
 

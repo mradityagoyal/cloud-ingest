@@ -20,6 +20,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net"
@@ -73,7 +74,7 @@ func testCopyTaskReqMsg() *taskpb.TaskReqMsg {
 }
 
 func TestSourceNotFound(t *testing.T) {
-	h := CopyHandler{}
+	h := CopyHandler{concurrentCopySem: semaphore.NewWeighted(1)}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = "file does not exist"
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -93,7 +94,12 @@ func TestAcquireBufferMemoryFail(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	copyMemoryLimit = 5
-	h := CopyHandler{mockGCS, 10, nil, semaphore.NewWeighted(5), nil}
+	h := CopyHandler{
+		gcs:                mockGCS,
+		resumableChunkSize: 10,
+		memoryLimiter:      semaphore.NewWeighted(5),
+		concurrentCopySem:  semaphore.NewWeighted(1),
+	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -115,7 +121,12 @@ func TestCRC32CMismtach(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	copyMemoryLimit = defaultCopyMemoryLimit
-	h := CopyHandler{mockGCS, 5, nil, semaphore.NewWeighted(copyMemoryLimit), nil}
+	h := CopyHandler{
+		gcs:                mockGCS,
+		resumableChunkSize: 5,
+		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
+		concurrentCopySem:  semaphore.NewWeighted(1),
+	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -141,7 +152,12 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	copyMemoryLimit = defaultCopyMemoryLimit
-	h := CopyHandler{mockGCS, 5, nil, semaphore.NewWeighted(copyMemoryLimit), nil}
+	h := CopyHandler{
+		gcs:                mockGCS,
+		resumableChunkSize: 5,
+		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
+		concurrentCopySem:  semaphore.NewWeighted(1),
+	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -193,7 +209,12 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	copyMemoryLimit = defaultCopyMemoryLimit
-	h := CopyHandler{mockGCS, 5, nil, semaphore.NewWeighted(copyMemoryLimit), nil}
+	h := CopyHandler{
+		gcs:                mockGCS,
+		resumableChunkSize: 5,
+		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
+		concurrentCopySem:  semaphore.NewWeighted(1),
+	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -220,8 +241,183 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	}
 }
 
+func TestCopyBundle(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	gcsModTime := time.Now()
+
+	type bundledFileTestData struct {
+		fileName string
+		fileData string
+		crc      uint32
+		size     int64
+		bucket   string
+		object   string
+
+		wantStatus  taskpb.Status
+		wantFailure taskpb.FailureType
+		wantLog     *taskpb.CopyLog
+
+		writer *helpers.StringWriteCloser // Do not fill, it's filled during test execution.
+	}
+
+	tests := []struct {
+		desc          string
+		bundledFiles  []*bundledFileTestData
+		bundleStatus  taskpb.Status
+		bundleFailure taskpb.FailureType
+		bundleLog     *taskpb.CopyBundleLog
+	}{
+		{
+			desc: "test file bundle success",
+			bundledFiles: []*bundledFileTestData{
+				&bundledFileTestData{
+					fileName:   "test-file-1",
+					fileData:   "File 1 data content",
+					crc:        0x3CAC94DC,
+					size:       19,
+					bucket:     "bucket",
+					object:     "object1",
+					wantStatus: taskpb.Status_SUCCESS,
+				},
+				&bundledFileTestData{
+					fileName:   "test-file-2",
+					fileData:   "The data of File 2",
+					crc:        0xACDDCFCD,
+					size:       18,
+					bucket:     "bucket",
+					object:     "object2",
+					wantStatus: taskpb.Status_SUCCESS,
+				},
+			},
+			bundleStatus: taskpb.Status_SUCCESS,
+			bundleLog: &taskpb.CopyBundleLog{
+				FilesCopied: 2,
+				BytesCopied: 37,
+			},
+		},
+		{
+			desc: "test partial files success",
+			bundledFiles: []*bundledFileTestData{
+				&bundledFileTestData{
+					fileName:    "test-file-1",
+					fileData:    "File 1 data content",
+					crc:         0x12345678, // This is invalid CRC to simulate failure.
+					size:        19,
+					bucket:      "bucket",
+					object:      "object1",
+					wantStatus:  taskpb.Status_FAILED,
+					wantFailure: taskpb.FailureType_HASH_MISMATCH_FAILURE,
+				},
+				&bundledFileTestData{
+					fileName:   "test-file-2",
+					fileData:   "The data of File 2",
+					crc:        0xACDDCFCD,
+					size:       18,
+					bucket:     "bucket",
+					object:     "object2",
+					wantStatus: taskpb.Status_SUCCESS,
+				},
+			},
+			bundleStatus:  taskpb.Status_FAILED,
+			bundleFailure: taskpb.FailureType_UNKNOWN_FAILURE,
+			bundleLog: &taskpb.CopyBundleLog{
+				FilesCopied: 1,
+				BytesCopied: 18,
+				FilesFailed: 1,
+				BytesFailed: 19,
+			},
+		},
+	}
+	for _, tc := range tests {
+		mockGCS := gcloud.NewMockGCS(mockCtrl)
+		bundleSpec := &taskpb.CopyBundleSpec{}
+		for _, file := range tc.bundledFiles {
+			file.writer = helpers.NewStringWriteCloser(&storage.ObjectAttrs{
+				CRC32C:  file.crc,
+				Size:    file.size,
+				Updated: gcsModTime,
+			})
+
+			file.fileName = helpers.CreateTmpFile("", file.fileName, file.fileData)
+			defer os.Remove(file.fileName)
+
+			mockGCS.EXPECT().NewWriterWithCondition(
+				context.Background(), file.bucket, file.object, gomock.Any()).Return(file.writer)
+
+			bundleSpec.BundledFiles = append(bundleSpec.BundledFiles, &taskpb.BundledFile{
+				CopySpec: &taskpb.CopySpec{
+					DstBucket: file.bucket,
+					DstObject: file.object,
+					SrcFile:   file.fileName,
+				},
+			})
+		}
+
+		copyMemoryLimit = defaultCopyMemoryLimit
+		h := CopyHandler{
+			gcs:               mockGCS,
+			memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
+			concurrentCopySem: semaphore.NewWeighted(1),
+		}
+		taskReqMsg := &taskpb.TaskReqMsg{
+			TaskRelRsrcName: "task",
+			Spec:            &taskpb.Spec{Spec: &taskpb.Spec_CopyBundleSpec{bundleSpec}},
+		}
+		taskRespMsg := h.Do(context.Background(), taskReqMsg)
+
+		// Check for the overall task status
+		t.Logf("CopyHandler.Do(%q)", tc.desc)
+		if tc.bundleStatus == taskpb.Status_SUCCESS {
+			checkSuccessMsg("task", taskRespMsg, t)
+		} else {
+			checkFailureWithType("task", tc.bundleFailure, taskRespMsg, t)
+		}
+
+		// Check for the overall bundle log.
+		wantLog := &taskpb.Log{Log: &taskpb.Log_CopyBundleLog{tc.bundleLog}}
+		if !proto.Equal(taskRespMsg.Log, wantLog) {
+			t.Errorf("CopyHandler.Do(%q), got log = %+v, want: %+v", tc.desc, taskRespMsg.Log, wantLog)
+		}
+
+		// Check the status of each of the written file.
+		resBundledFiles := taskRespMsg.RespSpec.GetCopyBundleSpec().BundledFiles
+		for i, file := range tc.bundledFiles {
+			if file.writer.WrittenString() != file.fileData {
+				t.Errorf("CopyHandler.Do(%q), written string: %q, want %q", tc.desc, file.writer.WrittenString(), file.fileData)
+			}
+			srcStats, _ := os.Stat(file.fileName)
+			wantLog := &taskpb.CopyLog{
+				SrcFile:   file.fileName,
+				SrcBytes:  file.size,
+				SrcMTime:  srcStats.ModTime().UnixNano(),
+				SrcCrc32C: file.crc,
+
+				DstFile:   fmt.Sprintf("%s/%s", file.bucket, file.object),
+				DstBytes:  file.size,
+				DstMTime:  gcsModTime.UnixNano(),
+				DstCrc32C: file.crc,
+
+				BytesCopied: file.size,
+			}
+
+			if resBundledFiles[i].Status != file.wantStatus {
+				t.Errorf("CopyHandler.Do(%q), got status: %s, want: %s", tc.desc, resBundledFiles[i].Status, file.wantStatus)
+			}
+			if file.wantStatus == taskpb.Status_SUCCESS {
+				if !proto.Equal(resBundledFiles[i].CopyLog, wantLog) {
+					t.Errorf("CopyHandler.Do(%q), file %d log = %+v, want: %+v", tc.desc, i, resBundledFiles[i].CopyLog, wantLog)
+				}
+			}
+			if resBundledFiles[i].FailureType != file.wantFailure {
+				t.Errorf("CopyHandler.Do(%q), got failureType: %s, want: %s", tc.desc, resBundledFiles[i].FailureType, file.wantFailure)
+			}
+		}
+	}
+}
 func TestCopyHanderDoResumable(t *testing.T) {
-	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit)}
+	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit), concurrentCopySem: semaphore.NewWeighted(1)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
 		// This bogus response serves both the prepareResumableCopy and
 		// copyResumableChunk requests.
