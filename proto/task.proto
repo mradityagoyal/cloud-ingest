@@ -17,6 +17,7 @@ enum Status {
   QUEUED = 1;        // The task is in progress.
   FAILED = 2;        // The task was completed but failed.
   SUCCESS = 3;       // The task was completed and succeeded.
+  COPY_BUNDLE = 4;   // Upload a bundle of files from on-premises to GCS.
 }
 
 // Specifies the classes of failures that a task can have.
@@ -35,6 +36,7 @@ enum FailureType {
 // 1) listing the contents of a single directory
 // 2) processing a list file
 // 3) copying a single file
+// 4) copying a bundle of files
 // Tasks might be incremental and require multiple request-response round trips
 // to complete.
 message Spec {
@@ -42,6 +44,7 @@ message Spec {
     ListSpec list_spec = 1;
     ProcessListSpec process_list_spec = 2;
     CopySpec copy_spec = 3;
+    CopyBundleSpec copy_bundle_spec = 4;
   }
 }
 
@@ -83,6 +86,24 @@ message CopySpec {
   string resumable_upload_id = 11;  // The resumable upload ID.
 }
 
+// Contains the information for a single file within a Copy Bundle task.
+message BundledFile {
+  CopySpec copy_spec = 1;
+  Status status = 2;
+  FailureType failure_type = 3;
+  string failure_message = 4;
+  // The copy_log should be populated by the Agent in the resp_spec within the
+  // TaskRespMsg. The DCP should clear this field before persisting this spec to
+  // Spanner.
+  CopyLog copy_log = 5;
+}
+
+// Contains the information about a Copy Bundle task. A Copy Bundle task is
+// responsible for copying multiple files to GCS.
+message CopyBundleSpec {
+  repeated BundledFile bundled_files = 1;
+}
+
 // Contains the message sent from the DCP to an Agent to issue a task request.
 message TaskReqMsg {
   string task_rel_rsrc_name = 1;
@@ -91,7 +112,9 @@ message TaskReqMsg {
 }
 
 // Contains the message sent from the Agent to the DCP in response to a task
-// request.
+// request. Note that in the case where the Task is a CopyBundle, these top
+// level fields apply to the entire CopyBundle. For info about the individual
+// files, examine the CopyBundleSpec within the resp_spec.
 message TaskRespMsg {
   string task_rel_rsrc_name = 1;
   string status = 2;  // TODO(b/79153431): Make this an enum.
@@ -110,6 +133,7 @@ message Log {
     ListLog list_log = 1;
     ProcessListLog process_list_log = 2;
     CopyLog copy_log = 3;
+    CopyBundleLog copy_bundle_log = 4;
   }
 }
 
@@ -140,4 +164,15 @@ message CopyLog {
   uint32 dst_crc32c = 8;
 
   int64 bytes_copied = 9;
+}
+
+// Contains log fields for a CopyBundle task. Note these fields are in aggregate
+// and apply to the overall CopyBundle task. For log info about the individual
+// files, examine the CopyBundleSpec's within the resp_spec.
+message CopyBundleLog {
+  int64 files_copied = 1;
+  int64 bytes_copied = 2;
+
+  int64 files_failed = 3;
+  int64 bytes_failed = 4;
 }
