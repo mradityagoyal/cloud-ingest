@@ -30,6 +30,15 @@ enum FailureType {
   FILE_NOT_FOUND_FAILURE = 5;  // Agent asked to upload a non-existent file.
   PERMISSION_FAILURE = 6;      // Agent lacks permission for requested action.
   NOT_ACTIVE_JOBRUN = 7;       // The task job run is not active.
+
+  // The agent does not support the task's Job Run Version.
+  AGENT_UNSUPPORTED_VERSION = 8;
+
+  // The service does not support the task's Job Run Version.
+  SERVICE_UNSUPPORTED_VERSION = 9;
+
+  // The task was completed by an agent with a blacklisted agent version.
+  BLACKLISTED_AGENT_VERSION = 10;
 }
 
 // Contains information about a task. A task is a unit of work, one of:
