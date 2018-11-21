@@ -110,6 +110,31 @@ func printVersionInfo() {
 	fmt.Printf("Git Commit: %s\nBuild Date: %s\n", buildCommit, buildDate)
 }
 
+// createLogDirIfNeeded returns the value of the directory that glog logs will
+// be written, creating that directory if it does not already exist. It returns
+// an error if the directory is invalid or could not be created.
+func createLogDirIfNeeded() (string, error) {
+	if f := flag.Lookup("log_dir"); f != nil && f.Value.String() != "" {
+		logDir := f.Value.String()
+		fd, err := os.Stat(logDir)
+
+		if os.IsNotExist(err) {
+			if err2 := os.MkdirAll(logDir, 0777); err2 != nil {
+				return logDir, err2
+			}
+		} else if err != nil {
+			return logDir, err
+		} else if fd.Mode().IsRegular() {
+			return logDir, fmt.Errorf("log dir %s is a file", logDir)
+		}
+		return logDir, nil
+	}
+
+	// This is coupled with glog's default value since glog
+	// does not provide a way to look up the default.
+	return os.TempDir(), nil
+}
+
 // waitOnSubscription blocks until either the passed-in subscription exists, or
 // an error occurs (including context end). In all cases where we return without
 // the subscription existing, we return the relevant error.
@@ -203,6 +228,11 @@ func main() {
 	if printVersion {
 		printVersionInfo()
 		os.Exit(0)
+	}
+
+	logDir, err := createLogDirIfNeeded()
+	if err != nil {
+		glog.Fatalf("error accessing log output dir %s: %v\n", logDir, err)
 	}
 
 	var pubSubErr, storageErr, httpcErr error
