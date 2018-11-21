@@ -58,8 +58,8 @@ func PulseLocalIds(hostName, processID string) *pulsepb.AgentId {
 }
 
 // Takes a pointer to an AgentId Proto and an int (frequency) returns Pulse message
-func MakeAgentPulse(id *pulsepb.AgentId, frequency int32) *pulsepb.Msg {
-	return &pulsepb.Msg{AgentId: id, Frequency: frequency, AgentVersion: "0.0.0"}
+func MakeAgentPulse(id *pulsepb.AgentId, frequency int32, logDir string) *pulsepb.Msg {
+	return &pulsepb.Msg{AgentId: id, Frequency: frequency, AgentVersion: "0.0.0", AgentLogsDir: logDir}
 }
 
 // Creates the Serialized Pulse Message
@@ -72,14 +72,14 @@ func SerializePulse(pulse *pulsepb.Msg) ([]byte, error) {
 }
 
 // Creates a new PulseHandler
-func NewPulseHandler(topic gcloud.PSTopic, frequency int32) (*PulseHandler, error) {
+func NewPulseHandler(topic gcloud.PSTopic, frequency int32, logDir string) (*PulseHandler, error) {
 	ph := &PulseHandler{topic, nil, frequency, nil}
 	host_name, err := GetHostName()
 	if err != nil {
 		return ph, err
 	}
 	pulse_local_ids := PulseLocalIds(host_name, GetProcessId())
-	ph.Pulse = MakeAgentPulse(pulse_local_ids, ph.Frequency)
+	ph.Pulse = MakeAgentPulse(pulse_local_ids, ph.Frequency, logDir)
 	ph.Ticker = helpers.NewClockTicker(time.Duration(ph.Frequency) * time.Second)
 	return ph, err
 }

@@ -21,7 +21,8 @@ option go_package = "pulse_go_proto";
 message Msg {
   AgentId agent_id = 1;  // The unique id for each agent.
   int32 frequency = 2;   // The fixed amount of seconds waited between sendings.
-  string agent_version = 3;  // The version of the agent
+  string agent_version = 3;  // The version of the agent.
+  string agent_logs_dir = 4; // The directory where the agents writes its logs.
 }
 
 // This message stores a unique identifier for each agent.

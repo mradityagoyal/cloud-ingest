@@ -41,7 +41,7 @@ func TestPulseLocalIds(t *testing.T) {
 // Test if the Pulse proto works as expected.
 func TestMakeAgentPulse(t *testing.T) {
 	testproto := PulseLocalIds("testing", "ids")
-	testpulse := MakeAgentPulse(testproto, 10)
+	testpulse := MakeAgentPulse(testproto, 10, "/tmp")
 	if testpulse.AgentId != testproto {
 		t.Errorf("AgentId was incorrect, got: %s, want: %s.", testpulse.AgentId, testproto)
 	}
@@ -51,12 +51,15 @@ func TestMakeAgentPulse(t *testing.T) {
 	if testpulse.AgentVersion == "" {
 		t.Errorf("agent version wasn't set")
 	}
+	if testpulse.AgentLogsDir == "" {
+		t.Errorf("agent log dir wasn't set")
+	}
 }
 
 // Test if Serialization and deserialization works and returns the same message.
 func TestSerializePulse(t *testing.T) {
 	testproto := PulseLocalIds("testing", "ids")
-	testpulse := MakeAgentPulse(testproto, 10)
+	testpulse := MakeAgentPulse(testproto, 10, "/tmp")
 	serializedpulse, _ := SerializePulse(testpulse)
 	var pulsemsg pulsepb.Msg
 	err := proto.Unmarshal(serializedpulse, &pulsemsg)
@@ -77,9 +80,9 @@ func TestPublishPulse(t *testing.T) {
 	mockresult := gcloud.NewMockPSPublishResult(ctrl)
 	mockresult.EXPECT().Get(ctx).Return("serverid", nil)
 
-	ph, err := NewPulseHandler(mockpstopic, 10)
+	ph, err := NewPulseHandler(mockpstopic, 10, "/tmp")
 	if err != nil {
-		t.Errorf("Could not create a PulseHandler with Topic:%v And Frequency:%v \n error:%e ", mockpstopic, int32(10), err)
+		t.Errorf("Could not create a PulseHandler with Topic:%v Frequency:%v LogsDir:%v\n error:%e ", mockpstopic, int32(10), "/tmp", err)
 	}
 
 	msg, err := SerializePulse(ph.Pulse)
@@ -93,7 +96,7 @@ func TestPublishPulse(t *testing.T) {
 	}
 }
 
-// Test that run preforms as expected
+// Test that run performs as expected
 func TestPulseHandlerRun(t *testing.T) {
 	ctxparent := context.TODO()
 	ctx, _ := context.WithCancel(ctxparent)
@@ -104,9 +107,9 @@ func TestPulseHandlerRun(t *testing.T) {
 	mockpstopic := gcloud.NewMockPSTopic(ctrl)
 	mockresult := gcloud.NewMockPSPublishResult(ctrl)
 
-	ph, err := NewPulseHandler(mockpstopic, 1)
+	ph, err := NewPulseHandler(mockpstopic, 10, "/tmp")
 	if err != nil {
-		t.Errorf("Could not create a PulseHandler with Topic:%v And Frequency:%v \n error:%e ", mockpstopic, int32(10), err)
+		t.Errorf("Could not create a PulseHandler with Topic:%v Frequency:%v LogsDir:%v\n error:%e ", mockpstopic, int32(10), "/tmp", err)
 	}
 
 	msg, err := SerializePulse(ph.Pulse)

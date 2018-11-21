@@ -274,7 +274,7 @@ func main() {
 				glog.Fatalf("Could not get PulseTopic: %s \n error: %v ", pulseTopicWrapper.ID(), err)
 			}
 
-			ph, err := agent.NewPulseHandler(pulseTopicWrapper, int32(pulseFrequency))
+			ph, err := agent.NewPulseHandler(pulseTopicWrapper, int32(pulseFrequency), logDir)
 			if err != nil {
 				glog.Fatalf("Could not create a PulseHandler with Topic: %v and Frequency: %v \n error: %v ", pulseTopicWrapper.ID(), pulseFrequency, err)
 			}
