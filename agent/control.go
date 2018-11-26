@@ -51,18 +51,20 @@ func (ch *ControlHandler) processMessage(ctx context.Context, msg *pubsub.Messag
 	if ch.sub != nil {
 		defer msg.Ack()
 	}
-	if msg.PublishTime.Before(ch.lastUpdate) {
-		// Ignore stale messages.
-		glog.Errorf("Ignore stale message: %v, publish time: %v", string(msg.Data), msg.PublishTime)
-		return
-	}
 
 	var controlMsg controlpb.Control
 	if err := proto.Unmarshal(msg.Data, &controlMsg); err != nil {
-		glog.Errorf("error decoding msg %s with error %v.", string(msg.Data), err)
+		glog.Errorf("error decoding msg %s, publish time: %v, error %v", string(msg.Data), msg.PublishTime, err)
 		// Non-recoverable error. Will Ack the message to avoid delivering again.
 		return
 	}
+
+	if msg.PublishTime.Before(ch.lastUpdate) {
+		// Ignore stale messages.
+		glog.Errorf("Ignore stale message: %v, publish time: %v", controlMsg, msg.PublishTime)
+		return
+	}
+
 	jobrunsBW := make(map[string]int64)
 	for _, jobBW := range controlMsg.JobRunsBandwidths {
 		jobrunsBW[jobBW.JobrunRelRsrcName] = jobBW.Bandwidth
