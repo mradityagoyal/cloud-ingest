@@ -40,7 +40,7 @@ func testListSpec(srcDir string) *taskpb.Spec {
 			ListSpec: &taskpb.ListSpec{
 				DstListResultBucket:   "bucket",
 				DstListResultObject:   "object",
-				SrcDirectory:          srcDir,
+				SrcDirectories:        []string{srcDir},
 				ExpectedGenerationNum: 0,
 			},
 		},

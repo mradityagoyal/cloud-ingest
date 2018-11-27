@@ -137,7 +137,10 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	w := h.gcs.NewWriterWithCondition(ctx, listSpec.DstListResultBucket, listSpec.DstListResultObject,
 		helpers.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
 
-	fileInfos, err := listDirectory(listSpec.SrcDirectory)
+	if len(listSpec.SrcDirectories) == 0 {
+		return buildTaskRespMsg(taskReqMsg, nil, log, errors.New("list spec did not contain any source directories"))
+	}
+	fileInfos, err := listDirectory(listSpec.SrcDirectories[0])
 	if err != nil {
 		w.CloseWithError(err)
 		return buildTaskRespMsg(taskReqMsg, nil, log, err)
@@ -145,7 +148,7 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 
 	// Set the resumable upload chunk size.
 	if t, ok := w.(*storage.Writer); ok {
-		t.ChunkSize, err = getListingUploadChunkSize(fileInfos, listSpec.SrcDirectory, h.resumableChunkSize)
+		t.ChunkSize, err = getListingUploadChunkSize(fileInfos, listSpec.SrcDirectories[0], h.resumableChunkSize)
 		if err != nil {
 			w.CloseWithError(err)
 			return buildTaskRespMsg(taskReqMsg, nil, log, err)
@@ -157,7 +160,7 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		return buildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
-	listMD, err := writeListingFile(fileInfos, listSpec.SrcDirectory, w)
+	listMD, err := writeListingFile(fileInfos, listSpec.SrcDirectories[0], w)
 	if err != nil {
 		w.CloseWithError(err)
 		return buildTaskRespMsg(taskReqMsg, nil, log, err)
