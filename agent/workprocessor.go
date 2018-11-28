@@ -78,7 +78,7 @@ type WorkHandler interface {
 type WorkProcessor struct {
 	WorkSub       *pubsub.Subscription
 	ProgressTopic *pubsub.Topic
-	Handler       WorkHandler
+	Handlers      *HandlerRegistry
 	StatsLog      *statslog.StatsLog
 }
 
@@ -98,8 +98,13 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 	var taskRespMsg *taskpb.TaskRespMsg
 	if isActiveJob {
 		start := time.Now()
-		taskRespMsg = wp.Handler.Do(ctx, &taskReqMsg)
-		wp.StatsLog.AddSample(wp.Handler.Type(), time.Now().Sub(start))
+		handler, agentErr := wp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
+		if agentErr != nil {
+			taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
+		} else {
+			taskRespMsg = handler.Do(ctx, &taskReqMsg)
+			wp.StatsLog.AddSample(handler.Type(), time.Now().Sub(start))
+		}
 	} else {
 		taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, AgentError{
 			Msg:         fmt.Sprintf("job run %s is not active", taskReqMsg.JobrunRelRsrcName),

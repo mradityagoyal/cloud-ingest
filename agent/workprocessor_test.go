@@ -140,9 +140,11 @@ func TestWorkProcessorProcessMessage(t *testing.T) {
 	wp := WorkProcessor{
 		WorkSub:       workSub,
 		ProgressTopic: progressTopic,
-		Handler: &TestWorkHandler{map[string]*taskpb.TaskRespMsg{
-			taskReqMsg.TaskRelRsrcName: want,
-		}},
+		Handlers: NewHandlerRegistry(map[uint64]WorkHandler{
+			0: &TestWorkHandler{map[string]*taskpb.TaskRespMsg{
+				taskReqMsg.TaskRelRsrcName: want,
+			}},
+		}),
 		StatsLog: statslog.New(),
 	}
 	wp.processMessage(ctx, psTaskReqMsg)
@@ -193,7 +195,7 @@ func TestWorkProcessorProcessMessageNotActiveJob(t *testing.T) {
 	wp := WorkProcessor{
 		WorkSub:       workSub,
 		ProgressTopic: progressTopic,
-		Handler:       nil,
+		Handlers:      nil,
 		StatsLog:      statslog.New(),
 	}
 	wp.processMessage(ctx, psTaskReqMsg)
@@ -217,5 +219,69 @@ func TestWorkProcessorProcessMessageNotActiveJob(t *testing.T) {
 
 	if taskRespMsg.FailureType != taskpb.FailureType_NOT_ACTIVE_JOBRUN {
 		t.Errorf("wp.processMessage(%v) failure type = %v, want %v", taskReqMsg, taskRespMsg.FailureType, taskpb.FailureType_NOT_ACTIVE_JOBRUN)
+	}
+}
+
+func TestWorkProcessorProcessMessageNoHandler(t *testing.T) {
+	ctx := context.Background()
+	client, cleanUp := fakePubSubClient(ctx, t)
+	defer cleanUp()
+
+	progressTopic := createTopic(ctx, t, client, "progress")
+	progressSub := createSubscription(ctx, t, client, progressTopic, "progressSub")
+
+	workTopic := createTopic(ctx, t, client, "work")
+	workSub := createSubscription(ctx, t, client, workTopic, "workSub")
+
+	taskReqMsg := &taskpb.TaskReqMsg{
+		TaskRelRsrcName:   "taskid",
+		JobrunRelRsrcName: "jobrunid",
+		JobRunVersion:     "1.0.0",
+	}
+
+	mu.Lock()
+	activeJobRuns[taskReqMsg.JobrunRelRsrcName] = 1
+	mu.Unlock()
+
+	data, err := proto.Marshal(taskReqMsg)
+	if err != nil {
+		t.Fatalf("error marshalling task req message %v", err)
+	}
+
+	// Publish and receive task request message
+	res := workTopic.Publish(ctx, &pubsub.Message{Data: data})
+	res.Get(ctx)
+	msgs := make(chan *pubsub.Message)
+	receiveMessages(ctx, msgs, workSub)
+	psTaskReqMsg := getMessageOrTimeout(t, msgs)
+
+	want := &taskpb.TaskRespMsg{
+		TaskRelRsrcName: taskReqMsg.TaskRelRsrcName,
+		Status:          "FAILURE",
+		FailureType:     taskpb.FailureType_AGENT_UNSUPPORTED_VERSION,
+	}
+	wp := WorkProcessor{
+		WorkSub:       workSub,
+		ProgressTopic: progressTopic,
+		Handlers: NewHandlerRegistry(map[uint64]WorkHandler{
+			0: &TestWorkHandler{map[string]*taskpb.TaskRespMsg{
+				taskReqMsg.TaskRelRsrcName: want,
+			}},
+		}),
+		StatsLog: statslog.New(),
+	}
+	wp.processMessage(ctx, psTaskReqMsg)
+
+	// Read and check task response message
+	receiveMessages(ctx, msgs, progressSub)
+	psTaskRespMsg := getMessageOrTimeout(t, msgs)
+
+	var taskRespMsg taskpb.TaskRespMsg
+	if err := proto.Unmarshal(psTaskRespMsg.Data, &taskRespMsg); err != nil {
+		t.Fatalf("error decoding msg %s with error %v.", string(psTaskRespMsg.Data), err)
+	}
+
+	if taskRespMsg.TaskRelRsrcName != want.TaskRelRsrcName || taskRespMsg.Status != want.Status || taskRespMsg.FailureType != want.FailureType {
+		t.Errorf("wp.processMessage(%v) = %v, want %v", taskReqMsg, taskRespMsg, want)
 	}
 }
