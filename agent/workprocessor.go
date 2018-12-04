@@ -100,7 +100,6 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		start := time.Now()
 		taskRespMsg = wp.Handler.Do(ctx, &taskReqMsg)
 		wp.StatsLog.AddSample(wp.Handler.Type(), time.Now().Sub(start))
-
 	} else {
 		taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, AgentError{
 			Msg:         fmt.Sprintf("job run %s is not active", taskReqMsg.JobrunRelRsrcName),
