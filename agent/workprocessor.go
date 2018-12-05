@@ -32,9 +32,6 @@ import (
 )
 
 var (
-	// ControlEnabled determines if agent control feature is enabled.
-	ControlEnabled bool
-
 	// Mutex to protect activeJobRuns and bwLimiter access.
 	mu sync.RWMutex
 	// A map between the active jobruns and the associated BW for each job run.
@@ -95,7 +92,7 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 	}
 
 	mu.RLock()
-	isActiveJob := !ControlEnabled || activeJobRuns[taskReqMsg.JobrunRelRsrcName] != 0
+	isActiveJob := activeJobRuns[taskReqMsg.JobrunRelRsrcName] != 0
 	mu.RUnlock()
 
 	var taskRespMsg *taskpb.TaskRespMsg

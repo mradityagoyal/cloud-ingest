@@ -68,7 +68,6 @@ var (
 	printVersion         bool
 
 	pulseFrequency int
-	pulseRun       bool //used to start or stop pulse
 
 	enableStatsLog bool
 
@@ -113,9 +112,7 @@ func init() {
 		"Prefix of Pub/Sub topics and subscriptions names.")
 
 	flag.IntVar(&pulseFrequency, "pulse-frequency", 10, "the number of seconds the agent will wait before sending a pulse")
-	flag.BoolVar(&pulseRun, "pulse-run", true, "Send pulse")
 
-	flag.BoolVar(&agent.ControlEnabled, "enable-agent-control", true, "Enable the agent to be controlled by the service backend.")
 	flag.BoolVar(&enableStatsLog, "enable-stats-log", true, "Enable stats logging to INFO logs.")
 
 	flag.IntVar(&listFileSizeThreshold, "list-file-size-threshold", 10000,
@@ -284,25 +281,23 @@ func main() {
 
 	var wg sync.WaitGroup
 
-	if pulseRun {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			pulseTopicWrapper := gcloud.NewPubSubTopicWrapper(pubSubClient.Topic(pubsubPrefix + pulseTopic))
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		pulseTopicWrapper := gcloud.NewPubSubTopicWrapper(pubSubClient.Topic(pubsubPrefix + pulseTopic))
 
-			// Wait for pulse topic to exist.
-			if err := waitOnTopic(ctx, pulseTopicWrapper); err != nil {
-				glog.Fatalf("Could not get PulseTopic: %s \n error: %v ", pulseTopicWrapper.ID(), err)
-			}
+		// Wait for pulse topic to exist.
+		if err := waitOnTopic(ctx, pulseTopicWrapper); err != nil {
+			glog.Fatalf("Could not get PulseTopic: %s \n error: %v ", pulseTopicWrapper.ID(), err)
+		}
 
-			ph, err := agent.NewPulseHandler(pulseTopicWrapper, int32(pulseFrequency), logDir)
-			if err != nil {
-				glog.Fatalf("Could not create a PulseHandler with Topic: %v and Frequency: %v \n error: %v ", pulseTopicWrapper.ID(), pulseFrequency, err)
-			}
+		ph, err := agent.NewPulseHandler(pulseTopicWrapper, int32(pulseFrequency), logDir)
+		if err != nil {
+			glog.Fatalf("Could not create a PulseHandler with Topic: %v and Frequency: %v \n error: %v ", pulseTopicWrapper.ID(), pulseFrequency, err)
+		}
 
-			ph.Run(ctx)
-		}()
-	}
+		ph.Run(ctx)
+	}()
 
 	var sl *statslog.StatsLog
 	if enableStatsLog {
@@ -386,32 +381,27 @@ func main() {
 		}()
 	}
 
-	if agent.ControlEnabled {
-		if !pulseRun {
-			glog.Fatalf("Command line flag 'pulse-run' should be enabled.")
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		controlTopic := pubSubClient.Topic(pubsubPrefix + controlTopic)
+		controlTopicWrapper := gcloud.NewPubSubTopicWrapper(controlTopic)
+
+		// Wait for copy topic to exist.
+		if err := waitOnTopic(ctx, controlTopicWrapper); err != nil {
+			glog.Fatalf("Could not find control topic %s, error %+v", controlTopicWrapper.ID(), err)
 		}
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
-			controlTopic := pubSubClient.Topic(pubsubPrefix + controlTopic)
-			controlTopicWrapper := gcloud.NewPubSubTopicWrapper(controlTopic)
 
-			// Wait for copy topic to exist.
-			if err := waitOnTopic(ctx, controlTopicWrapper); err != nil {
-				glog.Fatalf("Could not find control topic %s, error %+v", controlTopicWrapper.ID(), err)
-			}
+		controlSub, err := subscribeToControlTopic(ctx, pubSubClient, controlTopic)
+		if err != nil {
+			glog.Fatalf("Could not create subscription to control topic %v, with err: %v", controlTopic, err)
+		}
 
-			controlSub, err := subscribeToControlTopic(ctx, pubSubClient, controlTopic)
-			if err != nil {
-				glog.Fatalf("Could not create subscription to control topic %v, with err: %v", controlTopic, err)
-			}
-
-			ch := agent.NewControlHandler(controlSub)
-			if err := ch.HandleControlMessages(ctx); err != nil {
-				glog.Fatalf("Failed handling control messages with err: %v.", err)
-			}
-		}()
-	}
+		ch := agent.NewControlHandler(controlSub)
+		if err := ch.HandleControlMessages(ctx); err != nil {
+			glog.Fatalf("Failed handling control messages with err: %v.", err)
+		}
+	}()
 
 	wg.Wait()
 }
