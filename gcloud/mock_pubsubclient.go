@@ -36,6 +36,7 @@ func (m *MockPS) EXPECT() *MockPSMockRecorder {
 
 // Topic mocks base method
 func (m *MockPS) Topic(id string) PSTopic {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Topic", id)
 	ret0, _ := ret[0].(PSTopic)
 	return ret0
@@ -43,11 +44,13 @@ func (m *MockPS) Topic(id string) PSTopic {
 
 // Topic indicates an expected call of Topic
 func (mr *MockPSMockRecorder) Topic(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Topic", reflect.TypeOf((*MockPS)(nil).Topic), id)
 }
 
 // TopicInProject mocks base method
 func (m *MockPS) TopicInProject(id, projectID string) PSTopic {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TopicInProject", id, projectID)
 	ret0, _ := ret[0].(PSTopic)
 	return ret0
@@ -55,11 +58,13 @@ func (m *MockPS) TopicInProject(id, projectID string) PSTopic {
 
 // TopicInProject indicates an expected call of TopicInProject
 func (mr *MockPSMockRecorder) TopicInProject(id, projectID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "TopicInProject", reflect.TypeOf((*MockPS)(nil).TopicInProject), id, projectID)
 }
 
 // Subscription mocks base method
 func (m *MockPS) Subscription(id string) PSSubscription {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Subscription", id)
 	ret0, _ := ret[0].(PSSubscription)
 	return ret0
@@ -67,6 +72,7 @@ func (m *MockPS) Subscription(id string) PSSubscription {
 
 // Subscription indicates an expected call of Subscription
 func (mr *MockPSMockRecorder) Subscription(id interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Subscription", reflect.TypeOf((*MockPS)(nil).Subscription), id)
 }
 
@@ -95,6 +101,7 @@ func (m *MockPSTopic) EXPECT() *MockPSTopicMockRecorder {
 
 // Publish mocks base method
 func (m *MockPSTopic) Publish(ctx context.Context, msg *pubsub.Message) PSPublishResult {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Publish", ctx, msg)
 	ret0, _ := ret[0].(PSPublishResult)
 	return ret0
@@ -102,21 +109,25 @@ func (m *MockPSTopic) Publish(ctx context.Context, msg *pubsub.Message) PSPublis
 
 // Publish indicates an expected call of Publish
 func (mr *MockPSTopicMockRecorder) Publish(ctx, msg interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Publish", reflect.TypeOf((*MockPSTopic)(nil).Publish), ctx, msg)
 }
 
 // Stop mocks base method
 func (m *MockPSTopic) Stop() {
+	m.ctrl.T.Helper()
 	m.ctrl.Call(m, "Stop")
 }
 
 // Stop indicates an expected call of Stop
 func (mr *MockPSTopicMockRecorder) Stop() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Stop", reflect.TypeOf((*MockPSTopic)(nil).Stop))
 }
 
 // ID mocks base method
 func (m *MockPSTopic) ID() string {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ID")
 	ret0, _ := ret[0].(string)
 	return ret0
@@ -124,11 +135,13 @@ func (m *MockPSTopic) ID() string {
 
 // ID indicates an expected call of ID
 func (mr *MockPSTopicMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockPSTopic)(nil).ID))
 }
 
 // Delete mocks base method
 func (m *MockPSTopic) Delete(ctx context.Context) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -136,11 +149,13 @@ func (m *MockPSTopic) Delete(ctx context.Context) error {
 
 // Delete indicates an expected call of Delete
 func (mr *MockPSTopicMockRecorder) Delete(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPSTopic)(nil).Delete), ctx)
 }
 
 // Exists mocks base method
 func (m *MockPSTopic) Exists(ctx context.Context) (bool, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Exists", ctx)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
@@ -149,6 +164,7 @@ func (m *MockPSTopic) Exists(ctx context.Context) (bool, error) {
 
 // Exists indicates an expected call of Exists
 func (mr *MockPSTopicMockRecorder) Exists(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPSTopic)(nil).Exists), ctx)
 }
 
@@ -177,6 +193,7 @@ func (m *MockPSSubscription) EXPECT() *MockPSSubscriptionMockRecorder {
 
 // Receive mocks base method
 func (m *MockPSSubscription) Receive(ctx context.Context, f func(context.Context, *pubsub.Message)) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Receive", ctx, f)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -184,11 +201,13 @@ func (m *MockPSSubscription) Receive(ctx context.Context, f func(context.Context
 
 // Receive indicates an expected call of Receive
 func (mr *MockPSSubscriptionMockRecorder) Receive(ctx, f interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Receive", reflect.TypeOf((*MockPSSubscription)(nil).Receive), ctx, f)
 }
 
 // ID mocks base method
 func (m *MockPSSubscription) ID() string {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ID")
 	ret0, _ := ret[0].(string)
 	return ret0
@@ -196,11 +215,13 @@ func (m *MockPSSubscription) ID() string {
 
 // ID indicates an expected call of ID
 func (mr *MockPSSubscriptionMockRecorder) ID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ID", reflect.TypeOf((*MockPSSubscription)(nil).ID))
 }
 
 // Delete mocks base method
 func (m *MockPSSubscription) Delete(ctx context.Context) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Delete", ctx)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -208,11 +229,13 @@ func (m *MockPSSubscription) Delete(ctx context.Context) error {
 
 // Delete indicates an expected call of Delete
 func (mr *MockPSSubscriptionMockRecorder) Delete(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Delete", reflect.TypeOf((*MockPSSubscription)(nil).Delete), ctx)
 }
 
 // Config mocks base method
 func (m *MockPSSubscription) Config(ctx context.Context) (PSSubscriptionConfig, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Config", ctx)
 	ret0, _ := ret[0].(PSSubscriptionConfig)
 	ret1, _ := ret[1].(error)
@@ -221,11 +244,13 @@ func (m *MockPSSubscription) Config(ctx context.Context) (PSSubscriptionConfig, 
 
 // Config indicates an expected call of Config
 func (mr *MockPSSubscriptionMockRecorder) Config(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Config", reflect.TypeOf((*MockPSSubscription)(nil).Config), ctx)
 }
 
 // Exists mocks base method
 func (m *MockPSSubscription) Exists(ctx context.Context) (bool, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Exists", ctx)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
@@ -234,6 +259,7 @@ func (m *MockPSSubscription) Exists(ctx context.Context) (bool, error) {
 
 // Exists indicates an expected call of Exists
 func (mr *MockPSSubscriptionMockRecorder) Exists(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Exists", reflect.TypeOf((*MockPSSubscription)(nil).Exists), ctx)
 }
 
@@ -262,6 +288,7 @@ func (m *MockPSPublishResult) EXPECT() *MockPSPublishResultMockRecorder {
 
 // Get mocks base method
 func (m *MockPSPublishResult) Get(ctx context.Context) (string, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Get", ctx)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(error)
@@ -270,6 +297,7 @@ func (m *MockPSPublishResult) Get(ctx context.Context) (string, error) {
 
 // Get indicates an expected call of Get
 func (mr *MockPSPublishResultMockRecorder) Get(ctx interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Get", reflect.TypeOf((*MockPSPublishResult)(nil).Get), ctx)
 }
 
@@ -298,6 +326,7 @@ func (m *MockPSSubscriptionConfig) EXPECT() *MockPSSubscriptionConfigMockRecorde
 
 // Topic mocks base method
 func (m *MockPSSubscriptionConfig) Topic() PSTopic {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Topic")
 	ret0, _ := ret[0].(PSTopic)
 	return ret0
@@ -305,5 +334,6 @@ func (m *MockPSSubscriptionConfig) Topic() PSTopic {
 
 // Topic indicates an expected call of Topic
 func (mr *MockPSSubscriptionConfigMockRecorder) Topic() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Topic", reflect.TypeOf((*MockPSSubscriptionConfig)(nil).Topic))
 }

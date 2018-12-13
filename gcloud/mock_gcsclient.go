@@ -38,6 +38,7 @@ func (m *MockGCS) EXPECT() *MockGCSMockRecorder {
 
 // CreateBucket mocks base method
 func (m *MockGCS) CreateBucket(ctx context.Context, projectId, bucketName string, attrs *storage.BucketAttrs) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CreateBucket", ctx, projectId, bucketName, attrs)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -45,11 +46,13 @@ func (m *MockGCS) CreateBucket(ctx context.Context, projectId, bucketName string
 
 // CreateBucket indicates an expected call of CreateBucket
 func (mr *MockGCSMockRecorder) CreateBucket(ctx, projectId, bucketName, attrs interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateBucket", reflect.TypeOf((*MockGCS)(nil).CreateBucket), ctx, projectId, bucketName, attrs)
 }
 
 // DeleteBucket mocks base method
 func (m *MockGCS) DeleteBucket(ctx context.Context, bucketName string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteBucket", ctx, bucketName)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -57,11 +60,13 @@ func (m *MockGCS) DeleteBucket(ctx context.Context, bucketName string) error {
 
 // DeleteBucket indicates an expected call of DeleteBucket
 func (mr *MockGCSMockRecorder) DeleteBucket(ctx, bucketName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteBucket", reflect.TypeOf((*MockGCS)(nil).DeleteBucket), ctx, bucketName)
 }
 
 // DeleteObject mocks base method
 func (m *MockGCS) DeleteObject(ctx context.Context, bucketName, objectName string) error {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "DeleteObject", ctx, bucketName, objectName)
 	ret0, _ := ret[0].(error)
 	return ret0
@@ -69,11 +74,13 @@ func (m *MockGCS) DeleteObject(ctx context.Context, bucketName, objectName strin
 
 // DeleteObject indicates an expected call of DeleteObject
 func (mr *MockGCSMockRecorder) DeleteObject(ctx, bucketName, objectName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*MockGCS)(nil).DeleteObject), ctx, bucketName, objectName)
 }
 
 // GetAttrs mocks base method
 func (m *MockGCS) GetAttrs(ctx context.Context, bucketName, objectName string) (*storage.ObjectAttrs, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetAttrs", ctx, bucketName, objectName)
 	ret0, _ := ret[0].(*storage.ObjectAttrs)
 	ret1, _ := ret[1].(error)
@@ -82,11 +89,13 @@ func (m *MockGCS) GetAttrs(ctx context.Context, bucketName, objectName string) (
 
 // GetAttrs indicates an expected call of GetAttrs
 func (mr *MockGCSMockRecorder) GetAttrs(ctx, bucketName, objectName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAttrs", reflect.TypeOf((*MockGCS)(nil).GetAttrs), ctx, bucketName, objectName)
 }
 
 // ListObjects mocks base method
 func (m *MockGCS) ListObjects(ctx context.Context, bucketName string, query *storage.Query) ObjectIterator {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ListObjects", ctx, bucketName, query)
 	ret0, _ := ret[0].(ObjectIterator)
 	return ret0
@@ -94,11 +103,13 @@ func (m *MockGCS) ListObjects(ctx context.Context, bucketName string, query *sto
 
 // ListObjects indicates an expected call of ListObjects
 func (mr *MockGCSMockRecorder) ListObjects(ctx, bucketName, query interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListObjects", reflect.TypeOf((*MockGCS)(nil).ListObjects), ctx, bucketName, query)
 }
 
 // NewRangeReader mocks base method
 func (m *MockGCS) NewRangeReader(ctx context.Context, bucketName, objectName string, offset, length int64) (io.ReadCloser, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewRangeReader", ctx, bucketName, objectName, offset, length)
 	ret0, _ := ret[0].(io.ReadCloser)
 	ret1, _ := ret[1].(error)
@@ -107,11 +118,13 @@ func (m *MockGCS) NewRangeReader(ctx context.Context, bucketName, objectName str
 
 // NewRangeReader indicates an expected call of NewRangeReader
 func (mr *MockGCSMockRecorder) NewRangeReader(ctx, bucketName, objectName, offset, length interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewRangeReader", reflect.TypeOf((*MockGCS)(nil).NewRangeReader), ctx, bucketName, objectName, offset, length)
 }
 
 // NewWriter mocks base method
 func (m *MockGCS) NewWriter(ctx context.Context, bucketName, objectName string) helpers.WriteCloserWithError {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewWriter", ctx, bucketName, objectName)
 	ret0, _ := ret[0].(helpers.WriteCloserWithError)
 	return ret0
@@ -119,11 +132,13 @@ func (m *MockGCS) NewWriter(ctx context.Context, bucketName, objectName string) 
 
 // NewWriter indicates an expected call of NewWriter
 func (mr *MockGCSMockRecorder) NewWriter(ctx, bucketName, objectName interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewWriter", reflect.TypeOf((*MockGCS)(nil).NewWriter), ctx, bucketName, objectName)
 }
 
 // NewWriterWithCondition mocks base method
 func (m *MockGCS) NewWriterWithCondition(ctx context.Context, bucketName, objectName string, cond storage.Conditions) helpers.WriteCloserWithError {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewWriterWithCondition", ctx, bucketName, objectName, cond)
 	ret0, _ := ret[0].(helpers.WriteCloserWithError)
 	return ret0
@@ -131,6 +146,7 @@ func (m *MockGCS) NewWriterWithCondition(ctx context.Context, bucketName, object
 
 // NewWriterWithCondition indicates an expected call of NewWriterWithCondition
 func (mr *MockGCSMockRecorder) NewWriterWithCondition(ctx, bucketName, objectName, cond interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewWriterWithCondition", reflect.TypeOf((*MockGCS)(nil).NewWriterWithCondition), ctx, bucketName, objectName, cond)
 }
 
@@ -159,6 +175,7 @@ func (m *MockObjectIterator) EXPECT() *MockObjectIteratorMockRecorder {
 
 // Next mocks base method
 func (m *MockObjectIterator) Next() (*storage.ObjectAttrs, error) {
+	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Next")
 	ret0, _ := ret[0].(*storage.ObjectAttrs)
 	ret1, _ := ret[1].(error)
@@ -167,5 +184,6 @@ func (m *MockObjectIterator) Next() (*storage.ObjectAttrs, error) {
 
 // Next indicates an expected call of Next
 func (mr *MockObjectIteratorMockRecorder) Next() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Next", reflect.TypeOf((*MockObjectIterator)(nil).Next))
 }
