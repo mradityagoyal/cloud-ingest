@@ -29,6 +29,7 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/statslog"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/golang/glog"
 	"google.golang.org/api/option"
@@ -48,8 +49,6 @@ const (
 	// of outstanding copy messages from the max number of concurrent copy
 	// operations. Bassically, this keeps more messages in a buffer for performance.
 	copyOutstandingMsgsFactor = 5
-
-	useDepthFirstListing = false
 )
 
 var (
@@ -247,6 +246,10 @@ func main() {
 		printVersionInfo()
 		os.Exit(0)
 	}
+	err := versions.SetAgentVersion(buildVersion)
+	if err != nil {
+		glog.Fatalf("failed to set agent version with error %v", err)
+	}
 
 	logDir, err := createLogDirIfNeeded()
 	if err != nil {
@@ -305,6 +308,8 @@ func main() {
 		go sl.PeriodicallyLogStats(ctx)
 	}
 
+	var listProcessor, copyProcessor agent.WorkProcessor
+
 	if !skipProcessListTasks {
 		wg.Add(1)
 		go func() {
@@ -326,25 +331,20 @@ func main() {
 				glog.Fatalf("Could not find list topic %s, error %+v", listTopicWrapper.ID(), err)
 			}
 
-			var listProcessor agent.WorkProcessor
-			if useDepthFirstListing {
-				// Convert maxMemoryForListingDirectories to bytes and divide it equally between
-				// the list task processing threads.
-				allowedDirBytes := maxMemoryForListingDirectories * 1024 * 1024 / numberConcurrentListTasks
-				listProcessor = agent.WorkProcessor{
-					WorkSub:       listSub,
-					ProgressTopic: listTopic,
-					Handler:       agent.NewDepthFirstListHandler(storageClient, listTaskChunkSize, listFileSizeThreshold, allowedDirBytes),
-					StatsLog:      sl,
-				}
-			} else {
-				listProcessor = agent.WorkProcessor{
-					WorkSub:       listSub,
-					ProgressTopic: listTopic,
-					Handler:       agent.NewListHandler(storageClient, listTaskChunkSize),
-					StatsLog:      sl,
-				}
+			// Convert maxMemoryForListingDirectories to bytes and divide it equally between
+			// the list task processing threads.
+			allowedDirBytes := maxMemoryForListingDirectories * 1024 * 1024 / numberConcurrentListTasks
+
+			listProcessor = agent.WorkProcessor{
+				WorkSub:       listSub,
+				ProgressTopic: listTopic,
+				Handlers: agent.NewHandlerRegistry(map[uint64]agent.WorkHandler{
+					0: agent.NewListHandler(storageClient, listTaskChunkSize),
+					1: agent.NewDepthFirstListHandler(storageClient, listTaskChunkSize, listFileSizeThreshold, allowedDirBytes),
+				}),
+				StatsLog: sl,
 			}
+
 			listProcessor.Process(ctx)
 		}()
 	}
@@ -370,11 +370,15 @@ func main() {
 				glog.Fatalf("Could not find copy topic %s, error %+v", copyTopicWrapper.ID(), err)
 			}
 
-			copyProcessor := agent.WorkProcessor{
+			copyHandler := agent.NewCopyHandler(storageClient, numberThreads, copyTaskChunkSize, httpc)
+			copyProcessor = agent.WorkProcessor{
 				WorkSub:       copySub,
 				ProgressTopic: copyTopic,
-				Handler:       agent.NewCopyHandler(storageClient, numberThreads, copyTaskChunkSize, httpc),
-				StatsLog:      sl,
+				Handlers: agent.NewHandlerRegistry(map[uint64]agent.WorkHandler{
+					0: copyHandler,
+					1: copyHandler,
+				}),
+				StatsLog: sl,
 			}
 
 			copyProcessor.Process(ctx)

@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/golang/glog"
 	"google.golang.org/api/googleapi"
 
@@ -58,8 +59,13 @@ func getFailureTypeFromError(err error) taskpb.FailureType {
 //   lf are the logFields for this task
 //   err defines whether the taskProgressMsg's Status is SUCCESS or FAILURE
 func buildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, log *taskpb.Log, err error) *taskpb.TaskRespMsg {
+	version := taskReqMsg.JobRunVersion
+	if version == "" {
+		version = versions.DefaultJobRunVersion
+	}
 	taskRespMsg := &taskpb.TaskRespMsg{
 		TaskRelRsrcName: taskReqMsg.TaskRelRsrcName,
+		JobRunVersion:   version,
 		ReqSpec:         taskReqMsg.Spec,
 		RespSpec:        respSpec,
 		Log:             log,

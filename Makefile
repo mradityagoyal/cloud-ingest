@@ -97,6 +97,7 @@ setup-agent: ## Install all needed go dependencies.
 	go get -u github.com/golang/protobuf/protoc-gen-go
 	go get -u golang.org/x/time/rate
 	go get -u github.com/google/go-cmp/cmp
+	go get -u github.com/blang/semver
 
 .PHONY: setup-frontend
 setup-frontend: ## Install all needed frontend/JS dependencies.
