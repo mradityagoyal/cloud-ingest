@@ -1,4 +1,5 @@
 FRONTEND_DIR = webconsole/frontend
+RELEASE_DIR = release
 GOPATH ?= $(shell go env GOPATH)
 OPI_API_URL = https://$(USER)-dev-opitransfer.sandbox.googleapis.com
 OPI_ROBOT_ACCOUNT = cloud-ingest-dcp@cloud-ingest-dev.iam.gserviceaccount.com
@@ -7,12 +8,14 @@ OPI_ROBOT_ACCOUNT = cloud-ingest-dcp@cloud-ingest-dev.iam.gserviceaccount.com
 GO_TARGETS = \
 	./agent/... \
 	./gcloud/... \
-	./helpers/...
+	./helpers/... \
+	./release/...
 
 # Add individual files needing mocking here.
 FILES_TO_MOCK = \
 	gcloud/gcsclient.go \
-	gcloud/pubsubclient.go
+	gcloud/pubsubclient.go \
+	$(GOPATH)/src/github.com/googleapis/google-cloud-go-testing/storage/stiface/interfaces.go
 
 # NOTE: If/When we decide to move mocks to a separate directory and their own
 #       packages, this will have to switch to the reflection-based mockgen.
@@ -32,12 +35,17 @@ go-mocks: ## Generate go mock files.
 	@$(foreach file, $(FILES_TO_MOCK), $(call generate_mock,$(file)))
 
 .PHONY: lint
-lint: lint-agent lint-frontend ## Run all code style validators.
+lint: lint-agent lint-changelog lint-frontend ## Run all code style validators.
 
 .PHONY: lint-agent
 lint-agent: ## Run Go format.
 	@echo -e "\n== Formatting Go =="
 	@go fmt $(GO_TARGETS)
+
+.PHONY: lint-changelog
+lint-changelog: ## Validate changelog format.
+	@echo -e "\n== Validating Changelog Format =="
+	@go run "$(RELEASE_DIR)/validatechangelog.go"
 
 .PHONY: lint-frontend
 lint-frontend: ## Lint frontend code.
@@ -69,7 +77,7 @@ endif
 build: setup build-agent build-frontend ## Refresh dependencies, Build, test, and install everything.
 
 .PHONY: build-agent
-build-agent: go-mocks lint-agent test-agent ## Build, test, and install Go binaries.
+build-agent: go-mocks lint-agent lint-changelog test-agent ## Build, test, and install Go binaries.
 	@echo -e "\n== Building/Installing Go Binaries =="
 	@go install -v $(GO_TARGETS)
 
@@ -81,7 +89,7 @@ build-frontend: lint-frontend test-frontend ## Check and test frontend code.
 .PHONY: clean
 clean: ## Blow away all compiled artifacts and installed dependencies.
 	go clean -i $(GO_TARGETS)
-	rm -rf $(FRONTEND_DIR)/node_modules release/tmp-release-ephemeral; true
+	rm -rf $(FRONTEND_DIR)/node_modules $(RELEASE_DIR)/tmp-release-ephemeral; true
 
 .PHONY: setup
 setup: setup-agent setup-frontend ## Run full setup of dependencies and environment.
@@ -90,14 +98,17 @@ setup: setup-agent setup-frontend ## Run full setup of dependencies and environm
 setup-agent: ## Install all needed go dependencies.
 	@echo -e "\n== Installing/Updating Go Dependencies =="
 	go get -u cloud.google.com/go/pubsub
+	go get -u github.com/blang/semver
 	go get -u github.com/golang/glog
 	go get -u github.com/golang/groupcache/lru
 	go get -u github.com/golang/mock/gomock
 	go get -u github.com/golang/mock/mockgen
 	go get -u github.com/golang/protobuf/protoc-gen-go
-	go get -u golang.org/x/time/rate
 	go get -u github.com/google/go-cmp/cmp
-	go get -u github.com/blang/semver
+	go get -u github.com/googleapis/google-cloud-go-testing
+	go get -u golang.org/x/time/rate
+	@echo -e "\n== Installing Changelog Parser =="
+	npm install changelog-parser --loglevel error
 
 .PHONY: setup-frontend
 setup-frontend: ## Install all needed frontend/JS dependencies.
