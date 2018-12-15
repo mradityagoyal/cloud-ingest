@@ -15,6 +15,7 @@ import { ErrorDialogModule } from './util/error-dialog/error-dialog.module';
 import { AgentComponent } from './agent/agent.component';
 import { BandwidthControlComponent } from './bandwidth-control/bandwidth-control.component';
 import { PulseComponent } from './pulse/pulse.component';
+import { PulseService } from './pulse/pulse.service';
 
 @NgModule({
   declarations: [
@@ -43,6 +44,7 @@ import { PulseComponent } from './pulse/pulse.component';
       useClass: AuthInterceptor,
       multi: true,
     },
+    PulseService,
   ],
   bootstrap: [AppComponent]
 })
