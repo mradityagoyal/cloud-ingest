@@ -55,26 +55,34 @@ import (
 const (
 	defaultCopyMemoryLimit int64  = 1 << 30 // Default memory limit is 1 GB.
 	userAgent                     = "google-cloud-ingest-on-premises-agent"
+	userAgentInternal             = "google-cloud-ingest-on-premises-agent"
 	MTIME_ATTR_NAME        string = "goog-reserved-file-mtime"
 )
 
 var (
 	copyMemoryLimit int64
 	CRC32CTable     *crc32pkg.Table
+	internalTesting bool
 )
 
 func init() {
 	flag.Int64Var(&copyMemoryLimit, "copy-max-memory", defaultCopyMemoryLimit,
 		"Max memory buffer (in bytes) consumed by the copy tasks.")
+	flag.BoolVar(&internalTesting, "internal-testing", false,
+		"Agent running for Google internal testing purposes.")
 	CRC32CTable = crc32pkg.MakeTable(crc32pkg.Castagnoli)
 }
 
 // NewResumableHttpClient creates a new http.Client suitable for resumable copies.
 func NewResumableHttpClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, error) {
+	userAgentStr := userAgent
+	if internalTesting {
+		userAgentStr = userAgentInternal
+	}
 	// TODO(b/74008724): We likely don't need full control, only read and write. Limit this.
 	o := []option.ClientOption{
 		option.WithScopes(raw.DevstorageFullControlScope),
-		option.WithUserAgent(userAgent),
+		option.WithUserAgent(userAgentStr),
 	}
 	opts = append(o, opts...)
 	hc, _, err := htransport.NewClient(ctx, opts...)
@@ -399,11 +407,16 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 		return fmt.Errorf("json.NewEncoder(body).Encode(object) err: %v", err)
 	}
 
+	userAgentStr := userAgent
+	if internalTesting {
+		userAgentStr = userAgentInternal
+	}
+
 	// Create the request headers.
 	reqHeaders := make(http.Header)
 	reqHeaders.Set("Content-Type", "application/json; charset=UTF-8")
 	reqHeaders.Set("Content-Length", fmt.Sprint(body.Len()))
-	reqHeaders.Set("User-Agent", userAgent)
+	reqHeaders.Set("User-Agent", userAgentStr)
 	reqHeaders.Set("X-Upload-Content-Length", fmt.Sprint(stats.Size()))
 	reqHeaders.Set("X-Upload-Content-Type", contentType(srcFile))
 
