@@ -9,7 +9,7 @@ GO_TARGETS = \
 	./agent/... \
 	./gcloud/... \
 	./helpers/... \
-	./release/...
+	./release/changelog/...
 
 # Add individual files needing mocking here.
 FILES_TO_MOCK = \
@@ -45,7 +45,7 @@ lint-agent: ## Run Go format.
 .PHONY: lint-changelog
 lint-changelog: ## Validate changelog format.
 	@echo -e "\n== Validating Changelog Format =="
-	@go run "$(RELEASE_DIR)/validatechangelog.go"
+	@go run "$(RELEASE_DIR)/validatechangelog.go" -buildType dev
 
 .PHONY: lint-frontend
 lint-frontend: ## Lint frontend code.
@@ -78,6 +78,16 @@ build: setup build-agent build-frontend ## Refresh dependencies, Build, test, an
 
 .PHONY: build-agent
 build-agent: go-mocks lint-agent lint-changelog test-agent ## Build, test, and install Go binaries.
+	@echo -e "\n== Building/Installing Go Binaries =="
+	@go install -v $(GO_TARGETS)
+
+.PHONY: validate-release-changelog
+validate-release-changelog: ## Validate changelog format and new release version.
+	@echo -e "\n== Validating Changelog Format And Release Version =="
+	@go run "$(RELEASE_DIR)/validatechangelog.go" -buildType prod
+
+.PHONY: build-release-agent
+build-release-agent: go-mocks lint-agent validate-release-changelog test-agent ## Build, test, and install Go binaries.
 	@echo -e "\n== Building/Installing Go Binaries =="
 	@go install -v $(GO_TARGETS)
 
