@@ -489,7 +489,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 	srcCRC32C := crc32pkg.Update(uint32(c.Crc32C), CRC32CTable, buf)
 
 	// This loop will retry multiple times if the HTTP response returns a retryable error.
-	var backoff Backoff
+	var backoff BackOff
 	var delay time.Duration
 	var resp *http.Response
 	for {
