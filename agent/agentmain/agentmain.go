@@ -48,7 +48,7 @@ const (
 	// copyOutstandingMsgsFactor is the multiplication factor to calculate the max number
 	// of outstanding copy messages from the max number of concurrent copy
 	// operations. Bassically, this keeps more messages in a buffer for performance.
-	copyOutstandingMsgsFactor = 5
+	copyOutstandingMsgsFactor = 1
 )
 
 var (
