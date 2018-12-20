@@ -331,16 +331,11 @@ func main() {
 				glog.Fatalf("Could not find list topic %s, error %+v", listTopicWrapper.ID(), err)
 			}
 
-			// Convert maxMemoryForListingDirectories to bytes and divide it equally between
-			// the list task processing threads.
-			allowedDirBytes := maxMemoryForListingDirectories * 1024 * 1024 / numberConcurrentListTasks
-
 			listProcessor = agent.WorkProcessor{
 				WorkSub:       listSub,
 				ProgressTopic: listTopic,
 				Handlers: agent.NewHandlerRegistry(map[uint64]agent.WorkHandler{
 					0: agent.NewListHandler(storageClient, listTaskChunkSize),
-					1: agent.NewDepthFirstListHandler(storageClient, listTaskChunkSize, listFileSizeThreshold, allowedDirBytes),
 				}),
 				StatsLog: sl,
 			}
@@ -376,7 +371,6 @@ func main() {
 				ProgressTopic: copyTopic,
 				Handlers: agent.NewHandlerRegistry(map[uint64]agent.WorkHandler{
 					0: copyHandler,
-					1: copyHandler,
 				}),
 				StatsLog: sl,
 			}
