@@ -72,7 +72,6 @@ func TestDepthFirstListSuccessEmptyDir(t *testing.T) {
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	writeProtobuf(&expectedListResult, &listpb.ListFileHeader{JobRunVersion: jobRunVersion})
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
@@ -107,7 +106,6 @@ func TestDepthFirstListSuccessFlatDir(t *testing.T) {
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	writeProtobuf(&expectedListResult, &listpb.ListFileHeader{JobRunVersion: jobRunVersion})
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
@@ -162,7 +160,6 @@ func TestDepthFirstListFailsFileWithNewline(t *testing.T) {
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	writeProtobuf(&expectedListResult, &listpb.ListFileHeader{JobRunVersion: jobRunVersion})
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
@@ -208,7 +205,6 @@ func TestDepthFirstListSuccessNestedDirSmallListFile(t *testing.T) {
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	writeProtobuf(&expectedListResult, &listpb.ListFileHeader{JobRunVersion: jobRunVersion})
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
@@ -277,7 +273,6 @@ func TestDepthFirstListSuccessNestedDirLargeListFile(t *testing.T) {
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	writeProtobuf(&expectedListResult, &listpb.ListFileHeader{JobRunVersion: jobRunVersion})
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
@@ -352,7 +347,6 @@ func TestDepthFirstListMakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) 
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	writeProtobuf(&expectedListResult, &listpb.ListFileHeader{JobRunVersion: jobRunVersion})
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
@@ -409,7 +403,6 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
-	writeProtobuf(&expectedListResult, &listpb.ListFileHeader{JobRunVersion: jobRunVersion})
 
 	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
 	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")

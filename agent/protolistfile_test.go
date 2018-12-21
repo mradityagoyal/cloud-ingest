@@ -25,37 +25,30 @@ import (
 )
 
 func TestWriteAndReadSingleProtobuf(t *testing.T) {
-	jobRunVersion := "1.0.0"
-	header := &listpb.ListFileHeader{JobRunVersion: jobRunVersion}
+	path := "an/example/path"
+	dirInfo := &listpb.DirectoryInfo{Path: path}
 	var buf bytes.Buffer
-	err := writeProtobuf(&buf, header)
+	err := writeProtobuf(&buf, dirInfo)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
-	readHeader := &listpb.ListFileHeader{}
-	err = parseProtobuf(&buf, readHeader)
+	readDirInfo := &listpb.DirectoryInfo{}
+	err = parseProtobuf(&buf, readDirInfo)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
-	if !proto.Equal(readHeader, header) {
-		t.Errorf("Expected %v, actual %v", header, readHeader)
+	if !proto.Equal(readDirInfo, dirInfo) {
+		t.Errorf("Expected %v, actual %v", dirInfo, readDirInfo)
 	}
 }
 
 func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 	protobufs := make([]proto.Message, 0)
 	results := make([]proto.Message, 0)
-	header1 := &listpb.ListFileHeader{JobRunVersion: "1.0.0"}
 	var buf bytes.Buffer
-	err := writeProtobuf(&buf, header1)
-	if err != nil {
-		t.Fatalf("Got error %v", err)
-	}
-	protobufs = append(protobufs, header1)
-	results = append(results, &listpb.ListFileHeader{})
 
 	fileInfo1 := &listpb.FileInfo{Path: "Path/to/file/1", LastModifiedTime: 123456, Size: 5}
-	err = writeProtobuf(&buf, fileInfo1)
+	err := writeProtobuf(&buf, fileInfo1)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
@@ -69,14 +62,6 @@ func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 	}
 	protobufs = append(protobufs, fileInfo2)
 	results = append(results, &listpb.FileInfo{})
-
-	header2 := &listpb.ListFileHeader{JobRunVersion: "1.0.1"}
-	err = writeProtobuf(&buf, header2)
-	if err != nil {
-		t.Fatalf("Got error %v", err)
-	}
-	protobufs = append(protobufs, header2)
-	results = append(results, &listpb.ListFileHeader{})
 
 	directory := &listpb.DirectoryInfo{Path: "directoryName"}
 	err = writeProtobuf(&buf, directory)
@@ -98,19 +83,19 @@ func TestWriteAndReadManyMixedProtobufs(t *testing.T) {
 }
 
 func TestWriteAndReadProtobufsIncompleteRead(t *testing.T) {
-	jobRunVersion := "1.0.0"
-	header := &listpb.ListFileHeader{JobRunVersion: jobRunVersion}
+	path := "an/example/path"
+	dirInfo := &listpb.DirectoryInfo{Path: path}
 	var buf bytes.Buffer
-	err := writeProtobuf(&buf, header)
+	err := writeProtobuf(&buf, dirInfo)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
-	readHeader := &listpb.ListFileHeader{}
-	err = parseProtobuf(&buf, readHeader)
+	readDirInfo := &listpb.DirectoryInfo{Path: path}
+	err = parseProtobuf(&buf, readDirInfo)
 	if err != nil {
 		t.Fatalf("Got error %v", err)
 	}
-	if !proto.Equal(readHeader, header) {
-		t.Errorf("Expected %v, actual %v", header, readHeader)
+	if !proto.Equal(readDirInfo, dirInfo) {
+		t.Errorf("Expected %v, actual %v", dirInfo, readDirInfo)
 	}
 }

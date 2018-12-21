@@ -31,9 +31,6 @@ import (
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
-// TODO(b/118396523): Remove this constant once versioning is implemented
-const jobRunVersion = "1.0.0"
-
 // DepthFirstListHandler is responsible for handling depth-first list tasks.
 type DepthFirstListHandler struct {
 	gcs                   gcloud.GCS
@@ -142,12 +139,6 @@ func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeT
 // alphabetical, depth first order. It continues listing until it finds listFileSizeThreshold or
 // uses more than maxDirBytes to store unexplored directories.
 func listDirectoriesAndWriteListFile(w io.Writer, listSpec *taskpb.ListSpec, listFileSizeThreshold, maxDirBytes int) (*listingFileMetadata, error) {
-	// Write list file header
-	header := listpb.ListFileHeader{JobRunVersion: jobRunVersion}
-	if err := writeProtobuf(w, &header); err != nil {
-		return nil, err
-	}
-
 	// Add directories from list spec into the DirStore.
 	// Directories will be explored in alphabetical, depth first order.
 	dirStore := NewDirectoryInfoStore()

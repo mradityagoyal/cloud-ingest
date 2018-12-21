@@ -3,12 +3,6 @@ syntax = "proto3";
 package cloud_ingest_listfile;
 option go_package = "listfile_go_proto";
 
-// List File Header specification.
-message ListFileHeader {
-  // The Job Run Version of the job that produced this list file.
-  string job_run_version = 1;
-}
-
 // List File Entry specification.
 message ListFileEntry {
   oneof entry {
