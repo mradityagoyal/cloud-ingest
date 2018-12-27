@@ -10,6 +10,8 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+
+## [0.5.7] - 2018-12-27
 ### Added
 - WorkHandler for depth-first listing.
 - Internal-testing flag.
