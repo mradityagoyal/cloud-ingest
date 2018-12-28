@@ -128,11 +128,11 @@ func checkResumableFileStats(c *taskpb.CopySpec, stats os.FileInfo) error {
 			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
-	if c.FileMTime != stats.ModTime().UnixNano() {
+	if c.FileMTime != stats.ModTime().Unix() {
 		return AgentError{
 			Msg: fmt.Sprintf(
 				"File mtime changed during the copy. Expected:%+v, got:%+v",
-				c.FileMTime, stats.ModTime().UnixNano()),
+				c.FileMTime, stats.ModTime().Unix()),
 			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
@@ -186,7 +186,7 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 	// bytes. Bytes are only counted when the task moves to "success", so
 	// there won't be any double counting.
 	cl.SrcBytes = stats.Size()
-	cl.SrcMTime = stats.ModTime().UnixNano()
+	cl.SrcMTime = stats.ModTime().Unix()
 	if resumedCopy {
 		// TODO(b/74009003): When implementing "synchronization" rethink how
 		// the file stat parameters are set and compared.
@@ -299,7 +299,7 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 	bufSize := stats.Size()
 	if t, ok := w.(*storage.Writer); ok {
 		t.Metadata = map[string]string{
-			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().UnixNano(), 10),
+			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
 		}
 		if bufSize > int64(h.resumableChunkSize) {
 			bufSize = int64(h.resumableChunkSize)
@@ -356,7 +356,7 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 	dstAttrs := w.Attrs()
 	cl.DstBytes = dstAttrs.Size
 	cl.DstCrc32C = dstAttrs.CRC32C
-	cl.DstMTime = dstAttrs.Updated.UnixNano()
+	cl.DstMTime = dstAttrs.Updated.Unix()
 	cl.SrcCrc32C = srcCRC32C
 	cl.BytesCopied = stats.Size()
 
@@ -399,7 +399,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 		Name:   c.DstObject,
 		Bucket: c.DstBucket,
 		Metadata: map[string]string{
-			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().UnixNano(), 10),
+			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
 		},
 	}
 	body := new(bytes.Buffer)
@@ -440,7 +440,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 
 	// This function was successful, update the copy spec.
 	c.FileBytes = stats.Size()
-	c.FileMTime = stats.ModTime().UnixNano()
+	c.FileMTime = stats.ModTime().Unix()
 	// TODO(b/74009190): Consider renaming this, or somehow indicating that
 	// this is a full URL. The Agent needs to be aware that this is a full
 	// URL, however the DCP really only cares that this is some sort of ID.
@@ -568,7 +568,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		if err := t.UnmarshalText([]byte(obj.Updated)); err != nil {
 			return fmt.Errorf("t.UnmarshalText err: %v", err)
 		}
-		cl.DstMTime = t.UnixNano()
+		cl.DstMTime = t.Unix()
 		cl.SrcCrc32C = srcCRC32C
 	} else {
 		c.Crc32C = srcCRC32C

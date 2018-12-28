@@ -173,12 +173,12 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 			CopyLog: &taskpb.CopyLog{
 				SrcFile:   tmpFile,
 				SrcBytes:  int64(len(testFileContent)),
-				SrcMTime:  srcStats.ModTime().UnixNano(),
+				SrcMTime:  srcStats.ModTime().Unix(),
 				SrcCrc32C: testCRC32C,
 
 				DstFile:   "bucket/object",
 				DstBytes:  int64(len(testFileContent)),
-				DstMTime:  gcsModTime.UnixNano(),
+				DstMTime:  gcsModTime.Unix(),
 				DstCrc32C: testCRC32C,
 
 				BytesCopied: int64(len(testFileContent)),
@@ -229,10 +229,10 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 		Log: &taskpb.Log_CopyLog{
 			CopyLog: &taskpb.CopyLog{
 				SrcFile:  tmpFile,
-				SrcMTime: srcStats.ModTime().UnixNano(),
+				SrcMTime: srcStats.ModTime().Unix(),
 
 				DstFile:  "bucket/object",
-				DstMTime: gcsModTime.UnixNano(),
+				DstMTime: gcsModTime.Unix(),
 			},
 		},
 	}
@@ -391,12 +391,12 @@ func TestCopyBundle(t *testing.T) {
 			wantLog := &taskpb.CopyLog{
 				SrcFile:   file.fileName,
 				SrcBytes:  file.size,
-				SrcMTime:  srcStats.ModTime().UnixNano(),
+				SrcMTime:  srcStats.ModTime().Unix(),
 				SrcCrc32C: file.crc,
 
 				DstFile:   fmt.Sprintf("%s/%s", file.bucket, file.object),
 				DstBytes:  file.size,
-				DstMTime:  gcsModTime.UnixNano(),
+				DstMTime:  gcsModTime.Unix(),
 				DstCrc32C: file.crc,
 
 				BytesCopied: file.size,
@@ -416,7 +416,7 @@ func TestCopyBundle(t *testing.T) {
 		}
 	}
 }
-func TestCopyHanderDoResumable(t *testing.T) {
+func TestCopyHandlerDoResumable(t *testing.T) {
 	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit), concurrentCopySem: semaphore.NewWeighted(1)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
 		// This bogus response serves both the prepareResumableCopy and
@@ -454,7 +454,7 @@ func TestCopyHanderDoResumable(t *testing.T) {
 			CopyLog: &taskpb.CopyLog{
 				SrcFile:  tmpFile,
 				SrcBytes: int64(len(testFileContent)),
-				SrcMTime: srcStats.ModTime().UnixNano(),
+				SrcMTime: srcStats.ModTime().Unix(),
 
 				DstFile: "bucket/object",
 
@@ -472,7 +472,7 @@ func TestCopyHanderDoResumable(t *testing.T) {
 	wantTaskRespSpec.GetCopySpec().BytesCopied = 10
 	wantTaskRespSpec.GetCopySpec().Crc32C = testTenByteCRC32C
 	wantTaskRespSpec.GetCopySpec().FileBytes = int64(len(testFileContent))
-	wantTaskRespSpec.GetCopySpec().FileMTime = srcStats.ModTime().UnixNano()
+	wantTaskRespSpec.GetCopySpec().FileMTime = srcStats.ModTime().Unix()
 	wantTaskRespSpec.GetCopySpec().ResumableUploadId = "testResumableUploadId"
 	if !proto.Equal(wantTaskRespSpec, taskRespMsg.RespSpec) {
 		t.Errorf("taskRespMsg.RespSpec = %v, want: %v", taskRespMsg.RespSpec, wantTaskRespSpec)
@@ -515,7 +515,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 		// Verify the req headers.
 		var wantHeaders = map[string][]string{
 			"Content-Type":            {"application/json; charset=UTF-8"},
-			"Content-Length":          {"98"},
+			"Content-Length":          {"89"},
 			"User-Agent":              {userAgent},
 			"X-Upload-Content-Length": {"1234"},
 			"X-Upload-Content-Type":   {"text/plain; charset=utf-8"},
@@ -547,7 +547,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 		if o.Bucket != "bucket" {
 			t.Errorf("want object bucket bucket, got %s", o.Bucket)
 		}
-		if modtime, ok := o.Metadata[MTIME_ATTR_NAME]; !ok || modtime != "1234567890000000000" {
+		if modtime, ok := o.Metadata[MTIME_ATTR_NAME]; !ok || modtime != "1234567890" {
 			t.Errorf("want object metadata mtime 12345890, got %v", modtime)
 		}
 
@@ -565,7 +565,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 
 	wantRespCopySpec := proto.Clone(copySpec).(*taskpb.CopySpec)
 	wantRespCopySpec.FileBytes = 1234
-	wantRespCopySpec.FileMTime = 1234567890000000000
+	wantRespCopySpec.FileMTime = 1234567890
 	wantRespCopySpec.ResumableUploadId = "testResumableUploadId"
 
 	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
@@ -641,7 +641,7 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 
 				DstBytes:    int64(len(testFileContent)),
 				DstCrc32C:   testCRC32C,
-				DstMTime:    1351807721000000000,
+				DstMTime:    1351807721,
 				BytesCopied: int64(len(testFileContent)),
 			},
 		},

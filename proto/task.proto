@@ -88,7 +88,7 @@ message CopySpec {
 
   // Fields only for managing resumable copies.
   int64 file_bytes = 6;             // The file size, in bytes.
-  int64 file_m_time = 7;            // The file modified time (UnixNano).
+  int64 file_m_time = 7;            // The file modified time (Unix).
   int64 bytes_copied = 8;           // The count of bytes copied so far.
   uint32 crc32c = 9;                // The CRC32C of the bytes copied so far.
   int64 bytes_to_copy = 10;         // Number of bytes to copy in a chunk.
@@ -167,12 +167,12 @@ message ProcessListLog {
 message CopyLog {
   string src_file = 1;
   int64 src_bytes = 2;
-  int64 src_m_time = 3;  // UnixNano.
+  int64 src_m_time = 3;  // Unix.
   uint32 src_crc32c = 4;
 
   string dst_file = 5;
   int64 dst_bytes = 6;
-  int64 dst_m_time = 7;  // UnixNano.
+  int64 dst_m_time = 7;  // Unix.
   uint32 dst_crc32c = 8;
 
   int64 bytes_copied = 9;

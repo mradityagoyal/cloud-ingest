@@ -20,7 +20,7 @@ func checkCopyTaskSpec(c *taskpb.CopySpec) (resumedCopy bool, err error) {
 
 	if c.FileBytes != 0 || c.FileMTime != 0 || c.BytesCopied != 0 || c.Crc32C != 0 || c.ResumableUploadId != "" {
 		// A resumed copy must have appropriate values for all of these parameters.
-		// Note1: we place no restrictions on what constitues a valid mtime.
+		// Note1: we place no restrictions on what constitutes a valid mtime.
 		// Note2: A zero CRC32C is valid (just suspicious).
 		// Note3: There's no need to check "BytesToCopy", all values have valid meanings.
 		if c.FileBytes <= 0 {
