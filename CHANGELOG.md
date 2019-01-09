@@ -11,6 +11,11 @@ major job run versions.
 
 ## [Unreleased]
 
+## [0.5.8] - 2019-01-09
+### Changed
+- Setting goog-reserved-file-mtime field back to Unix time from UnixNano, for
+  gsutil compatibility.
+
 ## [0.5.7] - 2018-12-27
 ### Added
 - WorkHandler for depth-first listing.
