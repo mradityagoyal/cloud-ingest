@@ -7,7 +7,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/pubsub/pstest"
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent/statslog"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
@@ -22,11 +22,6 @@ type TestWorkHandler struct {
 // Do handles the TaskReqMsg and returns a TaskRespMsg.
 func (h *TestWorkHandler) Do(_ context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
 	return h.responses[taskReqMsg.TaskRelRsrcName]
-}
-
-// Type returns a string of the Handler's type.
-func (h *TestWorkHandler) Type() string {
-	return "test handler"
 }
 
 func init() {
@@ -145,7 +140,7 @@ func TestWorkProcessorProcessMessage(t *testing.T) {
 				taskReqMsg.TaskRelRsrcName: want,
 			}},
 		}),
-		StatsLog: statslog.New(),
+		StatsTracker: stats.NewTracker(ctx),
 	}
 	wp.processMessage(ctx, psTaskReqMsg)
 
@@ -196,7 +191,7 @@ func TestWorkProcessorProcessMessageNotActiveJob(t *testing.T) {
 		WorkSub:       workSub,
 		ProgressTopic: progressTopic,
 		Handlers:      nil,
-		StatsLog:      statslog.New(),
+		StatsTracker:  stats.NewTracker(ctx),
 	}
 	wp.processMessage(ctx, psTaskReqMsg)
 
@@ -268,7 +263,7 @@ func TestWorkProcessorProcessMessageNoHandler(t *testing.T) {
 				taskReqMsg.TaskRelRsrcName: want,
 			}},
 		}),
-		StatsLog: statslog.New(),
+		StatsTracker: stats.NewTracker(ctx),
 	}
 	wp.processMessage(ctx, psTaskReqMsg)
 

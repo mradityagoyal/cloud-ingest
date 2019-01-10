@@ -50,7 +50,7 @@ func NewMockTicker() *mockTicker {
 	return &mockTicker{make(chan time.Time)}
 }
 
-// tick simulates a tick.
+// Tick simulates a tick.
 func (mt mockTicker) Tick() {
 	mt.c <- time.Now()
 }

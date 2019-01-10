@@ -38,7 +38,7 @@ func marshalControlMessage(t *testing.T, msg *controlpb.Control) []byte {
 
 func TestProcessMessage(t *testing.T) {
 	ctx := context.Background()
-	ch := NewControlHandler(nil)
+	ch := NewControlHandler(nil, nil)
 	now := time.Now()
 
 	tests := []struct {

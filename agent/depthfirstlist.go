@@ -160,10 +160,6 @@ func listDirectoriesAndWriteListFile(w io.Writer, listSpec *taskpb.ListSpec, lis
 	return listMD, nil
 }
 
-func (h *DepthFirstListHandler) Type() string {
-	return "dflist"
-}
-
 func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {

@@ -28,7 +28,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent"
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent/statslog"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/golang/glog"
@@ -68,7 +68,7 @@ var (
 
 	pulseFrequency int
 
-	enableStatsLog bool
+	enableStatsTracker bool
 
 	listFileSizeThreshold          int
 	maxMemoryForListingDirectories int
@@ -112,7 +112,7 @@ func init() {
 
 	flag.IntVar(&pulseFrequency, "pulse-frequency", 10, "the number of seconds the agent will wait before sending a pulse")
 
-	flag.BoolVar(&enableStatsLog, "enable-stats-log", true, "Enable stats logging to INFO logs.")
+	flag.BoolVar(&enableStatsTracker, "enable-stats-log", true, "Enable stats logging to INFO logs.")
 
 	flag.IntVar(&listFileSizeThreshold, "list-file-size-threshold", 10000,
 		"List tasks will keep listing directories until the number of listed files and directories exceeds this threshold, or until there are no more files/directories to list")
@@ -302,10 +302,9 @@ func main() {
 		ph.Run(ctx)
 	}()
 
-	var sl *statslog.StatsLog
-	if enableStatsLog {
-		sl = statslog.New()
-		go sl.PeriodicallyLogStats(ctx)
+	var st *stats.Tracker
+	if enableStatsTracker {
+		st = stats.NewTracker(ctx)
 	}
 
 	var listProcessor, copyProcessor agent.WorkProcessor
@@ -337,7 +336,7 @@ func main() {
 				Handlers: agent.NewHandlerRegistry(map[uint64]agent.WorkHandler{
 					0: agent.NewListHandler(storageClient, listTaskChunkSize),
 				}),
-				StatsLog: sl,
+				StatsTracker: st,
 			}
 
 			listProcessor.Process(ctx)
@@ -365,14 +364,14 @@ func main() {
 				glog.Fatalf("Could not find copy topic %s, error %+v", copyTopicWrapper.ID(), err)
 			}
 
-			copyHandler := agent.NewCopyHandler(storageClient, numberThreads, copyTaskChunkSize, httpc)
+			copyHandler := agent.NewCopyHandler(storageClient, numberThreads, copyTaskChunkSize, httpc, st)
 			copyProcessor = agent.WorkProcessor{
 				WorkSub:       copySub,
 				ProgressTopic: copyTopic,
 				Handlers: agent.NewHandlerRegistry(map[uint64]agent.WorkHandler{
 					0: copyHandler,
 				}),
-				StatsLog: sl,
+				StatsTracker: st,
 			}
 
 			copyProcessor.Process(ctx)
@@ -395,7 +394,7 @@ func main() {
 			glog.Fatalf("Could not create subscription to control topic %v, with err: %v", controlTopic, err)
 		}
 
-		ch := agent.NewControlHandler(controlSub)
+		ch := agent.NewControlHandler(controlSub, st)
 		if err := ch.HandleControlMessages(ctx); err != nil {
 			glog.Fatalf("Failed handling control messages with err: %v.", err)
 		}

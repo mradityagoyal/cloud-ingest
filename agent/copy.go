@@ -36,6 +36,7 @@ import (
 
 	"cloud.google.com/go/storage"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/protobuf/proto"
@@ -101,6 +102,8 @@ type CopyHandler struct {
 	// concurrentCopySem is semaphore to limit the number of concurrent goroutines uploading files.
 	concurrentCopySem *semaphore.Weighted
 
+	statsTracker *stats.Tracker // For tracking bytes sent/copied.
+
 	// Exposed here only for testing purposes.
 	httpDoFunc func(context.Context, *http.Client, *http.Request) (*http.Response, error)
 }
@@ -108,7 +111,7 @@ type CopyHandler struct {
 // NewCopyHandler creates a CopyHandler with storage.Client and http.Client. The
 // resumableChunkSize is the chunk size used for resumable uploads. The maxParallelism
 // is the max number of goroutines copying files concurrently.
-func NewCopyHandler(storageClient *storage.Client, maxParallelism int, resumableChunkSize int, hc *http.Client) *CopyHandler {
+func NewCopyHandler(storageClient *storage.Client, maxParallelism int, resumableChunkSize int, hc *http.Client, st *stats.Tracker) *CopyHandler {
 	return &CopyHandler{
 		gcs:                gcloud.NewGCSClient(storageClient),
 		resumableChunkSize: resumableChunkSize,
@@ -116,6 +119,7 @@ func NewCopyHandler(storageClient *storage.Client, maxParallelism int, resumable
 		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem:  semaphore.NewWeighted(int64(maxParallelism)),
 		httpDoFunc:         ctxhttp.Do,
+		statsTracker:       st,
 	}
 }
 
@@ -153,10 +157,6 @@ func checkFileStats(beforeStats os.FileInfo, f *os.File) error {
 		}
 	}
 	return nil
-}
-
-func (h *CopyHandler) Type() string {
-	return "copy"
 }
 
 func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopyLog, error) {
@@ -347,6 +347,9 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 			return err
 		}
 		srcCRC32C = crc32pkg.Update(srcCRC32C, CRC32CTable, buf[:n])
+		if h.statsTracker != nil {
+			h.statsTracker.RecordBytesSent(int64(n))
+		}
 	}
 	if err := w.Close(); err != nil {
 		return err
@@ -506,7 +509,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 
 		// Add bandwidth control to the HTTP request body.
 		mu.RLock()
-		rlr := NewRateLimitedReader(ctx, bytes.NewReader(copyBuf), bwLimiter)
+		rlr := NewRateLimitedReader(ctx, bytes.NewReader(copyBuf), bwLimiter, h.statsTracker)
 		mu.RUnlock()
 
 		// Perform the copy!

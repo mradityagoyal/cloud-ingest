@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
@@ -30,11 +31,12 @@ import (
 type ControlHandler struct {
 	sub        *pubsub.Subscription
 	lastUpdate time.Time
+	st         *stats.Tracker
 }
 
 // NewControlHandler creates an instance of ControlHandler.
-func NewControlHandler(sub *pubsub.Subscription) *ControlHandler {
-	return &ControlHandler{sub, time.Now()}
+func NewControlHandler(sub *pubsub.Subscription, st *stats.Tracker) *ControlHandler {
+	return &ControlHandler{sub, time.Now(), st}
 }
 
 // HandleControlMessages starts handling control messages sent by the service. This
@@ -61,7 +63,7 @@ func (ch *ControlHandler) processMessage(ctx context.Context, msg *pubsub.Messag
 
 	if msg.PublishTime.Before(ch.lastUpdate) {
 		// Ignore stale messages.
-		glog.Errorf("Ignore stale message: %v, publish time: %v", controlMsg, msg.PublishTime)
+		glog.Infof("Ignore stale message: %v, publish time: %v", controlMsg, msg.PublishTime)
 		return
 	}
 
@@ -69,6 +71,9 @@ func (ch *ControlHandler) processMessage(ctx context.Context, msg *pubsub.Messag
 	for _, jobBW := range controlMsg.JobRunsBandwidths {
 		jobrunsBW[jobBW.JobrunRelRsrcName] = jobBW.Bandwidth
 	}
-	UpdateJobRunsBW(jobrunsBW)
+	UpdateJobRunsBW(jobrunsBW, ch.st)
 	ch.lastUpdate = msg.PublishTime
+	if ch.st != nil {
+		ch.st.RecordCtrlMsg(msg.PublishTime)
+	}
 }

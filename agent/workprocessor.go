@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent/statslog"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/time/rate"
@@ -41,7 +41,7 @@ var (
 )
 
 // UpdateJobRunsBW updates the mapping between job runs and the associated BW.
-func UpdateJobRunsBW(jobrunsBW map[string]int64) {
+func UpdateJobRunsBW(jobrunsBW map[string]int64, st *stats.Tracker) {
 	// Currently, we do not have a way to set per job run BW control. The APIs only
 	// allows setting project level BW. For future extensions, DCP distribute the
 	// total project BW over the active job runs. Here we aggregate it again to control
@@ -53,12 +53,14 @@ func UpdateJobRunsBW(jobrunsBW map[string]int64) {
 	mu.Lock()
 	activeJobRuns = jobrunsBW
 	if diff := math.Abs(float64(agentBW) - float64(bwLimiter.Limit())); diff > 0.0000001 {
-		glog.Infof("Updating the BW limits, old: %.fMB/s, new: %.fMB/s.", bwLimiter.Limit()/1000000.0, rate.Limit(agentBW/1000000))
 		burst := math.MaxInt32
 		if agentBW < int64(burst) {
 			burst = int(agentBW)
 		}
 		bwLimiter = rate.NewLimiter(rate.Limit(agentBW), burst)
+		if st != nil {
+			st.RecordBWLimit(agentBW)
+		}
 	}
 	mu.Unlock()
 }
@@ -67,9 +69,6 @@ func UpdateJobRunsBW(jobrunsBW map[string]int64) {
 type WorkHandler interface {
 	// Do handles the TaskReqMsg and returns a TaskRespMsg.
 	Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg
-
-	// Type returns a string of the Handler's type.
-	Type() string
 }
 
 // WorkProcessor processes tasks of a certain type. It listens to subscription
@@ -79,7 +78,7 @@ type WorkProcessor struct {
 	WorkSub       *pubsub.Subscription
 	ProgressTopic *pubsub.Topic
 	Handlers      *HandlerRegistry
-	StatsLog      *statslog.StatsLog
+	StatsTracker  *stats.Tracker
 }
 
 func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
@@ -97,13 +96,15 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 
 	var taskRespMsg *taskpb.TaskRespMsg
 	if isActiveJob {
-		start := time.Now()
 		handler, agentErr := wp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
 		if agentErr != nil {
 			taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
 		} else {
+			start := time.Now()
 			taskRespMsg = handler.Do(ctx, &taskReqMsg)
-			wp.StatsLog.AddSample(handler.Type(), time.Now().Sub(start))
+			if wp.StatsTracker != nil {
+				wp.StatsTracker.RecordTaskRespDuration(taskRespMsg, time.Now().Sub(start))
+			}
 		}
 	} else {
 		taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, AgentError{

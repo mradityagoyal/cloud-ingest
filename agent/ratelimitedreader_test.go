@@ -18,7 +18,7 @@ func TestRateLimitedReaderReadNoBufferResize(t *testing.T) {
 	// Drain the limiter, so we can get accurate timing.
 	l.WaitN(ctx, math.MaxInt32)
 
-	r := NewRateLimitedReader(ctx, reader, l)
+	r := NewRateLimitedReader(ctx, reader, l, nil)
 
 	writeBuf := make([]byte, 10)
 
@@ -46,7 +46,7 @@ func TestRateLimitedReaderReadBufferResize(t *testing.T) {
 	// Drain the limiter, so we can get accurate timing.
 	l.WaitN(ctx, math.MaxInt32)
 
-	r := NewRateLimitedReader(ctx, reader, l)
+	r := NewRateLimitedReader(ctx, reader, l, nil)
 	rlr, ok := r.(rateLimitedReader)
 	if !ok {
 		t.Errorf("want type rateLimitedReader, got type %T", reader)
