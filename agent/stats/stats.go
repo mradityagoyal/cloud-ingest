@@ -18,6 +18,7 @@ package stats
 import (
 	"context"
 	"fmt"
+	"io"
 	"math"
 	"sort"
 	"time"
@@ -109,6 +110,27 @@ func (t *Tracker) RecordTaskRespDuration(resp *taskpb.TaskRespMsg, dur time.Dura
 	} else if resp.ReqSpec.GetCopyBundleSpec() != nil {
 		t.taskRespChan <- taskResp{"copyBundle", dur}
 	}
+}
+
+// ByteTrackingReader is an io.Reader that wraps another io.Reader and
+// performs byte tracking during the Read function.
+type ByteTrackingReader struct {
+	reader  io.Reader
+	tracker *Tracker
+}
+
+// NewByteTrackingReader returns a ByteTrackingReader.
+func (t *Tracker) NewByteTrackingReader(r io.Reader) io.Reader {
+	return ByteTrackingReader{reader: r, tracker: t}
+}
+
+// Read implements the io.Reader interface.
+func (btr ByteTrackingReader) Read(buf []byte) (n int, err error) {
+	if n, err = btr.reader.Read(buf); err != nil {
+		return 0, err
+	}
+	btr.tracker.RecordBytesSent(int64(n))
+	return n, nil
 }
 
 // RecordBytesSent tracks the count of bytes sent, and enables bandwidth tracking.

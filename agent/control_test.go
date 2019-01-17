@@ -17,13 +17,12 @@ package agent
 
 import (
 	"context"
-	"math"
 	"testing"
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/golang/protobuf/proto"
-	"github.com/google/go-cmp/cmp"
 
 	controlpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/control_go_proto"
 )
@@ -37,87 +36,34 @@ func marshalControlMessage(t *testing.T, msg *controlpb.Control) []byte {
 }
 
 func TestProcessMessage(t *testing.T) {
-	ctx := context.Background()
-	ch := NewControlHandler(nil, nil)
+	okCtrlMsg := marshalControlMessage(t, &controlpb.Control{
+		JobRunsBandwidths: []*controlpb.JobRunBandwidth{
+			&controlpb.JobRunBandwidth{JobrunRelRsrcName: "job-1", Bandwidth: 20},
+		},
+	})
 	now := time.Now()
-
 	tests := []struct {
 		desc string
 		msg  []byte
 		ts   time.Time
-		want map[string]int64
+		want bool
 	}{
-		{
-			desc: "first message, with no active jobs",
-			msg:  marshalControlMessage(t, &controlpb.Control{}),
-			ts:   now,
-			want: map[string]int64{},
-		},
-		{
-			desc: "outdated message, should not change the previous assignment",
-			msg: marshalControlMessage(t, &controlpb.Control{
-				JobRunsBandwidths: []*controlpb.JobRunBandwidth{
-					&controlpb.JobRunBandwidth{
-						JobrunRelRsrcName: "job-1",
-						Bandwidth:         20,
-					},
-				},
-			}),
-			ts:   now.Add(-10 * time.Second),
-			want: map[string]int64{},
-		},
-		{
-			desc: "some active job runs",
-			msg: marshalControlMessage(t, &controlpb.Control{
-				JobRunsBandwidths: []*controlpb.JobRunBandwidth{
-					&controlpb.JobRunBandwidth{
-						JobrunRelRsrcName: "job-1",
-						Bandwidth:         20,
-					},
-					&controlpb.JobRunBandwidth{
-						JobrunRelRsrcName: "job-2",
-						Bandwidth:         10,
-					},
-				},
-			}),
-			ts:   now.Add(10 * time.Second),
-			want: map[string]int64{"job-1": int64(20), "job-2": int64(10)},
-		},
-		{
-			desc: "no active job runs",
-			msg:  marshalControlMessage(t, &controlpb.Control{}),
-			ts:   now.Add(20 * time.Second),
-			want: map[string]int64{},
-		},
-		{
-			desc: "one active job runs",
-			msg: marshalControlMessage(t, &controlpb.Control{
-				JobRunsBandwidths: []*controlpb.JobRunBandwidth{
-					&controlpb.JobRunBandwidth{
-						JobrunRelRsrcName: "job-3",
-						Bandwidth:         math.MaxInt64,
-					},
-				},
-			}),
-			ts:   now.Add(30 * time.Second),
-			want: map[string]int64{"job-3": math.MaxInt64},
-		},
-		{
-			desc: "invalid message data bytes",
-			msg:  []byte("Invalid message"),
-			ts:   now.Add(40 * time.Second),
-			want: map[string]int64{"job-3": math.MaxInt64},
-		},
+		{"ok msg", okCtrlMsg, now, true},
+		{"stale msg", okCtrlMsg, now.Add(-10 * time.Second), false},
+		{"invalid msg", []byte("Invalid message"), now.Add(10 * time.Second), false},
 	}
-
 	for _, tc := range tests {
+		ch := NewControlHandler(nil, nil)
+		called := false
+		ch.lastUpdate = now
+		ch.processCtrlMsg = func(_ *controlpb.Control, _ *stats.Tracker) { called = true }
 		msg := &pubsub.Message{
 			Data:        tc.msg,
 			PublishTime: tc.ts,
 		}
-		ch.processMessage(ctx, msg)
-		if !cmp.Equal(activeJobRuns, tc.want) {
-			t.Errorf("processMessage(%q) set active job run to: %v, want: %v", tc.desc, activeJobRuns, tc.want)
+		ch.processMessage(context.Background(), msg)
+		if called != tc.want {
+			t.Errorf("processMessage(%q) called processCtrlMsg = %t, want: %t", tc.desc, called, tc.want)
 		}
 	}
 }

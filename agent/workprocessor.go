@@ -18,52 +18,16 @@ package agent
 import (
 	"context"
 	"fmt"
-	"math"
-	"sync"
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-	"golang.org/x/time/rate"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
-
-var (
-	// Mutex to protect activeJobRuns and bwLimiter access.
-	mu sync.RWMutex
-	// A map between the active jobruns and the associated BW for each job run.
-	activeJobRuns map[string]int64
-
-	bwLimiter = rate.NewLimiter(rate.Limit(math.MaxInt64), math.MaxInt32)
-)
-
-// UpdateJobRunsBW updates the mapping between job runs and the associated BW.
-func UpdateJobRunsBW(jobrunsBW map[string]int64, st *stats.Tracker) {
-	// Currently, we do not have a way to set per job run BW control. The APIs only
-	// allows setting project level BW. For future extensions, DCP distribute the
-	// total project BW over the active job runs. Here we aggregate it again to control
-	// the BW on a project level.
-	var agentBW int64
-	for _, bw := range jobrunsBW {
-		agentBW += bw
-	}
-	mu.Lock()
-	activeJobRuns = jobrunsBW
-	if diff := math.Abs(float64(agentBW) - float64(bwLimiter.Limit())); diff > 0.0000001 {
-		burst := math.MaxInt32
-		if agentBW < int64(burst) {
-			burst = int(agentBW)
-		}
-		bwLimiter = rate.NewLimiter(rate.Limit(agentBW), burst)
-		if st != nil {
-			st.RecordBWLimit(agentBW)
-		}
-	}
-	mu.Unlock()
-}
 
 // WorkHandler is an interface to handle different task types.
 type WorkHandler interface {
@@ -90,12 +54,8 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		return
 	}
 
-	mu.RLock()
-	isActiveJob := activeJobRuns[taskReqMsg.JobrunRelRsrcName] != 0
-	mu.RUnlock()
-
 	var taskRespMsg *taskpb.TaskRespMsg
-	if isActiveJob {
+	if rate.IsJobRunActive(taskReqMsg.JobrunRelRsrcName) {
 		handler, agentErr := wp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
 		if agentErr != nil {
 			taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)

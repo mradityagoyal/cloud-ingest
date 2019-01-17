@@ -36,6 +36,7 @@ import (
 
 	"cloud.google.com/go/storage"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
@@ -322,10 +323,16 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 	defer h.memoryLimiter.Release(bufSize)
 	buf := make([]byte, bufSize)
 
+	// Wrap the srcFile with rate limiting and byte tracking readers.
+	r := rate.NewRateLimitingReader(srcFile)
+	if h.statsTracker != nil {
+		r = h.statsTracker.NewByteTrackingReader(r)
+	}
+
 	// Perform the copy (by writing to the gcsWriter).
 	var srcCRC32C uint32
 	for {
-		n, err := srcFile.Read(buf)
+		n, err := r.Read(buf)
 		if err != nil {
 			if err == io.EOF {
 				break
@@ -333,23 +340,12 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 			w.CloseWithError(err)
 			return err
 		}
-		mu.RLock()
-		// TODO(b/119415296): Avoid locking the global mutex while we are waiting
-		// for tokens from the limiter.
-		if err := bwLimiter.WaitN(ctx, n); err != nil {
-			mu.RUnlock()
-			return err
-		}
-		mu.RUnlock()
 		_, err = w.Write(buf[:n])
 		if err != nil {
 			w.CloseWithError(err)
 			return err
 		}
 		srcCRC32C = crc32pkg.Update(srcCRC32C, CRC32CTable, buf[:n])
-		if h.statsTracker != nil {
-			h.statsTracker.RecordBytesSent(int64(n))
-		}
 	}
 	if err := w.Close(); err != nil {
 		return err
@@ -506,14 +502,16 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		// to re-read from the srcFile (potentially hitting an on-premises NFS).
 		copyBuf := make([]byte, len(buf))
 		copy(copyBuf, buf)
+		cbr := bytes.NewReader(copyBuf)
 
-		// Add bandwidth control to the HTTP request body.
-		mu.RLock()
-		rlr := NewRateLimitedReader(ctx, bytes.NewReader(copyBuf), bwLimiter, h.statsTracker)
-		mu.RUnlock()
+		// Wrap the chunk buffer with rate limiting and byte tracking readers.
+		r := rate.NewRateLimitingReader(cbr)
+		if h.statsTracker != nil {
+			r = h.statsTracker.NewByteTrackingReader(r)
+		}
 
 		// Perform the copy!
-		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, rlr, c.BytesCopied, int64(bytesRead), final)
+		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, r, c.BytesCopied, int64(bytesRead), final)
 
 		var status int
 		if resp != nil {
