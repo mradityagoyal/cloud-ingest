@@ -11,6 +11,11 @@ major job run versions.
 
 ## [Unreleased]
 
+## [1.0.0] - 2019-01-20
+### Added
+- Support for job run version 1.0.0, which includes Depth-First Listing.
+- Support for job run version 2.0.0, which includes file bundling.
+
 ## [0.5.8] - 2019-01-09
 ### Changed
 - Setting goog-reserved-file-mtime field back to Unix time from UnixNano, for

@@ -10,7 +10,7 @@ const DefaultJobRunVersion = "0.0.0"
 var (
 	agentVersion = semver.MustParse(DefaultJobRunVersion)
 
-	supportedJobRuns = []semver.Version{semver.MustParse("0.0.0")}
+	supportedJobRuns = []semver.Version{semver.MustParse("0.0.0"), semver.MustParse("1.0.0"), semver.MustParse("2.0.0")}
 )
 
 // SetAgentVersion sets the agent version to the given value. If there is an issue parsing

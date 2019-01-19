@@ -137,11 +137,11 @@ func TestWorkProcessorProcessMessage(t *testing.T) {
 	wp := WorkProcessor{
 		WorkSub:       workSub,
 		ProgressTopic: progressTopic,
-		Handlers: NewHandlerRegistry(map[uint64]WorkHandler{
+		Handlers: &HandlerRegistry{map[uint64]WorkHandler{
 			0: &TestWorkHandler{map[string]*taskpb.TaskRespMsg{
 				taskReqMsg.TaskRelRsrcName: want,
 			}},
-		}),
+		}},
 		StatsTracker: stats.NewTracker(ctx),
 	}
 	wp.processMessage(ctx, psTaskReqMsg)
@@ -266,11 +266,11 @@ func TestWorkProcessorProcessMessageNoHandler(t *testing.T) {
 	wp := WorkProcessor{
 		WorkSub:       workSub,
 		ProgressTopic: progressTopic,
-		Handlers: NewHandlerRegistry(map[uint64]WorkHandler{
+		Handlers: &HandlerRegistry{map[uint64]WorkHandler{
 			0: &TestWorkHandler{map[string]*taskpb.TaskRespMsg{
 				taskReqMsg.TaskRelRsrcName: want,
 			}},
-		}),
+		}},
 		StatsTracker: stats.NewTracker(ctx),
 	}
 	wp.processMessage(ctx, psTaskReqMsg)
