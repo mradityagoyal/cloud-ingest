@@ -91,7 +91,9 @@ func TestDepthFirstListSuccessEmptyDir(t *testing.T) {
 
 	wantLog := &taskpb.Log{
 		Log: &taskpb.Log_ListLog{
-			ListLog: &taskpb.ListLog{},
+			ListLog: &taskpb.ListLog{
+				DirsListed: 1,
+			},
 		},
 	}
 	if !proto.Equal(taskRespMsg.Log, wantLog) {
@@ -144,6 +146,7 @@ func TestDepthFirstListSuccessFlatDir(t *testing.T) {
 			ListLog: &taskpb.ListLog{
 				FilesFound: 10,
 				BytesFound: 100,
+				DirsListed: 1,
 			},
 		},
 	}
@@ -257,6 +260,7 @@ func TestDepthFirstListSuccessNestedDirSmallListFile(t *testing.T) {
 				FilesFound: 10,
 				BytesFound: 100,
 				DirsFound:  2,
+				DirsListed: 1,
 			},
 		},
 	}
@@ -331,6 +335,7 @@ func TestDepthFirstListSuccessNestedDirLargeListFile(t *testing.T) {
 				FilesFound: 20,
 				BytesFound: 200,
 				DirsFound:  2,
+				DirsListed: 3,
 			},
 		},
 	}
@@ -387,6 +392,7 @@ func TestDepthFirstListMakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) 
 				FilesFound: 10,
 				BytesFound: 100,
 				DirsFound:  0,
+				DirsListed: 1,
 			},
 		},
 	}
@@ -473,6 +479,7 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 				FilesFound: 20,
 				BytesFound: 200,
 				DirsFound:  3,
+				DirsListed: 2,
 			},
 		},
 	}

@@ -112,7 +112,7 @@ func writeListingFile(fileInfos []os.FileInfo, srcDir string, w io.Writer) (*lis
 		}
 	}
 
-	return &listingFileMetadata{bytes: bytesFound, files: filesFound, dirs: dirsFound}, nil
+	return &listingFileMetadata{bytes: bytesFound, files: filesFound, dirsDiscovered: dirsFound}, nil
 }
 
 func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
@@ -165,7 +165,7 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	ll := log.GetListLog()
 	ll.FilesFound = listMD.files
 	ll.BytesFound = listMD.bytes
-	ll.DirsFound = listMD.dirs
+	ll.DirsFound = listMD.dirsDiscovered
 
 	return buildTaskRespMsg(taskReqMsg, nil, log, nil)
 }

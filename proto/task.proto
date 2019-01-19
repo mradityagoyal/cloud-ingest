@@ -153,7 +153,12 @@ message Log {
 message ListLog {
   int64 files_found = 1;
   int64 bytes_found = 2;
+  // This is a count of directories that were discovered by this list task that
+  // were not previously discovered by any other list task.
   int64 dirs_found = 3;
+  // This is a count of the number of directories that were listed by this list
+  // task.
+  int64 dirs_listed = 4;
 }
 
 // Contains log fields for a ProcessList task.

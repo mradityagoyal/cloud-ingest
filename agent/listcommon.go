@@ -16,5 +16,5 @@ limitations under the License.
 package agent
 
 type listingFileMetadata struct {
-	bytes, files, dirs int64
+	bytes, files, dirsDiscovered, dirsListed int64
 }

@@ -69,7 +69,7 @@ func processDirectory(dir string, dirStore *DirectoryInfoStore, listMD *listingF
 			if err != nil {
 				return nil, err
 			}
-			listMD.dirs++
+			listMD.dirsDiscovered++
 		} else {
 			pbFileInfo := listpb.FileInfo{
 				Path:             path,
@@ -131,6 +131,7 @@ func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeT
 		}
 		totalFiles += len(pbFileInfos)
 		firstTime = false
+		listMD.dirsListed++
 	}
 	return listMD, nil
 }
@@ -192,7 +193,8 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	ll := log.GetListLog()
 	ll.FilesFound = listMD.files
 	ll.BytesFound = listMD.bytes
-	ll.DirsFound = listMD.dirs
+	ll.DirsFound = listMD.dirsDiscovered
+	ll.DirsListed = listMD.dirsListed
 
 	return buildTaskRespMsg(taskReqMsg, nil, log, nil)
 }
