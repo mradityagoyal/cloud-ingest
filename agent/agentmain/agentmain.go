@@ -28,6 +28,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/control"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
@@ -64,8 +65,6 @@ var (
 	skipProcessListTasks bool
 	skipProcessCopyTasks bool
 	printVersion         bool
-
-	pulseFrequency int
 
 	enableStatsTracker bool
 
@@ -106,8 +105,6 @@ func init() {
 
 	flag.StringVar(&pubsubPrefix, "pubsub-prefix", "",
 		"Prefix of Pub/Sub topics and subscriptions names.")
-
-	flag.IntVar(&pulseFrequency, "pulse-frequency", 10, "the number of seconds the agent will wait before sending a pulse")
 
 	flag.BoolVar(&enableStatsTracker, "enable-stats-log", true, "Enable stats logging to INFO logs.")
 
@@ -214,13 +211,13 @@ func waitOnTopic(ctx context.Context, topic gcloud.PSTopic) error {
 }
 
 func subscribeToControlTopic(ctx context.Context, client *pubsub.Client, topic *pubsub.Topic) (*pubsub.Subscription, error) {
-	hostname, err := agent.GetHostName()
+	hostname, err := os.Hostname()
 	if err != nil {
 		return nil, err
 	}
 	h := fnv.New64a()
 	h.Write([]byte(hostname))
-	h.Write([]byte(agent.GetProcessId()))
+	h.Write([]byte(fmt.Sprintf("%v", os.Getpid())))
 
 	subID := fmt.Sprintf("%s%s-%d", pubsubPrefix, controlSubscription, h.Sum64())
 	sub := client.Subscription(subID)
@@ -285,18 +282,14 @@ func main() {
 	go func() {
 		defer wg.Done()
 		pulseTopicWrapper := gcloud.NewPubSubTopicWrapper(pubSubClient.Topic(pubsubPrefix + pulseTopic))
-
 		// Wait for pulse topic to exist.
 		if err := waitOnTopic(ctx, pulseTopicWrapper); err != nil {
 			glog.Fatalf("Could not get PulseTopic: %s \n error: %v ", pulseTopicWrapper.ID(), err)
 		}
-
-		ph, err := agent.NewPulseHandler(pulseTopicWrapper, int32(pulseFrequency), logDir)
+		_, err := control.NewPulseSender(ctx, pulseTopicWrapper, logDir)
 		if err != nil {
-			glog.Fatalf("Could not create a PulseHandler with Topic: %v and Frequency: %v \n error: %v ", pulseTopicWrapper.ID(), pulseFrequency, err)
+			glog.Fatalf("NewPulseSender(%v, %v) got err: %v ", pulseTopicWrapper, logDir, err)
 		}
-
-		ph.Run(ctx)
 	}()
 
 	var st *stats.Tracker
@@ -400,7 +393,7 @@ func main() {
 			glog.Fatalf("Could not create subscription to control topic %v, with err: %v", controlTopic, err)
 		}
 
-		ch := agent.NewControlHandler(controlSub, st)
+		ch := control.NewControlHandler(controlSub, st)
 		if err := ch.HandleControlMessages(ctx); err != nil {
 			glog.Fatalf("Failed handling control messages with err: %v.", err)
 		}
