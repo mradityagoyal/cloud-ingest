@@ -21,6 +21,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
@@ -59,7 +60,7 @@ func PulseLocalIds(hostName, processID string) *pulsepb.AgentId {
 
 // Takes a pointer to an AgentId Proto and an int (frequency) returns Pulse message
 func MakeAgentPulse(id *pulsepb.AgentId, frequency int32, logDir string) *pulsepb.Msg {
-	return &pulsepb.Msg{AgentId: id, Frequency: frequency, AgentVersion: "0.0.0", AgentLogsDir: logDir}
+	return &pulsepb.Msg{AgentId: id, Frequency: frequency, AgentVersion: versions.AgentVersion().String(), AgentLogsDir: logDir}
 }
 
 // Creates the Serialized Pulse Message
