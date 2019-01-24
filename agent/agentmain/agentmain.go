@@ -57,7 +57,6 @@ var (
 	numberConcurrentListTasks int
 	maxPubSubLeaseExtenstion  time.Duration
 	credsFile                 string
-	copyTaskChunkSize         int
 	listTaskChunkSize         int
 
 	pubsubPrefix string
@@ -85,8 +84,6 @@ func init() {
 		"The Pub/Sub topics and subscriptions project id. Must be set!")
 	flag.StringVar(&credsFile, "creds-file", "",
 		"The service account JSON key file. Use the default credentials if empty.")
-	flag.IntVar(&copyTaskChunkSize, "copy-task-chunk-size", 1<<25,
-		"The resumable upload chunk size used for copy tasks, defaults to 32MB.")
 	flag.IntVar(&listTaskChunkSize, "list-task-chunk-size", 8*1024*1024,
 		"The resumable upload chunk size used for list tasks, defaults to 8MiB.")
 	flag.IntVar(&numberThreads, "threads", 100,
@@ -364,7 +361,7 @@ func main() {
 				glog.Fatalf("Could not find copy topic %s, error %+v", copyTopicWrapper.ID(), err)
 			}
 
-			copyHandler := agent.NewCopyHandler(storageClient, numberThreads, copyTaskChunkSize, httpc, st)
+			copyHandler := agent.NewCopyHandler(storageClient, numberThreads, httpc, st)
 			copyProcessor = agent.WorkProcessor{
 				WorkSub:       copySub,
 				ProgressTopic: copyTopic,

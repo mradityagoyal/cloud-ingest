@@ -96,7 +96,6 @@ func TestAcquireBufferMemoryFail(t *testing.T) {
 	copyMemoryLimit = 5
 	h := CopyHandler{
 		gcs:                mockGCS,
-		resumableChunkSize: 10,
 		memoryLimiter:      semaphore.NewWeighted(5),
 		concurrentCopySem:  semaphore.NewWeighted(1),
 	}
@@ -123,7 +122,6 @@ func TestCRC32CMismtach(t *testing.T) {
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
 		gcs:                mockGCS,
-		resumableChunkSize: 5,
 		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem:  semaphore.NewWeighted(1),
 	}
@@ -154,7 +152,6 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
 		gcs:                mockGCS,
-		resumableChunkSize: 5,
 		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem:  semaphore.NewWeighted(1),
 	}
@@ -211,7 +208,6 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
 		gcs:                mockGCS,
-		resumableChunkSize: 5,
 		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem:  semaphore.NewWeighted(1),
 	}

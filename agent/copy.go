@@ -55,10 +55,15 @@ import (
 )
 
 const (
-	defaultCopyMemoryLimit int64  = 1 << 30 // Default memory limit is 1 GB.
+	defaultCopyMemoryLimit int64  = 1 << 30 // Default memory limit is 1 GiB.
 	userAgent                     = "google-cloud-ingest-on-premises-agent"
 	userAgentInternal             = "google-cloud-ingest-on-premises-agent"
 	MTIME_ATTR_NAME        string = "goog-reserved-file-mtime"
+
+	// Note: this default chunk size is only used if the DCP instructs the
+	// Agent to copy the entire file but does not specify a chunk size. This
+	// happens by sending a BytesToCopy value <= 0 in the CopyTaskSpec.
+	veneerClientDefaultChunkSize = 1 << 27 // 128MiB.
 )
 
 var (
@@ -96,10 +101,9 @@ func NewResumableHttpClient(ctx context.Context, opts ...option.ClientOption) (*
 
 // CopyHandler is responsible for handling copy tasks.
 type CopyHandler struct {
-	gcs                gcloud.GCS
-	resumableChunkSize int
-	hc                 *http.Client
-	memoryLimiter      *semaphore.Weighted
+	gcs           gcloud.GCS
+	hc            *http.Client
+	memoryLimiter *semaphore.Weighted
 	// concurrentCopySem is semaphore to limit the number of concurrent goroutines uploading files.
 	concurrentCopySem *semaphore.Weighted
 
@@ -109,18 +113,16 @@ type CopyHandler struct {
 	httpDoFunc func(context.Context, *http.Client, *http.Request) (*http.Response, error)
 }
 
-// NewCopyHandler creates a CopyHandler with storage.Client and http.Client. The
-// resumableChunkSize is the chunk size used for resumable uploads. The maxParallelism
-// is the max number of goroutines copying files concurrently.
-func NewCopyHandler(storageClient *storage.Client, maxParallelism int, resumableChunkSize int, hc *http.Client, st *stats.Tracker) *CopyHandler {
+// NewCopyHandler creates a CopyHandler with storage.Client and http.Client.
+// The maxParallelism is the max number of goroutines copying files concurrently.
+func NewCopyHandler(storageClient *storage.Client, maxParallelism int, hc *http.Client, st *stats.Tracker) *CopyHandler {
 	return &CopyHandler{
-		gcs:                gcloud.NewGCSClient(storageClient),
-		resumableChunkSize: resumableChunkSize,
-		hc:                 hc,
-		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
-		concurrentCopySem:  semaphore.NewWeighted(int64(maxParallelism)),
-		httpDoFunc:         ctxhttp.Do,
-		statsTracker:       st,
+		gcs:               gcloud.NewGCSClient(storageClient),
+		hc:                hc,
+		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
+		concurrentCopySem: semaphore.NewWeighted(int64(maxParallelism)),
+		httpDoFunc:        ctxhttp.Do,
+		statsTracker:      st,
 	}
 }
 
@@ -302,10 +304,10 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 		t.Metadata = map[string]string{
 			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
 		}
-		if bufSize > int64(h.resumableChunkSize) {
-			bufSize = int64(h.resumableChunkSize)
-			t.ChunkSize = h.resumableChunkSize
+		if c.BytesToCopy <= 0 {
+			bufSize = veneerClientDefaultChunkSize
 		}
+		t.ChunkSize = int(bufSize)
 	}
 
 	// Create a buffer that respects the Agent's copyMemoryLimit.
