@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
@@ -46,27 +47,31 @@ type PulseSender struct {
 	logsDir  string
 	version  string
 
+	// Used to get live bandwidth measurements.
+	statsTracker *stats.Tracker
+
 	// Testing hooks.
 	selectDone func()
 	sendTicker helpers.Ticker
 }
 
 // NewPulseSender returns a new PulseSender.
-func NewPulseSender(ctx context.Context, t gcloud.PSTopic, logsDir string) (*PulseSender, error) {
+func NewPulseSender(ctx context.Context, t gcloud.PSTopic, logsDir string, st *stats.Tracker) (*PulseSender, error) {
 	hn, err := os.Hostname()
 	if err != nil {
 		glog.Errorf("NewPulseSender err, os.Hostname() got err: %v", err)
 		return nil, err
 	}
 	ps := &PulseSender{
-		pulseTopic: t,
-		sendFreq:   pulseFrequency,
-		hostname:   hn,
-		pid:        os.Getpid(),
-		logsDir:    logsDir,
-		version:    versions.AgentVersion().String(),
-		selectDone: func() {},
-		sendTicker: helpers.NewClockTicker(pulseFrequency * time.Second),
+		pulseTopic:   t,
+		sendFreq:     pulseFrequency,
+		hostname:     hn,
+		pid:          os.Getpid(),
+		logsDir:      logsDir,
+		version:      versions.AgentVersion().String(),
+		statsTracker: st,
+		selectDone:   func() {},
+		sendTicker:   helpers.NewClockTicker(pulseFrequency * time.Second),
 	}
 	go ps.sendPulses(ctx)
 	return ps, nil
@@ -99,13 +104,18 @@ func (ps *PulseSender) sendPulses(ctx context.Context) {
 }
 
 func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
+	var bps int64
+	if ps.statsTracker != nil {
+		bps = ps.statsTracker.Bandwidth()
+	}
 	return &pulsepb.Msg{
 		AgentId: &pulsepb.AgentId{
 			HostName:  ps.hostname,
 			ProcessId: fmt.Sprintf("%v", ps.pid),
 		},
-		Frequency:    int32(ps.sendFreq),
-		AgentVersion: ps.version,
-		AgentLogsDir: ps.logsDir,
+		Frequency:        int32(ps.sendFreq),
+		AgentVersion:     ps.version,
+		AgentLogsDir:     ps.logsDir,
+		AgentBytesPerSec: bps,
 	}
 }

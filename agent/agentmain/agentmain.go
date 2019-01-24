@@ -276,6 +276,11 @@ func main() {
 		glog.Fatalf("Can't create http.Client, error: %+v\n", httpcErr)
 	}
 
+	var st *stats.Tracker
+	if enableStatsTracker {
+		st = stats.NewTracker(ctx)
+	}
+
 	var wg sync.WaitGroup
 
 	wg.Add(1)
@@ -286,16 +291,11 @@ func main() {
 		if err := waitOnTopic(ctx, pulseTopicWrapper); err != nil {
 			glog.Fatalf("Could not get PulseTopic: %s \n error: %v ", pulseTopicWrapper.ID(), err)
 		}
-		_, err := control.NewPulseSender(ctx, pulseTopicWrapper, logDir)
+		_, err := control.NewPulseSender(ctx, pulseTopicWrapper, logDir, st)
 		if err != nil {
 			glog.Fatalf("NewPulseSender(%v, %v) got err: %v ", pulseTopicWrapper, logDir, err)
 		}
 	}()
-
-	var st *stats.Tracker
-	if enableStatsTracker {
-		st = stats.NewTracker(ctx)
-	}
 
 	var listProcessor, copyProcessor agent.WorkProcessor
 

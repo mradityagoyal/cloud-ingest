@@ -152,6 +152,11 @@ func (t *Tracker) RecordCtrlMsg(time time.Time) {
 	t.ctrlMsgChan <- time
 }
 
+// Bandwidth returns the current measured bandwidth.
+func (t *Tracker) Bandwidth() int64 {
+	return t.bwTracker.Bandwidth()
+}
+
 func (t *Tracker) track(ctx context.Context) {
 	for {
 		select {
