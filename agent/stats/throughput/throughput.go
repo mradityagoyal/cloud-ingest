@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package bandwidth
+package throughput
 
 import (
 	"context"
@@ -25,13 +25,13 @@ import (
 )
 
 const (
-	bwMeasurementDuration = 10 // Bandwidth measurement duration, in seconds.
+	tpMeasurementDuration = 10 // Throughput measurement duration, in seconds.
 )
 
-// Tracker collects bytes sent by the Agent and produces a bandwidth measurement.
+// Tracker collects bytes sent by the Agent and produces a throughput measurement.
 type Tracker struct {
-	bandwidthMu sync.RWMutex
-	bandwidth   int64 // In bytes/second.
+	throughputMu sync.RWMutex
+	throughput   int64 // In bytes/second.
 
 	bytesSentChan    chan int64 // Channel to record bytesSent.
 	bytesSentRingBuf []int64    // Ring-buffer to hold bytesSent counts.
@@ -42,11 +42,11 @@ type Tracker struct {
 }
 
 // NewTracker returns a new Tracker, which can then be used to track bytes sent
-// and produce a bandwidth measurement.
+// and produce a throughput measurement.
 func NewTracker(ctx context.Context) *Tracker {
 	t := &Tracker{
 		bytesSentChan:    make(chan int64, 100), // Large buffer to avoid blocking.
-		bytesSentRingBuf: make([]int64, bwMeasurementDuration),
+		bytesSentRingBuf: make([]int64, tpMeasurementDuration),
 		selectDone:       func() {},
 		trackTicker:      helpers.NewClockTicker(1 * time.Second),
 	}
@@ -54,18 +54,18 @@ func NewTracker(ctx context.Context) *Tracker {
 	return t
 }
 
-// RecordBytesSent tracks bytes sent. For accurate bandwidth measurement this function
+// RecordBytesSent tracks bytes sent. For accurate throughput measurement this function
 // should be called every time bytes are sent on the wire. More frequent and granular
-// calls to this function will provide a more accurate bandwidth measurement.
+// calls to this function will provide a more accurate throughput measurement.
 func (t *Tracker) RecordBytesSent(bytes int64) {
 	t.bytesSentChan <- bytes
 }
 
-// Bandwidth returns the current measured bandwidth in bytes/second.
-func (t *Tracker) Bandwidth() int64 {
-	t.bandwidthMu.RLock()
-	defer t.bandwidthMu.RUnlock()
-	return t.bandwidth
+// Throughput returns the current measured throughput in bytes/second.
+func (t *Tracker) Throughput() int64 {
+	t.throughputMu.RLock()
+	defer t.throughputMu.RUnlock()
+	return t.throughput
 }
 
 func (t *Tracker) track(ctx context.Context) {
@@ -74,20 +74,20 @@ func (t *Tracker) track(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			if err := ctx.Err(); err != nil {
-				glog.Infof("bandwidth.Tracker track ctx ended with err: %v", err)
+				glog.Infof("throughput.Tracker track ctx ended with err: %v", err)
 			}
 			return
 		case bytes := <-t.bytesSentChan:
 			t.bytesSentRingBuf[ringBufIdx] += bytes
 		case <-t.trackTicker.GetChannel():
-			// Calculate the current bandwidth.
+			// Calculate the current throughput.
 			var totalBytes int64
 			for _, b := range t.bytesSentRingBuf {
 				totalBytes += b
 			}
-			t.bandwidthMu.Lock()
-			t.bandwidth = totalBytes / int64(len(t.bytesSentRingBuf))
-			t.bandwidthMu.Unlock()
+			t.throughputMu.Lock()
+			t.throughput = totalBytes / int64(len(t.bytesSentRingBuf))
+			t.throughputMu.Unlock()
 
 			// Rotate the ring-buffer, reset the new slot.
 			ringBufIdx = (ringBufIdx + 1) % len(t.bytesSentRingBuf)

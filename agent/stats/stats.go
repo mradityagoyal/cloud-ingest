@@ -23,7 +23,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats/bandwidth"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats/throughput"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
 
@@ -64,9 +64,9 @@ type Tracker struct {
 	bwLimitChan   chan int64     // Channel to record the bandwidth limit.
 	ctrlMsgChan   chan time.Time // Channel to record control message timing.
 
-	periodic  periodicStats      // Reset after every time they're INFO logged.
-	lifetime  lifetimeStats      // Cumulative for the lifetime of this procces.
-	bwTracker *bandwidth.Tracker // Measures outgoing copy bandwidth.
+	periodic  periodicStats       // Reset after every time they're INFO logged.
+	lifetime  lifetimeStats       // Cumulative for the lifetime of this procces.
+	tpTracker *throughput.Tracker // Measures outgoing copy throughput.
 
 	spinnerIdx int // For displaying the mighty spinner.
 
@@ -92,7 +92,7 @@ func NewTracker(ctx context.Context) *Tracker {
 			ctrlMsgTime: time.Now(),
 			bwLimit:     math.MaxInt32,
 		},
-		bwTracker:     bandwidth.NewTracker(ctx),
+		tpTracker:     throughput.NewTracker(ctx),
 		selectDone:    func() {},
 		logTicker:     helpers.NewClockTicker(statsLogFreq),
 		displayTicker: helpers.NewClockTicker(statsDisplayFreq),
@@ -133,12 +133,12 @@ func (btr ByteTrackingReader) Read(buf []byte) (n int, err error) {
 	return n, nil
 }
 
-// RecordBytesSent tracks the count of bytes sent, and enables bandwidth tracking.
-// For accurate bandwidth measurement this function should be called every time
+// RecordBytesSent tracks the count of bytes sent, and enables throughput tracking.
+// For accurate throughput measurement this function should be called every time
 // bytes are sent on the wire. More frequent and granular calls to this function
-// will provide a more accurate bandwidth measurement.
+// will provide a more accurate throughput measurement.
 func (t *Tracker) RecordBytesSent(bytes int64) {
-	t.bwTracker.RecordBytesSent(bytes)
+	t.tpTracker.RecordBytesSent(bytes)
 	t.bytesSentChan <- bytes
 }
 
@@ -152,9 +152,9 @@ func (t *Tracker) RecordCtrlMsg(time time.Time) {
 	t.ctrlMsgChan <- time
 }
 
-// Bandwidth returns the current measured bandwidth.
-func (t *Tracker) Bandwidth() int64 {
-	return t.bwTracker.Bandwidth()
+// Throughput returns the current measured throughput.
+func (t *Tracker) Throughput() int64 {
+	return t.tpTracker.Throughput()
 }
 
 func (t *Tracker) track(ctx context.Context) {
@@ -222,7 +222,7 @@ func (t *Tracker) infoLogStats() string {
 
 func (t *Tracker) displayStats() string {
 	// Generate the transmission rate and sum.
-	txRate := fmt.Sprintf("txRate:%v/s", byteCountBinary(t.bwTracker.Bandwidth(), 7))
+	txRate := fmt.Sprintf("txRate:%v/s", byteCountBinary(t.tpTracker.Throughput(), 7))
 	if txLim := t.lifetime.bwLimit; txLim > 0 && txLim < math.MaxInt32 {
 		txRate += fmt.Sprintf(" (capped at %v/s)", byteCountBinary(t.lifetime.bwLimit, 7))
 	}

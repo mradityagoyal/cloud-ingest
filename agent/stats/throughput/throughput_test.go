@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package bandwidth
+package throughput
 
 import (
 	"context"
@@ -23,14 +23,14 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 )
 
-func TestBandwidthTracker(t *testing.T) {
+func TestThroughputTracker(t *testing.T) {
 	// A sample 'input stream', to help construct some of the test cases.
 	var iStream []interface{}
-	for i := 0; i < bwMeasurementDuration; i++ {
+	for i := 0; i < tpMeasurementDuration; i++ {
 		iStream = append(iStream, 10)
 		iStream = append(iStream, "t")
 	}
-	for i := 0; i < bwMeasurementDuration; i++ {
+	for i := 0; i < tpMeasurementDuration; i++ {
 		iStream = append(iStream, "t")
 	}
 
@@ -46,12 +46,12 @@ func TestBandwidthTracker(t *testing.T) {
 		{"Zero, bytes with no tick", []interface{}{10}, 0},
 		{"Zero, no tick after bytes", []interface{}{"t", 10}, 0},
 
-		{"Basic 1", []interface{}{10, "t"}, 10 / bwMeasurementDuration},
-		{"Basic 2", []interface{}{10, 10, "t"}, 20 / bwMeasurementDuration},
-		{"Basic 3", []interface{}{20, "t"}, 20 / bwMeasurementDuration},
-		{"Basic 4", []interface{}{20, "t", "1000"}, 20 / bwMeasurementDuration},
+		{"Basic 1", []interface{}{10, "t"}, 10 / tpMeasurementDuration},
+		{"Basic 2", []interface{}{10, 10, "t"}, 20 / tpMeasurementDuration},
+		{"Basic 3", []interface{}{20, "t"}, 20 / tpMeasurementDuration},
+		{"Basic 4", []interface{}{20, "t", "1000"}, 20 / tpMeasurementDuration},
 
-		{"Continuous stream", iStream[:bwMeasurementDuration*2], 10},
+		{"Continuous stream", iStream[:tpMeasurementDuration*2], 10},
 		{"Continuous stream, empty ticks ", iStream, 0},
 	}
 	for _, tc := range tests {
@@ -77,9 +77,9 @@ func TestBandwidthTracker(t *testing.T) {
 			wg.Wait() // Allow the Tracker to collect the input.
 		}
 
-		got := bwt.Bandwidth()
+		got := bwt.Throughput()
 		if got != tc.want {
-			t.Errorf("test %q: Bandwidth = %v, want %v", tc.desc, got, tc.want)
+			t.Errorf("test %q: Throughput = %v, want %v", tc.desc, got, tc.want)
 		}
 	}
 }

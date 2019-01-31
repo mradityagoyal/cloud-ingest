@@ -106,7 +106,7 @@ func (ps *PulseSender) sendPulses(ctx context.Context) {
 func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
 	var bps int64
 	if ps.statsTracker != nil {
-		bps = ps.statsTracker.Bandwidth()
+		bps = ps.statsTracker.Throughput()
 	}
 	return &pulsepb.Msg{
 		AgentId: &pulsepb.AgentId{
