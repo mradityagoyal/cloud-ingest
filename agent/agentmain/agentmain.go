@@ -73,7 +73,7 @@ var (
 
 	// Fields used to display version information. These defaults are
 	// overridden when the release script builds in values through ldflags.
-	buildVersion = "v0.0.0-development"
+	buildVersion = "1.0.0"
 	buildCommit  = "(local)"
 	buildDate    = "Unknown; this is not an official release."
 )
