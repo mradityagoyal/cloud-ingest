@@ -37,7 +37,7 @@ GIT_REPO_NAME=GoogleCloudPlatform/cloud-ingest
 SOURCE_DIR=$(go env GOPATH)/src/github.com/$GIT_REPO_NAME
 RELEASE_DIR=$SOURCE_DIR/release
 WORKING_DIR=$RELEASE_DIR/tmp-release-ephemeral
-REPO_DIR=$WORKING_DIR/repo
+REPO_DIR=$WORKING_DIR/go/src/github.com/GoogleCloudPlatform/cloud-ingest/
 ARTIFACT_DIR=$WORKING_DIR/build_artifacts
 ASSET_DIR=$WORKING_DIR/assets
 VERSION_FILE=$ASSET_DIR/VERSIONINFO.txt
@@ -61,6 +61,12 @@ git clone git@github.com:$GIT_REPO_NAME.git .
 git checkout $GIT_COMMIT_ID
 echo "Done retrieving code."
 echo ""
+
+# Set a temporary go path, so we look for dependencies in the right place.
+GOPATH=$WORKING_DIR/go
+echo "Pulling dependencies and doing full local build and test..."
+make setup-agent build-agent
+echo "Done validating the build."
 
 # Run tests - Never allow releases that fail unit tests.
 echo "Running unit tests..."

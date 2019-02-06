@@ -99,7 +99,7 @@ build-frontend: lint-frontend test-frontend ## Check and test frontend code.
 .PHONY: clean
 clean: ## Blow away all compiled artifacts and installed dependencies.
 	go clean -i $(GO_TARGETS)
-	rm -rf $(FRONTEND_DIR)/node_modules $(RELEASE_DIR)/tmp-release-ephemeral; true
+	rm -rf node_modules $(FRONTEND_DIR)/node_modules $(RELEASE_DIR)/tmp-release-ephemeral; true
 
 .PHONY: setup
 setup: setup-agent setup-frontend ## Run full setup of dependencies and environment.
