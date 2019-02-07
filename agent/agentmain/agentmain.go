@@ -108,7 +108,7 @@ func init() {
 
 	flag.BoolVar(&enableStatsTracker, "enable-stats-log", true, "Enable stats logging to INFO logs.")
 
-	flag.IntVar(&listFileSizeThreshold, "list-file-size-threshold", 10000,
+	flag.IntVar(&listFileSizeThreshold, "list-file-size-threshold", 50000,
 		"List tasks will keep listing directories until the number of listed files and directories exceeds this threshold, or until there are no more files/directories to list")
 	flag.IntVar(&maxMemoryForListingDirectories, "max-memory-for-listing-directories", 20,
 		"Maximum amount of memory agent will use in total (not per task) to store directories before writing them to a list file. Value is in MiB.")
