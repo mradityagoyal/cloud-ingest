@@ -56,7 +56,7 @@ lint-frontend: ## Lint frontend code.
 test: test-agent test-frontend ## Run all unit tests.
 
 .PHONY: test-agent
-test-agent: ## Run all go unit tests.
+test-agent: go-mocks ## Run all go unit tests.
 	@echo -e "\n== Running Go Tests =="
 	@go test $(GO_TARGETS)
 
