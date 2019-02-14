@@ -56,7 +56,7 @@ import (
 
 const (
 	defaultCopyMemoryLimit int64  = 1 << 30 // Default memory limit is 1 GiB.
-	userAgent                     = "google-cloud-ingest-on-premises-agent"
+	userAgent                     = "google-cloud-ingest-on-premises-agent TransferService/1.0 (GPN:transferservice_onpremnfs; Data moved from onpremnfs to GCS)"
 	userAgentInternal             = "google-cloud-ingest-on-premises-agent"
 	MTIME_ATTR_NAME        string = "goog-reserved-file-mtime"
 
