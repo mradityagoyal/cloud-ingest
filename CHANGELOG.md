@@ -10,7 +10,10 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+
+## [1.0.1] - 2019-02-14
 ### Changed
+- Increased the list file size threshold.
 - UserAgent update.
 
 ## [1.0.0] - 2019-01-20
