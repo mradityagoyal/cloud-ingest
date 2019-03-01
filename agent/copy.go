@@ -40,6 +40,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
 	"golang.org/x/net/context/ctxhttp"
@@ -230,7 +231,6 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 }
 
 func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, error) {
-	var err error
 	var log taskpb.CopyBundleLog
 	for _, bf := range bs.BundledFiles {
 		if bf.Status == taskpb.Status_SUCCESS {
@@ -239,12 +239,14 @@ func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, err
 		} else {
 			log.FilesFailed++
 			log.BytesFailed += bf.CopyLog.SrcBytes
-			if err == nil {
-				err = AgentError{
-					Msg:         "CopyBundle task failed, please check the spec for detailed per file error",
-					FailureType: taskpb.FailureType_UNKNOWN_FAILURE,
-				}
-			}
+			glog.Warningf("bundledFile %v, failed with err: %v", bf.CopySpec.SrcFile, bf.FailureMessage)
+		}
+	}
+	var err error
+	if log.FilesFailed > 0 {
+		err = AgentError{
+			Msg:         fmt.Sprintf("CopyBundle had %v failures", log.FilesFailed),
+			FailureType: taskpb.FailureType_UNKNOWN_FAILURE,
 		}
 	}
 	return &log, err

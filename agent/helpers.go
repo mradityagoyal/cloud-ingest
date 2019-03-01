@@ -75,7 +75,11 @@ func buildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, log 
 		taskRespMsg.FailureType = getFailureTypeFromError(err)
 		taskRespMsg.FailureMessage = fmt.Sprint(err)
 		if taskRespMsg.FailureType != taskpb.FailureType_NOT_ACTIVE_JOBRUN {
-			glog.Warningf("Encountered error in processing taskReqMsg: %+v, err: %v", taskReqMsg, err)
+			if taskReqMsg.Spec.GetCopyBundleSpec() != nil {
+				glog.Warningf("Encountered error in processing CopyBundle: %v, see previous log lines for details", taskReqMsg.TaskRelRsrcName)
+			} else {
+				glog.Warningf("Encountered error in processing taskReqMsg: %+v, err: %v", taskReqMsg, err)
+			}
 		}
 	} else {
 		taskRespMsg.Status = "SUCCESS"
