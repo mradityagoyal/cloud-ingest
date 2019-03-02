@@ -97,6 +97,8 @@ func (ps *PulseSender) sendPulses(ctx context.Context) {
 			_, err = pubResult.Get(ctx)
 			if err != nil {
 				glog.Errorf("sendPulses err, Publish(%v) got err: %v", psm, err)
+			} else {
+				ps.statsTracker.RecordPulseMsg()
 			}
 		}
 		ps.selectDone() // Testing hook.

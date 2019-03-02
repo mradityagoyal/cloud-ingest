@@ -35,13 +35,14 @@ const (
 	statsDisplayFreq = 1 * time.Second // The frequency of displaying stats to stdout.
 )
 
-type taskResp struct {
+type taskDur struct {
 	task string
 	dur  time.Duration
 }
 
 type periodicStats struct {
-	taskDuration     map[string][]time.Duration
+	taskDurations    map[string][]time.Duration
+	taskFailures     map[string]int
 	bytesCopied      int64
 	ctrlMsgsReceived int64
 	pulseMsgsSent    int64
@@ -59,10 +60,12 @@ type lifetimeStats struct {
 // periodically writes to the INFO log. Stats are collected by calling the
 // various Record* functions as appropriate.
 type Tracker struct {
-	taskRespChan  chan taskResp  // Channel to record task responses.
+	taskDurChan   chan taskDur   // Channel to record task durations.
+	taskFailChan  chan string    // Channel to record task failures.
 	bytesSentChan chan int64     // Channel to record bytesSent.
 	bwLimitChan   chan int64     // Channel to record the bandwidth limit.
 	ctrlMsgChan   chan time.Time // Channel to record control message timing.
+	pulseMsgChan  chan struct{}  // Channel to record send pulse messages.
 
 	periodic  periodicStats       // Reset after every time they're INFO logged.
 	lifetime  lifetimeStats       // Cumulative for the lifetime of this procces.
@@ -80,12 +83,15 @@ type Tracker struct {
 func NewTracker(ctx context.Context) *Tracker {
 	t := &Tracker{
 		// Large buffers to avoid blocking.
-		taskRespChan:  make(chan taskResp, 100),
+		taskDurChan:   make(chan taskDur, 100),
+		taskFailChan:  make(chan string, 10),
 		bytesSentChan: make(chan int64, 100),
 		bwLimitChan:   make(chan int64, 10),
 		ctrlMsgChan:   make(chan time.Time, 10),
+		pulseMsgChan:  make(chan struct{}, 10),
 		periodic: periodicStats{
-			taskDuration: make(map[string][]time.Duration),
+			taskDurations: make(map[string][]time.Duration),
+			taskFailures:  make(map[string]int),
 		},
 		lifetime: lifetimeStats{
 			taskDone:    map[string]uint64{"copy": 0, "list": 0},
@@ -101,14 +107,25 @@ func NewTracker(ctx context.Context) *Tracker {
 	return t
 }
 
-// RecordTaskDuration tracks the count and duration of completed tasks.
-func (t *Tracker) RecordTaskRespDuration(resp *taskpb.TaskRespMsg, dur time.Duration) {
+// RecordTaskResp tracks the count and duration of completed tasks.
+func (t *Tracker) RecordTaskResp(resp *taskpb.TaskRespMsg, dur time.Duration) {
+	task := ""
 	if resp.ReqSpec.GetCopySpec() != nil {
-		t.taskRespChan <- taskResp{"copy", dur}
+		task = "copy"
 	} else if resp.ReqSpec.GetListSpec() != nil {
-		t.taskRespChan <- taskResp{"list", dur}
+		task = "list"
 	} else if resp.ReqSpec.GetCopyBundleSpec() != nil {
-		t.taskRespChan <- taskResp{"copyBundle", dur}
+		task = "copy"
+	} else {
+		glog.Errorf("resp.ReqSpec doesn't match any known spec type: %v", resp.ReqSpec)
+	}
+
+	if task != "" {
+		t.taskDurChan <- taskDur{task, dur} // Record the task duration.
+
+		if resp.FailureType != taskpb.FailureType_UNSET_FAILURE_TYPE {
+			t.taskFailChan <- task // Record the failure.
+		}
 	}
 }
 
@@ -152,6 +169,11 @@ func (t *Tracker) RecordCtrlMsg(time time.Time) {
 	t.ctrlMsgChan <- time
 }
 
+// RecordPulseMsg tracks sent pulse messages.
+func (t *Tracker) RecordPulseMsg() {
+	t.pulseMsgChan <- struct{}{}
+}
+
 // Throughput returns the current measured throughput.
 func (t *Tracker) Throughput() int64 {
 	return t.tpTracker.Throughput()
@@ -165,9 +187,11 @@ func (t *Tracker) track(ctx context.Context) {
 				glog.Infof("stats.Tracker track ctx ended with err: %v", err)
 			}
 			return
-		case tr := <-t.taskRespChan:
-			t.periodic.taskDuration[tr.task] = append(t.periodic.taskDuration[tr.task], tr.dur)
+		case tr := <-t.taskDurChan:
+			t.periodic.taskDurations[tr.task] = append(t.periodic.taskDurations[tr.task], tr.dur)
 			t.lifetime.taskDone[tr.task]++
+		case task := <-t.taskFailChan:
+			t.periodic.taskFailures[task]++
 		case bytes := <-t.bytesSentChan:
 			t.periodic.bytesCopied += bytes
 			t.lifetime.bytesCopied += bytes
@@ -176,48 +200,15 @@ func (t *Tracker) track(ctx context.Context) {
 		case time := <-t.ctrlMsgChan:
 			t.periodic.ctrlMsgsReceived++
 			t.lifetime.ctrlMsgTime = time
+		case <-t.pulseMsgChan:
+			t.periodic.pulseMsgsSent++
 		case <-t.logTicker.GetChannel():
-			t.infoLogStats()
+			t.periodic.glogAndReset()
 		case <-t.displayTicker.GetChannel():
 			t.displayStats()
 		}
 		t.selectDone() // Testing hook.
 	}
-}
-
-func (t *Tracker) infoLogStats() string {
-	if len(t.periodic.taskDuration) == 0 {
-		return ""
-	}
-	logLine := "type(count)[time min,max,avg]:"
-	var keys []string
-	for k := range t.periodic.taskDuration {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	for _, k := range keys {
-		times := t.periodic.taskDuration[k]
-		max := times[0]
-		min := times[0]
-		var avg time.Duration
-		for _, t := range times {
-			avg += t
-			if t > max {
-				max = t
-			}
-			if t < min {
-				min = t
-			}
-		}
-		avg /= time.Duration(len(times))
-		min = min.Truncate(1 * time.Millisecond)
-		max = max.Truncate(1 * time.Millisecond)
-		avg = avg.Truncate(1 * time.Millisecond)
-		logLine += fmt.Sprintf("\n\t%s(%d)[%v,%v,%v]", k, len(times), min, max, avg)
-	}
-	glog.Info(logLine)
-	t.periodic.taskDuration = make(map[string][]time.Duration)
-	return logLine // For testing.
 }
 
 func (t *Tracker) displayStats() string {

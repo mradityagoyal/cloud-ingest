@@ -63,7 +63,7 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 			start := time.Now()
 			taskRespMsg = handler.Do(ctx, &taskReqMsg)
 			if wp.StatsTracker != nil {
-				wp.StatsTracker.RecordTaskRespDuration(taskRespMsg, time.Now().Sub(start))
+				wp.StatsTracker.RecordTaskResp(taskRespMsg, time.Now().Sub(start))
 			}
 		}
 	} else {

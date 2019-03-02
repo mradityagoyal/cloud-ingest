@@ -67,49 +67,6 @@ var (
 	listTaskRespMsg = &taskpb.TaskRespMsg{ReqSpec: &taskpb.Spec{Spec: &taskpb.Spec_ListSpec{ListSpec: &taskpb.ListSpec{}}}}
 )
 
-func TestTrackerInfoLogStats(t *testing.T) {
-	type sample struct {
-		trm *taskpb.TaskRespMsg
-		d   time.Duration
-	}
-	samples := []sample{
-		sample{copyTaskRespMsg, 0 * time.Millisecond},
-		sample{copyTaskRespMsg, 1 * time.Millisecond},
-		sample{copyTaskRespMsg, 2 * time.Millisecond},
-		sample{copyTaskRespMsg, 3 * time.Millisecond},
-		sample{copyTaskRespMsg, 4 * time.Millisecond},
-		sample{listTaskRespMsg, 5 * time.Millisecond},
-		sample{listTaskRespMsg, 6 * time.Millisecond},
-		sample{listTaskRespMsg, 7 * time.Millisecond},
-		sample{listTaskRespMsg, 8 * time.Millisecond},
-		sample{listTaskRespMsg, 9 * time.Millisecond},
-	}
-	tests := []struct {
-		desc    string
-		samples []sample
-		want    string
-	}{
-		{"No samples", []sample{}, ""},
-		{"Copy samples", samples[:5], "type(count)[time min,max,avg]:\n\tcopy(5)[0s,4ms,2ms]"},
-		{"List samples", samples[5:], "type(count)[time min,max,avg]:\n\tlist(5)[5ms,9ms,7ms]"},
-		{"Both samples", samples, "type(count)[time min,max,avg]:\n\tcopy(5)[0s,4ms,2ms]\n\tlist(5)[5ms,9ms,7ms]"},
-	}
-	for _, tc := range tests {
-		st := NewTracker(context.Background())
-		var wg sync.WaitGroup
-		st.selectDone = func() { wg.Done() } // The test hook.
-		for _, s := range tc.samples {
-			wg.Add(1)
-			st.RecordTaskRespDuration(s.trm, s.d)
-			wg.Wait() // Force the Tracker to collect the recorded stats.
-		}
-		got := st.infoLogStats()
-		if got != tc.want {
-			t.Errorf("infoLogStats = %q, want %q", got, tc.want)
-		}
-	}
-}
-
 func TestTrackerDisplayStats(t *testing.T) {
 	tests := []struct {
 		desc        string
@@ -199,7 +156,7 @@ func TestTrackerDisplayStats(t *testing.T) {
 			wg.Add(1)
 			switch v := i.(type) {
 			case *taskpb.TaskRespMsg:
-				st.RecordTaskRespDuration(v, 50*time.Millisecond)
+				st.RecordTaskResp(v, 50*time.Millisecond)
 			case int:
 				st.RecordBytesSent(int64(v))
 			case time.Time:

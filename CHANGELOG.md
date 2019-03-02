@@ -10,6 +10,10 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+### Changed
+- The Agent's "stats" log line format.
+### Added
+- Tool for extracting and parsing stats from the Agent's log.
 
 ## [1.0.2] - 2019-03-06
 ### Changed
