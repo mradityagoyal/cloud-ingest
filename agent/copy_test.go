@@ -95,9 +95,9 @@ func TestAcquireBufferMemoryFail(t *testing.T) {
 
 	copyMemoryLimit = 5
 	h := CopyHandler{
-		gcs:                mockGCS,
-		memoryLimiter:      semaphore.NewWeighted(5),
-		concurrentCopySem:  semaphore.NewWeighted(1),
+		gcs:               mockGCS,
+		memoryLimiter:     semaphore.NewWeighted(5),
+		concurrentCopySem: semaphore.NewWeighted(1),
 	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
@@ -121,9 +121,9 @@ func TestCRC32CMismtach(t *testing.T) {
 
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
-		gcs:                mockGCS,
-		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
-		concurrentCopySem:  semaphore.NewWeighted(1),
+		gcs:               mockGCS,
+		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
+		concurrentCopySem: semaphore.NewWeighted(1),
 	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
@@ -151,9 +151,9 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
-		gcs:                mockGCS,
-		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
-		concurrentCopySem:  semaphore.NewWeighted(1),
+		gcs:               mockGCS,
+		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
+		concurrentCopySem: semaphore.NewWeighted(1),
 	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
@@ -207,9 +207,9 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 
 	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
-		gcs:                mockGCS,
-		memoryLimiter:      semaphore.NewWeighted(copyMemoryLimit),
-		concurrentCopySem:  semaphore.NewWeighted(1),
+		gcs:               mockGCS,
+		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
+		concurrentCopySem: semaphore.NewWeighted(1),
 	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile

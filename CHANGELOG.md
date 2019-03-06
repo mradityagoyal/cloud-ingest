@@ -11,6 +11,11 @@ major job run versions.
 
 ## [Unreleased]
 
+## [1.0.2] - 2019-03-06
+### Changed
+- Minor refactors/cleanup.
+- Make the log lines for copyBundle errors human readable.
+
 ## [1.0.1] - 2019-02-14
 ### Changed
 - Increased the list file size threshold.
