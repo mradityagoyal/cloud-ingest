@@ -23,6 +23,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
@@ -59,6 +61,59 @@ func TestTrackerRecordCtrlMsg(t *testing.T) {
 	}
 	if c := st.lifetime.ctrlMsgTime; !c.After(s) {
 		t.Errorf("ctrlMsgTime %v not after starting ctrlMsgTime %v", c, s)
+	}
+}
+
+func TestTrackerAccumulatedBytesCopied(t *testing.T) {
+	tests := []struct {
+		desc   string
+		inputs []interface{}
+		want   int64
+	}{
+		{"Zero, no recorded bytes", []interface{}{"t"}, 0},
+		{"Zero, recorded bytes with no accumulator tick", []interface{}{10}, 0},
+		{"Ten, bytes recorded once", []interface{}{10, "t"}, 10},
+		{"Six, bytes recorded thrice", []interface{}{1, 2, 3, "t"}, 6},
+		{"Six, bytes recorded thrice, only one tick", []interface{}{1, 2, 3, "t", 4, 5, 6}, 6},
+		{"Twentyone, multiple bytes and ticks", []interface{}{1, 2, 3, "t", 4, 5, 6, "t"}, 21},
+	}
+	for _, tc := range tests {
+		st := NewTracker(context.Background())
+
+		// Set up the test hooks.
+		var wg sync.WaitGroup
+		st.selectDone = func() { wg.Done() } // The test hook.
+		mockAccumulatorTicker := helpers.NewMockTicker()
+		st.accumulatorTicker = mockAccumulatorTicker
+
+		// AccumulatedBytesCopied should start at zero.
+		if got := st.AccumulatedBytesCopied(); got != 0 {
+			t.Errorf("AccumulatedBytesCopied got %v, want 0", got)
+		}
+
+		// Record all the mocked inputs and ticks.
+		for _, i := range tc.inputs {
+			wg.Add(1)
+			switch v := i.(type) {
+			case int:
+				st.RecordBytesSent(int64(v))
+			case string:
+				mockAccumulatorTicker.Tick()
+			default:
+				t.Fatalf("Unrecognized input type: %T %v", i, i)
+			}
+			wg.Wait() // Allow the Tracker to collect the input.
+		}
+
+		// Validate expected accumulated bytes.
+		if got := st.AccumulatedBytesCopied(); got != tc.want {
+			t.Errorf("AccumultedBytesCopied got %v, want %v", got, tc.want)
+		}
+
+		// AccumulatdBytesCopied should be zero again.
+		if got := st.AccumulatedBytesCopied(); got != 0 {
+			t.Errorf("AccumultedBytesCopied got %v, want 0", got)
+		}
 	}
 }
 

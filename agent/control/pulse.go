@@ -106,18 +106,18 @@ func (ps *PulseSender) sendPulses(ctx context.Context) {
 }
 
 func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
-	var throughputBps int64
+	var transferredBytes int64
 	if ps.statsTracker != nil {
-		throughputBps = ps.statsTracker.Throughput()
+		transferredBytes = ps.statsTracker.AccumulatedBytesCopied()
 	}
 	return &pulsepb.Msg{
 		AgentId: &pulsepb.AgentId{
 			HostName:  ps.hostname,
 			ProcessId: fmt.Sprintf("%v", ps.pid),
 		},
-		Frequency:                  int32(ps.sendFreq),
-		AgentVersion:               ps.version,
-		AgentLogsDir:               ps.logsDir,
-		AgentThroughputBytesPerSec: throughputBps,
+		Frequency:             int32(ps.sendFreq),
+		AgentVersion:          ps.version,
+		AgentLogsDir:          ps.logsDir,
+		AgentTransferredBytes: transferredBytes,
 	}
 }

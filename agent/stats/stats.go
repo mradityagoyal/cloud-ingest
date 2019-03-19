@@ -21,6 +21,7 @@ import (
 	"io"
 	"math"
 	"sort"
+	"sync"
 	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats/throughput"
@@ -33,6 +34,7 @@ import (
 const (
 	statsLogFreq     = 3 * time.Minute // The frequency of logging periodic stats.
 	statsDisplayFreq = 1 * time.Second // The frequency of displaying stats to stdout.
+	accumulatorFreq  = 1 * time.Second // The frequency of accumulating bytes copied.
 )
 
 type taskDur struct {
@@ -73,10 +75,17 @@ type Tracker struct {
 
 	spinnerIdx int // For displaying the mighty spinner.
 
+	// These fields support func AccumulatedBytesCopied, which allows the
+	// PulseSender to send the count of transferred bytes with each pulse.
+	accumulatedBytesMu sync.Mutex
+	accumulatedBytes   int64
+	prevBytesCopied    int64
+
 	// Testing hooks.
-	selectDone    func()
-	logTicker     helpers.Ticker
-	displayTicker helpers.Ticker
+	selectDone        func()
+	logTicker         helpers.Ticker
+	displayTicker     helpers.Ticker
+	accumulatorTicker helpers.Ticker
 }
 
 // NewTracker returns a new Tracker, which can then be used to record stats.
@@ -98,10 +107,11 @@ func NewTracker(ctx context.Context) *Tracker {
 			ctrlMsgTime: time.Now(),
 			bwLimit:     math.MaxInt32,
 		},
-		tpTracker:     throughput.NewTracker(ctx),
-		selectDone:    func() {},
-		logTicker:     helpers.NewClockTicker(statsLogFreq),
-		displayTicker: helpers.NewClockTicker(statsDisplayFreq),
+		tpTracker:         throughput.NewTracker(ctx),
+		selectDone:        func() {},
+		logTicker:         helpers.NewClockTicker(statsLogFreq),
+		displayTicker:     helpers.NewClockTicker(statsDisplayFreq),
+		accumulatorTicker: helpers.NewClockTicker(accumulatorFreq),
 	}
 	go t.track(ctx)
 	return t
@@ -174,9 +184,15 @@ func (t *Tracker) RecordPulseMsg() {
 	t.pulseMsgChan <- struct{}{}
 }
 
-// Throughput returns the current measured throughput.
-func (t *Tracker) Throughput() int64 {
-	return t.tpTracker.Throughput()
+// AccumulatedBytesCopied returns the number of bytesCopied since the last call to
+// this function. This function is *NOT* idempotent, as calling it resets the
+// accumulatedBytes.
+func (t *Tracker) AccumulatedBytesCopied() int64 {
+	t.accumulatedBytesMu.Lock()
+	// defers stack, set to 0 will happen before the mutex unlocks.
+	defer t.accumulatedBytesMu.Unlock()
+	defer func() { t.accumulatedBytes = 0 }()
+	return t.accumulatedBytes
 }
 
 func (t *Tracker) track(ctx context.Context) {
@@ -206,6 +222,11 @@ func (t *Tracker) track(ctx context.Context) {
 			t.periodic.glogAndReset()
 		case <-t.displayTicker.GetChannel():
 			t.displayStats()
+		case <-t.accumulatorTicker.GetChannel():
+			t.accumulatedBytesMu.Lock()
+			t.accumulatedBytes += t.lifetime.bytesCopied - t.prevBytesCopied
+			t.prevBytesCopied = t.lifetime.bytesCopied
+			t.accumulatedBytesMu.Unlock()
 		}
 		t.selectDone() // Testing hook.
 	}
