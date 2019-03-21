@@ -7,14 +7,13 @@ OPI_ROBOT_ACCOUNT = cloud-ingest-dcp@cloud-ingest-dev.iam.gserviceaccount.com
 # Add new top-level Go packages here.
 GO_TARGETS = \
 	./agent/... \
-	./gcloud/... \
 	./helpers/... \
 	./release/changelog/...
 
 # Add individual files needing mocking here.
 FILES_TO_MOCK = \
-	gcloud/gcsclient.go \
-	gcloud/pubsubclient.go \
+	agent/gcloud/gcsclient.go \
+	agent/gcloud/pubsubclient.go \
 	$(GOPATH)/src/github.com/googleapis/google-cloud-go-testing/storage/stiface/interfaces.go
 
 # NOTE: If/When we decide to move mocks to a separate directory and their own
