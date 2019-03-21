@@ -12,6 +12,7 @@ major job run versions.
 ## [Unreleased]
 ### Changed
 - The Agent's "stats" log line format.
+- Send 'transferred bytes' in the Pulse message.
 ### Added
 - Tool for extracting and parsing stats from the Agent's log.
 
