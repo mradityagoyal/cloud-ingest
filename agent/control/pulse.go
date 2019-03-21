@@ -106,10 +106,7 @@ func (ps *PulseSender) sendPulses(ctx context.Context) {
 }
 
 func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
-	var transferredBytes int64
-	if ps.statsTracker != nil {
-		transferredBytes = ps.statsTracker.AccumulatedBytesCopied()
-	}
+	transferredBytes := ps.statsTracker.AccumulatedBytesCopied()
 	return &pulsepb.Msg{
 		AgentId: &pulsepb.AgentId{
 			HostName:  ps.hostname,

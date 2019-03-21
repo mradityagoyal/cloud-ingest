@@ -57,12 +57,22 @@ func NewTracker(ctx context.Context) *Tracker {
 // RecordBytesSent tracks bytes sent. For accurate throughput measurement this function
 // should be called every time bytes are sent on the wire. More frequent and granular
 // calls to this function will provide a more accurate throughput measurement.
+//
+// Takes no action for a nil receiver.
 func (t *Tracker) RecordBytesSent(bytes int64) {
+	if t == nil {
+		return
+	}
 	t.bytesSentChan <- bytes
 }
 
 // Throughput returns the current measured throughput in bytes/second.
+//
+// Returns zero for a nil receiver.
 func (t *Tracker) Throughput() int64 {
+	if t == nil {
+		return 0
+	}
 	t.throughputMu.RLock()
 	defer t.throughputMu.RUnlock()
 	return t.throughput

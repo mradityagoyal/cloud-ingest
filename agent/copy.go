@@ -329,9 +329,7 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 
 	// Wrap the srcFile with rate limiting and byte tracking readers.
 	r := rate.NewRateLimitingReader(srcFile)
-	if h.statsTracker != nil {
-		r = h.statsTracker.NewByteTrackingReader(r)
-	}
+	r = h.statsTracker.NewByteTrackingReader(r)
 
 	// Perform the copy (by writing to the gcsWriter).
 	var srcCRC32C uint32
@@ -510,9 +508,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 
 		// Wrap the chunk buffer with rate limiting and byte tracking readers.
 		r := rate.NewRateLimitingReader(cbr)
-		if h.statsTracker != nil {
-			r = h.statsTracker.NewByteTrackingReader(r)
-		}
+		r = h.statsTracker.NewByteTrackingReader(r)
 
 		// Perform the copy!
 		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, r, c.BytesCopied, int64(bytesRead), final)

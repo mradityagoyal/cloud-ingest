@@ -78,7 +78,5 @@ func (ch *ControlHandler) processMessage(_ context.Context, msg *pubsub.Message)
 	ch.processCtrlMsg(&controlMsg, ch.statsTracker)
 
 	ch.lastUpdate = msg.PublishTime
-	if ch.statsTracker != nil {
-		ch.statsTracker.RecordCtrlMsg(msg.PublishTime)
-	}
+	ch.statsTracker.RecordCtrlMsg(msg.PublishTime)
 }

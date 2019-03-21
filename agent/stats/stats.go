@@ -118,7 +118,12 @@ func NewTracker(ctx context.Context) *Tracker {
 }
 
 // RecordTaskResp tracks the count and duration of completed tasks.
+//
+// Takes no action for a nil receiver.
 func (t *Tracker) RecordTaskResp(resp *taskpb.TaskRespMsg, dur time.Duration) {
+	if t == nil {
+		return
+	}
 	task := ""
 	if resp.ReqSpec.GetCopySpec() != nil {
 		task = "copy"
@@ -147,7 +152,12 @@ type ByteTrackingReader struct {
 }
 
 // NewByteTrackingReader returns a ByteTrackingReader.
+//
+// Returns the passed in reader for a nil receiver.
 func (t *Tracker) NewByteTrackingReader(r io.Reader) io.Reader {
+	if t == nil {
+		return r
+	}
 	return ByteTrackingReader{reader: r, tracker: t}
 }
 
@@ -164,30 +174,55 @@ func (btr ByteTrackingReader) Read(buf []byte) (n int, err error) {
 // For accurate throughput measurement this function should be called every time
 // bytes are sent on the wire. More frequent and granular calls to this function
 // will provide a more accurate throughput measurement.
+//
+// Takes no action for a nil receiver.
 func (t *Tracker) RecordBytesSent(bytes int64) {
+	if t == nil {
+		return
+	}
 	t.tpTracker.RecordBytesSent(bytes)
 	t.bytesSentChan <- bytes
 }
 
 // RecordBWLimit tracks the current bandwidth limit.
+//
+// Takes no action for a nil receiver.
 func (t *Tracker) RecordBWLimit(agentBW int64) {
+	if t == nil {
+		return
+	}
 	t.bwLimitChan <- agentBW
 }
 
 // RecordCtrlMsg tracks received control messages.
+//
+// Will take no action if the receiver is nil.
 func (t *Tracker) RecordCtrlMsg(time time.Time) {
+	if t == nil {
+		return
+	}
 	t.ctrlMsgChan <- time
 }
 
 // RecordPulseMsg tracks sent pulse messages.
+//
+// Takes no action for a nil receiver.
 func (t *Tracker) RecordPulseMsg() {
+	if t == nil {
+		return
+	}
 	t.pulseMsgChan <- struct{}{}
 }
 
 // AccumulatedBytesCopied returns the number of bytesCopied since the last call to
 // this function. This function is *NOT* idempotent, as calling it resets the
 // accumulatedBytes.
+//
+// Returns zero for a nil receiver.
 func (t *Tracker) AccumulatedBytesCopied() int64 {
+	if t == nil {
+		return 0
+	}
 	t.accumulatedBytesMu.Lock()
 	// defers stack, set to 0 will happen before the mutex unlocks.
 	defer t.accumulatedBytesMu.Unlock()
