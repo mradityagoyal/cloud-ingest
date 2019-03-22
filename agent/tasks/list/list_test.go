@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package agent
+package list
 
 import (
 	"bytes"
@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -65,7 +66,7 @@ func TestDirNotFound(t *testing.T) {
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg("task", "dir does not exist")
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	checkFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
+	common.CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
 	}
@@ -91,7 +92,7 @@ func TestListSuccessEmptyDir(t *testing.T) {
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	checkSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -138,7 +139,7 @@ func TestListSuccessFlatDir(t *testing.T) {
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	checkSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -192,7 +193,7 @@ func TestListFailsFileWithNewline(t *testing.T) {
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
 	// term, we will escape file with newlines.
-	checkFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
+	common.CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
 	}
@@ -239,7 +240,7 @@ func TestListSuccessNestedDir(t *testing.T) {
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	checkSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())

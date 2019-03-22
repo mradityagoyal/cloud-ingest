@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package agent
+package list
 
 import (
 	"context"
@@ -27,6 +27,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
 	"google.golang.org/api/googleapi"
@@ -119,7 +120,7 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {
 		err := errors.New("ListHandler.Do taskReqMsg.Spec is not ListSpec")
-		return buildTaskRespMsg(taskReqMsg, nil, nil, err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, nil, err)
 	}
 
 	log := &taskpb.Log{
@@ -130,12 +131,12 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		helpers.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
 
 	if len(listSpec.SrcDirectories) == 0 {
-		return buildTaskRespMsg(taskReqMsg, nil, log, errors.New("list spec did not contain any source directories"))
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, errors.New("list spec did not contain any source directories"))
 	}
 	fileInfos, err := listDirectory(listSpec.SrcDirectories[0])
 	if err != nil {
 		w.CloseWithError(err)
-		return buildTaskRespMsg(taskReqMsg, nil, log, err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
 	// Set the resumable upload chunk size.
@@ -143,23 +144,23 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		t.ChunkSize, err = getListingUploadChunkSize(fileInfos, listSpec.SrcDirectories[0], h.resumableChunkSize)
 		if err != nil {
 			w.CloseWithError(err)
-			return buildTaskRespMsg(taskReqMsg, nil, log, err)
+			return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 		}
 	}
 
 	if _, err := fmt.Fprintln(w, taskReqMsg.TaskRelRsrcName); err != nil {
 		w.CloseWithError(err)
-		return buildTaskRespMsg(taskReqMsg, nil, log, err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
 	listMD, err := writeListingFile(fileInfos, listSpec.SrcDirectories[0], w)
 	if err != nil {
 		w.CloseWithError(err)
-		return buildTaskRespMsg(taskReqMsg, nil, log, err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
 	if err := w.Close(); err != nil {
-		return buildTaskRespMsg(taskReqMsg, nil, log, err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
 	ll := log.GetListLog()
@@ -167,5 +168,5 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	ll.BytesFound = listMD.bytes
 	ll.DirsFound = listMD.dirsDiscovered
 
-	return buildTaskRespMsg(taskReqMsg, nil, log, nil)
+	return common.BuildTaskRespMsg(taskReqMsg, nil, log, nil)
 }

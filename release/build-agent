@@ -43,7 +43,7 @@ ASSET_DIR=$WORKING_DIR/assets
 VERSION_FILE=$ASSET_DIR/VERSIONINFO.txt
 
 # Binary info.
-MAIN_SOURCE=agent/agentmain/agentmain.go
+MAIN_SOURCE=agent/agent.go
 BINARY_NAME=agent
 
 # Validate input and state.

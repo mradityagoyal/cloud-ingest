@@ -17,7 +17,7 @@ limitations under the License.
 // least taken into consideration for whatever versioning mechanism we develop. The
 // same is true for listfile_test.go.
 
-package agent
+package list
 
 import (
 	"fmt"

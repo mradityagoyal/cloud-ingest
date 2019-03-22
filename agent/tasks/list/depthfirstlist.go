@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package agent
+package list
 
 import (
 	"context"
@@ -26,7 +26,9 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+
 	listpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -165,7 +167,7 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {
 		err := errors.New("ListHandler.Do taskReqMsg.Spec is not ListSpec")
-		return buildTaskRespMsg(taskReqMsg, nil, nil, err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, nil, err)
 	}
 
 	log := &taskpb.Log{
@@ -183,11 +185,11 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	listMD, err := listDirectoriesAndWriteListFile(w, listSpec, h.listFileSizeThreshold, h.allowedDirBytes)
 	if err != nil {
 		w.CloseWithError(err)
-		return buildTaskRespMsg(taskReqMsg, nil, log, err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
 	if err := w.Close(); err != nil {
-		return buildTaskRespMsg(taskReqMsg, nil, log, err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
 	ll := log.GetListLog()
@@ -196,5 +198,5 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	ll.DirsFound = listMD.dirsDiscovered
 	ll.DirsListed = listMD.dirsListed
 
-	return buildTaskRespMsg(taskReqMsg, nil, log, nil)
+	return common.BuildTaskRespMsg(taskReqMsg, nil, log, nil)
 }

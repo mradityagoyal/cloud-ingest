@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package agent
+package copy
 
 import (
 	"bytes"
@@ -39,6 +39,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -129,7 +130,7 @@ func NewCopyHandler(storageClient *storage.Client, maxParallelism int, hc *http.
 
 func checkResumableFileStats(c *taskpb.CopySpec, stats os.FileInfo) error {
 	if c.FileBytes != stats.Size() {
-		return AgentError{
+		return common.AgentError{
 			Msg: fmt.Sprintf(
 				"File size changed during the copy. Expected:%+v, got:%+v",
 				c.FileBytes, stats.Size()),
@@ -137,7 +138,7 @@ func checkResumableFileStats(c *taskpb.CopySpec, stats os.FileInfo) error {
 		}
 	}
 	if c.FileMTime != stats.ModTime().Unix() {
-		return AgentError{
+		return common.AgentError{
 			Msg: fmt.Sprintf(
 				"File mtime changed during the copy. Expected:%+v, got:%+v",
 				c.FileMTime, stats.ModTime().Unix()),
@@ -153,7 +154,7 @@ func checkFileStats(beforeStats os.FileInfo, f *os.File) error {
 		return err
 	}
 	if beforeStats.Size() != afterStats.Size() || beforeStats.ModTime() != afterStats.ModTime() {
-		return AgentError{
+		return common.AgentError{
 			Msg: fmt.Sprintf(
 				"File stats changed during the copy. Before stats:%+v, after stats: %+v",
 				beforeStats, afterStats),
@@ -244,7 +245,7 @@ func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, err
 	}
 	var err error
 	if log.FilesFailed > 0 {
-		err = AgentError{
+		err = common.AgentError{
 			Msg:         fmt.Sprintf("CopyBundle had %v failures", log.FilesFailed),
 			FailureType: taskpb.FailureType_UNKNOWN_FAILURE,
 		}
@@ -260,7 +261,7 @@ func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *task
 			defer wg.Done()
 			var err error
 			bf.CopyLog, err = h.handleCopySpec(ctx, bf.CopySpec)
-			bf.FailureType = getFailureTypeFromError(err)
+			bf.FailureType = common.GetFailureTypeFromError(err)
 			bf.FailureMessage = fmt.Sprint(err)
 			if err == nil {
 				bf.Status = taskpb.Status_SUCCESS
@@ -294,7 +295,7 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 		err = errors.New("CopyHandler.Do taskReqMsg.Spec is neither CopySpec nor CopyBundleSpec")
 	}
 
-	return buildTaskRespMsg(taskReqMsg, respSpec, log, err)
+	return common.BuildTaskRespMsg(taskReqMsg, respSpec, log, err)
 }
 
 func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, cl *taskpb.CopyLog) error {
@@ -363,7 +364,7 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 
 	// Verify the CRC32C.
 	if dstAttrs.CRC32C != srcCRC32C {
-		return AgentError{
+		return common.AgentError{
 			Msg: fmt.Sprintf("CRC32C mismatch for file %s (%d) against object %s (%d)",
 				c.SrcFile, srcCRC32C, c.DstObject, dstAttrs.CRC32C),
 			FailureType: taskpb.FailureType_HASH_MISMATCH_FAILURE,
@@ -557,7 +558,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 
 		// Check the CRC32C.
 		if dstCRC32C != srcCRC32C {
-			return AgentError{
+			return common.AgentError{
 				Msg: fmt.Sprintf("CRC32C mismatch for file %s (%d) against object %s (%d)",
 					c.SrcFile, srcCRC32C, c.DstObject, dstCRC32C),
 				FailureType: taskpb.FailureType_HASH_MISMATCH_FAILURE,

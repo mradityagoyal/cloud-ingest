@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package agent
+package copy
 
 import (
 	"bytes"
@@ -32,6 +32,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -78,7 +79,7 @@ func TestSourceNotFound(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = "file does not exist"
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	checkFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
+	common.CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 }
 
 func TestAcquireBufferMemoryFail(t *testing.T) {
@@ -102,7 +103,7 @@ func TestAcquireBufferMemoryFail(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	checkFailureWithType("task", taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
+	common.CheckFailureWithType("task", taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
 }
 
 func TestCRC32CMismtach(t *testing.T) {
@@ -128,7 +129,7 @@ func TestCRC32CMismtach(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	checkFailureWithType("task", taskpb.FailureType_HASH_MISMATCH_FAILURE, taskRespMsg, t)
+	common.CheckFailureWithType("task", taskpb.FailureType_HASH_MISMATCH_FAILURE, taskRespMsg, t)
 }
 
 func TestCopyEntireFileSuccess(t *testing.T) {
@@ -158,7 +159,7 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	checkSuccessMsg("task", taskRespMsg, t)
+	common.CheckSuccessMsg("task", taskRespMsg, t)
 	if writer.WrittenString() != testFileContent {
 		t.Errorf("written string want \"%s\", got \"%s\"",
 			testFileContent, writer.WrittenString())
@@ -214,7 +215,7 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	checkSuccessMsg("task", taskRespMsg, t)
+	common.CheckSuccessMsg("task", taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("written string want \"%s\", got \"%s\"",
 			"", writer.WrittenString())
@@ -366,9 +367,9 @@ func TestCopyBundle(t *testing.T) {
 		// Check for the overall task status
 		t.Logf("CopyHandler.Do(%q)", tc.desc)
 		if tc.bundleStatus == taskpb.Status_SUCCESS {
-			checkSuccessMsg("task", taskRespMsg, t)
+			common.CheckSuccessMsg("task", taskRespMsg, t)
 		} else {
-			checkFailureWithType("task", tc.bundleFailure, taskRespMsg, t)
+			common.CheckFailureWithType("task", tc.bundleFailure, taskRespMsg, t)
 		}
 
 		// Check for the overall bundle log.
@@ -442,7 +443,7 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskReqMsg.Spec.GetCopySpec().BytesToCopy = 10
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	checkSuccessMsg("task", taskRespMsg, t)
+	common.CheckSuccessMsg("task", taskRespMsg, t)
 
 	srcStats, _ := os.Stat(tmpFile)
 	wantLog := &taskpb.Log{

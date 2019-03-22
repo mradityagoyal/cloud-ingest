@@ -27,10 +27,12 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/control"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/copy"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/list"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/golang/glog"
 	"google.golang.org/api/option"
@@ -207,7 +209,7 @@ func createClients(ctx context.Context) (*pubsub.Client, *storage.Client, *http.
 	if err != nil {
 		glog.Fatalf("Couldn't create Storage client, err: %v", err)
 	}
-	httpc, err := agent.NewResumableHttpClient(ctx, clientOptions...)
+	httpc, err := copy.NewResumableHttpClient(ctx, clientOptions...)
 	if err != nil {
 		glog.Fatalf("Couldn't create http.Client, err: %v", err)
 	}
@@ -302,12 +304,12 @@ func main() {
 			// the list task processing threads.
 			allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *numberConcurrentListTasks
 
-			depthFirstListHandler := agent.NewDepthFirstListHandler(storageClient, *listTaskChunkSize, *listFileSizeThreshold, allowedDirBytes)
-			listProcessor := agent.WorkProcessor{
+			depthFirstListHandler := list.NewDepthFirstListHandler(storageClient, *listTaskChunkSize, *listFileSizeThreshold, allowedDirBytes)
+			listProcessor := tasks.WorkProcessor{
 				WorkSub:       listSub,
 				ProgressTopic: listTopic,
-				Handlers: agent.NewHandlerRegistry(map[uint64]agent.WorkHandler{
-					0: agent.NewListHandler(storageClient, *listTaskChunkSize),
+				Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.WorkHandler{
+					0: list.NewListHandler(storageClient, *listTaskChunkSize),
 					1: depthFirstListHandler,
 					2: depthFirstListHandler,
 				}),
@@ -339,11 +341,11 @@ func main() {
 				glog.Fatalf("Could not find copy topic %s, error %+v", copyTopicWrapper.ID(), err)
 			}
 
-			copyHandler := agent.NewCopyHandler(storageClient, *numberThreads, httpc, st)
-			copyProcessor := agent.WorkProcessor{
+			copyHandler := copy.NewCopyHandler(storageClient, *numberThreads, httpc, st)
+			copyProcessor := tasks.WorkProcessor{
 				WorkSub:       copySub,
 				ProgressTopic: copyTopic,
-				Handlers: agent.NewHandlerRegistry(map[uint64]agent.WorkHandler{
+				Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.WorkHandler{
 					0: copyHandler,
 					1: copyHandler,
 					2: copyHandler,

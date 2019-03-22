@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package agent
+package list
 
 type listingFileMetadata struct {
 	bytes, files, dirsDiscovered, dirsListed int64

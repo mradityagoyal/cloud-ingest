@@ -13,7 +13,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package agent
+package tasks
 
 import (
 	"context"
@@ -23,6 +23,7 @@ import (
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
@@ -58,14 +59,14 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 	if rate.IsJobRunActive(taskReqMsg.JobrunRelRsrcName) {
 		handler, agentErr := wp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
 		if agentErr != nil {
-			taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
+			taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
 		} else {
 			start := time.Now()
 			taskRespMsg = handler.Do(ctx, &taskReqMsg)
 			wp.StatsTracker.RecordTaskResp(taskRespMsg, time.Now().Sub(start))
 		}
 	} else {
-		taskRespMsg = buildTaskRespMsg(&taskReqMsg, nil, nil, AgentError{
+		taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, common.AgentError{
 			Msg:         fmt.Sprintf("job run %s is not active", taskReqMsg.JobrunRelRsrcName),
 			FailureType: taskpb.FailureType_NOT_ACTIVE_JOBRUN,
 		})

@@ -13,34 +13,17 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package agent
+package common
 
 import (
-	"encoding/json"
-	"fmt"
-	"sort"
-	"strings"
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
-type LogFields map[string]interface{}
-
-func (lf LogFields) val(key string) int64 {
-	value, err := lf[key].(json.Number).Int64()
-	if err != nil {
-		return int64(0)
-	}
-	return value
+type AgentError struct {
+	Msg         string
+	FailureType taskpb.FailureType
 }
 
-func (lf LogFields) String() string {
-	var keys []string
-	for k, _ := range lf {
-		keys = append(keys, k)
-	}
-	sort.Strings(keys)
-	var kv []string
-	for _, k := range keys {
-		kv = append(kv, fmt.Sprintf("%v:%v", k, lf[k]))
-	}
-	return strings.Join(kv, " ")
+func (ae AgentError) Error() string {
+	return ae.Msg
 }

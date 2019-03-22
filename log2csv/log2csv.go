@@ -32,8 +32,8 @@ import (
 )
 
 var (
-	log = flag.String("log", "/tmp/agentmain.INFO", "The source log file to parse.")
-	csv = flag.String("csv", "/tmp/agentmain.INFO.csv", "The target csv file to write to.")
+	log = flag.String("log", "/tmp/agent.INFO", "The source log file to parse.")
+	csv = flag.String("csv", "/tmp/agent.INFO.csv", "The target csv file to write to.")
 )
 
 func main() {
