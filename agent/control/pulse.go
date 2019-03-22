@@ -22,7 +22,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	pubsubinternal "github.com/GoogleCloudPlatform/cloud-ingest/agent/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
@@ -38,7 +38,7 @@ const (
 
 // PulseSender periodically sends "pulses" on the topic passed in during construction.
 type PulseSender struct {
-	pulseTopic gcloud.PSTopic // The pubsub topic to send pulses on.
+	pulseTopic pubsubinternal.PSTopic // The pubsub topic to send pulses on.
 
 	// These fields contain the contents of the pulse message.
 	hostname string
@@ -56,7 +56,7 @@ type PulseSender struct {
 }
 
 // NewPulseSender returns a new PulseSender.
-func NewPulseSender(ctx context.Context, t gcloud.PSTopic, logsDir string, st *stats.Tracker) (*PulseSender, error) {
+func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir string, st *stats.Tracker) (*PulseSender, error) {
 	hn, err := os.Hostname()
 	if err != nil {
 		glog.Errorf("NewPulseSender err, os.Hostname() got err: %v", err)

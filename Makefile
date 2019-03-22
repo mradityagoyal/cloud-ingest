@@ -13,7 +13,7 @@ GO_TARGETS = \
 # Add individual files needing mocking here.
 FILES_TO_MOCK = \
 	agent/gcloud/gcsclient.go \
-	agent/gcloud/pubsubclient.go \
+	agent/pubsub/pubsubclient.go \
 	$(GOPATH)/src/github.com/googleapis/google-cloud-go-testing/storage/stiface/interfaces.go
 
 # NOTE: If/When we decide to move mocks to a separate directory and their own

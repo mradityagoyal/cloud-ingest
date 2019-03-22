@@ -21,7 +21,7 @@ import (
 	"testing"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	pubsubinternal "github.com/GoogleCloudPlatform/cloud-ingest/agent/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
@@ -38,9 +38,9 @@ func TestPulseSender(t *testing.T) {
 		// Set up the PubSub mock.
 		ctrl := gomock.NewController(t)
 		defer ctrl.Finish()
-		mockPublishResult := gcloud.NewMockPSPublishResult(ctrl)
+		mockPublishResult := pubsubinternal.NewMockPSPublishResult(ctrl)
 		mockPublishResult.EXPECT().Get(ctx).MaxTimes(numPulses).MinTimes(numPulses).Return("serverid", nil)
-		mockPulseTopic := gcloud.NewMockPSTopic(ctrl)
+		mockPulseTopic := pubsubinternal.NewMockPSTopic(ctrl)
 
 		st := stats.NewTracker(ctx)
 		st.RecordBytesSent(123)

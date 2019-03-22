@@ -15,6 +15,7 @@ major job run versions.
 ### Changed
 - The Agent's "stats" log line format.
 - Send 'transferred bytes' in the Pulse message.
+- Migrate PubSub functionality out of the main binary (agent.go) into its own package. Add a SIG handler so ctrl-c exits gracefully.
 ### Added
 - Tool for extracting and parsing stats from the Agent's log.
 
