@@ -17,12 +17,12 @@ import (
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
-type TestWorkHandler struct {
+type TestTaskHandler struct {
 	responses map[string]*taskpb.TaskRespMsg
 }
 
 // Do handles the TaskReqMsg and returns a TaskRespMsg.
-func (h *TestWorkHandler) Do(_ context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+func (h *TestTaskHandler) Do(_ context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
 	return h.responses[taskReqMsg.TaskRelRsrcName]
 }
 
@@ -91,7 +91,7 @@ func getMessageOrTimeout(t *testing.T, msgs chan *pubsub.Message) *pubsub.Messag
 	return nil
 }
 
-func TestWorkProcessorProcessMessage(t *testing.T) {
+func TestTaskProcessorProcessMessage(t *testing.T) {
 	ctx := context.Background()
 	client, cleanUp := fakePubSubClient(ctx, t)
 	defer cleanUp()
@@ -134,11 +134,11 @@ func TestWorkProcessorProcessMessage(t *testing.T) {
 		TaskRelRsrcName: taskReqMsg.TaskRelRsrcName,
 		Status:          "SUCCESS",
 	}
-	wp := WorkProcessor{
-		WorkSub:       workSub,
+	wp := TaskProcessor{
+		TaskSub:       workSub,
 		ProgressTopic: progressTopic,
-		Handlers: &HandlerRegistry{map[uint64]WorkHandler{
-			0: &TestWorkHandler{map[string]*taskpb.TaskRespMsg{
+		Handlers: &HandlerRegistry{map[uint64]TaskHandler{
+			0: &TestTaskHandler{map[string]*taskpb.TaskRespMsg{
 				taskReqMsg.TaskRelRsrcName: want,
 			}},
 		}},
@@ -160,7 +160,7 @@ func TestWorkProcessorProcessMessage(t *testing.T) {
 	}
 }
 
-func TestWorkProcessorProcessMessageNotActiveJob(t *testing.T) {
+func TestTaskProcessorProcessMessageNotActiveJob(t *testing.T) {
 	ctx := context.Background()
 	client, cleanUp := fakePubSubClient(ctx, t)
 	defer cleanUp()
@@ -189,8 +189,8 @@ func TestWorkProcessorProcessMessageNotActiveJob(t *testing.T) {
 	receiveMessages(ctx, msgs, workSub)
 	psTaskReqMsg := getMessageOrTimeout(t, msgs)
 
-	wp := WorkProcessor{
-		WorkSub:       workSub,
+	wp := TaskProcessor{
+		TaskSub:       workSub,
 		ProgressTopic: progressTopic,
 		Handlers:      nil,
 		StatsTracker:  stats.NewTracker(ctx),
@@ -219,7 +219,7 @@ func TestWorkProcessorProcessMessageNotActiveJob(t *testing.T) {
 	}
 }
 
-func TestWorkProcessorProcessMessageNoHandler(t *testing.T) {
+func TestTaskProcessorProcessMessageNoHandler(t *testing.T) {
 	ctx := context.Background()
 	client, cleanUp := fakePubSubClient(ctx, t)
 	defer cleanUp()
@@ -263,11 +263,11 @@ func TestWorkProcessorProcessMessageNoHandler(t *testing.T) {
 		Status:          "FAILURE",
 		FailureType:     taskpb.FailureType_AGENT_UNSUPPORTED_VERSION,
 	}
-	wp := WorkProcessor{
-		WorkSub:       workSub,
+	wp := TaskProcessor{
+		TaskSub:       workSub,
 		ProgressTopic: progressTopic,
-		Handlers: &HandlerRegistry{map[uint64]WorkHandler{
-			0: &TestWorkHandler{map[string]*taskpb.TaskRespMsg{
+		Handlers: &HandlerRegistry{map[uint64]TaskHandler{
+			0: &TestTaskHandler{map[string]*taskpb.TaskRespMsg{
 				taskReqMsg.TaskRelRsrcName: want,
 			}},
 		}},

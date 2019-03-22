@@ -305,10 +305,10 @@ func main() {
 			allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *numberConcurrentListTasks
 
 			depthFirstListHandler := list.NewDepthFirstListHandler(storageClient, *listTaskChunkSize, *listFileSizeThreshold, allowedDirBytes)
-			listProcessor := tasks.WorkProcessor{
-				WorkSub:       listSub,
+			listProcessor := tasks.TaskProcessor{
+				TaskSub:       listSub,
 				ProgressTopic: listTopic,
-				Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.WorkHandler{
+				Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.TaskHandler{
 					0: list.NewListHandler(storageClient, *listTaskChunkSize),
 					1: depthFirstListHandler,
 					2: depthFirstListHandler,
@@ -342,10 +342,10 @@ func main() {
 			}
 
 			copyHandler := copy.NewCopyHandler(storageClient, *numberThreads, httpc, st)
-			copyProcessor := tasks.WorkProcessor{
-				WorkSub:       copySub,
+			copyProcessor := tasks.TaskProcessor{
+				TaskSub:       copySub,
 				ProgressTopic: copyTopic,
-				Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.WorkHandler{
+				Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.TaskHandler{
 					0: copyHandler,
 					1: copyHandler,
 					2: copyHandler,

@@ -12,14 +12,14 @@ import (
 
 // HandlerRegistry manages handlers for all supported major job run versions.
 type HandlerRegistry struct {
-	handlers map[uint64]WorkHandler
+	handlers map[uint64]TaskHandler
 }
 
 // NewHandlerRegistry creates a new HandlerRegistry using the given major
 // job run version to handler mappings. If the given map does not contain every supported major
 // job run version, the function will perform a fatal log operation.
-func NewHandlerRegistry(majorVersionToHandlers map[uint64]WorkHandler) *HandlerRegistry {
-	handlers := make(map[uint64]WorkHandler)
+func NewHandlerRegistry(majorVersionToHandlers map[uint64]TaskHandler) *HandlerRegistry {
+	handlers := make(map[uint64]TaskHandler)
 	for v, h := range majorVersionToHandlers {
 		handlers[v] = h
 	}
@@ -39,7 +39,7 @@ func NewHandlerRegistry(majorVersionToHandlers map[uint64]WorkHandler) *HandlerR
 // HandlerForTaskReqMsg gets the appropriate handler for the given task request message. If the
 // handler registry is unable to parse the job run version contained in the taskReqMsg or
 // the registry does not contain the proper handler, an AgentError is returned.
-func (h *HandlerRegistry) HandlerForTaskReqMsg(taskReqMsg *taskpb.TaskReqMsg) (WorkHandler, *common.AgentError) {
+func (h *HandlerRegistry) HandlerForTaskReqMsg(taskReqMsg *taskpb.TaskReqMsg) (TaskHandler, *common.AgentError) {
 	jobRunVersion, err := versions.VersionFromString(taskReqMsg.JobRunVersion)
 	if err != nil {
 		glog.Errorf("Failed to parse job run version for task request message %v with err: %v", taskReqMsg, err)

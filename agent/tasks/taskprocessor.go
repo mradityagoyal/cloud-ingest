@@ -30,23 +30,23 @@ import (
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
-// WorkHandler is an interface to handle different task types.
-type WorkHandler interface {
+// TaskHandler is an interface to handle different task types.
+type TaskHandler interface {
 	// Do handles the TaskReqMsg and returns a TaskRespMsg.
 	Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg
 }
 
-// WorkProcessor processes tasks of a certain type. It listens to subscription
-// WorkSub, delegates to the Handler to do the work, and send progress messages
+// TaskProcessor processes tasks of a certain type. It listens to subscription
+// TaskSub, delegates to the Handler to do the work, and send progress messages
 // to ProgressTopic.
-type WorkProcessor struct {
-	WorkSub       *pubsub.Subscription
+type TaskProcessor struct {
+	TaskSub       *pubsub.Subscription
 	ProgressTopic *pubsub.Topic
 	Handlers      *HandlerRegistry
 	StatsTracker  *stats.Tracker
 }
 
-func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
+func (wp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
 	var taskReqMsg taskpb.TaskReqMsg
 	if err := proto.Unmarshal(msg.Data, &taskReqMsg); err != nil {
 		glog.Errorf("error decoding msg %s with error %v.", string(msg.Data), err)
@@ -101,7 +101,7 @@ func (wp *WorkProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 	msg.Ack()
 }
 
-func (wp *WorkProcessor) Process(ctx context.Context) {
+func (wp *TaskProcessor) Process(ctx context.Context) {
 	// Use the DefaultReceiveSettings, which is ReceiveSettings{
 	// 	 MaxExtension:           10 * time.Minute,
 	// 	 MaxOutstandingMessages: 1000,
@@ -117,19 +117,19 @@ func (wp *WorkProcessor) Process(ctx context.Context) {
 	// * NumGoroutines: Does not need more than 1 routine to pull Pub/Sub messages.
 	//
 	// Note that the main function can override those values when constructing the
-	// WorkProcessor instance.
-	err := wp.WorkSub.Receive(ctx, wp.processMessage)
+	// TaskProcessor instance.
+	err := wp.TaskSub.Receive(ctx, wp.processMessage)
 
 	if ctx.Err() != nil {
 		glog.Warningf(
 			"Error receiving work messages for subscription %v, with context error: %v.",
-			wp.WorkSub, ctx.Err())
+			wp.TaskSub, ctx.Err())
 	}
 
 	// The Pub/Sub client libraries already retries on retriable errors. Panic
 	// here on non-retriable errors.
 	if err != nil {
 		glog.Fatalf("Error receiving work messages for subscription %v, with error: %v.",
-			wp.WorkSub, err)
+			wp.TaskSub, err)
 	}
 }
