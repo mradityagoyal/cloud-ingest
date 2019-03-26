@@ -47,14 +47,13 @@ func NewControlHandler(s *pubsub.Subscription, st *stats.Tracker) *ControlHandle
 	}
 }
 
-// HandleControlMessages starts handling control messages sent by the service. This
-// is a blocking function, it will only return in case of non-retriable errors.
+// Process handles control messages sent by the DCP. This is a blocking function.
 // TODO(b/117972265): This method should detect control messages absence, and act accordingly.
-func (ch *ControlHandler) HandleControlMessages(ctx context.Context) error {
-	// Set the max outstanding messages to 1, so there is only one go routine processing
-	// the messages.
-	ch.sub.ReceiveSettings.MaxOutstandingMessages = 1
-	return ch.sub.Receive(ctx, ch.processMessage)
+func (ch *ControlHandler) Process(ctx context.Context) {
+	err := ch.sub.Receive(ctx, ch.processMessage)
+	if err != nil {
+		glog.Fatalf("%s.Receive() got err: %v", ch.sub.String(), err)
+	}
 }
 
 func (ch *ControlHandler) processMessage(_ context.Context, msg *pubsub.Message) {

@@ -95,6 +95,19 @@ func subscribeToControlTopic(ctx context.Context, client *pubsub.Client, topic *
 
 // CreatePubSubTopicsAndSubs creates all of the PubSub topics and subs necessary for the Agent. If any of them can't
 // be successfully created this function will glog.Fatal and kill the Agent.
+//
+// Where not overridden, the DefaultReceiveSettings are:
+// ReceiveSettings{
+//       MaxExtension:           10 * time.Minute,
+//       MaxOutstandingMessages: 1000,
+//       MaxOutstandingBytes:    1e9,
+//       NumGoroutines:          1,
+// }
+// The default settings should be safe, because of the following reasons
+// * MaxExtension:           DCP should not publish messages that are estimated to take more than 10 mins.
+// * MaxOutstandingMessages: It's also capped by the memory, and this will speed up processing of small files.
+// * MaxOutstandingBytes:    1GB memory should not be a problem for a modern machine.
+// * NumGoroutines:          Does not need more than 1 routine to pull Pub/Sub messages.
 func CreatePubSubTopicsAndSubs(ctx context.Context, maxOutstandingListMsgs, maxOutstandingCopyMsgs int, pubSubClient *pubsub.Client) (listSub, copySub, controlSub *pubsub.Subscription, listTopic, copyTopic, pulseTopic *pubsub.Topic) {
 	var wg sync.WaitGroup
 	wg.Add(6)
@@ -137,6 +150,7 @@ func CreatePubSubTopicsAndSubs(ctx context.Context, maxOutstandingListMsgs, maxO
 		controlTopic := pubSubClient.Topic(*pubsubPrefix + controlTopicID)
 		var err error
 		controlSub, err = subscribeToControlTopic(ctx, pubSubClient, controlTopic)
+		controlSub.ReceiveSettings.MaxOutstandingMessages = 1
 		if err != nil {
 			glog.Fatalf("Could not create subscription to control topic %v, with err: %v", controlTopic.ID(), err)
 		}

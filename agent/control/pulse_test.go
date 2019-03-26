@@ -48,10 +48,7 @@ func TestPulseSender(t *testing.T) {
 		st.RecordBytesSent(789)
 
 		logsDir := "/tmp/mylogs"
-		ps, err := NewPulseSender(ctx, mockPulseTopic, logsDir, st)
-		if err != nil {
-			t.Fatalf("NewPulseSender(%v, %v) got err: %v", mockPulseTopic, logsDir, err)
-		}
+		ps := NewPulseSender(ctx, mockPulseTopic, logsDir, st)
 		ps.hostname = "hostname"
 		ps.pid = 1234
 		ps.sendFreq = 20

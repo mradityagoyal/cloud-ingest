@@ -152,51 +152,39 @@ func main() {
 		st = stats.NewTracker(ctx) // After PubSub topics/subs so STDOUT doesn't get stomped.
 	}
 
-	_, err = control.NewPulseSender(ctx, pubsubinternal.NewPubSubTopicWrapper(pulseTopic), logDir, st)
-	if err != nil {
-		glog.Fatalf("NewPulseSender(%v, %v) got err: %v ", pulseTopic, logDir, err)
+	control.NewPulseSender(ctx, pubsubinternal.NewPubSubTopicWrapper(pulseTopic), logDir, st)
+
+	ch := control.NewControlHandler(controlSub, st)
+	go ch.Process(ctx)
+
+	// Convert maxMemoryForListingDirectories to bytes and divide it equally between
+	// the list task processing threads.
+	allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *numberConcurrentListTasks
+	depthFirstListHandler := list.NewDepthFirstListHandler(storageClient, *listTaskChunkSize, *listFileSizeThreshold, allowedDirBytes)
+	listProcessor := tasks.TaskProcessor{
+		TaskSub:       listSub,
+		ProgressTopic: listTopic,
+		Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.TaskHandler{
+			0: list.NewListHandler(storageClient, *listTaskChunkSize),
+			1: depthFirstListHandler,
+			2: depthFirstListHandler,
+		}),
+		StatsTracker: st,
 	}
+	go listProcessor.Process(ctx)
 
-	go func() {
-		ch := control.NewControlHandler(controlSub, st)
-		if err := ch.HandleControlMessages(ctx); err != nil {
-			glog.Fatalf("Failed handling control messages with err: %v.", err)
-		}
-	}()
-
-	go func() {
-		// Convert maxMemoryForListingDirectories to bytes and divide it equally between
-		// the list task processing threads.
-		allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *numberConcurrentListTasks
-
-		depthFirstListHandler := list.NewDepthFirstListHandler(storageClient, *listTaskChunkSize, *listFileSizeThreshold, allowedDirBytes)
-		listProcessor := tasks.TaskProcessor{
-			TaskSub:       listSub,
-			ProgressTopic: listTopic,
-			Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.TaskHandler{
-				0: list.NewListHandler(storageClient, *listTaskChunkSize),
-				1: depthFirstListHandler,
-				2: depthFirstListHandler,
-			}),
-			StatsTracker: st,
-		}
-		listProcessor.Process(ctx)
-	}()
-
-	go func() {
-		copyHandler := copy.NewCopyHandler(storageClient, *numberThreads, httpc, st)
-		copyProcessor := tasks.TaskProcessor{
-			TaskSub:       copySub,
-			ProgressTopic: copyTopic,
-			Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.TaskHandler{
-				0: copyHandler,
-				1: copyHandler,
-				2: copyHandler,
-			}),
-			StatsTracker: st,
-		}
-		copyProcessor.Process(ctx)
-	}()
+	copyHandler := copy.NewCopyHandler(storageClient, *numberThreads, httpc, st)
+	copyProcessor := tasks.TaskProcessor{
+		TaskSub:       copySub,
+		ProgressTopic: copyTopic,
+		Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.TaskHandler{
+			0: copyHandler,
+			1: copyHandler,
+			2: copyHandler,
+		}),
+		StatsTracker: st,
+	}
+	go copyProcessor.Process(ctx)
 
 	// Block until the ctx is cancelled.
 	select {

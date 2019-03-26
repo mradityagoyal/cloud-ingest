@@ -46,7 +46,16 @@ type TaskProcessor struct {
 	StatsTracker  *stats.Tracker
 }
 
-func (wp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
+// Process handles taskReqMsgs sent by the DCP for the given PubSub subscription and handler.
+// This is a blocking function.
+func (tp *TaskProcessor) Process(ctx context.Context) {
+	err := tp.TaskSub.Receive(ctx, tp.processMessage)
+	if err != nil {
+		glog.Fatalf("%s.Receive() got err: %v", tp.TaskSub.String(), err)
+	}
+}
+
+func (tp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
 	var taskReqMsg taskpb.TaskReqMsg
 	if err := proto.Unmarshal(msg.Data, &taskReqMsg); err != nil {
 		glog.Errorf("error decoding msg %s with error %v.", string(msg.Data), err)
@@ -57,13 +66,13 @@ func (wp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 
 	var taskRespMsg *taskpb.TaskRespMsg
 	if rate.IsJobRunActive(taskReqMsg.JobrunRelRsrcName) {
-		handler, agentErr := wp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
+		handler, agentErr := tp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
 		if agentErr != nil {
 			taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
 		} else {
 			start := time.Now()
 			taskRespMsg = handler.Do(ctx, &taskReqMsg)
-			wp.StatsTracker.RecordTaskResp(taskRespMsg, time.Now().Sub(start))
+			tp.StatsTracker.RecordTaskResp(taskRespMsg, time.Now().Sub(start))
 		}
 	} else {
 		taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, common.AgentError{
@@ -92,44 +101,11 @@ func (wp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		// when the message redelivered.
 		return
 	}
-	pubResult := wp.ProgressTopic.Publish(ctx, &pubsub.Message{Data: serializedTaskRespMsg})
+	pubResult := tp.ProgressTopic.Publish(ctx, &pubsub.Message{Data: serializedTaskRespMsg})
 	if _, err := pubResult.Get(ctx); err != nil {
 		glog.Errorf("Can not publish progress message with err: %v", err)
 		// Don't ack the messages, retry again when the message is redelivered.
 		return
 	}
 	msg.Ack()
-}
-
-func (wp *TaskProcessor) Process(ctx context.Context) {
-	// Use the DefaultReceiveSettings, which is ReceiveSettings{
-	// 	 MaxExtension:           10 * time.Minute,
-	// 	 MaxOutstandingMessages: 1000,
-	// 	 MaxOutstandingBytes:    1e9,
-	// 	 NumGoroutines:          1,
-	// }
-	// The default settings should be safe, because of the following reasons:
-	// * MaxExtension: DCP should not publish messages that estimated to take more
-	//                 than 10 mins.
-	// * MaxOutstandingMessages: It's also capped by the memory, and this will speed
-	//                           up processing of small files.
-	// * MaxOutstandingBytes: 1GB memory should not be a problem for a modern machine.
-	// * NumGoroutines: Does not need more than 1 routine to pull Pub/Sub messages.
-	//
-	// Note that the main function can override those values when constructing the
-	// TaskProcessor instance.
-	err := wp.TaskSub.Receive(ctx, wp.processMessage)
-
-	if ctx.Err() != nil {
-		glog.Warningf(
-			"Error receiving work messages for subscription %v, with context error: %v.",
-			wp.TaskSub, ctx.Err())
-	}
-
-	// The Pub/Sub client libraries already retries on retriable errors. Panic
-	// here on non-retriable errors.
-	if err != nil {
-		glog.Fatalf("Error receiving work messages for subscription %v, with error: %v.",
-			wp.TaskSub, err)
-	}
 }

@@ -56,11 +56,10 @@ type PulseSender struct {
 }
 
 // NewPulseSender returns a new PulseSender.
-func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir string, st *stats.Tracker) (*PulseSender, error) {
+func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir string, st *stats.Tracker) *PulseSender {
 	hn, err := os.Hostname()
 	if err != nil {
-		glog.Errorf("NewPulseSender err, os.Hostname() got err: %v", err)
-		return nil, err
+		hn = "hostnameunknown"
 	}
 	ps := &PulseSender{
 		pulseTopic:   t,
@@ -74,7 +73,7 @@ func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir strin
 		sendTicker:   helpers.NewClockTicker(pulseFrequency * time.Second),
 	}
 	go ps.sendPulses(ctx)
-	return ps, nil
+	return ps
 }
 
 func (ps *PulseSender) sendPulses(ctx context.Context) {
