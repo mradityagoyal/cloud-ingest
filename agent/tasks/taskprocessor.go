@@ -18,12 +18,16 @@ package tasks
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/copy"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/list"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
@@ -44,6 +48,38 @@ type TaskProcessor struct {
 	ProgressTopic *pubsub.Topic
 	Handlers      *HandlerRegistry
 	StatsTracker  *stats.Tracker
+}
+
+// NewListProcessor returns a TaskProcessor for handling List tasks.
+// Run the Process func on the newly returned TaskProcessor to begin processing tasks.
+func NewListProcessor(sc *storage.Client, sub *pubsub.Subscription, topic *pubsub.Topic, st *stats.Tracker) *TaskProcessor {
+	depthFirstListHandler := list.NewDepthFirstListHandler(sc)
+	return &TaskProcessor{
+		TaskSub:       sub,
+		ProgressTopic: topic,
+		Handlers: NewHandlerRegistry(map[uint64]TaskHandler{
+			0: list.NewListHandler(sc),
+			1: depthFirstListHandler,
+			2: depthFirstListHandler,
+		}),
+		StatsTracker: st,
+	}
+}
+
+// NewCopyProcessor returns a TaskProcessor for handling Copy tasks.
+// Run the Process func on the newly returned TaskProcessor to begin processing tasks.
+func NewCopyProcessor(sc *storage.Client, hc *http.Client, sub *pubsub.Subscription, topic *pubsub.Topic, st *stats.Tracker) *TaskProcessor {
+	copyHandler := copy.NewCopyHandler(sc, hc, st)
+	return &TaskProcessor{
+		TaskSub:       sub,
+		ProgressTopic: topic,
+		Handlers: NewHandlerRegistry(map[uint64]TaskHandler{
+			0: copyHandler,
+			1: copyHandler,
+			2: copyHandler,
+		}),
+		StatsTracker: st,
+	}
 }
 
 // Process handles taskReqMsgs sent by the DCP for the given PubSub subscription and handler.

@@ -30,25 +30,16 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/copy"
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/list"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/golang/glog"
 	"google.golang.org/api/option"
 )
 
 var (
-	projectID                 = flag.String("projectid", "", "The Pub/Sub topics and subscriptions project id. Must be set!")
-	numberThreads             = flag.Int("threads", 100, "The number of threads to process the copy tasks. If 0, will use the default Pub/Sub client value (1000).")
-	numberConcurrentListTasks = flag.Int("number-concurrent-list-tasks", 4, "The maximum number of list tasks the agent will process at any given time.")
-	credsFile                 = flag.String("creds-file", "", "The service account JSON key file. Use the default credentials if empty.")
-	listTaskChunkSize         = flag.Int("list-task-chunk-size", 8*1024*1024, "The resumable upload chunk size used for list tasks, defaults to 8MiB.")
-
-	printVersion = flag.Bool("version", false, "Print build/version info and exit.")
-
+	projectID          = flag.String("projectid", "", "The Pub/Sub topics and subscriptions project id. Must be set!")
+	credsFile          = flag.String("creds-file", "", "The service account JSON key file. Use the default credentials if empty.")
+	printVersion       = flag.Bool("version", false, "Print build/version info and exit.")
 	enableStatsTracker = flag.Bool("enable-stats-log", true, "Enable stats logging to INFO logs.")
-
-	listFileSizeThreshold          = flag.Int("list-file-size-threshold", 50000, "List tasks will keep listing directories until the number of listed files and directories exceeds this threshold, or until there are no more files/directories to list")
-	maxMemoryForListingDirectories = flag.Int("max-memory-for-listing-directories", 20, "Maximum amount of memory agent will use in total (not per task) to store directories before writing them to a list file. Value is in MiB.")
 
 	// Fields used to display version information. These defaults are
 	// overridden when the release script builds in values through ldflags.
@@ -145,45 +136,21 @@ func main() {
 	pubSubClient, storageClient, httpc := createClients(ctx)
 
 	// Create the PubSub topics and subscriptions.
-	listSub, copySub, controlSub, listTopic, copyTopic, pulseTopic := pubsubinternal.CreatePubSubTopicsAndSubs(ctx, *numberConcurrentListTasks, *numberThreads, pubSubClient)
-
+	listSub, copySub, controlSub, listTopic, copyTopic, pulseTopic := pubsubinternal.CreatePubSubTopicsAndSubs(ctx, pubSubClient)
 	var st *stats.Tracker
 	if *enableStatsTracker {
-		st = stats.NewTracker(ctx) // After PubSub topics/subs so STDOUT doesn't get stomped.
+		st = stats.NewTracker(ctx) // Created after PubSub topics/subs so STDOUT doesn't get stomped.
 	}
 
 	control.NewPulseSender(ctx, pubsubinternal.NewPubSubTopicWrapper(pulseTopic), logDir, st)
 
-	ch := control.NewControlHandler(controlSub, st)
-	go ch.Process(ctx)
+	controlHandler := control.NewControlHandler(controlSub, st)
+	go controlHandler.Process(ctx)
 
-	// Convert maxMemoryForListingDirectories to bytes and divide it equally between
-	// the list task processing threads.
-	allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *numberConcurrentListTasks
-	depthFirstListHandler := list.NewDepthFirstListHandler(storageClient, *listTaskChunkSize, *listFileSizeThreshold, allowedDirBytes)
-	listProcessor := tasks.TaskProcessor{
-		TaskSub:       listSub,
-		ProgressTopic: listTopic,
-		Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.TaskHandler{
-			0: list.NewListHandler(storageClient, *listTaskChunkSize),
-			1: depthFirstListHandler,
-			2: depthFirstListHandler,
-		}),
-		StatsTracker: st,
-	}
+	listProcessor := tasks.NewListProcessor(storageClient, listSub, listTopic, st)
 	go listProcessor.Process(ctx)
 
-	copyHandler := copy.NewCopyHandler(storageClient, *numberThreads, httpc, st)
-	copyProcessor := tasks.TaskProcessor{
-		TaskSub:       copySub,
-		ProgressTopic: copyTopic,
-		Handlers: tasks.NewHandlerRegistry(map[uint64]tasks.TaskHandler{
-			0: copyHandler,
-			1: copyHandler,
-			2: copyHandler,
-		}),
-		StatsTracker: st,
-	}
+	copyProcessor := tasks.NewCopyProcessor(storageClient, httpc, copySub, copyTopic, st)
 	go copyProcessor.Process(ctx)
 
 	// Block until the ctx is cancelled.

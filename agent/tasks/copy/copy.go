@@ -72,6 +72,9 @@ var (
 	copyMemoryLimit int64
 	CRC32CTable     *crc32pkg.Table
 	internalTesting bool
+
+	// NumberThreads is used to limit the concurrency within the Copy handler, and also set the MaxOutstandingMessages for the PubSub copy subscription.
+	NumberThreads = flag.Int("threads", 100, "The number of threads to process the copy tasks. If 0, will use the default Pub/Sub client value (1000).")
 )
 
 func init() {
@@ -116,13 +119,12 @@ type CopyHandler struct {
 }
 
 // NewCopyHandler creates a CopyHandler with storage.Client and http.Client.
-// The maxParallelism is the max number of goroutines copying files concurrently.
-func NewCopyHandler(storageClient *storage.Client, maxParallelism int, hc *http.Client, st *stats.Tracker) *CopyHandler {
+func NewCopyHandler(storageClient *storage.Client, hc *http.Client, st *stats.Tracker) *CopyHandler {
 	return &CopyHandler{
 		gcs:               gcloud.NewGCSClient(storageClient),
 		hc:                hc,
 		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
-		concurrentCopySem: semaphore.NewWeighted(int64(maxParallelism)),
+		concurrentCopySem: semaphore.NewWeighted(int64(*NumberThreads)),
 		httpDoFunc:        ctxhttp.Do,
 		statsTracker:      st,
 	}

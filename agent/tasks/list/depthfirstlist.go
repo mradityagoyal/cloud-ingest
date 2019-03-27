@@ -18,6 +18,7 @@ package list
 import (
 	"context"
 	"errors"
+	"flag"
 	"io"
 	"os"
 	"path/filepath"
@@ -33,6 +34,15 @@ import (
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
+var (
+	// NumberConcurrentListTasks is used to both determine listing memory constraints, and set the MaxOutstandingMessages for the PubSub List subscription.
+	NumberConcurrentListTasks      = flag.Int("number-concurrent-list-tasks", 4, "The maximum number of list tasks the agent will process at any given time.")
+
+	listFileSizeThreshold          = flag.Int("list-file-size-threshold", 50000, "List tasks will keep listing directories until the number of listed files and directories exceeds this threshold, or until there are no more files/directories to list")
+	listTaskChunkSize              = flag.Int("list-task-chunk-size", 8*1024*1024, "The resumable upload chunk size used for list tasks, defaults to 8MiB.")
+	maxMemoryForListingDirectories = flag.Int("max-memory-for-listing-directories", 20, "Maximum amount of memory agent will use in total (not per task) to store directories before writing them to a list file. Value is in MiB.")
+)
+
 // DepthFirstListHandler is responsible for handling depth-first list tasks.
 type DepthFirstListHandler struct {
 	gcs                   gcloud.GCS
@@ -41,8 +51,17 @@ type DepthFirstListHandler struct {
 	allowedDirBytes       int
 }
 
-func NewDepthFirstListHandler(storageClient *storage.Client, resumableChunkSize int, listFileSizeThreshold, allowedDirBytes int) *DepthFirstListHandler {
-	return &DepthFirstListHandler{gcloud.NewGCSClient(storageClient), resumableChunkSize, listFileSizeThreshold, allowedDirBytes}
+// NewDepthFirstListHandler returns a new DepthFirstListHandler.
+func NewDepthFirstListHandler(storageClient *storage.Client) *DepthFirstListHandler {
+	// Convert maxMemoryForListingDirectories to bytes and divide it equally between
+	// the list task processing threads.
+	allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *NumberConcurrentListTasks
+	return &DepthFirstListHandler{
+		gcloud.NewGCSClient(storageClient),
+		*listTaskChunkSize,
+		*listFileSizeThreshold,
+		allowedDirBytes,
+	}
 }
 
 // processDirectory lists a single directory. It adds any directories it finds to the given dirStore

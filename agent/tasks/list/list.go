@@ -41,8 +41,8 @@ type ListHandler struct {
 	resumableChunkSize int
 }
 
-func NewListHandler(storageClient *storage.Client, resumableChunkSize int) *ListHandler {
-	return &ListHandler{gcloud.NewGCSClient(storageClient), resumableChunkSize}
+func NewListHandler(storageClient *storage.Client) *ListHandler {
+	return &ListHandler{gcloud.NewGCSClient(storageClient), *listTaskChunkSize}
 }
 
 func listDirectory(dir string) ([]os.FileInfo, error) {

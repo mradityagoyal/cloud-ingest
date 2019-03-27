@@ -10,6 +10,8 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/copy"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/list"
 	"github.com/golang/glog"
 )
 
@@ -108,14 +110,14 @@ func subscribeToControlTopic(ctx context.Context, client *pubsub.Client, topic *
 // * MaxOutstandingMessages: It's also capped by the memory, and this will speed up processing of small files.
 // * MaxOutstandingBytes:    1GB memory should not be a problem for a modern machine.
 // * NumGoroutines:          Does not need more than 1 routine to pull Pub/Sub messages.
-func CreatePubSubTopicsAndSubs(ctx context.Context, maxOutstandingListMsgs, maxOutstandingCopyMsgs int, pubSubClient *pubsub.Client) (listSub, copySub, controlSub *pubsub.Subscription, listTopic, copyTopic, pulseTopic *pubsub.Topic) {
+func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client) (listSub, copySub, controlSub *pubsub.Subscription, listTopic, copyTopic, pulseTopic *pubsub.Topic) {
 	var wg sync.WaitGroup
 	wg.Add(6)
 	go func() {
 		defer wg.Done()
 		listSub = pubSubClient.Subscription(*pubsubPrefix + listSubscriptionID)
 		listSub.ReceiveSettings.MaxExtension = *maxPubSubLeaseExtenstion
-		listSub.ReceiveSettings.MaxOutstandingMessages = maxOutstandingListMsgs
+		listSub.ReceiveSettings.MaxOutstandingMessages = *list.NumberConcurrentListTasks
 		listSub.ReceiveSettings.Synchronous = true
 		if err := waitOnSubscription(ctx, listSub); err != nil {
 			glog.Fatalf("Could not find list subscription %s, error %+v", listSub.String(), err)
@@ -132,7 +134,7 @@ func CreatePubSubTopicsAndSubs(ctx context.Context, maxOutstandingListMsgs, maxO
 		defer wg.Done()
 		copySub = pubSubClient.Subscription(*pubsubPrefix + copySubscriptionID)
 		copySub.ReceiveSettings.MaxExtension = *maxPubSubLeaseExtenstion
-		copySub.ReceiveSettings.MaxOutstandingMessages = maxOutstandingCopyMsgs
+		copySub.ReceiveSettings.MaxOutstandingMessages = *copy.NumberThreads
 		copySub.ReceiveSettings.Synchronous = true
 		if err := waitOnSubscription(ctx, copySub); err != nil {
 			glog.Fatalf("Could not find copy subscription %s, error %+v", copySub.String(), err)
