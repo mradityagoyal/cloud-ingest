@@ -11,6 +11,13 @@ major job run versions.
 
 ## [Unreleased]
 
+## [1.0.4] - 2019-03-28
+### Changed
+- Refactor the Agent go files into packages.
+- No functional change. Rename 'workprocessor' to 'taskprocessor'.
+- Move PubSub settings into the pubsub package.
+- No functional change. Move flags and TaskProcessor creation out of agent.go, into the relevant packages.
+
 ## [1.0.3] - 2019-03-22
 ### Changed
 - The Agent's "stats" log line format.
