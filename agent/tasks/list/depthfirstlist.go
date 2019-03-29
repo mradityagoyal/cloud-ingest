@@ -36,7 +36,7 @@ import (
 
 var (
 	// NumberConcurrentListTasks is used to both determine listing memory constraints, and set the MaxOutstandingMessages for the PubSub List subscription.
-	NumberConcurrentListTasks      = flag.Int("number-concurrent-list-tasks", 4, "The maximum number of list tasks the agent will process at any given time.")
+	NumberConcurrentListTasks = flag.Int("number-concurrent-list-tasks", 4, "The maximum number of list tasks the agent will process at any given time.")
 
 	listFileSizeThreshold          = flag.Int("list-file-size-threshold", 50000, "List tasks will keep listing directories until the number of listed files and directories exceeds this threshold, or until there are no more files/directories to list")
 	listTaskChunkSize              = flag.Int("list-task-chunk-size", 8*1024*1024, "The resumable upload chunk size used for list tasks, defaults to 8MiB.")

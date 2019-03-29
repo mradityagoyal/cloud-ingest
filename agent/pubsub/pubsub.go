@@ -150,12 +150,15 @@ func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client)
 	go func() {
 		defer wg.Done()
 		controlTopic := pubSubClient.Topic(*pubsubPrefix + controlTopicID)
+		if err := waitOnTopic(ctx, controlTopic); err != nil {
+			glog.Fatalf("Could not get ControlTopic: %s, got err: %v ", controlTopic.ID(), err)
+		}
 		var err error
 		controlSub, err = subscribeToControlTopic(ctx, pubSubClient, controlTopic)
-		controlSub.ReceiveSettings.MaxOutstandingMessages = 1
 		if err != nil {
 			glog.Fatalf("Could not create subscription to control topic %v, with err: %v", controlTopic.ID(), err)
 		}
+		controlSub.ReceiveSettings.MaxOutstandingMessages = 1
 		if err := waitOnSubscription(ctx, controlSub); err != nil {
 			glog.Fatalf("Could not find control subscription %s, error %+v", controlSub.String(), err)
 		}
