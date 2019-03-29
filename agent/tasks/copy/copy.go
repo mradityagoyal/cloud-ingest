@@ -317,14 +317,17 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 
 	// Create a buffer that respects the Agent's copyMemoryLimit.
 	if bufSize > copyMemoryLimit {
-		return fmt.Errorf(
+		err := fmt.Errorf(
 			"memory buffer limit for copy tasks is %d bytes, but task requires %d bytes",
 			copyMemoryLimit, bufSize)
+		w.CloseWithError(err)
+		return err
 	} else if bufSize < 1 {
 		// Never allow a non-positive buf size (mainly for empty files).
 		bufSize = 1
 	}
 	if err := h.memoryLimiter.Acquire(ctx, bufSize); err != nil {
+		w.CloseWithError(err)
 		return err
 	}
 	defer h.memoryLimiter.Release(bufSize)
