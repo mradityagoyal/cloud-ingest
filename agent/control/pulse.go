@@ -43,7 +43,6 @@ type PulseSender struct {
 	// These fields contain the contents of the pulse message.
 	hostname string
 	pid      int
-	sendFreq int
 	logsDir  string
 	version  string
 
@@ -63,7 +62,6 @@ func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir strin
 	}
 	ps := &PulseSender{
 		pulseTopic:   t,
-		sendFreq:     pulseFrequency,
 		hostname:     hn,
 		pid:          os.Getpid(),
 		logsDir:      logsDir,
@@ -111,7 +109,6 @@ func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
 			HostName:  ps.hostname,
 			ProcessId: fmt.Sprintf("%v", ps.pid),
 		},
-		Frequency:             int32(ps.sendFreq),
 		AgentVersion:          ps.version,
 		AgentLogsDir:          ps.logsDir,
 		AgentTransferredBytes: transferredBytes,

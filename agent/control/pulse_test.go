@@ -51,7 +51,6 @@ func TestPulseSender(t *testing.T) {
 		ps := NewPulseSender(ctx, mockPulseTopic, logsDir, st)
 		ps.hostname = "hostname"
 		ps.pid = 1234
-		ps.sendFreq = 20
 		ps.version = "1.2.3"
 
 		// Complete the mock pulse topic.
@@ -78,19 +77,17 @@ func TestPulseMsg(t *testing.T) {
 	tests := []struct {
 		hostname string
 		pid      int
-		sendFreq int
 		logsDir  string
 		version  string
 		want     *pulsepb.Msg
 	}{
 		{
-			"hostname", 1234, 10, "/tmp/mylogs", "1.2.3",
+			"hostname", 1234, "/tmp/mylogs", "1.2.3",
 			&pulsepb.Msg{
 				AgentId: &pulsepb.AgentId{
 					HostName:  "hostname",
 					ProcessId: "1234",
 				},
-				Frequency:    10,
 				AgentVersion: "1.2.3",
 				AgentLogsDir: "/tmp/mylogs",
 			},
@@ -100,7 +97,6 @@ func TestPulseMsg(t *testing.T) {
 		ps := &PulseSender{
 			hostname: tc.hostname,
 			pid:      tc.pid,
-			sendFreq: tc.sendFreq,
 			logsDir:  tc.logsDir,
 			version:  tc.version,
 		}
