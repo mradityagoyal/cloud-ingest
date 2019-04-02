@@ -10,6 +10,9 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+### Changed
+- Tune the throughput smoothing to use no averaging. The displayed will be much
+  more responsive.
 
 ## [1.0.5] - 2019-04-03
 ### Fixed

@@ -25,7 +25,7 @@ import (
 )
 
 const (
-	tpMeasurementDuration = 10 // Throughput measurement duration, in seconds.
+	tpMeasurementDuration = 1 // Throughput measurement duration, in seconds.
 )
 
 // Tracker collects bytes sent by the Agent and produces a throughput measurement.

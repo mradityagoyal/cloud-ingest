@@ -49,7 +49,7 @@ func TestThroughputTracker(t *testing.T) {
 		{"Basic 1", []interface{}{10, "t"}, 10 / tpMeasurementDuration},
 		{"Basic 2", []interface{}{10, 10, "t"}, 20 / tpMeasurementDuration},
 		{"Basic 3", []interface{}{20, "t"}, 20 / tpMeasurementDuration},
-		{"Basic 4", []interface{}{20, "t", "1000"}, 20 / tpMeasurementDuration},
+		{"Basic 4", []interface{}{20, "t", 1000}, 20 / tpMeasurementDuration},
 
 		{"Continuous stream", iStream[:tpMeasurementDuration*2], 10},
 		{"Continuous stream, empty ticks ", iStream, 0},
