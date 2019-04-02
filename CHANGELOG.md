@@ -13,6 +13,8 @@ major job run versions.
 ### Changed
 - Tune the throughput smoothing to use no averaging. The displayed will be much
   more responsive.
+- No functional change. Refactor all of the functionality out of /helpers into
+  appropriate locations.
 
 ## [1.0.5] - 2019-04-03
 ### Fixed

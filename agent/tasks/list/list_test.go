@@ -27,13 +27,88 @@ import (
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"google.golang.org/api/googleapi"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
+
+// FakeFileInfo is a pass-through stub implementation of os.FileInfo.
+// See: https://golang.org/pkg/os/#FileInfo
+//
+// Incidentally, its Sys implementation will always return nil.
+type FakeFileInfo struct {
+	name    string      // base name of the file
+	size    int64       // length in bytes for regular files; system-dependent for others
+	mode    os.FileMode // file mode bits
+	modTime time.Time   // modification time
+}
+
+func newFakeFileInfo(name string, size int64, mode os.FileMode, modTime time.Time) *FakeFileInfo {
+	return &FakeFileInfo{name: name, size: size, mode: mode, modTime: modTime}
+}
+
+func (f *FakeFileInfo) Name() string {
+	return f.name
+}
+
+func (f *FakeFileInfo) Size() int64 {
+	return f.size
+}
+
+func (f *FakeFileInfo) Mode() os.FileMode {
+	return f.mode
+}
+
+func (f *FakeFileInfo) ModTime() time.Time {
+	return f.modTime
+}
+
+func (f *FakeFileInfo) IsDir() bool {
+	return f.Mode().IsDir()
+}
+
+func (f *FakeFileInfo) Sys() interface{} {
+	return nil
+}
+
+func TestFakeFileInfo(t *testing.T) {
+	tests := []struct {
+		mode     os.FileMode
+		expIsDir bool
+	}{
+		{0777, false},
+		{0777 | os.ModeDir, true},
+	}
+
+	for _, tc := range tests {
+		name := "name"
+		size := int64(123)
+		modTime := time.Now()
+		info := newFakeFileInfo(name, size, tc.mode, modTime)
+
+		if info.Name() != name {
+			t.Errorf("got name %v, want %v", info.Name(), name)
+		}
+		if info.Size() != size {
+			t.Errorf("got size %v, want %v", info.Size(), size)
+		}
+		if info.Mode() != tc.mode {
+			t.Errorf("got mode %v, want %v", info.Mode(), tc.mode)
+		}
+		if info.ModTime() != modTime {
+			t.Errorf("got modTime %v, want %v", info.ModTime(), modTime)
+		}
+		if info.IsDir() != tc.expIsDir {
+			t.Errorf("got isDir %v, want %v", info.IsDir(), tc.expIsDir)
+		}
+		if info.Sys() != nil {
+			t.Errorf("got sys %v, want nil", info.Sys())
+		}
+	}
+
+}
 
 func testListSpec(srcDir string) *taskpb.Spec {
 	return &taskpb.Spec{
@@ -58,7 +133,7 @@ func testListTaskReqMsg(taskRelRsrcName, srcDir string) *taskpb.TaskReqMsg {
 func TestDirNotFound(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	writer := helpers.NewStringWriteCloser(nil)
+	writer := common.NewStringWriteCloser(nil)
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
@@ -76,13 +151,13 @@ func TestListSuccessEmptyDir(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 	expectedListResult.WriteString(fmt.Sprintln(taskRelRsrcName))
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -112,19 +187,19 @@ func TestListSuccessFlatDir(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 	expectedListResult.WriteString(fmt.Sprintln(taskRelRsrcName))
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 10)
 	for i := 0; i < 10; i++ {
-		filePaths[i] = helpers.CreateTmpFile(tmpDir, "test-file-", fileContent)
+		filePaths[i] = common.CreateTmpFile(tmpDir, "test-file-", fileContent)
 	}
 	// The results of the list are sorted.
 	sort.Strings(filePaths)
@@ -162,21 +237,21 @@ func TestListFailsFileWithNewline(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 	expectedListResult.WriteString(fmt.Sprintln(taskRelRsrcName))
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 11)
 	for i := 0; i < 10; i++ {
-		filePaths[i] = helpers.CreateTmpFile(tmpDir, "test-file-", fileContent)
+		filePaths[i] = common.CreateTmpFile(tmpDir, "test-file-", fileContent)
 	}
-	filePaths[10] = helpers.CreateTmpFile(tmpDir, "test-file-with-\n-newline", fileContent)
+	filePaths[10] = common.CreateTmpFile(tmpDir, "test-file-with-\n-newline", fileContent)
 
 	// The results of the list are sorted.
 	sort.Strings(filePaths)
@@ -203,15 +278,15 @@ func TestListSuccessNestedDir(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 	expectedListResult.WriteString(fmt.Sprintln(taskRelRsrcName))
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
-	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
-	emptyDir := helpers.CreateTmpDir(tmpDir, "empty-dir-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
+	nestedTmpDir := common.CreateTmpDir(tmpDir, "sub-dir-")
+	emptyDir := common.CreateTmpDir(tmpDir, "empty-dir-")
 	defer os.RemoveAll(tmpDir)
 
 	expectedListResult.WriteString(fmt.Sprintln(ListFileEntry{true, emptyDir}))
@@ -221,7 +296,7 @@ func TestListSuccessNestedDir(t *testing.T) {
 	filePaths := make([]string, 0)
 
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(tmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(tmpDir, "test-file-", fileContent))
 	}
 	// The results of the list are in sorted order.
 	sort.Strings(filePaths)
@@ -230,7 +305,7 @@ func TestListSuccessNestedDir(t *testing.T) {
 	}
 	// Create some files in the sub-dir. These should not be in the list output.
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
 	}
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -265,7 +340,7 @@ func fakeFile(name string, isDir bool) os.FileInfo {
 	if isDir {
 		mode |= os.ModeDir
 	}
-	return helpers.NewFakeFileInfo(name, 4096, mode, time.Now())
+	return newFakeFileInfo(name, 4096, mode, time.Now())
 }
 
 func TestGetListingFileChunkSize(t *testing.T) {
@@ -325,7 +400,7 @@ func TestGetListingFileChunkSize(t *testing.T) {
 			// Write the data as-is and get its length. We deliberately couple the
 			// implementations in the test, to ensure a change in file format without addressing
 			// the chunk size would break the tests.
-			writer := &helpers.StringWriteCloser{}
+			writer := &common.StringWriteCloser{}
 			_, err := writeListingFile(tc.fileInfos, tc.srcDir, writer)
 			if err != nil {
 				t.Fatalf("writeListingFile(%v, %v, %v) got error %v",

@@ -16,7 +16,14 @@ limitations under the License.
 package common
 
 import (
+	"bytes"
+	"io"
+	"io/ioutil"
+	"log"
+	"strings"
 	"testing"
+
+	"cloud.google.com/go/storage"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -42,4 +49,106 @@ func CheckSuccessMsg(taskRelRsrcName string, taskRespMsg *taskpb.TaskRespMsg, t 
 	if taskRespMsg.Status != "SUCCESS" {
 		t.Errorf("want message success, got: %s", taskRespMsg.Status)
 	}
+}
+
+type stringReadCloser struct {
+	reader io.Reader
+	Closed bool
+}
+
+func (src *stringReadCloser) Read(p []byte) (int, error) {
+	return src.reader.Read(p)
+}
+
+func (src *stringReadCloser) Close() error {
+	src.Closed = true
+	return nil
+}
+
+func NewStringReadCloser(s string) *stringReadCloser {
+	return &stringReadCloser{strings.NewReader(s), false}
+}
+
+// StringWriteCloser implements WriteCloser interface for faking storage.Writer.
+type StringWriteCloser struct {
+	buffer bytes.Buffer
+	closed bool
+
+	// attrs fakes the storage object attributes generated after write completion.
+	attrs *storage.ObjectAttrs
+}
+
+func NewStringWriteCloser(attrs *storage.ObjectAttrs) *StringWriteCloser {
+	return &StringWriteCloser{attrs: attrs}
+}
+
+func (m *StringWriteCloser) Write(p []byte) (int, error) {
+	return m.buffer.Write(p)
+}
+
+func (m *StringWriteCloser) Close() error {
+	m.closed = true
+	return nil
+}
+
+func (m *StringWriteCloser) CloseWithError(err error) error {
+	return nil
+}
+
+func (m *StringWriteCloser) Attrs() *storage.ObjectAttrs {
+	if m.closed {
+		return m.attrs
+	}
+	return nil
+}
+
+func (m *StringWriteCloser) WrittenString() string {
+	if m.closed {
+		return m.buffer.String()
+	}
+	return ""
+}
+
+func (m *StringWriteCloser) NumberLines() int64 {
+	if m.closed {
+		return CountLines(m.buffer.String())
+	}
+	return int64(0)
+}
+
+func CountLines(s string) int64 {
+	return int64(len(strings.Split(strings.Trim(s, "\n"), "\n")))
+}
+
+// CreateTmpFile creates a new temporary file in the directory dir with a name
+// beginning with prefix, and a content string. If dir is the empty string,
+// CreateTmpFile uses the default directory for temporary files (see os.TempDir).
+// This method will return the path of the created file. It will panic in case
+// of failure creating or writing to the file.
+func CreateTmpFile(dir, filePrefix, content string) string {
+	tmpfile, err := ioutil.TempFile(dir, filePrefix)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	if _, err := tmpfile.Write([]byte(content)); err != nil {
+		log.Fatal(err)
+	}
+
+	if err := tmpfile.Close(); err != nil {
+		log.Fatal(err)
+	}
+	return tmpfile.Name()
+}
+
+// CreateTmpDir creates a new temporary directory in the directory dir with a
+// name beginning with prefix and returns the path of the new directory. If dir
+// is the empty string, CreateTmpDir uses the default directory for temporary
+// files (see os.TempDir).
+func CreateTmpDir(dir, prefix string) string {
+	tmpDir, err := ioutil.TempDir(dir, prefix)
+	if err != nil {
+		log.Fatal(err)
+	}
+	return tmpDir
 }

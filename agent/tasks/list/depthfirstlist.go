@@ -28,7 +28,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 
 	listpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
@@ -194,7 +193,7 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	}
 
 	w := h.gcs.NewWriterWithCondition(ctx, listSpec.DstListResultBucket, listSpec.DstListResultObject,
-		helpers.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
+		common.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
 
 	// Set the resumable upload chunk size.
 	if t, ok := w.(*storage.Writer); ok {

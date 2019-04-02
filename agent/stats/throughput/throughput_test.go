@@ -20,7 +20,7 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 )
 
 func TestThroughputTracker(t *testing.T) {
@@ -60,7 +60,7 @@ func TestThroughputTracker(t *testing.T) {
 		// Set up the test hooks.
 		var wg sync.WaitGroup
 		bwt.selectDone = func() { wg.Done() }
-		mockTrackTicker := helpers.NewMockTicker()
+		mockTrackTicker := common.NewMockTicker()
 		bwt.trackTicker = mockTrackTicker
 
 		// Record all the mocked inputs and ticks.

@@ -23,7 +23,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -83,7 +83,7 @@ func TestTrackerAccumulatedBytesCopied(t *testing.T) {
 		// Set up the test hooks.
 		var wg sync.WaitGroup
 		st.selectDone = func() { wg.Done() } // The test hook.
-		mockAccumulatorTicker := helpers.NewMockTicker()
+		mockAccumulatorTicker := common.NewMockTicker()
 		st.accumulatorTicker = mockAccumulatorTicker
 
 		// AccumulatedBytesCopied should start at zero.

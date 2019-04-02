@@ -20,6 +20,7 @@ import (
 	"net/http"
 	"os"
 
+	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
 	"github.com/golang/glog"
 	"google.golang.org/api/googleapi"
@@ -86,4 +87,11 @@ func BuildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, log 
 		taskRespMsg.Status = "SUCCESS"
 	}
 	return taskRespMsg
+}
+
+func GetGCSGenerationNumCondition(generationNum int64) storage.Conditions {
+	if generationNum == 0 {
+		return storage.Conditions{DoesNotExist: true}
+	}
+	return storage.Conditions{GenerationMatch: generationNum}
 }

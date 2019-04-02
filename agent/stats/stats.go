@@ -24,8 +24,8 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats/throughput"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
@@ -83,9 +83,9 @@ type Tracker struct {
 
 	// Testing hooks.
 	selectDone        func()
-	logTicker         helpers.Ticker
-	displayTicker     helpers.Ticker
-	accumulatorTicker helpers.Ticker
+	logTicker         common.Ticker
+	displayTicker     common.Ticker
+	accumulatorTicker common.Ticker
 }
 
 // NewTracker returns a new Tracker, which can then be used to record stats.
@@ -109,9 +109,9 @@ func NewTracker(ctx context.Context) *Tracker {
 		},
 		tpTracker:         throughput.NewTracker(ctx),
 		selectDone:        func() {},
-		logTicker:         helpers.NewClockTicker(statsLogFreq),
-		displayTicker:     helpers.NewClockTicker(statsDisplayFreq),
-		accumulatorTicker: helpers.NewClockTicker(accumulatorFreq),
+		logTicker:         common.NewClockTicker(statsLogFreq),
+		displayTicker:     common.NewClockTicker(statsDisplayFreq),
+		accumulatorTicker: common.NewClockTicker(accumulatorFreq),
 	}
 	go t.track(ctx)
 	return t

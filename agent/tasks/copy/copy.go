@@ -40,7 +40,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
@@ -302,7 +301,7 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 
 func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, cl *taskpb.CopyLog) error {
 	w := h.gcs.NewWriterWithCondition(ctx, c.DstBucket, c.DstObject,
-		helpers.GetGCSGenerationNumCondition(c.ExpectedGenerationNum))
+		common.GetGCSGenerationNumCondition(c.ExpectedGenerationNum))
 
 	bufSize := stats.Size()
 	if t, ok := w.(*storage.Writer); ok {

@@ -21,9 +21,9 @@ import (
 	"testing"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	pubsubinternal "github.com/GoogleCloudPlatform/cloud-ingest/agent/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 
@@ -63,7 +63,7 @@ func TestPulseSender(t *testing.T) {
 		// Set up the test hooks and send the pulses.
 		var wg sync.WaitGroup
 		ps.selectDone = func() { wg.Done() }
-		mockSendTicker := helpers.NewMockTicker()
+		mockSendTicker := common.NewMockTicker()
 		ps.sendTicker = mockSendTicker
 		for i := 0; i < numPulses; i++ {
 			wg.Add(1)

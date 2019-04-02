@@ -28,7 +28,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
 	"google.golang.org/api/googleapi"
 
@@ -128,7 +127,7 @@ func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	}
 
 	w := h.gcs.NewWriterWithCondition(ctx, listSpec.DstListResultBucket, listSpec.DstListResultObject,
-		helpers.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
+		common.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
 
 	if len(listSpec.SrcDirectories) == 0 {
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, errors.New("list spec did not contain any source directories"))

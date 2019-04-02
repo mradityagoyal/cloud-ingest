@@ -20,7 +20,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/golang/glog"
 )
 
@@ -38,7 +38,7 @@ type Tracker struct {
 
 	// Testing hooks.
 	selectDone  func()
-	trackTicker helpers.Ticker
+	trackTicker common.Ticker
 }
 
 // NewTracker returns a new Tracker, which can then be used to track bytes sent
@@ -48,7 +48,7 @@ func NewTracker(ctx context.Context) *Tracker {
 		bytesSentChan:    make(chan int64, 100), // Large buffer to avoid blocking.
 		bytesSentRingBuf: make([]int64, tpMeasurementDuration),
 		selectDone:       func() {},
-		trackTicker:      helpers.NewClockTicker(1 * time.Second),
+		trackTicker:      common.NewClockTicker(1 * time.Second),
 	}
 	go t.track(ctx)
 	return t

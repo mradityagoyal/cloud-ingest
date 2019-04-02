@@ -20,8 +20,6 @@ import (
 	"io"
 	"log"
 
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
-
 	"cloud.google.com/go/storage"
 	"google.golang.org/api/iterator"
 )
@@ -34,9 +32,15 @@ type GCS interface {
 	GetAttrs(ctx context.Context, bucketName, objectName string) (*storage.ObjectAttrs, error)
 	ListObjects(ctx context.Context, bucketName string, query *storage.Query) ObjectIterator
 	NewRangeReader(ctx context.Context, bucketName, objectName string, offset, length int64) (io.ReadCloser, error)
-	NewWriter(ctx context.Context, bucketName, objectName string) helpers.WriteCloserWithError
+	NewWriter(ctx context.Context, bucketName, objectName string) WriteCloserWithError
 	NewWriterWithCondition(ctx context.Context, bucketName, objectName string,
-		cond storage.Conditions) helpers.WriteCloserWithError
+		cond storage.Conditions) WriteCloserWithError
+}
+
+type WriteCloserWithError interface {
+	io.WriteCloser
+	CloseWithError(err error) error
+	Attrs() *storage.ObjectAttrs
 }
 
 // Interface to abstract out the ObjectIterator type, which contains
@@ -80,13 +84,13 @@ func (gcs *GCSClient) NewRangeReader(ctx context.Context, bucketName, objectName
 }
 
 func (gcs *GCSClient) NewWriter(ctx context.Context,
-	bucketName, objectName string) helpers.WriteCloserWithError {
+	bucketName, objectName string) WriteCloserWithError {
 
 	return gcs.client.Bucket(bucketName).Object(objectName).NewWriter(ctx)
 }
 
 func (gcs *GCSClient) NewWriterWithCondition(ctx context.Context,
-	bucketName, objectName string, cond storage.Conditions) helpers.WriteCloserWithError {
+	bucketName, objectName string, cond storage.Conditions) WriteCloserWithError {
 
 	return gcs.client.Bucket(bucketName).Object(objectName).If(cond).NewWriter(ctx)
 }

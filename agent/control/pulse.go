@@ -22,10 +22,10 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	pubsubinternal "github.com/GoogleCloudPlatform/cloud-ingest/agent/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
@@ -51,7 +51,7 @@ type PulseSender struct {
 
 	// Testing hooks.
 	selectDone func()
-	sendTicker helpers.Ticker
+	sendTicker common.Ticker
 }
 
 // NewPulseSender returns a new PulseSender.
@@ -68,7 +68,7 @@ func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir strin
 		version:      versions.AgentVersion().String(),
 		statsTracker: st,
 		selectDone:   func() {},
-		sendTicker:   helpers.NewClockTicker(pulseFrequency * time.Second),
+		sendTicker:   common.NewClockTicker(pulseFrequency * time.Second),
 	}
 	go ps.sendPulses(ctx)
 	return ps

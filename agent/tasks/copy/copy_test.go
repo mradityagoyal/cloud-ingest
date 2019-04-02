@@ -33,7 +33,6 @@ import (
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/sync/semaphore"
@@ -85,9 +84,9 @@ func TestSourceNotFound(t *testing.T) {
 func TestAcquireBufferMemoryFail(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	writer := helpers.NewStringWriteCloser(&storage.ObjectAttrs{})
+	writer := common.NewStringWriteCloser(&storage.ObjectAttrs{})
 
-	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
+	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -109,11 +108,11 @@ func TestAcquireBufferMemoryFail(t *testing.T) {
 func TestCRC32CMismtach(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	writer := helpers.NewStringWriteCloser(&storage.ObjectAttrs{
+	writer := common.NewStringWriteCloser(&storage.ObjectAttrs{
 		CRC32C: 12345, // Incorrect CRC32C.
 	})
 
-	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
+	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -137,13 +136,13 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	gcsModTime := time.Now()
-	writer := helpers.NewStringWriteCloser(&storage.ObjectAttrs{
+	writer := common.NewStringWriteCloser(&storage.ObjectAttrs{
 		CRC32C:  uint32(testCRC32C),
 		Size:    int64(len(testFileContent)),
 		Updated: gcsModTime,
 	})
 
-	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
+	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -193,13 +192,13 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	gcsModTime := time.Now()
-	writer := helpers.NewStringWriteCloser(&storage.ObjectAttrs{
+	writer := common.NewStringWriteCloser(&storage.ObjectAttrs{
 		CRC32C:  uint32(0),
 		Size:    int64(0),
 		Updated: gcsModTime,
 	})
 
-	tmpFile := helpers.CreateTmpFile("", "test-agent", "")
+	tmpFile := common.CreateTmpFile("", "test-agent", "")
 	defer os.Remove(tmpFile)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -256,7 +255,7 @@ func TestCopyBundle(t *testing.T) {
 		wantFailure taskpb.FailureType
 		wantLog     *taskpb.CopyLog
 
-		writer *helpers.StringWriteCloser // Do not fill, it's filled during test execution.
+		writer *common.StringWriteCloser // Do not fill, it's filled during test execution.
 	}
 
 	tests := []struct {
@@ -331,13 +330,13 @@ func TestCopyBundle(t *testing.T) {
 		mockGCS := gcloud.NewMockGCS(mockCtrl)
 		bundleSpec := &taskpb.CopyBundleSpec{}
 		for _, file := range tc.bundledFiles {
-			file.writer = helpers.NewStringWriteCloser(&storage.ObjectAttrs{
+			file.writer = common.NewStringWriteCloser(&storage.ObjectAttrs{
 				CRC32C:  file.crc,
 				Size:    file.size,
 				Updated: gcsModTime,
 			})
 
-			file.fileName = helpers.CreateTmpFile("", file.fileName, file.fileData)
+			file.fileName = common.CreateTmpFile("", file.fileName, file.fileData)
 			defer os.Remove(file.fileName)
 
 			mockGCS.EXPECT().NewWriterWithCondition(
@@ -436,7 +435,7 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 		return res, nil
 	}
 
-	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
+	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 
 	taskReqMsg := testCopyTaskReqMsg()
@@ -565,7 +564,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 	wantRespCopySpec.FileMTime = 1234567890
 	wantRespCopySpec.ResumableUploadId = "testResumableUploadId"
 
-	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
+	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
 	if err != nil {
@@ -608,7 +607,7 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 	wantRespCopySpec := proto.Clone(copySpec).(*taskpb.CopySpec)
 	wantRespCopySpec.BytesCopied = int64(len(testFileContent))
 
-	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
+	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
 	if err != nil {
@@ -675,7 +674,7 @@ func TestCopyResumableChunkNotFinal(t *testing.T) {
 	wantRespCopySpec.BytesCopied = 10
 	wantRespCopySpec.Crc32C = testTenByteCRC32C
 
-	tmpFile := helpers.CreateTmpFile("", "test-agent", testFileContent)
+	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
 	defer os.Remove(tmpFile)
 	srcFile, err := os.Open(tmpFile)
 	if err != nil {

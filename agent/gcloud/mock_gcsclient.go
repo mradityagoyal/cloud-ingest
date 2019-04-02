@@ -7,7 +7,6 @@ package gcloud
 import (
 	storage "cloud.google.com/go/storage"
 	context "context"
-	helpers "github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	gomock "github.com/golang/mock/gomock"
 	io "io"
 	reflect "reflect"
@@ -123,10 +122,10 @@ func (mr *MockGCSMockRecorder) NewRangeReader(ctx, bucketName, objectName, offse
 }
 
 // NewWriter mocks base method
-func (m *MockGCS) NewWriter(ctx context.Context, bucketName, objectName string) helpers.WriteCloserWithError {
+func (m *MockGCS) NewWriter(ctx context.Context, bucketName, objectName string) WriteCloserWithError {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewWriter", ctx, bucketName, objectName)
-	ret0, _ := ret[0].(helpers.WriteCloserWithError)
+	ret0, _ := ret[0].(WriteCloserWithError)
 	return ret0
 }
 
@@ -137,10 +136,10 @@ func (mr *MockGCSMockRecorder) NewWriter(ctx, bucketName, objectName interface{}
 }
 
 // NewWriterWithCondition mocks base method
-func (m *MockGCS) NewWriterWithCondition(ctx context.Context, bucketName, objectName string, cond storage.Conditions) helpers.WriteCloserWithError {
+func (m *MockGCS) NewWriterWithCondition(ctx context.Context, bucketName, objectName string, cond storage.Conditions) WriteCloserWithError {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "NewWriterWithCondition", ctx, bucketName, objectName, cond)
-	ret0, _ := ret[0].(helpers.WriteCloserWithError)
+	ret0, _ := ret[0].(WriteCloserWithError)
 	return ret0
 }
 
@@ -148,6 +147,86 @@ func (m *MockGCS) NewWriterWithCondition(ctx context.Context, bucketName, object
 func (mr *MockGCSMockRecorder) NewWriterWithCondition(ctx, bucketName, objectName, cond interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewWriterWithCondition", reflect.TypeOf((*MockGCS)(nil).NewWriterWithCondition), ctx, bucketName, objectName, cond)
+}
+
+// MockWriteCloserWithError is a mock of WriteCloserWithError interface
+type MockWriteCloserWithError struct {
+	ctrl     *gomock.Controller
+	recorder *MockWriteCloserWithErrorMockRecorder
+}
+
+// MockWriteCloserWithErrorMockRecorder is the mock recorder for MockWriteCloserWithError
+type MockWriteCloserWithErrorMockRecorder struct {
+	mock *MockWriteCloserWithError
+}
+
+// NewMockWriteCloserWithError creates a new mock instance
+func NewMockWriteCloserWithError(ctrl *gomock.Controller) *MockWriteCloserWithError {
+	mock := &MockWriteCloserWithError{ctrl: ctrl}
+	mock.recorder = &MockWriteCloserWithErrorMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use
+func (m *MockWriteCloserWithError) EXPECT() *MockWriteCloserWithErrorMockRecorder {
+	return m.recorder
+}
+
+// Write mocks base method
+func (m *MockWriteCloserWithError) Write(p []byte) (int, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Write", p)
+	ret0, _ := ret[0].(int)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Write indicates an expected call of Write
+func (mr *MockWriteCloserWithErrorMockRecorder) Write(p interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Write", reflect.TypeOf((*MockWriteCloserWithError)(nil).Write), p)
+}
+
+// Close mocks base method
+func (m *MockWriteCloserWithError) Close() error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Close")
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// Close indicates an expected call of Close
+func (mr *MockWriteCloserWithErrorMockRecorder) Close() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockWriteCloserWithError)(nil).Close))
+}
+
+// CloseWithError mocks base method
+func (m *MockWriteCloserWithError) CloseWithError(err error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CloseWithError", err)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CloseWithError indicates an expected call of CloseWithError
+func (mr *MockWriteCloserWithErrorMockRecorder) CloseWithError(err interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CloseWithError", reflect.TypeOf((*MockWriteCloserWithError)(nil).CloseWithError), err)
+}
+
+// Attrs mocks base method
+func (m *MockWriteCloserWithError) Attrs() *storage.ObjectAttrs {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Attrs")
+	ret0, _ := ret[0].(*storage.ObjectAttrs)
+	return ret0
+}
+
+// Attrs indicates an expected call of Attrs
+func (mr *MockWriteCloserWithErrorMockRecorder) Attrs() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Attrs", reflect.TypeOf((*MockWriteCloserWithError)(nil).Attrs))
 }
 
 // MockObjectIterator is a mock of ObjectIterator interface

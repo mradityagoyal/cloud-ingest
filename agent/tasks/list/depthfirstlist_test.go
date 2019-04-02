@@ -24,7 +24,6 @@ import (
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-	"github.com/GoogleCloudPlatform/cloud-ingest/helpers"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 
@@ -51,7 +50,7 @@ func testDepthFirstListTaskReqMsg(taskRelRsrcName string, srcDirs []string) *tas
 func TestDepthFirstListDirNotFound(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	writer := helpers.NewStringWriteCloser(nil)
+	writer := common.NewStringWriteCloser(nil)
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
@@ -69,12 +68,12 @@ func TestDepthFirstListSuccessEmptyDir(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -105,18 +104,18 @@ func TestDepthFirstListSuccessEmptyDir(t *testing.T) {
 func TestDepthFirstListSuccessFlatDir(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 10)
 	for i := 0; i < 10; i++ {
-		filePaths[i] = helpers.CreateTmpFile(tmpDir, "test-file-", fileContent)
+		filePaths[i] = common.CreateTmpFile(tmpDir, "test-file-", fileContent)
 	}
 	// The results of the list are sorted.
 	sort.Strings(filePaths)
@@ -160,20 +159,20 @@ func TestDepthFirstListFailsFileWithNewline(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 11)
 	for i := 0; i < 10; i++ {
-		filePaths[i] = helpers.CreateTmpFile(tmpDir, "test-file-", fileContent)
+		filePaths[i] = common.CreateTmpFile(tmpDir, "test-file-", fileContent)
 	}
-	filePaths[10] = helpers.CreateTmpFile(tmpDir, "test-file-with-\n-newline", fileContent)
+	filePaths[10] = common.CreateTmpFile(tmpDir, "test-file-with-\n-newline", fileContent)
 
 	// The results of the list are sorted.
 	sort.Strings(filePaths)
@@ -205,21 +204,21 @@ func TestDepthFirstListSuccessNestedDirSmallListFile(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
-	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
-	emptyDir := helpers.CreateTmpDir(tmpDir, "empty-dir-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
+	nestedTmpDir := common.CreateTmpDir(tmpDir, "sub-dir-")
+	emptyDir := common.CreateTmpDir(tmpDir, "empty-dir-")
 	defer os.RemoveAll(tmpDir)
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 0)
 
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(tmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(tmpDir, "test-file-", fileContent))
 	}
 	// The results of the list are in sorted order.
 	sort.Strings(filePaths)
@@ -233,7 +232,7 @@ func TestDepthFirstListSuccessNestedDirSmallListFile(t *testing.T) {
 	}
 	// Create some files in the sub-dir. These should not be in the list output.
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
 	}
 
 	// Add unexplored dirs to list file
@@ -274,21 +273,21 @@ func TestDepthFirstListSuccessNestedDirLargeListFile(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
-	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
-	helpers.CreateTmpDir(tmpDir, "empty-dir-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
+	nestedTmpDir := common.CreateTmpDir(tmpDir, "sub-dir-")
+	common.CreateTmpDir(tmpDir, "empty-dir-")
 	defer os.RemoveAll(tmpDir)
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 0)
 
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(tmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(tmpDir, "test-file-", fileContent))
 	}
 	// The results of the list are in sorted order.
 	sort.Strings(filePaths)
@@ -304,7 +303,7 @@ func TestDepthFirstListSuccessNestedDirLargeListFile(t *testing.T) {
 	// Create some files in the sub-dir.
 	filePaths = make([]string, 0)
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
 	}
 	// The results of the list are in sorted order.
 	sort.Strings(filePaths)
@@ -349,19 +348,19 @@ func TestDepthFirstListMakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) 
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 0)
 
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(tmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(tmpDir, "test-file-", fileContent))
 	}
 	// The results of the list are in sorted order.
 	sort.Strings(filePaths)
@@ -406,22 +405,22 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
 
-	writer := &helpers.StringWriteCloser{}
+	writer := &common.StringWriteCloser{}
 
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	var expectedListResult bytes.Buffer
 
-	tmpDir := helpers.CreateTmpDir("", "test-list-agent-")
-	nestedTmpDir := helpers.CreateTmpDir(tmpDir, "sub-dir-")
-	childOfNestedTmpDir := helpers.CreateTmpDir(nestedTmpDir, "sub-dir2-")
-	child2OfNestedTmpDir := helpers.CreateTmpDir(nestedTmpDir, "sub-dir3-")
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
+	nestedTmpDir := common.CreateTmpDir(tmpDir, "sub-dir-")
+	childOfNestedTmpDir := common.CreateTmpDir(nestedTmpDir, "sub-dir2-")
+	child2OfNestedTmpDir := common.CreateTmpDir(nestedTmpDir, "sub-dir3-")
 	defer os.RemoveAll(tmpDir)
 
 	fileContent := "0123456789"
 	filePaths := make([]string, 0)
 
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(tmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(tmpDir, "test-file-", fileContent))
 	}
 	// The results of the list are in sorted order.
 	sort.Strings(filePaths)
@@ -437,7 +436,7 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	// Create some files in the sub-dir and add them to the expected list file.
 	filePaths = make([]string, 0)
 	for i := 0; i < 10; i++ {
-		filePaths = append(filePaths, helpers.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
+		filePaths = append(filePaths, common.CreateTmpFile(nestedTmpDir, "test-file-", fileContent))
 	}
 	// The results of the list are in sorted order.
 	sort.Strings(filePaths)
@@ -452,7 +451,7 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 
 	// Create some files in the sub-dir's child dir. These should not be in the list output.
 	for i := 0; i < 10; i++ {
-		helpers.CreateTmpFile(childOfNestedTmpDir, "test-file-", fileContent)
+		common.CreateTmpFile(childOfNestedTmpDir, "test-file-", fileContent)
 	}
 
 	// Add unexplored dirs to list file
