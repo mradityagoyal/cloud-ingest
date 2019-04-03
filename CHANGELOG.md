@@ -10,8 +10,14 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+
+## [1.0.5] - 2019-04-03
 ### Fixed
+- Adding calls to close writer in error cases
 - Waiting for the control topic before trying to subscribe to it.
+- Temporarily in-place fixing the Pub/Sub bug in issue https://github.com/googleapis/google-cloud-go/issues/1379
+### Changed
+- Remove 'frequency' from the pulse messages. It was never used.
 
 ## [1.0.4] - 2019-03-28
 ### Changed
