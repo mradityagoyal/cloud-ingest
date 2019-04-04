@@ -159,6 +159,12 @@ message ListLog {
   // This is a count of the number of directories that were listed by this list
   // task.
   int64 dirs_listed = 4;
+  // This is a count of directories that were either
+  // a) discovered by this list task
+  // or
+  // b) included in the list spec's src_directories list
+  // AND were not listed as part of this list task.
+  int64 dirs_not_listed = 5;
 }
 
 // Contains log fields for a ProcessList task.

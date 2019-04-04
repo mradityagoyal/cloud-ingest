@@ -10,6 +10,8 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+### Added
+- Count for unlisted directories to list log.
 ### Changed
 - Tune the throughput smoothing to use no averaging. The displayed will be much
   more responsive.
