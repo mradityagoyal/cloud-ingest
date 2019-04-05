@@ -16,6 +16,7 @@ major job run versions.
 ## [1.0.6] - 2019-04-10
 ### Added
 - Count for unlisted directories to list log.
+- Retries for copy handling.
 ### Changed
 - Tune the throughput smoothing to use no averaging. The displayed will be much
   more responsive.

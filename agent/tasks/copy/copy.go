@@ -40,6 +40,9 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
+
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
@@ -51,8 +54,8 @@ import (
 	"google.golang.org/api/option"
 	raw "google.golang.org/api/storage/v1"
 	htransport "google.golang.org/api/transport/http"
-
-	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 const (
@@ -65,6 +68,7 @@ const (
 	// Agent to copy the entire file but does not specify a chunk size. This
 	// happens by sending a BytesToCopy value <= 0 in the CopyTaskSpec.
 	veneerClientDefaultChunkSize = 1 << 27 // 128MiB.
+	maxRetryCount                = 2
 )
 
 var (
@@ -254,6 +258,29 @@ func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, err
 	return &log, err
 }
 
+func isRetryableError(err error) bool {
+	switch status.Code(err) {
+	case codes.NotFound, codes.PermissionDenied, codes.Unauthenticated, codes.Unimplemented, codes.ResourceExhausted, codes.AlreadyExists:
+		return false
+	default:
+		return true
+	}
+}
+
+func (h *CopyHandler) handleCopySpecWithRetries(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopySpec, *taskpb.CopyLog, error) {
+	var err error
+	var copyLog *taskpb.CopyLog
+	var spec *taskpb.CopySpec
+	for i := 0; i < maxRetryCount; i++ {
+		spec = proto.Clone(copySpec).(*taskpb.CopySpec)
+		copyLog, err = h.handleCopySpec(ctx, spec)
+		if err == nil || !isRetryableError(err) {
+			break
+		}
+	}
+	return spec, copyLog, err
+}
+
 func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, error) {
 	var wg sync.WaitGroup
 	for _, bf := range bundleSpec.BundledFiles {
@@ -261,7 +288,7 @@ func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *task
 		go func(bf *taskpb.BundledFile) {
 			defer wg.Done()
 			var err error
-			bf.CopyLog, err = h.handleCopySpec(ctx, bf.CopySpec)
+			bf.CopySpec, bf.CopyLog, err = h.handleCopySpecWithRetries(ctx, bf.CopySpec)
 			bf.FailureType = common.GetFailureTypeFromError(err)
 			bf.FailureMessage = fmt.Sprint(err)
 			if err == nil {
@@ -283,7 +310,7 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	if taskReqMsg.Spec.GetCopySpec() != nil {
 		var cl *taskpb.CopyLog
 		copySpec := proto.Clone(taskReqMsg.Spec.GetCopySpec()).(*taskpb.CopySpec)
-		cl, err = h.handleCopySpec(ctx, copySpec)
+		copySpec, cl, err = h.handleCopySpecWithRetries(ctx, copySpec)
 		respSpec = &taskpb.Spec{Spec: &taskpb.Spec_CopySpec{copySpec}}
 		log = &taskpb.Log{Log: &taskpb.Log_CopyLog{cl}}
 	} else if taskReqMsg.Spec.GetCopyBundleSpec() != nil {
