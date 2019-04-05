@@ -257,10 +257,11 @@ func TestDepthFirstListSuccessNestedDirSmallListFile(t *testing.T) {
 	wantLog := &taskpb.Log{
 		Log: &taskpb.Log_ListLog{
 			ListLog: &taskpb.ListLog{
-				FilesFound: 10,
-				BytesFound: 100,
-				DirsFound:  2,
-				DirsListed: 1,
+				FilesFound:    10,
+				BytesFound:    100,
+				DirsFound:     2,
+				DirsListed:    1,
+				DirsNotListed: 2,
 			},
 		},
 	}
@@ -476,10 +477,11 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	wantLog := &taskpb.Log{
 		Log: &taskpb.Log_ListLog{
 			ListLog: &taskpb.ListLog{
-				FilesFound: 20,
-				BytesFound: 200,
-				DirsFound:  3,
-				DirsListed: 2,
+				FilesFound:    20,
+				BytesFound:    200,
+				DirsFound:     3,
+				DirsListed:    2,
+				DirsNotListed: 2,
 			},
 		},
 	}

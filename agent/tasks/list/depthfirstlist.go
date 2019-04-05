@@ -18,28 +18,17 @@ package list
 import (
 	"context"
 	"errors"
-	"flag"
 	"io"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 
-	listpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
+	listfilepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
-)
-
-var (
-	// NumberConcurrentListTasks is used to both determine listing memory constraints, and set the MaxOutstandingMessages for the PubSub List subscription.
-	NumberConcurrentListTasks = flag.Int("number-concurrent-list-tasks", 4, "The maximum number of list tasks the agent will process at any given time.")
-
-	listFileSizeThreshold          = flag.Int("list-file-size-threshold", 50000, "List tasks will keep listing directories until the number of listed files and directories exceeds this threshold, or until there are no more files/directories to list")
-	listTaskChunkSize              = flag.Int("list-task-chunk-size", 8*1024*1024, "The resumable upload chunk size used for list tasks, defaults to 8MiB.")
-	maxMemoryForListingDirectories = flag.Int("max-memory-for-listing-directories", 20, "Maximum amount of memory agent will use in total (not per task) to store directories before writing them to a list file. Value is in MiB.")
 )
 
 // DepthFirstListHandler is responsible for handling depth-first list tasks.
@@ -56,17 +45,18 @@ func NewDepthFirstListHandler(storageClient *storage.Client) *DepthFirstListHand
 	// the list task processing threads.
 	allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *NumberConcurrentListTasks
 	return &DepthFirstListHandler{
-		gcloud.NewGCSClient(storageClient),
-		*listTaskChunkSize,
-		*listFileSizeThreshold,
-		allowedDirBytes,
+		gcs:                   gcloud.NewGCSClient(storageClient),
+		resumableChunkSize:    *listTaskChunkSize,
+		listFileSizeThreshold: *listFileSizeThreshold,
+		allowedDirBytes:       allowedDirBytes,
 	}
 }
 
-// processDirectory lists a single directory. It adds any directories it finds to the given dirStore
-// and returns the discovered files sorted in case sensitive alphabetical order by path.
-// The given listMD is updated with the number of files/dirs found.
-func processDirectory(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMetadata) ([]listpb.FileInfo, error) {
+// processDir lists the contents of a single directory. It adds any directories it finds to the
+// given dirStore.
+// It returns the discovered files (and directories if writeDirs is true) sorted in case sensitive
+// alphabetical order by path. The given listMD is updated with the number of files/dirs found.
+func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMetadata, writeDirs bool) ([]*listfilepb.ListFileEntry, error) {
 	f, err := os.Open(dir)
 	if err != nil {
 		return nil, err
@@ -77,45 +67,43 @@ func processDirectory(dir string, dirStore *DirectoryInfoStore, listMD *listingF
 		return nil, err
 	}
 
-	pbFileInfos := make([]listpb.FileInfo, 0)
+	var entries []*listfilepb.ListFileEntry
 	for _, osFileInfo := range osFileInfos {
 		if strings.Contains(osFileInfo.Name(), "\n") {
 			return nil, errors.New("the listing contains file with newlines")
 		}
 		path := filepath.Join(dir, osFileInfo.Name())
 		if osFileInfo.IsDir() {
-			dirInfo := listpb.DirectoryInfo{Path: path}
+			dirInfo := listfilepb.DirectoryInfo{Path: path}
 			err := dirStore.Add(dirInfo)
 			if err != nil {
 				return nil, err
 			}
 			listMD.dirsDiscovered++
+			if writeDirs {
+				entries = append(entries, &listfilepb.ListFileEntry{Entry: &listfilepb.ListFileEntry_DirectoryInfo{DirectoryInfo: &dirInfo}})
+			}
 		} else {
-			pbFileInfo := listpb.FileInfo{
+			pbFileInfo := listfilepb.FileInfo{
 				Path:             path,
 				LastModifiedTime: osFileInfo.ModTime().Unix(),
 				Size:             osFileInfo.Size(),
 			}
-			pbFileInfos = append(pbFileInfos, pbFileInfo)
+			entries = append(entries, &listfilepb.ListFileEntry{Entry: &listfilepb.ListFileEntry_FileInfo{FileInfo: &pbFileInfo}})
 			listMD.files++
 			listMD.bytes += pbFileInfo.Size
 		}
 	}
 
-	// Readdir returns the entries in "directory order", so they must be sorted
-	// to meet our expectations of lexicographical order.
-	sort.Slice(pbFileInfos, func(i, j int) bool {
-		return pbFileInfos[i].Path < pbFileInfos[j].Path
-	})
-
-	return pbFileInfos, nil
+	err = sortListFileEntries(entries)
+	return entries, err
 }
 
 // writeDirectories writes all of the directories stored in dirStore to the given writer
 // in case sensitive alphabetical order by path.
 func writeDirectories(w io.Writer, dirStore *DirectoryInfoStore) error {
 	for _, dirInfo := range dirStore.DirectoryInfos() {
-		entry := listpb.ListFileEntry{Entry: &listpb.ListFileEntry_DirectoryInfo{DirectoryInfo: &dirInfo}}
+		entry := listfilepb.ListFileEntry{Entry: &listfilepb.ListFileEntry_DirectoryInfo{DirectoryInfo: &dirInfo}}
 		if err := writeProtobuf(w, &entry); err != nil {
 			return err
 		}
@@ -123,62 +111,63 @@ func writeDirectories(w io.Writer, dirStore *DirectoryInfoStore) error {
 	return nil
 }
 
-// processDirectories lists directories until it has found enough files or it has used too much memory.
-// For each directory it processes, it adds the discovered directories to the given dirStore and
-// stores metadata about each file in memory. When it is finished with a directory, the file metadata
-// is sorted alphabetically by path and written to the given writer.
-func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeThreshold, maxDirBytes int) (*listingFileMetadata, error) {
-	totalFiles := 0
+// processDirectories lists directories until it has hit the list file size threshold or it has
+// used too much memory. For each directory it processes, it writes any files to the list file and
+// adds any directories to the list of directories to be listed. If includeDirs is true, both files
+// and directories are written to the list file.
+// processDirectories returns listing file metadata gathered while processing directories.
+func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeThreshold, maxDirBytes int, includeDirs bool) (*listingFileMetadata, error) {
+	totalEntries := 0
 	listMD := &listingFileMetadata{}
 
 	// Ensure that at least one directory is listed. Without the firstTime flag, the initial list
 	// of directories could exceed the memory limit, resulting in no directories being listed.
 	firstTime := true
-	for firstTime || (dirStore.Size() < maxDirBytes && totalFiles+dirStore.Len() < listFileSizeThreshold) {
+	for firstTime || (dirStore.Size() < maxDirBytes && totalEntries+dirStore.Len() < listFileSizeThreshold) {
 		dirToProcess := dirStore.RemoveFirst()
 		if dirToProcess == nil {
 			break
 		}
-		pbFileInfos, err := processDirectory(dirToProcess.Path, dirStore, listMD)
+		entries, err := processDir(dirToProcess.Path, dirStore, listMD, includeDirs)
 		if err != nil {
 			return nil, err
 		}
-		for _, pbFileInfo := range pbFileInfos {
-			entry := listpb.ListFileEntry{Entry: &listpb.ListFileEntry_FileInfo{FileInfo: &pbFileInfo}}
-			if err := writeProtobuf(w, &entry); err != nil {
+		for _, entry := range entries {
+			if err := writeProtobuf(w, entry); err != nil {
 				return nil, err
 			}
 		}
-		totalFiles += len(pbFileInfos)
+		totalEntries += len(entries)
 		firstTime = false
 		listMD.dirsListed++
 	}
+	listMD.dirsNotListed = int64(dirStore.Len())
 	return listMD, nil
 }
 
-// listDirectoriesAndWriteListFile lists starting at the specified directories in case sensitive
+// listDirectoriesAndWriteResults lists starting at the specified directories in case sensitive
 // alphabetical, depth first order. It continues listing until it finds listFileSizeThreshold or
-// uses more than maxDirBytes to store unexplored directories.
-func listDirectoriesAndWriteListFile(w io.Writer, listSpec *taskpb.ListSpec, listFileSizeThreshold, maxDirBytes int) (*listingFileMetadata, error) {
+// uses more than maxDirBytes to store unexplored directories. It writes the list results using the
+// given writer. If writeDirs is true, both directories and files are sorted and written to the list
+// file. Otherwise, just files are written.
+// Unlisted directories (any directories that were found or included in the list spec but weren't
+// listed) are stored in the returned directory info store.
+func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, listFileSizeThreshold, maxDirBytes int, writeDirs bool) (*listingFileMetadata, *DirectoryInfoStore, error) {
 	// Add directories from list spec into the DirStore.
 	// Directories will be explored in alphabetical, depth first order.
 	dirStore := NewDirectoryInfoStore()
 	for _, dirPath := range listSpec.SrcDirectories {
-		if err := dirStore.Add(listpb.DirectoryInfo{Path: dirPath}); err != nil {
-			return nil, err
+		if err := dirStore.Add(listfilepb.DirectoryInfo{Path: dirPath}); err != nil {
+			return nil, nil, err
 		}
 	}
 
-	listMD, err := processDirectories(w, dirStore, listFileSizeThreshold, maxDirBytes)
+	listMD, err := processDirectories(w, dirStore, listFileSizeThreshold, maxDirBytes, writeDirs)
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 
-	if err = writeDirectories(w, dirStore); err != nil {
-		return nil, err
-	}
-
-	return listMD, nil
+	return listMD, dirStore, nil
 }
 
 func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
@@ -192,16 +181,15 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 		Log: &taskpb.Log_ListLog{ListLog: &taskpb.ListLog{}},
 	}
 
-	w := h.gcs.NewWriterWithCondition(ctx, listSpec.DstListResultBucket, listSpec.DstListResultObject,
-		common.GetGCSGenerationNumCondition(listSpec.ExpectedGenerationNum))
+	w := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstListResultObject, listSpec.ExpectedGenerationNum, h.resumableChunkSize)
 
-	// Set the resumable upload chunk size.
-	if t, ok := w.(*storage.Writer); ok {
-		t.ChunkSize = h.resumableChunkSize
+	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(w, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, false /* writeDirs */)
+	if err != nil {
+		w.CloseWithError(err)
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
-	listMD, err := listDirectoriesAndWriteListFile(w, listSpec, h.listFileSizeThreshold, h.allowedDirBytes)
-	if err != nil {
+	if err = writeDirectories(w, unlistedDirs); err != nil {
 		w.CloseWithError(err)
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
@@ -210,11 +198,7 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
-	ll := log.GetListLog()
-	ll.FilesFound = listMD.files
-	ll.BytesFound = listMD.bytes
-	ll.DirsFound = listMD.dirsDiscovered
-	ll.DirsListed = listMD.dirsListed
+	setListLog(log, listMD)
 
 	return common.BuildTaskRespMsg(taskReqMsg, nil, log, nil)
 }
