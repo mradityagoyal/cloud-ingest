@@ -25,7 +25,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 
-	listpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
+	listfilepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
@@ -42,9 +42,26 @@ type listingFileMetadata struct {
 	bytes, files, dirsDiscovered, dirsListed, dirsNotListed int64
 }
 
-type listWriters struct {
-	listFile         gcloud.WriteCloserWithError
-	unlistedDirsFile gcloud.WriteCloserWithError
+func dirInfoEntry(path string) *listfilepb.ListFileEntry {
+	return &listfilepb.ListFileEntry{
+		Entry: &listfilepb.ListFileEntry_DirectoryInfo{
+			DirectoryInfo: &listfilepb.DirectoryInfo{
+				Path: path,
+			},
+		},
+	}
+}
+
+func fileInfoEntry(path string, lastModTime, size int64) *listfilepb.ListFileEntry {
+	return &listfilepb.ListFileEntry{
+		Entry: &listfilepb.ListFileEntry_FileInfo{
+			FileInfo: &listfilepb.FileInfo{
+				Path:             path,
+				LastModifiedTime: lastModTime,
+				Size:             size,
+			},
+		},
+	}
 }
 
 func setListLog(log *taskpb.Log, listMD *listingFileMetadata) {
@@ -65,7 +82,7 @@ func gcsWriterWithCondition(ctx context.Context, gcs gcloud.GCS, bucket, object 
 	return w
 }
 
-func sortListFileEntries(entries []*listpb.ListFileEntry) error {
+func sortListFileEntries(entries []*listfilepb.ListFileEntry) error {
 	// Readdir returns the entries in "directory order", so they must be sorted
 	// to meet our expectations of lexicographical order.
 	var err error
@@ -83,7 +100,7 @@ func sortListFileEntries(entries []*listpb.ListFileEntry) error {
 	return err
 }
 
-func getPath(entry *listpb.ListFileEntry) (string, error) {
+func getPath(entry *listfilepb.ListFileEntry) (string, error) {
 	if dirInfo := entry.GetDirectoryInfo(); dirInfo != nil {
 		return dirInfo.Path, nil
 	} else if fileInfo := entry.GetFileInfo(); fileInfo != nil {

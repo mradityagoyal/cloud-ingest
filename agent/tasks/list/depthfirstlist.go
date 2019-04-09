@@ -32,6 +32,9 @@ import (
 )
 
 // DepthFirstListHandler is responsible for handling depth-first list tasks.
+// For each list task, the handler produces a single output file, the list file. In the list file,
+// there is a list of all the files in the directories listed. Unexplored directories are written
+// to the end of the list file.
 type DepthFirstListHandler struct {
 	gcs                   gcloud.GCS
 	resumableChunkSize    int
@@ -84,14 +87,10 @@ func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMet
 				entries = append(entries, &listfilepb.ListFileEntry{Entry: &listfilepb.ListFileEntry_DirectoryInfo{DirectoryInfo: &dirInfo}})
 			}
 		} else {
-			pbFileInfo := listfilepb.FileInfo{
-				Path:             path,
-				LastModifiedTime: osFileInfo.ModTime().Unix(),
-				Size:             osFileInfo.Size(),
-			}
-			entries = append(entries, &listfilepb.ListFileEntry{Entry: &listfilepb.ListFileEntry_FileInfo{FileInfo: &pbFileInfo}})
+			size := osFileInfo.Size()
+			entries = append(entries, fileInfoEntry(path, osFileInfo.ModTime().Unix(), size))
 			listMD.files++
-			listMD.bytes += pbFileInfo.Size
+			listMD.bytes += size
 		}
 	}
 
