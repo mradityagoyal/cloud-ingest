@@ -7,7 +7,6 @@ OPI_ROBOT_ACCOUNT = cloud-ingest-dcp@cloud-ingest-dev.iam.gserviceaccount.com
 # Add new top-level Go packages here.
 GO_TARGETS = \
 	./agent/... \
-	./helpers/... \
 	./release/changelog/...
 
 # Add individual files needing mocking here.
