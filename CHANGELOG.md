@@ -10,6 +10,8 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+
+## [1.0.6] - 2019-04-10
 ### Added
 - Count for unlisted directories to list log.
 ### Changed
