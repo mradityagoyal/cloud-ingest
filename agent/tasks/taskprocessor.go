@@ -86,7 +86,7 @@ func NewCopyProcessor(sc *storage.Client, hc *http.Client, sub *pubsub.Subscript
 // This is a blocking function.
 func (tp *TaskProcessor) Process(ctx context.Context) {
 	err := tp.TaskSub.Receive(ctx, tp.processMessage)
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		glog.Fatalf("%s.Receive() got err: %v", tp.TaskSub.String(), err)
 	}
 }

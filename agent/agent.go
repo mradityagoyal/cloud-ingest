@@ -108,13 +108,16 @@ func catchCtrlC(cancel context.CancelFunc) {
 	signal.Notify(c, os.Interrupt)
 	go func() {
 		for _ = range c {
-			fmt.Println("\n\nCaught ^C, cancelling the main context.")
+			fmt.Println("\n\nCaught ^C, cleaning up and exiting (please wait)...")
 			cancel() // Cancel the main context.
+			// Further CTRL-Cs will be treated normally (forcing immediate exit).
+			signal.Reset(os.Interrupt)
 		}
 	}()
 }
 
 func main() {
+	defer fmt.Println("Exited gracefully.")
 	defer glog.Flush()
 	ctx, cancel := context.WithCancel(context.Background())
 	catchCtrlC(cancel)
@@ -137,6 +140,7 @@ func main() {
 
 	// Create the PubSub topics and subscriptions.
 	listSub, copySub, controlSub, listTopic, copyTopic, pulseTopic := pubsubinternal.CreatePubSubTopicsAndSubs(ctx, pubSubClient)
+	defer controlSub.Delete(context.Background())
 	var st *stats.Tracker
 	if *enableStatsTracker {
 		st = stats.NewTracker(ctx) // Created after PubSub topics/subs so STDOUT doesn't get stomped.
@@ -156,7 +160,6 @@ func main() {
 	// Block until the ctx is cancelled.
 	select {
 	case <-ctx.Done():
-		fmt.Println("Main ctx cancelled, exiting gracefully.")
 		break
 	}
 }

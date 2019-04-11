@@ -10,6 +10,8 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+### Changed
+- Clean up the control subscription upon exit.
 
 ## [1.0.6] - 2019-04-10
 ### Added
