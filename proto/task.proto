@@ -39,6 +39,9 @@ enum FailureType {
 
   // The task was completed by an agent with a blacklisted agent version.
   BLACKLISTED_AGENT_VERSION = 10;
+
+  // The agent processing this task could not find the source directory.
+  SOURCE_DIR_NOT_FOUND = 11;
 }
 
 // Contains information about a task. A task is a unit of work, one of:
@@ -80,6 +83,9 @@ message ListSpec {
 
   // Expected GCS generation number for dst_unexplored_dirs_object.
   int64 unexplored_dirs_expected_generation_num = 6;
+
+  // The root directory specified in the JobConfig.
+  string root_directory = 8;
 }
 
 // Contains the information about a process list task. A process list task is
@@ -181,6 +187,9 @@ message ListLog {
   // b) included in the list spec's src_directories list
   // AND were not listed as part of this list task.
   int64 dirs_not_listed = 5;
+  // A list of directories that were included in the list spec's
+  // src_directories field but were not found on-prem.
+  repeated string dirs_not_found = 6;
 }
 
 // Contains log fields for a ProcessList task.

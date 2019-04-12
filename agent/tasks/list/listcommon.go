@@ -40,6 +40,7 @@ var (
 
 type listingFileMetadata struct {
 	bytes, files, dirsDiscovered, dirsListed, dirsNotListed int64
+	dirsNotFound                                            []string
 }
 
 func dirInfoEntry(path string) *listfilepb.ListFileEntry {
@@ -71,6 +72,7 @@ func setListLog(log *taskpb.Log, listMD *listingFileMetadata) {
 	ll.DirsFound = listMD.dirsDiscovered
 	ll.DirsListed = listMD.dirsListed
 	ll.DirsNotListed = listMD.dirsNotListed
+	ll.DirsNotFound = listMD.dirsNotFound
 }
 
 func gcsWriterWithCondition(ctx context.Context, gcs gcloud.GCS, bucket, object string, generationNum int64, resumableChunkSize int) gcloud.WriteCloserWithError {

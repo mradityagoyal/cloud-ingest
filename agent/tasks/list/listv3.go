@@ -17,11 +17,11 @@ package list
 import (
 	"context"
 	"errors"
+	"os"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
@@ -68,6 +68,9 @@ func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *
 	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(listFileW, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, true /* writeDirs */)
 	if err != nil {
 		listFileW.CloseWithError(err)
+		if os.IsNotExist(err) {
+			err = common.AgentError{FailureType: taskpb.FailureType_SOURCE_DIR_NOT_FOUND}
+		}
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 	if err := listFileW.Close(); err != nil {

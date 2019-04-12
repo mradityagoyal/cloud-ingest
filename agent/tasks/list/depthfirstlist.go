@@ -115,7 +115,7 @@ func writeDirectories(w io.Writer, dirStore *DirectoryInfoStore) error {
 // adds any directories to the list of directories to be listed. If includeDirs is true, both files
 // and directories are written to the list file.
 // processDirectories returns listing file metadata gathered while processing directories.
-func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeThreshold, maxDirBytes int, includeDirs bool) (*listingFileMetadata, error) {
+func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeThreshold, maxDirBytes int, includeDirs bool, listSpec taskpb.ListSpec) (*listingFileMetadata, error) {
 	totalEntries := 0
 	listMD := &listingFileMetadata{}
 
@@ -129,6 +129,12 @@ func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeT
 		}
 		entries, err := processDir(dirToProcess.Path, dirStore, listMD, includeDirs)
 		if err != nil {
+			if listSpec.RootDirectory != "" && os.IsNotExist(err) {
+				if err := handleNotFoundDir(dirToProcess.Path, listSpec, listMD); err == nil {
+					// Successfully handled the not found dir, continue listing
+					continue
+				}
+			}
 			return nil, err
 		}
 		for _, entry := range entries {
@@ -142,6 +148,39 @@ func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeT
 	}
 	listMD.dirsNotListed = int64(dirStore.Len())
 	return listMD, nil
+}
+
+// handleNotFoundDir checks if the job's root dir can be found. If the job's root dir cannot
+// be found, it's likely that the agent was misconfigured, so an error is returned. Otherwise, the
+// notFoundDir has likely been deleted, so the given listMD is adjusted accordingly.
+func handleNotFoundDir(notFoundDir string, listSpec taskpb.ListSpec, listMD *listingFileMetadata) error {
+	// Stat the root directory to see if the agent can access it. If the agent can't access the job's
+	// root directory, something is likely wrong with the agent's configuration.
+	_, err := os.Stat(listSpec.RootDirectory)
+	if err != nil {
+		return err
+	}
+	// Agent can access the root directory. This means this directory was likely deleted after
+	// it was discovered.
+	if isListedInSpec(notFoundDir, listSpec) {
+		// Dir was discovered in a previous list task. Add dir name to log so it can be considered
+		// for deletion.
+		listMD.dirsNotFound = append(listMD.dirsNotFound, notFoundDir)
+	} else {
+		// This dir was deleted before it was written to a list file, so adjust the counters to
+		// make as if it was never discovered.
+		listMD.dirsDiscovered--
+	}
+	return nil
+}
+
+func isListedInSpec(dir string, spec taskpb.ListSpec) bool {
+	for _, srcDir := range spec.SrcDirectories {
+		if dir == srcDir {
+			return true
+		}
+	}
+	return false
 }
 
 // listDirectoriesAndWriteResults lists starting at the specified directories in case sensitive
@@ -161,7 +200,7 @@ func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, list
 		}
 	}
 
-	listMD, err := processDirectories(w, dirStore, listFileSizeThreshold, maxDirBytes, writeDirs)
+	listMD, err := processDirectories(w, dirStore, listFileSizeThreshold, maxDirBytes, writeDirs, *listSpec)
 	if err != nil {
 		return nil, nil, err
 	}
