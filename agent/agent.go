@@ -22,6 +22,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"syscall"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
@@ -105,7 +106,7 @@ func createClients(ctx context.Context) (*pubsub.Client, *storage.Client, *http.
 
 func catchCtrlC(cancel context.CancelFunc) {
 	c := make(chan os.Signal, 1)
-	signal.Notify(c, os.Interrupt)
+	signal.Notify(c, os.Interrupt, syscall.SIGTERM)
 	go func() {
 		for _ = range c {
 			fmt.Println("\n\nCaught ^C, cleaning up and exiting (please wait)...")
