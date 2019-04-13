@@ -112,7 +112,7 @@ func catchCtrlC(cancel context.CancelFunc) {
 			fmt.Println("\n\nCaught ^C, cleaning up and exiting (please wait)...")
 			cancel() // Cancel the main context.
 			// Further CTRL-Cs will be treated normally (forcing immediate exit).
-			signal.Reset(os.Interrupt)
+			signal.Reset()
 		}
 	}()
 }
