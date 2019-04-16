@@ -1,0 +1,9 @@
+# [START runtime]
+runtime: python27
+threadsafe: yes
+# [END runtime]
+
+handlers:
+
+- url: /.*
+  script: main.application
