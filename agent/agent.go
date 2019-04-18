@@ -52,6 +52,10 @@ var (
 func init() {
 	flag.Uint64Var(&glog.MaxSize, "max-log-size", 1<<28, "The maximum size of a log file in bytes, default 256MiB.")
 	flag.Parse()
+
+	if len(*projectID) == 0 {
+		glog.Fatalf("flag projectid must be set")
+	}
 }
 
 func printVersionInfo() {
