@@ -1,8 +1,10 @@
 FRONTEND_DIR = webconsole/frontend
 RELEASE_DIR = release
 GOPATH ?= $(shell go env GOPATH)
+REPO_PATH = $(GOPATH)/src/github.com/GoogleCloudPlatform/cloud-ingest
 OPI_API_URL = https://$(USER)-dev-opitransfer.sandbox.googleapis.com
 OPI_ROBOT_ACCOUNT = cloud-ingest-dcp@cloud-ingest-dev.iam.gserviceaccount.com
+CHANGELOG_PARSER_JS = $(REPO_PATH)/node_modules/changelog-parser/bin/cli.js
 
 # Add new top-level Go packages here.
 GO_TARGETS = \
@@ -75,7 +77,7 @@ endif
 build: setup build-agent build-frontend ## Refresh dependencies, Build, test, and install everything.
 
 .PHONY: build-agent
-build-agent: go-mocks lint-agent lint-changelog test-agent ## Build, test, and install Go binaries.
+build-agent: install-changelog-parser go-mocks lint-agent lint-changelog test-agent ## Build, test, and install Go binaries.
 	@echo -e "\n== Building/Installing Go Binaries =="
 	@go install -v $(GO_TARGETS)
 
@@ -103,7 +105,10 @@ clean: ## Blow away all compiled artifacts and installed dependencies.
 setup: setup-agent setup-frontend ## Run full setup of dependencies and environment.
 
 .PHONY: setup-agent
-setup-agent: ## Install all needed go dependencies.
+setup-agent: pull-agent-go-dependencies install-changelog-parser ## Install all needed agent dependencies.
+
+.PHONY: pull-agent-go-dependencies
+pull-agent-go-dependencies: ## Pull all go library dependencies needed for building the agent.
 	@echo -e "\n== Installing/Updating Go Dependencies =="
 	go get -u cloud.google.com/go/pubsub
 	go get -u github.com/blang/semver
@@ -115,8 +120,11 @@ setup-agent: ## Install all needed go dependencies.
 	go get -u github.com/google/go-cmp/cmp
 	go get -u github.com/googleapis/google-cloud-go-testing
 	go get -u golang.org/x/time/rate
+
+.PHONY: install-changelog-parser
+install-changelog-parser: ## Install the changelog parser.
 	@echo -e "\n== Installing Changelog Parser =="
-	npm install changelog-parser --loglevel error
+	@(test -f $(CHANGELOG_PARSER_JS) && echo "Already installed...") || npm install changelog-parser --loglevel error
 
 .PHONY: setup-frontend
 setup-frontend: ## Install all needed frontend/JS dependencies.
