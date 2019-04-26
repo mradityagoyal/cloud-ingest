@@ -36,16 +36,19 @@ var (
 	projectBWLimiter = rate.NewLimiter(rate.Limit(math.MaxInt64), math.MaxInt32)
 )
 
-// ProcessCtrlMsg updates the jobRunBW mapping and projectBWLimiter given the values
+// ProcessJobRunBandwidths updates the jobRunBW mapping and projectBWLimiter given the values
 // in the control message.
-func ProcessCtrlMsg(cm *controlpb.Control, st *stats.Tracker) {
+func ProcessJobRunBandwidths(jobBWs []*controlpb.JobRunBandwidth, st *stats.Tracker) {
+	if jobBWs == nil {
+		return
+	}
 	// Currently, we do not have a way to set per job run BW control. The API only
 	// allows setting project level BW. For future extensions, DCP distributes the
 	// total project BW over the active job runs. Here we aggregate it again to control
 	// the BW on a project level.
 	jrBW := make(map[string]int64)
 	var projectBW int64
-	for _, jobBW := range cm.JobRunsBandwidths {
+	for _, jobBW := range jobBWs {
 		jrBW[jobBW.JobrunRelRsrcName] = jobBW.Bandwidth
 		projectBW += jobBW.Bandwidth
 	}

@@ -20,12 +20,14 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/agentupdate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 
 	controlpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/control_go_proto"
+	pulsepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/pulse_go_proto"
 )
 
 // ControlHandler is responsible for receiving control messages pushed by the backend service.
@@ -33,17 +35,22 @@ type ControlHandler struct {
 	sub          *pubsub.Subscription
 	lastUpdate   time.Time
 	statsTracker *stats.Tracker
+	logDir       string
 
-	processCtrlMsg func(cm *controlpb.Control, st *stats.Tracker) // Test hook.
+	// Test hooks.
+	processJobRunBandwidths func(jobBWs []*controlpb.JobRunBandwidth, st *stats.Tracker)
+	processAgentUpdateMsg   func(au *controlpb.AgentUpdate, agentID *pulsepb.AgentId, agentLogsDir string)
 }
 
 // NewControlHandler creates an instance of ControlHandler.
-func NewControlHandler(s *pubsub.Subscription, st *stats.Tracker) *ControlHandler {
+func NewControlHandler(s *pubsub.Subscription, st *stats.Tracker, logDir string) *ControlHandler {
 	return &ControlHandler{
-		sub:            s,
-		lastUpdate:     time.Now(),
-		statsTracker:   st,
-		processCtrlMsg: rate.ProcessCtrlMsg,
+		sub:                     s,
+		lastUpdate:              time.Now(),
+		statsTracker:            st,
+		logDir:                  logDir,
+		processJobRunBandwidths: rate.ProcessJobRunBandwidths,
+		processAgentUpdateMsg:   agentupdate.ProcessAgentUpdateMsg,
 	}
 }
 
@@ -74,7 +81,8 @@ func (ch *ControlHandler) processMessage(_ context.Context, msg *pubsub.Message)
 		return
 	}
 
-	ch.processCtrlMsg(&controlMsg, ch.statsTracker)
+	ch.processJobRunBandwidths(controlMsg.GetJobRunsBandwidths(), ch.statsTracker)
+	ch.processAgentUpdateMsg(controlMsg.GetAgentUpdates(), AgentID(), ch.logDir)
 
 	ch.lastUpdate = msg.PublishTime
 	ch.statsTracker.RecordCtrlMsg(msg.PublishTime)

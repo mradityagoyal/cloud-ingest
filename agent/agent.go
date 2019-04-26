@@ -153,7 +153,7 @@ func main() {
 
 	control.NewPulseSender(ctx, pubsubinternal.NewPubSubTopicWrapper(pulseTopic), logDir, st)
 
-	controlHandler := control.NewControlHandler(controlSub, st)
+	controlHandler := control.NewControlHandler(controlSub, st, logDir)
 	go controlHandler.Process(ctx)
 
 	listProcessor := tasks.NewListProcessor(storageClient, listSub, listTopic, st)

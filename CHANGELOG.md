@@ -10,6 +10,8 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+### Added
+- AgentUpdate to control message
 
 ## [1.0.7] - 2019-04-18
 ### Changed

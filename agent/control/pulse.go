@@ -41,6 +41,24 @@ const (
 	pulseFrequency = 10 // The frequency (in seconds) to send pulses.
 )
 
+// Hostname returns the hostname string.
+func Hostname() string {
+	hn, err := os.Hostname()
+	if err != nil {
+		hn = "hostnameunknown"
+	}
+	return hn
+}
+
+// AgentID returns the ID of this agent.
+func AgentID() *pulsepb.AgentId {
+	return &pulsepb.AgentId{
+		HostName:  Hostname(),
+		ProcessId: fmt.Sprintf("%v", os.Getpid()),
+		Prefix:    *agentIDPrefix,
+	}
+}
+
 // PulseSender periodically sends "pulses" on the topic passed in during construction.
 type PulseSender struct {
 	pulseTopic pubsubinternal.PSTopic // The pubsub topic to send pulses on.
@@ -65,14 +83,9 @@ type PulseSender struct {
 
 // NewPulseSender returns a new PulseSender.
 func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir string, st *stats.Tracker) *PulseSender {
-	// When running in a docker container, hostname corresponds to a container ID.
-	hn, err := os.Hostname()
-	if err != nil {
-		hn = "hostnameunknown"
-	}
 	ps := &PulseSender{
 		pulseTopic:   t,
-		hostname:     hn,
+		hostname:     Hostname(),
 		pid:          os.Getpid(),
 		prefix:       *agentIDPrefix,
 		logsDir:      logsDir,

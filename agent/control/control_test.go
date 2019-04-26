@@ -25,6 +25,7 @@ import (
 	"github.com/golang/protobuf/proto"
 
 	controlpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/control_go_proto"
+	pulsepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/pulse_go_proto"
 )
 
 func marshalControlMessage(t *testing.T, msg *controlpb.Control) []byte {
@@ -43,27 +44,34 @@ func TestProcessMessage(t *testing.T) {
 	})
 	now := time.Now()
 	tests := []struct {
-		desc string
-		msg  []byte
-		ts   time.Time
-		want bool
+		desc       string
+		msg        []byte
+		ts         time.Time
+		wantCalled bool
 	}{
 		{"ok msg", okCtrlMsg, now, true},
 		{"stale msg", okCtrlMsg, now.Add(-10 * time.Second), false},
 		{"invalid msg", []byte("Invalid message"), now.Add(10 * time.Second), false},
 	}
+
+	logDir := "/tmp"
 	for _, tc := range tests {
-		ch := NewControlHandler(nil, nil)
-		called := false
+		ch := NewControlHandler(nil, nil, logDir)
+		processJobRunBandwidthsCalled := false
+		processAgentUpdateCalled := false
 		ch.lastUpdate = now
-		ch.processCtrlMsg = func(_ *controlpb.Control, _ *stats.Tracker) { called = true }
+		ch.processJobRunBandwidths = func(_ []*controlpb.JobRunBandwidth, _ *stats.Tracker) { processJobRunBandwidthsCalled = true }
+		ch.processAgentUpdateMsg = func(_ *controlpb.AgentUpdate, _ *pulsepb.AgentId, _ string) { processAgentUpdateCalled = true }
 		msg := &pubsub.Message{
 			Data:        tc.msg,
 			PublishTime: tc.ts,
 		}
 		ch.processMessage(context.Background(), msg)
-		if called != tc.want {
-			t.Errorf("processMessage(%q) called processCtrlMsg = %t, want: %t", tc.desc, called, tc.want)
+		if processJobRunBandwidthsCalled != tc.wantCalled {
+			t.Errorf("processMessage(%q) called processJobRunBandwidths = %t, want: %t", tc.desc, processJobRunBandwidthsCalled, tc.wantCalled)
+		}
+		if processAgentUpdateCalled != tc.wantCalled {
+			t.Errorf("processMessage(%q) called processAgentUpdateMsg = %t, want: %t", tc.desc, processAgentUpdateCalled, tc.wantCalled)
 		}
 	}
 }

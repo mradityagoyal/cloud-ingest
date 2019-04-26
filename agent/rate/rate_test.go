@@ -29,54 +29,54 @@ import (
 	controlpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/control_go_proto"
 )
 
-func TestProcessCtrlMsg(t *testing.T) {
+func TestProcessJobRunBandwidths(t *testing.T) {
 	jrBW0 := &controlpb.JobRunBandwidth{JobrunRelRsrcName: "job-0", Bandwidth: 0}
 	jrBW1 := &controlpb.JobRunBandwidth{JobrunRelRsrcName: "job-1", Bandwidth: 10}
 	jrBW2 := &controlpb.JobRunBandwidth{JobrunRelRsrcName: "job-2", Bandwidth: 20}
 	tests := []struct {
 		desc               string
-		cm                 *controlpb.Control
+		jobBWs             []*controlpb.JobRunBandwidth
 		wantJobRunBW       map[string]int64
 		wantProjectBWLimit rate.Limit
 	}{
 		{
 			"empty",
-			&controlpb.Control{},
+			[]*controlpb.JobRunBandwidth{},
 			map[string]int64{},
 			rate.Limit(0),
 		},
 		{
 			"zero bandwidth jobrun",
-			&controlpb.Control{JobRunsBandwidths: []*controlpb.JobRunBandwidth{jrBW0}},
+			[]*controlpb.JobRunBandwidth{jrBW0},
 			map[string]int64{"job-0": 0},
 			rate.Limit(0),
 		},
 		{
 			"one jobrun",
-			&controlpb.Control{JobRunsBandwidths: []*controlpb.JobRunBandwidth{jrBW1}},
+			[]*controlpb.JobRunBandwidth{jrBW1},
 			map[string]int64{"job-1": 10},
 			rate.Limit(10),
 		},
 		{
 			"some jobruns",
-			&controlpb.Control{JobRunsBandwidths: []*controlpb.JobRunBandwidth{jrBW1, jrBW2}},
+			[]*controlpb.JobRunBandwidth{jrBW1, jrBW2},
 			map[string]int64{"job-1": 10, "job-2": 20},
 			rate.Limit(30),
 		},
 		{
 			"mix of jobruns",
-			&controlpb.Control{JobRunsBandwidths: []*controlpb.JobRunBandwidth{jrBW0, jrBW2}},
+			[]*controlpb.JobRunBandwidth{jrBW0, jrBW2},
 			map[string]int64{"job-0": 0, "job-2": 20},
 			rate.Limit(20),
 		},
 	}
 	for _, tc := range tests {
-		ProcessCtrlMsg(tc.cm, nil)
+		ProcessJobRunBandwidths(tc.jobBWs, nil)
 		if got, want := jobRunBW, tc.wantJobRunBW; !cmp.Equal(got, want) {
-			t.Errorf("ProcessCtrlMsg(%q): jobRunBW = %v, want: %v", tc.desc, got, want)
+			t.Errorf("ProcessJobRunBandwidths(%q): jobRunBW = %v, want: %v", tc.desc, got, want)
 		}
 		if got, want := projectBWLimiter.Limit(), tc.wantProjectBWLimit; got != want {
-			t.Errorf("ProcessCtrlMsg(%q): Limit() = %v, want: %v", tc.desc, got, want)
+			t.Errorf("ProcessJobRunBandwidths(%q): Limit() = %v, want: %v", tc.desc, got, want)
 		}
 	}
 }

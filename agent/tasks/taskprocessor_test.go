@@ -116,7 +116,7 @@ func TestTaskProcessorProcessMessage(t *testing.T) {
 			},
 		},
 	}
-	rate.ProcessCtrlMsg(cm, nil)
+	rate.ProcessJobRunBandwidths(cm.GetJobRunsBandwidths(), nil)
 
 	data, err := proto.Marshal(taskReqMsg)
 	if err != nil {
@@ -244,7 +244,7 @@ func TestTaskProcessorProcessMessageNoHandler(t *testing.T) {
 			},
 		},
 	}
-	rate.ProcessCtrlMsg(cm, nil)
+	rate.ProcessJobRunBandwidths(cm.GetJobRunsBandwidths(), nil)
 
 	data, err := proto.Marshal(taskReqMsg)
 	if err != nil {
