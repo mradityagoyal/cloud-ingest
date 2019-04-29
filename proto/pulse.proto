@@ -33,4 +33,5 @@ message Msg {
 message AgentId {
   string host_name = 1;   // The host name of the client running the agent.
   string process_id = 2;  // The process id of the client running the agent.
+  string prefix = 3;      // A user-specified ID string prefix.
 }
