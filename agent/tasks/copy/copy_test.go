@@ -47,6 +47,29 @@ const (
 	testTenByteCRC32C = 1069694901 // CRC32C of the first 10-bytes of testFileContent.
 )
 
+func CheckFailureWithType(taskRelRsrcName string, failureType taskpb.FailureType, taskRespMsg *taskpb.TaskRespMsg, t *testing.T) {
+	if taskRespMsg.TaskRelRsrcName != taskRelRsrcName {
+		t.Errorf("want task id \"%s\", got \"%s\"", taskRelRsrcName, taskRespMsg.TaskRelRsrcName)
+	}
+	if taskRespMsg.Status != "FAILURE" {
+		t.Errorf("want task fail, found: %s", taskRespMsg.Status)
+	}
+	if taskRespMsg.FailureType != failureType {
+		t.Errorf("want task to fail with %s type, got: %s",
+			taskpb.FailureType_name[int32(failureType)],
+			taskpb.FailureType_name[int32(taskRespMsg.FailureType)])
+	}
+}
+
+func CheckSuccessMsg(taskRelRsrcName string, taskRespMsg *taskpb.TaskRespMsg, t *testing.T) {
+	if taskRespMsg.TaskRelRsrcName != taskRelRsrcName {
+		t.Errorf("want task id \"%s\", got \"%s\"", taskRelRsrcName, taskRespMsg.TaskRelRsrcName)
+	}
+	if taskRespMsg.Status != "SUCCESS" {
+		t.Errorf("want message success, got: %s", taskRespMsg.Status)
+	}
+}
+
 func testCopySpec(expGenNum, bytesToCopy int64, ruID string) *taskpb.Spec {
 	return &taskpb.Spec{
 		Spec: &taskpb.Spec_CopySpec{
@@ -78,7 +101,7 @@ func TestSourceNotFound(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = "file does not exist"
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
+	CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 }
 
 func TestAcquireBufferMemoryFail(t *testing.T) {
@@ -102,7 +125,7 @@ func TestAcquireBufferMemoryFail(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckFailureWithType("task", taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
+	CheckFailureWithType("task", taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
 }
 
 func TestCRC32CMismtach(t *testing.T) {
@@ -128,7 +151,7 @@ func TestCRC32CMismtach(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckFailureWithType("task", taskpb.FailureType_HASH_MISMATCH_FAILURE, taskRespMsg, t)
+	CheckFailureWithType("task", taskpb.FailureType_HASH_MISMATCH_FAILURE, taskRespMsg, t)
 }
 
 func TestCopyEntireFileSuccess(t *testing.T) {
@@ -158,7 +181,7 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg("task", taskRespMsg, t)
+	CheckSuccessMsg("task", taskRespMsg, t)
 	if writer.WrittenString() != testFileContent {
 		t.Errorf("written string want \"%s\", got \"%s\"",
 			testFileContent, writer.WrittenString())
@@ -214,7 +237,7 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg("task", taskRespMsg, t)
+	CheckSuccessMsg("task", taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("written string want \"%s\", got \"%s\"",
 			"", writer.WrittenString())
@@ -394,9 +417,9 @@ func TestCopyBundle(t *testing.T) {
 		// Check for the overall task status
 		t.Logf("CopyHandler.Do(%q)", tc.desc)
 		if tc.bundleStatus == taskpb.Status_SUCCESS {
-			common.CheckSuccessMsg("task", taskRespMsg, t)
+			CheckSuccessMsg("task", taskRespMsg, t)
 		} else {
-			common.CheckFailureWithType("task", tc.bundleFailure, taskRespMsg, t)
+			CheckFailureWithType("task", tc.bundleFailure, taskRespMsg, t)
 		}
 
 		// Check for the overall bundle log.
@@ -471,7 +494,7 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskReqMsg.Spec.GetCopySpec().BytesToCopy = 10
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg("task", taskRespMsg, t)
+	CheckSuccessMsg("task", taskRespMsg, t)
 
 	srcStats, _ := os.Stat(tmpFile)
 	wantLog := &taskpb.Log{

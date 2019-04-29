@@ -34,6 +34,29 @@ import (
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
+func CheckFailureWithType(taskRelRsrcName string, failureType taskpb.FailureType, taskRespMsg *taskpb.TaskRespMsg, t *testing.T) {
+	if taskRespMsg.TaskRelRsrcName != taskRelRsrcName {
+		t.Errorf("want task id \"%s\", got \"%s\"", taskRelRsrcName, taskRespMsg.TaskRelRsrcName)
+	}
+	if taskRespMsg.Status != "FAILURE" {
+		t.Errorf("want task fail, found: %s", taskRespMsg.Status)
+	}
+	if taskRespMsg.FailureType != failureType {
+		t.Errorf("want task to fail with %s type, got: %s",
+			taskpb.FailureType_name[int32(failureType)],
+			taskpb.FailureType_name[int32(taskRespMsg.FailureType)])
+	}
+}
+
+func CheckSuccessMsg(taskRelRsrcName string, taskRespMsg *taskpb.TaskRespMsg, t *testing.T) {
+	if taskRespMsg.TaskRelRsrcName != taskRelRsrcName {
+		t.Errorf("want task id \"%s\", got \"%s\"", taskRelRsrcName, taskRespMsg.TaskRelRsrcName)
+	}
+	if taskRespMsg.Status != "SUCCESS" {
+		t.Errorf("want message success, got: %s", taskRespMsg.Status)
+	}
+}
+
 // FakeFileInfo is a pass-through stub implementation of os.FileInfo.
 // See: https://golang.org/pkg/os/#FileInfo
 //
@@ -141,7 +164,7 @@ func TestDirNotFound(t *testing.T) {
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg("task", "dir does not exist")
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
+	CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
 	}
@@ -167,7 +190,7 @@ func TestListSuccessEmptyDir(t *testing.T) {
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -214,7 +237,7 @@ func TestListSuccessFlatDir(t *testing.T) {
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -268,7 +291,7 @@ func TestListFailsFileWithNewline(t *testing.T) {
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
 	// term, we will escape file with newlines.
-	common.CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
+	CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
 	}
@@ -315,7 +338,7 @@ func TestListSuccessNestedDir(t *testing.T) {
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())

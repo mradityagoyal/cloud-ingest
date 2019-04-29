@@ -58,7 +58,7 @@ func TestDepthFirstListDirNotFound(t *testing.T) {
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqParams := testDepthFirstListTaskReqMsg("task", []string{"dir does not exist"})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
+	CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
 	}
@@ -83,7 +83,7 @@ func TestDepthFirstListSuccessEmptyDir(t *testing.T) {
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -135,7 +135,7 @@ func TestDepthFirstListSuccessFlatDir(t *testing.T) {
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -194,7 +194,7 @@ func TestDepthFirstListFailsFileWithNewline(t *testing.T) {
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
 	// term, we will escape file with newlines.
-	common.CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
+	CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
 	}
@@ -248,7 +248,7 @@ func TestDepthFirstListSuccessNestedDirSmallListFile(t *testing.T) {
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 1, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -324,7 +324,7 @@ func TestDepthFirstListSuccessNestedDirLargeListFile(t *testing.T) {
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 1000, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -381,7 +381,7 @@ func TestDepthFirstListMakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) 
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 1}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())
@@ -468,7 +468,7 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: directoryInfoProtoOverhead*2 + len(childOfNestedTmpDir) + len(child2OfNestedTmpDir)}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
 			expectedListResult.String(), writer.WrittenString())

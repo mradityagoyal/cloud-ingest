@@ -89,7 +89,7 @@ func TestListV3DirAndSrcDirNotFound(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqMsg := testListV3TaskReqMsg("task", []string{"dir does not exist"}, "can't find me either")
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckFailureWithType("task", taskpb.FailureType_SOURCE_DIR_NOT_FOUND, taskRespMsg, t)
+	CheckFailureWithType("task", taskpb.FailureType_SOURCE_DIR_NOT_FOUND, taskRespMsg, t)
 	if listWriter.WrittenString() != "" {
 		t.Errorf("expected nothing written to list file but found: %s", listWriter.WrittenString())
 	}
@@ -117,7 +117,7 @@ func TestListV3DirInListSpecNotFound(t *testing.T) {
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{notFoundDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != "" {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			listWriter.WrittenString(), "")
@@ -184,7 +184,7 @@ func TestListV3SuccessEmptyDir(t *testing.T) {
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != "" {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			listWriter.WrittenString(), "")
@@ -234,7 +234,7 @@ func TestListV3SuccessFlatDir(t *testing.T) {
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			listWriter.WrittenString(), expectedListResult.String())
@@ -280,7 +280,7 @@ func TestListV3FailsFileWithNewline(t *testing.T) {
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
 	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
 	// term, we will escape file with newlines.
-	common.CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
+	CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			writer.WrittenString(), "")
@@ -328,7 +328,7 @@ func TestListV3SuccessNestedDirSmallListFile(t *testing.T) {
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			listWriter.WrittenString(), expectedListResult.String())
@@ -394,7 +394,7 @@ func TestListV3SuccessNestedDirLargeListFile(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 1000, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			expectedListResult.String(), listWriter.WrittenString())
@@ -447,7 +447,7 @@ func TestListV3MakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) {
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			expectedListResult.String(), listWriter.WrittenString())
@@ -523,7 +523,7 @@ func TestListV3SuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	common.CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			expectedListResult.String(), listWriter.WrittenString())
