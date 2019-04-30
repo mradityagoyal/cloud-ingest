@@ -15,7 +15,7 @@ limitations under the License.
 syntax = "proto3";
 
 package cloud_ingest_pulse;
-option go_package = "pulse_go_proto";
+option go_package = "github.com/GoogleCloudPlatform/cloud-ingest/proto/pulse_go_proto";
 
 // The Agent periodically sends this msg to the DCP. The DCP uses this info to
 // know that the Agent is alive, and to expose info about that Agent.

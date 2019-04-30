@@ -1,7 +1,9 @@
 syntax = "proto3";
 
 package cloud_ingest_control;
-option go_package = "control_go_proto";
+option go_package = "github.com/GoogleCloudPlatform/cloud-ingest/proto/control_go_proto";
+
+import "pulse.proto";
 
 // Specifies bandwidth allocated to a job run.
 message JobRunBandwidth {
@@ -9,8 +11,22 @@ message JobRunBandwidth {
   int64 bandwidth = 2;
 }
 
+// This message contains the agent update source for a corresponding agent.
+message AgentUpdateSource {
+  repeated cloud_ingest_pulse.AgentId agent_ids = 1;
+  string update_url = 2;
+}
+
+// A list containing the download source URL of each agent associated with a
+// given project.
+message AgentUpdate {
+  repeated AgentUpdateSource agent_update_sources = 1;
+}
+
 // Specifies the control messages to send to the agents for a specific project.
 message Control {
   // The bandwidth associated for each active job run in the project.
   repeated JobRunBandwidth job_runs_bandwidths = 1;
+  // The agent update URL for each active agent in the project.
+  AgentUpdate agent_updates = 2;
 }

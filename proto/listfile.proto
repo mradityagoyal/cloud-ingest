@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package cloud_ingest_listfile;
-option go_package = "listfile_go_proto";
+option go_package = "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto";
 
 // List File Entry specification.
 message ListFileEntry {

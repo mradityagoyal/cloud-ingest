@@ -1,7 +1,7 @@
 syntax = "proto3";
 
 package cloud_ingest_task;
-option go_package = "task_go_proto";
+option go_package = "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto";
 
 // Specifies the task operation that a task performs.
 enum Type {
