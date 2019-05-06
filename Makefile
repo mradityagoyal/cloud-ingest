@@ -100,7 +100,7 @@ pull-agent-go-dependencies: ## Pull all go library dependencies needed for build
 .PHONY: install-changelog-parser
 install-changelog-parser: ## Install the changelog parser.
 	@echo -e "\n== Installing Changelog Parser =="
-	@(test -f $(CHANGELOG_PARSER_JS) && echo "Already installed...") || npm install changelog-parser --loglevel error
+	@(test -f $(CHANGELOG_PARSER_JS) && echo "Already installed...") || npm install changelog-parser --save --loglevel error
 
 # Shamelessly borrowed from: http://marmelab.com/blog/2016/02/29/auto-documented-makefile.html
 .PHONY: help
