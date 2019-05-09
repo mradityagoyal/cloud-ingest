@@ -24,10 +24,9 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	pubsubinternal "github.com/GoogleCloudPlatform/cloud-ingest/agent/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
+	pulsepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/pulse_go_proto"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
-
-	pulsepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/pulse_go_proto"
 )
 
 func TestPulseSender(t *testing.T) {
@@ -77,19 +76,33 @@ func TestPulseMsg(t *testing.T) {
 	tests := []struct {
 		hostname string
 		pid      int
+		prefix   string
 		logsDir  string
 		version  string
 		want     *pulsepb.Msg
 	}{
 		{
-			"hostname", 1234, "/tmp/mylogs", "1.2.3",
+			"hostname", 1234, "", "/tmp/mylogs", "1.2.3",
 			&pulsepb.Msg{
 				AgentId: &pulsepb.AgentId{
 					HostName:  "hostname",
 					ProcessId: "1234",
+					Prefix:    "",
 				},
 				AgentVersion: "1.2.3",
 				AgentLogsDir: "/tmp/mylogs",
+			},
+		},
+		{
+			"69c1725fc298", 11, "myagent", "/tmp/mylogs2", "5.6.7",
+			&pulsepb.Msg{
+				AgentId: &pulsepb.AgentId{
+					HostName:  "69c1725fc298",
+					ProcessId: "11",
+					Prefix:    "myagent",
+				},
+				AgentVersion: "5.6.7",
+				AgentLogsDir: "/tmp/mylogs2",
 			},
 		},
 	}
@@ -97,6 +110,7 @@ func TestPulseMsg(t *testing.T) {
 		ps := &PulseSender{
 			hostname: tc.hostname,
 			pid:      tc.pid,
+			prefix:   tc.prefix,
 			logsDir:  tc.logsDir,
 			version:  tc.version,
 		}

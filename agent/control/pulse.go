@@ -17,6 +17,7 @@ package control
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -32,6 +33,10 @@ import (
 	pulsepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/pulse_go_proto"
 )
 
+var (
+	agentIDPrefix = flag.String("agent-id-prefix", "", "A a prefix to include on the agent id")
+)
+
 const (
 	pulseFrequency = 10 // The frequency (in seconds) to send pulses.
 )
@@ -44,6 +49,7 @@ type PulseSender struct {
 	hostname string
 	pid      int
 	logsDir  string
+	prefix   string
 	version  string
 
 	// Used to get live bandwidth measurements.
@@ -56,6 +62,7 @@ type PulseSender struct {
 
 // NewPulseSender returns a new PulseSender.
 func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir string, st *stats.Tracker) *PulseSender {
+	// When running in a docker container, hostname corresponds to a container ID.
 	hn, err := os.Hostname()
 	if err != nil {
 		hn = "hostnameunknown"
@@ -64,6 +71,7 @@ func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir strin
 		pulseTopic:   t,
 		hostname:     hn,
 		pid:          os.Getpid(),
+		prefix:       *agentIDPrefix,
 		logsDir:      logsDir,
 		version:      versions.AgentVersion().String(),
 		statsTracker: st,
@@ -108,6 +116,7 @@ func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
 		AgentId: &pulsepb.AgentId{
 			HostName:  ps.hostname,
 			ProcessId: fmt.Sprintf("%v", ps.pid),
+			Prefix:    ps.prefix,
 		},
 		AgentVersion:          ps.version,
 		AgentLogsDir:          ps.logsDir,
