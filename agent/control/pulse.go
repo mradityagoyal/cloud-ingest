@@ -55,6 +55,9 @@ type PulseSender struct {
 	// Used to get live bandwidth measurements.
 	statsTracker *stats.Tracker
 
+	// Time of instantiation of this struct.
+	startTime time.Time
+
 	// Testing hooks.
 	selectDone func()
 	sendTicker common.Ticker
@@ -75,6 +78,7 @@ func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir strin
 		logsDir:      logsDir,
 		version:      versions.AgentVersion().String(),
 		statsTracker: st,
+		startTime:    time.Now(),
 		selectDone:   func() {},
 		sendTicker:   common.NewClockTicker(pulseFrequency * time.Second),
 	}
@@ -121,5 +125,7 @@ func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
 		AgentVersion:          ps.version,
 		AgentLogsDir:          ps.logsDir,
 		AgentTransferredBytes: transferredBytes,
+		// Seconds() returns the duration as a floating point
+		AgentUptimeMs: int64(time.Now().Sub(ps.startTime).Seconds() * 1000),
 	}
 }

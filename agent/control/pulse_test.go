@@ -20,13 +20,12 @@ import (
 	"sync"
 	"testing"
 
-	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	pubsubinternal "github.com/GoogleCloudPlatform/cloud-ingest/agent/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	pulsepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/pulse_go_proto"
 	"github.com/golang/mock/gomock"
-	"github.com/golang/protobuf/proto"
+	"github.com/google/go-cmp/cmp"
 )
 
 func TestPulseSender(t *testing.T) {
@@ -52,12 +51,7 @@ func TestPulseSender(t *testing.T) {
 		ps.pid = 1234
 		ps.version = "1.2.3"
 
-		// Complete the mock pulse topic.
-		msg, err := proto.Marshal(ps.pulseMsg())
-		if err != nil {
-			t.Fatalf("proto.Marshal(%v) got err: %v", ps.pulseMsg(), err)
-		}
-		mockPulseTopic.EXPECT().Publish(ctx, &pubsub.Message{Data: msg}).MaxTimes(numPulses).MinTimes(numPulses).Return(mockPublishResult)
+		mockPulseTopic.EXPECT().Publish(ctx, gomock.Any()).MaxTimes(numPulses).MinTimes(numPulses).Return(mockPublishResult)
 
 		// Set up the test hooks and send the pulses.
 		var wg sync.WaitGroup
@@ -73,6 +67,10 @@ func TestPulseSender(t *testing.T) {
 }
 
 func TestPulseMsg(t *testing.T) {
+	agentMsgCmpOpt := cmp.Comparer(func(x, y pulsepb.Msg) bool {
+		return (cmp.Equal(x.AgentId, y.AgentId) && x.AgentLogsDir == y.AgentLogsDir &&
+			x.AgentVersion == y.AgentVersion)
+	})
 	tests := []struct {
 		hostname string
 		pid      int
@@ -114,7 +112,7 @@ func TestPulseMsg(t *testing.T) {
 			logsDir:  tc.logsDir,
 			version:  tc.version,
 		}
-		if got := ps.pulseMsg(); !proto.Equal(got, tc.want) {
+		if got := ps.pulseMsg(); !cmp.Equal(got, tc.want, agentMsgCmpOpt) {
 			t.Errorf("ps.pulseMsg() = %v, want %v", got, tc.want)
 		}
 	}

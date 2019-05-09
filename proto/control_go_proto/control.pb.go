@@ -69,7 +69,7 @@ func (m *JobRunBandwidth) GetBandwidth() int64 {
 	return 0
 }
 
-// This message contains the agent update source for a corresponding agent
+// This message contains the agent update source for a corresponding agent.
 type AgentUpdateSource struct {
 	AgentIds             []*pulse_go_proto.AgentId `protobuf:"bytes,1,rep,name=agent_ids,json=agentIds,proto3" json:"agent_ids,omitempty"`
 	UpdateUrl            string                    `protobuf:"bytes,2,opt,name=update_url,json=updateUrl,proto3" json:"update_url,omitempty"`
@@ -118,7 +118,7 @@ func (m *AgentUpdateSource) GetUpdateUrl() string {
 }
 
 // A list containing the download source URL of each agent associated with a
-// given project
+// given project.
 type AgentUpdate struct {
 	AgentUpdateSources   []*AgentUpdateSource `protobuf:"bytes,1,rep,name=agent_update_sources,json=agentUpdateSources,proto3" json:"agent_update_sources,omitempty"`
 	XXX_NoUnkeyedLiteral struct{}             `json:"-"`
