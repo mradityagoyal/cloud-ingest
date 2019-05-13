@@ -23,7 +23,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	crc32pkg "hash/crc32" // Alias to disambiguate from usage.
 	"io"
 	"io/ioutil"
 	"net"
@@ -73,7 +72,6 @@ const (
 
 var (
 	copyMemoryLimit int64
-	CRC32CTable     *crc32pkg.Table
 	internalTesting bool
 
 	// NumberThreads is used to limit the concurrency within the Copy handler, and also set the MaxOutstandingMessages for the PubSub copy subscription.
@@ -85,7 +83,6 @@ func init() {
 		"Max memory buffer (in bytes) consumed by the copy tasks.")
 	flag.BoolVar(&internalTesting, "internal-testing", false,
 		"Agent running for Google internal testing purposes.")
-	CRC32CTable = crc32pkg.MakeTable(crc32pkg.Castagnoli)
 }
 
 // NewResumableHttpClient creates a new http.Client suitable for resumable copies.
@@ -367,12 +364,12 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 	defer h.memoryLimiter.Release(bufSize)
 	buf := make([]byte, bufSize)
 
-	// Wrap the srcFile with rate limiting and byte tracking readers.
-	r := rate.NewRateLimitingReader(srcFile)
-	r = h.statsTracker.NewByteTrackingReader(r)
+	var srcCRC32C uint32
+	r := rate.NewRateLimitingReader(srcFile)    // Wrap the srcFile with a RateLimitingReader.
+	r = h.statsTracker.NewByteTrackingReader(r) // Wrap with a ByteTrackingReader.
+	r = NewCRC32UpdatingReader(r, &srcCRC32C)   // Wrap with a CRC32UpdatingReader.
 
 	// Perform the copy (by writing to the gcsWriter).
-	var srcCRC32C uint32
 	for {
 		n, err := r.Read(buf)
 		if err != nil {
@@ -387,7 +384,6 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 			w.CloseWithError(err)
 			return err
 		}
-		srcCRC32C = crc32pkg.Update(srcCRC32C, CRC32CTable, buf[:n])
 	}
 	if err := w.Close(); err != nil {
 		return err
@@ -527,7 +523,8 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 	if !final && err != nil {
 		return fmt.Errorf("srcFile.Read non-io.EOF err: %v", err)
 	}
-	srcCRC32C := crc32pkg.Update(uint32(c.Crc32C), CRC32CTable, buf)
+
+	var srcCRC32C uint32
 
 	// This loop will retry multiple times if the HTTP response returns a retryable error.
 	var backoff BackOff
@@ -540,9 +537,12 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		case <-time.After(delay):
 		}
 
+		srcCRC32C = c.Crc32C // Set the initial crc32.
+
 		var r io.Reader = bytes.NewReader(buf)      // Wrap the buf with an io.Reader.
 		r = rate.NewRateLimitingReader(r)           // Wrap with a RateLimitingReader.
-		r = h.statsTracker.NewByteTrackingReader(r) // Wrap r with a ByteTrackingReader.
+		r = h.statsTracker.NewByteTrackingReader(r) // Wrap with a ByteTrackingReader.
+		r = NewCRC32UpdatingReader(r, &srcCRC32C)   // Wrap with a CRC32UpdatingReader.
 
 		// Perform the copy!
 		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, r, c.BytesCopied, int64(bytesRead), final)

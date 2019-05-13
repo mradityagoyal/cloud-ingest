@@ -527,6 +527,13 @@ func TestCopyBundle(t *testing.T) {
 func TestCopyHandlerDoResumable(t *testing.T) {
 	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit), concurrentCopySem: semaphore.NewWeighted(1)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
+		// Read the http.Request.Body to invoke the CRC32UpdatingReader.
+		buf := make([]byte, 1024)
+		var err error
+		for err == nil {
+			_, err = req.Body.Read(buf)
+		}
+
 		// This bogus response serves both the prepareResumableCopy and
 		// copyResumableChunk requests.
 		object := &raw.Object{
@@ -696,6 +703,13 @@ func TestPrepareResumableCopy(t *testing.T) {
 func TestCopyResumableChunkFinal(t *testing.T) {
 	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
+		// Read the http.Request.Body to invoke the CRC32UpdatingReader.
+		buf := make([]byte, 1024)
+		var err error
+		for err == nil {
+			_, err = req.Body.Read(buf)
+		}
+
 		object := &raw.Object{
 			Name:    "object",
 			Bucket:  "bucket",
@@ -762,6 +776,13 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 func TestCopyResumableChunkNotFinal(t *testing.T) {
 	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
+		// Read the http.Request.Body to invoke the CRC32UpdatingReader.
+		buf := make([]byte, 1024)
+		var err error
+		for err == nil {
+			_, err = req.Body.Read(buf)
+		}
+
 		object := &raw.Object{
 			Name:    "object",
 			Bucket:  "bucket",
