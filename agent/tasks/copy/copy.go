@@ -540,15 +540,9 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		case <-time.After(delay):
 		}
 
-		// Make a copy of the read bytes so that if we have to retry the send we don't have
-		// to re-read from the srcFile (potentially hitting an on-premises NFS).
-		copyBuf := make([]byte, len(buf))
-		copy(copyBuf, buf)
-		cbr := bytes.NewReader(copyBuf)
-
-		// Wrap the chunk buffer with rate limiting and byte tracking readers.
-		r := rate.NewRateLimitingReader(cbr)
-		r = h.statsTracker.NewByteTrackingReader(r)
+		var r io.Reader = bytes.NewReader(buf)      // Wrap the buf with an io.Reader.
+		r = rate.NewRateLimitingReader(r)           // Wrap with a RateLimitingReader.
+		r = h.statsTracker.NewByteTrackingReader(r) // Wrap r with a ByteTrackingReader.
 
 		// Perform the copy!
 		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, r, c.BytesCopied, int64(bytesRead), final)

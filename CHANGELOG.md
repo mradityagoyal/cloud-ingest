@@ -12,6 +12,8 @@ major job run versions.
 ## [Unreleased]
 ### Added
 - AgentUpdate to control message
+### Changed
+- Massive memory usage improvements for incremental file copies.
 
 ## [1.0.7] - 2019-04-18
 ### Changed
