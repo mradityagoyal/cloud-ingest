@@ -104,30 +104,6 @@ func TestSourceNotFound(t *testing.T) {
 	CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 }
 
-func TestAcquireBufferMemoryFail(t *testing.T) {
-	mockCtrl := gomock.NewController(t)
-	defer mockCtrl.Finish()
-	writer := common.NewStringWriteCloser(&storage.ObjectAttrs{})
-
-	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
-	defer os.Remove(tmpFile)
-
-	mockGCS := gcloud.NewMockGCS(mockCtrl)
-	mockGCS.EXPECT().NewWriterWithCondition(
-		context.Background(), "bucket", "object", gomock.Any()).Return(writer).Times(maxRetryCount)
-
-	copyMemoryLimit = 5
-	h := CopyHandler{
-		gcs:               mockGCS,
-		memoryLimiter:     semaphore.NewWeighted(5),
-		concurrentCopySem: semaphore.NewWeighted(1),
-	}
-	taskReqMsg := testCopyTaskReqMsg()
-	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
-	CheckFailureWithType("task", taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
-}
-
 func TestCRC32CMismtach(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -599,7 +575,7 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 type fakeStats struct{}
 
 func (f fakeStats) Name() string       { return "fake name" }
-func (f fakeStats) Size() int64        { return 1234 }
+func (f fakeStats) Size() int64        { return 45 }
 func (f fakeStats) Mode() os.FileMode  { return os.FileMode(0) }
 func (f fakeStats) ModTime() time.Time { return time.Unix(0, 1234567890000000000) }
 func (f fakeStats) IsDir() bool        { return false }
@@ -632,7 +608,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 			"Content-Type":            {"application/json; charset=UTF-8"},
 			"Content-Length":          {"89"},
 			"User-Agent":              {userAgent},
-			"X-Upload-Content-Length": {"1234"},
+			"X-Upload-Content-Length": {"45"},
 			"X-Upload-Content-Type":   {"text/plain; charset=utf-8"},
 		}
 		for wantKey, wantVal := range wantHeaders {
@@ -679,7 +655,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 	copySpec := testCopySpec(77, 10, "").GetCopySpec()
 
 	wantRespCopySpec := proto.Clone(copySpec).(*taskpb.CopySpec)
-	wantRespCopySpec.FileBytes = 1234
+	wantRespCopySpec.FileBytes = 45
 	wantRespCopySpec.FileMTime = 1234567890
 	wantRespCopySpec.ResumableUploadId = "testResumableUploadId"
 

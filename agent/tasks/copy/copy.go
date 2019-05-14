@@ -123,6 +123,7 @@ func NewCopyHandler(storageClient *storage.Client, hc *http.Client, st *stats.Tr
 	return &CopyHandler{
 		gcs:               gcloud.NewGCSClient(storageClient),
 		hc:                hc,
+		// TODO(b/132207554): The memoryLimiter is now unused. Remove it in a follow up change.
 		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem: semaphore.NewWeighted(int64(*NumberThreads)),
 		httpDoFunc:        ctxhttp.Do,
@@ -346,44 +347,15 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 		t.ChunkSize = int(bufSize)
 	}
 
-	// Create a buffer that respects the Agent's copyMemoryLimit.
-	if bufSize > copyMemoryLimit {
-		err := fmt.Errorf(
-			"memory buffer limit for copy tasks is %d bytes, but task requires %d bytes",
-			copyMemoryLimit, bufSize)
-		w.CloseWithError(err)
-		return err
-	} else if bufSize < 1 {
-		// Never allow a non-positive buf size (mainly for empty files).
-		bufSize = 1
-	}
-	if err := h.memoryLimiter.Acquire(ctx, bufSize); err != nil {
-		w.CloseWithError(err)
-		return err
-	}
-	defer h.memoryLimiter.Release(bufSize)
-	buf := make([]byte, bufSize)
-
 	var srcCRC32C uint32
 	r := rate.NewRateLimitingReader(srcFile)    // Wrap the srcFile with a RateLimitingReader.
 	r = h.statsTracker.NewByteTrackingReader(r) // Wrap with a ByteTrackingReader.
 	r = NewCRC32UpdatingReader(r, &srcCRC32C)   // Wrap with a CRC32UpdatingReader.
 
-	// Perform the copy (by writing to the gcsWriter).
-	for {
-		n, err := r.Read(buf)
-		if err != nil {
-			if err == io.EOF {
-				break
-			}
-			w.CloseWithError(err)
-			return err
-		}
-		_, err = w.Write(buf[:n])
-		if err != nil {
-			w.CloseWithError(err)
-			return err
-		}
+	// Copy the file using io.Copy. This allocates a small temp buffer and handles the Read+Write calls.
+	if _, err := io.Copy(w, r); err != nil {
+		w.CloseWithError(err)
+		return err
 	}
 	if err := w.Close(); err != nil {
 		return err
@@ -490,38 +462,12 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 // copy task. This function also updates the CopySpec and CopyLog, both of
 // which are sent to the DCP.
 func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, cl *taskpb.CopyLog) error {
+	final := false
 	bytesToCopy := c.BytesToCopy
-	if bytesToCopy <= 0 {
+	if bytesToCopy <= 0 || bytesToCopy+c.BytesCopied >= stats.Size() {
 		// c.BytesToCopy <= 0 indicates that the rest of the file should be copied.
 		bytesToCopy = stats.Size() - c.BytesCopied
-	}
-
-	// Create a buffer that respects the Agent's copyMemoryLimit.
-	if bytesToCopy > copyMemoryLimit {
-		return fmt.Errorf(
-			"total memory buffer limit for copy task is %d bytes, but task requires "+
-				"%d bytes (resumeableChunkSize)",
-			copyMemoryLimit, bytesToCopy)
-	}
-	if err := h.memoryLimiter.Acquire(ctx, bytesToCopy); err != nil {
-		return fmt.Errorf("memoryLimiter.Acquire err: %v", err)
-	}
-	defer h.memoryLimiter.Release(bytesToCopy)
-	buf := make([]byte, bytesToCopy)
-
-	// Read the source file into the buffer from where the previous resumable-copy left off.
-	srcFile.Seek(c.BytesCopied, 0)
-	bytesRead := 0
-	var err error
-	for err == nil && bytesRead < int(bytesToCopy) {
-		var n int
-		n, err = srcFile.Read(buf[bytesRead:])
-		bytesRead += n
-	}
-	buf = buf[:bytesRead]
-	final := err == io.EOF
-	if !final && err != nil {
-		return fmt.Errorf("srcFile.Read non-io.EOF err: %v", err)
+		final = true
 	}
 
 	var srcCRC32C uint32
@@ -530,6 +476,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 	var backoff BackOff
 	var delay time.Duration
 	var resp *http.Response
+	var err error
 	for {
 		select {
 		case <-ctx.Done():
@@ -537,15 +484,15 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		case <-time.After(delay):
 		}
 
-		srcCRC32C = c.Crc32C // Set the initial crc32.
-
-		var r io.Reader = bytes.NewReader(buf)      // Wrap the buf with an io.Reader.
-		r = rate.NewRateLimitingReader(r)           // Wrap with a RateLimitingReader.
-		r = h.statsTracker.NewByteTrackingReader(r) // Wrap with a ByteTrackingReader.
-		r = NewCRC32UpdatingReader(r, &srcCRC32C)   // Wrap with a CRC32UpdatingReader.
+		srcFile.Seek(c.BytesCopied, 0)
+		var r io.Reader = io.LimitReader(srcFile, bytesToCopy) // Wrap the srcFile in a LimitReader.
+		r = rate.NewRateLimitingReader(r)                      // Wrap with a RateLimitingReader.
+		r = h.statsTracker.NewByteTrackingReader(r)            // Wrap with a ByteTrackingReader.
+		srcCRC32C = c.Crc32C                                   // Set the initial crc32.
+		r = NewCRC32UpdatingReader(r, &srcCRC32C)              // Wrap with a CRC32UpdatingReader.
 
 		// Perform the copy!
-		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, r, c.BytesCopied, int64(bytesRead), final)
+		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, r, c.BytesCopied, int64(bytesToCopy), final)
 
 		var status int
 		if resp != nil {
@@ -608,7 +555,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 	} else {
 		c.Crc32C = srcCRC32C
 	}
-	c.BytesCopied += int64(bytesRead)
+	c.BytesCopied += int64(bytesToCopy)
 	cl.BytesCopied = c.BytesCopied
 
 	return nil
