@@ -58,9 +58,9 @@ import (
 )
 
 const (
-	userAgent                     = "google-cloud-ingest-on-premises-agent TransferService/1.0 (GPN:transferservice_onpremnfs; Data moved from onpremnfs to GCS)"
-	userAgentInternal             = "google-cloud-ingest-on-premises-agent"
-	MTIME_ATTR_NAME        string = "goog-reserved-file-mtime"
+	userAgent         = "google-cloud-ingest-on-premises-agent TransferService/1.0 (GPN:transferservice_onpremnfs; Data moved from onpremnfs to GCS)"
+	userAgentInternal = "google-cloud-ingest-on-premises-agent"
+	MTIME_ATTR_NAME   = "goog-reserved-file-mtime"
 
 	// Note: this default chunk size is only used if the DCP instructs the
 	// Agent to copy the entire file but does not specify a chunk size. This
@@ -70,21 +70,14 @@ const (
 )
 
 var (
-	internalTesting bool
-
-	// NumberThreads is used to limit the concurrency within the Copy handler, and also set the MaxOutstandingMessages for the PubSub copy subscription.
-	NumberThreads = flag.Int("threads", 100, "The number of threads to process the copy tasks. If 0, will use the default Pub/Sub client value (1000).")
+	internalTesting   = flag.Bool("internal-testing", false, "Agent running for Google internal testing purposes.")
+	concurrentCopyMax = flag.Int("concurrent-copy-max", 100, "The maximum allowed number of concurrent file copies.")
 )
-
-func init() {
-	flag.BoolVar(&internalTesting, "internal-testing", false,
-		"Agent running for Google internal testing purposes.")
-}
 
 // NewResumableHttpClient creates a new http.Client suitable for resumable copies.
 func NewResumableHttpClient(ctx context.Context, opts ...option.ClientOption) (*http.Client, error) {
 	userAgentStr := userAgent
-	if internalTesting {
+	if *internalTesting {
 		userAgentStr = userAgentInternal
 	}
 	// TODO(b/74008724): We likely don't need full control, only read and write. Limit this.
@@ -102,12 +95,10 @@ func NewResumableHttpClient(ctx context.Context, opts ...option.ClientOption) (*
 
 // CopyHandler is responsible for handling copy tasks.
 type CopyHandler struct {
-	gcs           gcloud.GCS
-	hc            *http.Client
-	// concurrentCopySem is semaphore to limit the number of concurrent goroutines uploading files.
-	concurrentCopySem *semaphore.Weighted
-
-	statsTracker *stats.Tracker // For tracking bytes sent/copied.
+	gcs               gcloud.GCS
+	hc                *http.Client
+	concurrentCopySem *semaphore.Weighted // Limits the number of concurrent goroutines uploading files.
+	statsTracker      *stats.Tracker      // For tracking bytes sent/copied.
 
 	// Exposed here only for testing purposes.
 	httpDoFunc func(context.Context, *http.Client, *http.Request) (*http.Response, error)
@@ -118,7 +109,7 @@ func NewCopyHandler(storageClient *storage.Client, hc *http.Client, st *stats.Tr
 	return &CopyHandler{
 		gcs:               gcloud.NewGCSClient(storageClient),
 		hc:                hc,
-		concurrentCopySem: semaphore.NewWeighted(int64(*NumberThreads)),
+		concurrentCopySem: semaphore.NewWeighted(int64(*concurrentCopyMax)),
 		httpDoFunc:        ctxhttp.Do,
 		statsTracker:      st,
 	}
@@ -410,7 +401,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 	}
 
 	userAgentStr := userAgent
-	if internalTesting {
+	if *internalTesting {
 		userAgentStr = userAgentInternal
 	}
 

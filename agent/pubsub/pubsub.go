@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"cloud.google.com/go/pubsub"
-	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/copy"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/list"
 	"github.com/golang/glog"
 )
@@ -29,6 +28,7 @@ const (
 var (
 	pubsubPrefix             = flag.String("pubsub-prefix", "", "Prefix of Pub/Sub topics and subscriptions names.")
 	maxPubSubLeaseExtenstion = flag.Duration("pubsub-lease-extension", 0, "The max duration to extend the leases for a Pub/Sub message. If 0, will use the default Pub/Sub client value (10 mins).")
+	copySubGoroutines        = flag.Int("threads", 100, "The number of goroutines that serve the copy subscription. If 0, will use the default Pub/Sub client value (1000).")
 )
 
 // waitOnSubscription blocks until either the PubSub subscription exists, or returns an err.
@@ -134,7 +134,7 @@ func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client)
 		defer wg.Done()
 		copySub = pubSubClient.Subscription(*pubsubPrefix + copySubscriptionID)
 		copySub.ReceiveSettings.MaxExtension = *maxPubSubLeaseExtenstion
-		copySub.ReceiveSettings.MaxOutstandingMessages = *copy.NumberThreads
+		copySub.ReceiveSettings.MaxOutstandingMessages = *copySubGoroutines
 		copySub.ReceiveSettings.Synchronous = true
 		if err := waitOnSubscription(ctx, copySub); err != nil {
 			glog.Fatalf("Could not find copy subscription %s, error %+v", copySub.String(), err)
