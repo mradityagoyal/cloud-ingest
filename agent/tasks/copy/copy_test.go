@@ -237,14 +237,12 @@ func TestCopyBundle(t *testing.T) {
 	gcsModTime := time.Now()
 
 	type bundledFileTestData struct {
-		fileName         string
-		fileData         string
-		crc              uint32
-		size             int64
-		bucket           string
-		object           string
-		bundleFileStatus taskpb.Status
-		bundleFileLog    *taskpb.CopyLog
+		fileName string
+		fileData string
+		crc      uint32
+		size     int64
+		bucket   string
+		object   string
 
 		wantStatus     taskpb.Status
 		wantFailure    taskpb.FailureType
@@ -323,97 +321,47 @@ func TestCopyBundle(t *testing.T) {
 				BytesFailed: 19,
 			},
 		},
-		{
-			desc: "incoming bundle with a success and a permanent failure",
-			bundledFiles: []*bundledFileTestData{
-				&bundledFileTestData{
-					wantStatus:       taskpb.Status_SUCCESS,
-					bundleFileStatus: taskpb.Status_SUCCESS,
-					bundleFileLog: &taskpb.CopyLog{
-						SrcFile:     "test-file-0",
-						SrcBytes:    17,
-						SrcCrc32C:   0x3CAC94DC,
-						DstFile:     fmt.Sprintf("%s/%s", "bucket", "object"),
-						DstBytes:    17,
-						DstMTime:    gcsModTime.Unix(),
-						DstCrc32C:   0x3CAC94DC,
-						BytesCopied: 17,
-					},
-				},
-				&bundledFileTestData{
-					wantStatus:       taskpb.Status_FAILED,
-					bundleFileStatus: taskpb.Status_FAILED,
-					bundleFileLog: &taskpb.CopyLog{
-						SrcFile:   "test-file-0",
-						SrcBytes:  18,
-						SrcCrc32C: 0x3CAC94DC,
-						DstFile:   fmt.Sprintf("%s/%s", "bucket", "object"),
-					},
-				},
-				&bundledFileTestData{
-					fileName:       "test-file-1",
-					fileData:       "File 1 data content",
-					crc:            0x3CAC94DC,
-					size:           19,
-					bucket:         "bucket",
-					object:         "object3",
-					wantStatus:     taskpb.Status_SUCCESS,
-					wantRetryTimes: 1,
-				},
-			},
-			bundleStatus:  taskpb.Status_FAILED,
-			bundleFailure: taskpb.FailureType_UNKNOWN_FAILURE,
-			bundleLog: &taskpb.CopyBundleLog{
-				FilesCopied: 2,
-				FilesFailed: 1,
-				BytesCopied: 36,
-				BytesFailed: 18,
-			},
-		},
 	}
-
-	type fileInfo struct {
-		crc    uint32
-		size   int64
-		writer *common.StringWriteCloser
-	}
-	objectMap := make(map[string]fileInfo)
-	writerFunc := func(ctx context.Context, bucket, object string, cond interface{}) *common.StringWriteCloser {
-		mapIndex := fmt.Sprintf("%s/%s", bucket, object)
-		fileCrc := objectMap[mapIndex].crc
-		fileSize := objectMap[mapIndex].size
-		filewriter := common.NewStringWriteCloser(&storage.ObjectAttrs{
-			CRC32C:  fileCrc,
-			Size:    fileSize,
-			Updated: gcsModTime,
-		})
-
-		objectMap[mapIndex] = fileInfo{
-			crc:    fileCrc,
-			size:   fileSize,
-			writer: filewriter,
-		}
-		return filewriter
-	}
-
 	for _, tc := range tests {
 		mockGCS := gcloud.NewMockGCS(mockCtrl)
 		bundleSpec := &taskpb.CopyBundleSpec{}
+		type fileInfo struct {
+			crc    uint32
+			size   int64
+			writer *common.StringWriteCloser
+		}
+		objectMap := make(map[string]fileInfo)
+
+		writerFunc := func(ctx context.Context, bucket, object string, cond interface{}) *common.StringWriteCloser {
+			mapIndex := fmt.Sprintf("%s/%s", bucket, object)
+			fileCrc := objectMap[mapIndex].crc
+			fileSize := objectMap[mapIndex].size
+			filewriter := common.NewStringWriteCloser(&storage.ObjectAttrs{
+				CRC32C:  fileCrc,
+				Size:    fileSize,
+				Updated: gcsModTime,
+			})
+
+			objectMap[mapIndex] = fileInfo{
+				crc:    fileCrc,
+				size:   fileSize,
+				writer: filewriter,
+			}
+			return filewriter
+		}
 
 		for _, file := range tc.bundledFiles {
-			if !isTerminalStatus(file.bundleFileStatus) {
-				objectMap[fmt.Sprintf("%s/%s", file.bucket, file.object)] = fileInfo{
-					crc:    file.crc,
-					size:   file.size,
-					writer: nil,
-				}
-
-				file.fileName = common.CreateTmpFile("", file.fileName, file.fileData)
-				defer os.Remove(file.fileName)
-
-				mockGCS.EXPECT().NewWriterWithCondition(
-					context.Background(), file.bucket, file.object, gomock.Any()).DoAndReturn(writerFunc).Times(file.wantRetryTimes)
+			objectMap[fmt.Sprintf("%s/%s", file.bucket, file.object)] = fileInfo{
+				crc:    file.crc,
+				size:   file.size,
+				writer: nil,
 			}
+
+			file.fileName = common.CreateTmpFile("", file.fileName, file.fileData)
+			defer os.Remove(file.fileName)
+
+			mockGCS.EXPECT().NewWriterWithCondition(
+				context.Background(), file.bucket, file.object, gomock.Any()).DoAndReturn(writerFunc).Times(file.wantRetryTimes)
 
 			bundleSpec.BundledFiles = append(bundleSpec.BundledFiles, &taskpb.BundledFile{
 				CopySpec: &taskpb.CopySpec{
@@ -421,8 +369,6 @@ func TestCopyBundle(t *testing.T) {
 					DstObject: file.object,
 					SrcFile:   file.fileName,
 				},
-				Status:  file.bundleFileStatus,
-				CopyLog: file.bundleFileLog,
 			})
 		}
 
@@ -453,29 +399,23 @@ func TestCopyBundle(t *testing.T) {
 		// Check the status of each of the written file.
 		resBundledFiles := taskRespMsg.RespSpec.GetCopyBundleSpec().BundledFiles
 		for i, file := range tc.bundledFiles {
-			if !isTerminalStatus(file.bundleFileStatus) {
-				mapIndex := fmt.Sprintf("%s/%s", file.bucket, file.object)
-				if objectMap[mapIndex].writer.WrittenString() != file.fileData {
-					t.Errorf("CopyHandler.Do(%q), written string: %q, want %q", tc.desc, objectMap[mapIndex].writer.WrittenString(), file.fileData)
-				}
+			mapIndex := fmt.Sprintf("%s/%s", file.bucket, file.object)
+			if objectMap[mapIndex].writer.WrittenString() != file.fileData {
+				t.Errorf("CopyHandler.Do(%q), written string: %q, want %q", tc.desc, objectMap[mapIndex].writer.WrittenString(), file.fileData)
 			}
+			srcStats, _ := os.Stat(file.fileName)
+			wantLog := &taskpb.CopyLog{
+				SrcFile:   file.fileName,
+				SrcBytes:  file.size,
+				SrcMTime:  srcStats.ModTime().Unix(),
+				SrcCrc32C: file.crc,
 
-			wantLog := file.bundleFileLog
-			if wantLog == nil {
-				srcStats, _ := os.Stat(file.fileName)
-				wantLog = &taskpb.CopyLog{
-					SrcFile:   file.fileName,
-					SrcBytes:  file.size,
-					SrcMTime:  srcStats.ModTime().Unix(),
-					SrcCrc32C: file.crc,
+				DstFile:   fmt.Sprintf("%s/%s", file.bucket, file.object),
+				DstBytes:  file.size,
+				DstMTime:  gcsModTime.Unix(),
+				DstCrc32C: file.crc,
 
-					DstFile:   fmt.Sprintf("%s/%s", file.bucket, file.object),
-					DstBytes:  file.size,
-					DstMTime:  gcsModTime.Unix(),
-					DstCrc32C: file.crc,
-
-					BytesCopied: file.size,
-				}
+				BytesCopied: file.size,
 			}
 
 			if resBundledFiles[i].Status != file.wantStatus {

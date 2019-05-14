@@ -265,16 +265,9 @@ func (h *CopyHandler) handleCopySpecWithRetries(ctx context.Context, copySpec *t
 	return spec, copyLog, err
 }
 
-func isTerminalStatus(status taskpb.Status) bool {
-	return status == taskpb.Status_FAILED || status == taskpb.Status_SUCCESS
-}
-
 func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, error) {
 	var wg sync.WaitGroup
 	for _, bf := range bundleSpec.BundledFiles {
-		if isTerminalStatus(bf.Status) {
-			continue
-		}
 		wg.Add(1)
 		go func(bf *taskpb.BundledFile) {
 			defer wg.Done()
@@ -288,7 +281,6 @@ func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *task
 				bf.Status = taskpb.Status_FAILED
 			}
 		}(bf)
-
 	}
 	wg.Wait()
 	return getBundleLogAndError(bundleSpec)
