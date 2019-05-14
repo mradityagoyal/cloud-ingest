@@ -13,7 +13,8 @@ major job run versions.
 ### Added
 - AgentUpdate to control message
 ### Changed
-- Massive memory usage improvements for incremental file copies.
+- Memory usage improvements for file copies.
+- The 'copy memory limiter' is removed, which likely improves Agent performance.
 
 ## [1.0.7] - 2019-04-18
 ### Changed

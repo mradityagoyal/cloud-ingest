@@ -118,10 +118,8 @@ func TestCRC32CMismtach(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer).Times(maxRetryCount)
 
-	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
 		gcs:               mockGCS,
-		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem: semaphore.NewWeighted(1),
 	}
 	taskReqMsg := testCopyTaskReqMsg()
@@ -148,10 +146,8 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
-	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
 		gcs:               mockGCS,
-		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem: semaphore.NewWeighted(1),
 	}
 	taskReqMsg := testCopyTaskReqMsg()
@@ -204,10 +200,8 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
-	copyMemoryLimit = defaultCopyMemoryLimit
 	h := CopyHandler{
 		gcs:               mockGCS,
-		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem: semaphore.NewWeighted(1),
 	}
 	taskReqMsg := testCopyTaskReqMsg()
@@ -432,10 +426,8 @@ func TestCopyBundle(t *testing.T) {
 			})
 		}
 
-		copyMemoryLimit = defaultCopyMemoryLimit
 		h := CopyHandler{
 			gcs:               mockGCS,
-			memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
 			concurrentCopySem: semaphore.NewWeighted(1),
 		}
 		taskReqMsg := &taskpb.TaskReqMsg{
@@ -501,7 +493,7 @@ func TestCopyBundle(t *testing.T) {
 	}
 }
 func TestCopyHandlerDoResumable(t *testing.T) {
-	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit), concurrentCopySem: semaphore.NewWeighted(1)}
+	h := CopyHandler{concurrentCopySem: semaphore.NewWeighted(1)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
 		// Read the http.Request.Body to invoke the CRC32UpdatingReader.
 		buf := make([]byte, 1024)
@@ -677,7 +669,7 @@ func TestPrepareResumableCopy(t *testing.T) {
 }
 
 func TestCopyResumableChunkFinal(t *testing.T) {
-	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit)}
+	h := CopyHandler{}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
 		// Read the http.Request.Body to invoke the CRC32UpdatingReader.
 		buf := make([]byte, 1024)
@@ -750,7 +742,7 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 }
 
 func TestCopyResumableChunkNotFinal(t *testing.T) {
-	h := CopyHandler{memoryLimiter: semaphore.NewWeighted(copyMemoryLimit)}
+	h := CopyHandler{}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
 		// Read the http.Request.Body to invoke the CRC32UpdatingReader.
 		buf := make([]byte, 1024)

@@ -58,7 +58,6 @@ import (
 )
 
 const (
-	defaultCopyMemoryLimit int64  = 1 << 30 // Default memory limit is 1 GiB.
 	userAgent                     = "google-cloud-ingest-on-premises-agent TransferService/1.0 (GPN:transferservice_onpremnfs; Data moved from onpremnfs to GCS)"
 	userAgentInternal             = "google-cloud-ingest-on-premises-agent"
 	MTIME_ATTR_NAME        string = "goog-reserved-file-mtime"
@@ -71,7 +70,6 @@ const (
 )
 
 var (
-	copyMemoryLimit int64
 	internalTesting bool
 
 	// NumberThreads is used to limit the concurrency within the Copy handler, and also set the MaxOutstandingMessages for the PubSub copy subscription.
@@ -79,8 +77,6 @@ var (
 )
 
 func init() {
-	flag.Int64Var(&copyMemoryLimit, "copy-max-memory", defaultCopyMemoryLimit,
-		"Max memory buffer (in bytes) consumed by the copy tasks.")
 	flag.BoolVar(&internalTesting, "internal-testing", false,
 		"Agent running for Google internal testing purposes.")
 }
@@ -108,7 +104,6 @@ func NewResumableHttpClient(ctx context.Context, opts ...option.ClientOption) (*
 type CopyHandler struct {
 	gcs           gcloud.GCS
 	hc            *http.Client
-	memoryLimiter *semaphore.Weighted
 	// concurrentCopySem is semaphore to limit the number of concurrent goroutines uploading files.
 	concurrentCopySem *semaphore.Weighted
 
@@ -123,8 +118,6 @@ func NewCopyHandler(storageClient *storage.Client, hc *http.Client, st *stats.Tr
 	return &CopyHandler{
 		gcs:               gcloud.NewGCSClient(storageClient),
 		hc:                hc,
-		// TODO(b/132207554): The memoryLimiter is now unused. Remove it in a follow up change.
-		memoryLimiter:     semaphore.NewWeighted(copyMemoryLimit),
 		concurrentCopySem: semaphore.NewWeighted(int64(*NumberThreads)),
 		httpDoFunc:        ctxhttp.Do,
 		statsTracker:      st,
