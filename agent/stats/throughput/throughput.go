@@ -28,6 +28,12 @@ const (
 	tpMeasurementDuration = 1 // Throughput measurement duration, in seconds.
 )
 
+var (
+	trackTickerMaker = func() common.Ticker {
+		return common.NewClockTicker(1 * time.Second)
+	}
+)
+
 // Tracker collects bytes sent by the Agent and produces a throughput measurement.
 type Tracker struct {
 	throughputMu sync.RWMutex
@@ -48,7 +54,7 @@ func NewTracker(ctx context.Context) *Tracker {
 		bytesSentChan:    make(chan int64, 100), // Large buffer to avoid blocking.
 		bytesSentRingBuf: make([]int64, tpMeasurementDuration),
 		selectDone:       func() {},
-		trackTicker:      common.NewClockTicker(1 * time.Second),
+		trackTicker:      trackTickerMaker(),
 	}
 	go t.track(ctx)
 	return t

@@ -45,6 +45,11 @@ func TestPulseSender(t *testing.T) {
 		st.RecordBytesSent(456)
 		st.RecordBytesSent(789)
 
+		mockSendTicker := common.NewMockTicker()
+		sendTickerMaker = func() common.Ticker {
+			return mockSendTicker
+		}
+
 		logsDir := "/tmp/mylogs"
 		ps := NewPulseSender(ctx, mockPulseTopic, logsDir, st)
 		ps.hostname = "hostname"
@@ -56,8 +61,6 @@ func TestPulseSender(t *testing.T) {
 		// Set up the test hooks and send the pulses.
 		var wg sync.WaitGroup
 		ps.selectDone = func() { wg.Done() }
-		mockSendTicker := common.NewMockTicker()
-		ps.sendTicker = mockSendTicker
 		for i := 0; i < numPulses; i++ {
 			wg.Add(1)
 			mockSendTicker.Tick()

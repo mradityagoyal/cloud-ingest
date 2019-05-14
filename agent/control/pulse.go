@@ -35,10 +35,13 @@ import (
 
 var (
 	agentIDPrefix = flag.String("agent-id-prefix", "", "A a prefix to include on the agent id")
+	sendTickerMaker = func() common.Ticker {
+		return common.NewClockTicker(pulseFrequency)
+	}
 )
 
 const (
-	pulseFrequency = 10 // The frequency (in seconds) to send pulses.
+	pulseFrequency = 10 * time.Second // The frequency to send pulses.
 )
 
 // Hostname returns the hostname string.
@@ -93,7 +96,7 @@ func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir strin
 		statsTracker: st,
 		startTime:    time.Now(),
 		selectDone:   func() {},
-		sendTicker:   common.NewClockTicker(pulseFrequency * time.Second),
+		sendTicker:   sendTickerMaker(),
 	}
 	go ps.sendPulses(ctx)
 	return ps

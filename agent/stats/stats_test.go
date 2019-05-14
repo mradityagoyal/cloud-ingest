@@ -78,13 +78,16 @@ func TestTrackerAccumulatedBytesCopied(t *testing.T) {
 		{"Twentyone, multiple bytes and ticks", []interface{}{1, 2, 3, "t", 4, 5, 6, "t"}, 21},
 	}
 	for _, tc := range tests {
+		// Must be done before creating the Tracker.
+		mockAccumulatorTicker := common.NewMockTicker()
+		accumulatorTickerMaker = func() common.Ticker {
+			return mockAccumulatorTicker
+		}
+
 		st := NewTracker(context.Background())
 
-		// Set up the test hooks.
 		var wg sync.WaitGroup
-		st.selectDone = func() { wg.Done() } // The test hook.
-		mockAccumulatorTicker := common.NewMockTicker()
-		st.accumulatorTicker = mockAccumulatorTicker
+		st.selectDone = func() { wg.Done() }
 
 		// AccumulatedBytesCopied should start at zero.
 		if got := st.AccumulatedBytesCopied(); got != 0 {

@@ -37,6 +37,12 @@ const (
 	accumulatorFreq  = 1 * time.Second // The frequency of accumulating bytes copied.
 )
 
+var (
+	accumulatorTickerMaker = func() common.Ticker {
+		return common.NewClockTicker(accumulatorFreq)
+	}
+)
+
 type taskDur struct {
 	task string
 	dur  time.Duration
@@ -111,7 +117,7 @@ func NewTracker(ctx context.Context) *Tracker {
 		selectDone:        func() {},
 		logTicker:         common.NewClockTicker(statsLogFreq),
 		displayTicker:     common.NewClockTicker(statsDisplayFreq),
-		accumulatorTicker: common.NewClockTicker(accumulatorFreq),
+		accumulatorTicker: accumulatorTickerMaker(),
 	}
 	go t.track(ctx)
 	return t

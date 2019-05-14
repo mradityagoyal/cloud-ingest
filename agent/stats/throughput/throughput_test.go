@@ -55,13 +55,14 @@ func TestThroughputTracker(t *testing.T) {
 		{"Continuous stream, empty ticks ", iStream, 0},
 	}
 	for _, tc := range tests {
+		// Must be done before creating the Tracker.
+		mockTrackTicker := common.NewMockTicker()
+		trackTickerMaker = func() common.Ticker {
+			return mockTrackTicker
+		}
 		bwt := NewTracker(context.Background())
-
-		// Set up the test hooks.
 		var wg sync.WaitGroup
 		bwt.selectDone = func() { wg.Done() }
-		mockTrackTicker := common.NewMockTicker()
-		bwt.trackTicker = mockTrackTicker
 
 		// Record all the mocked inputs and ticks.
 		for _, i := range tc.inputs {
