@@ -1,7 +1,7 @@
 /*
 Copyright 2018 Google Inc. All Rights Reserved.
 Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
+// you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
     http://www.apache.org/licenses/LICENSE-2.0
@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -131,8 +132,9 @@ func TestDepthFirstListSuccessFlatDir(t *testing.T) {
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
-
-	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
@@ -188,8 +190,9 @@ func TestDepthFirstListFailsFileWithNewline(t *testing.T) {
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
-
-	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
@@ -245,7 +248,9 @@ func TestDepthFirstListSuccessNestedDirSmallListFile(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
-	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 1, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 1, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
@@ -321,7 +326,9 @@ func TestDepthFirstListSuccessNestedDirLargeListFile(t *testing.T) {
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
-	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 1000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 1000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
@@ -377,8 +384,9 @@ func TestDepthFirstListMakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
-
-	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 1}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 1, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
@@ -464,8 +472,9 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
-
-	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: directoryInfoProtoOverhead*2 + len(childOfNestedTmpDir) + len(child2OfNestedTmpDir)}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: directoryInfoProtoOverhead*2 + len(childOfNestedTmpDir) + len(child2OfNestedTmpDir), statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
 	taskRespMsg := h.Do(context.Background(), taskReqParams)
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)

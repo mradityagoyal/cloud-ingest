@@ -23,6 +23,7 @@ import (
 	"testing"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
@@ -85,8 +86,9 @@ func TestListV3DirAndSrcDirNotFound(t *testing.T) {
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), testBucket, testObject, gomock.Any()).Return(listWriter)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqMsg := testListV3TaskReqMsg("task", []string{"dir does not exist"}, "can't find me either")
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
 	CheckFailureWithType("task", taskpb.FailureType_SOURCE_DIR_NOT_FOUND, taskRespMsg, t)
@@ -112,8 +114,9 @@ func TestListV3DirInListSpecNotFound(t *testing.T) {
 		mockGCS.EXPECT().NewWriterWithCondition(
 			context.Background(), testBucket, unexplored, gomock.Any()).Return(dirsWriter),
 	)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{notFoundDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -179,8 +182,9 @@ func TestListV3SuccessEmptyDir(t *testing.T) {
 		mockGCS.EXPECT().NewWriterWithCondition(
 			context.Background(), testBucket, unexplored, gomock.Any()).Return(dirsWriter),
 	)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -229,8 +233,9 @@ func TestListV3SuccessFlatDir(t *testing.T) {
 		mockGCS.EXPECT().NewWriterWithCondition(
 			context.Background(), testBucket, unexplored, gomock.Any()).Return(dirsWriter),
 	)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -273,8 +278,9 @@ func TestListV3FailsFileWithNewline(t *testing.T) {
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
 	mockGCS.EXPECT().NewWriterWithCondition(
 		context.Background(), testBucket, testObject, gomock.Any()).Return(writer)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -323,8 +329,9 @@ func TestListV3SuccessNestedDirSmallListFile(t *testing.T) {
 		mockGCS.EXPECT().NewWriterWithCondition(
 			context.Background(), testBucket, unexplored, gomock.Any()).Return(dirsWriter),
 	)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 1, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 1, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -390,8 +397,9 @@ func TestListV3SuccessNestedDirLargeListFile(t *testing.T) {
 		mockGCS.EXPECT().NewWriterWithCondition(
 			context.Background(), testBucket, unexplored, gomock.Any()).Return(dirsWriter),
 	)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 1000, allowedDirBytes: 5 * 1024 * 1024}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 1000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
@@ -442,8 +450,9 @@ func TestListV3MakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) {
 		mockGCS.EXPECT().NewWriterWithCondition(
 			context.Background(), testBucket, unexplored, gomock.Any()).Return(dirsWriter),
 	)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 1}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 1, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
@@ -518,8 +527,9 @@ func TestListV3SuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 		mockGCS.EXPECT().NewWriterWithCondition(
 			context.Background(), testBucket, unexplored, gomock.Any()).Return(dirsWriter),
 	)
-
-	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: directoryInfoProtoOverhead*2 + len(childOfNestedTmpDir) + len(child2OfNestedTmpDir)}
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: directoryInfoProtoOverhead*2 + len(childOfNestedTmpDir) + len(child2OfNestedTmpDir), statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)

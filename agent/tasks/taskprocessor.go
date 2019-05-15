@@ -53,7 +53,7 @@ type TaskProcessor struct {
 // NewListProcessor returns a TaskProcessor for handling List tasks.
 // Run the Process func on the newly returned TaskProcessor to begin processing tasks.
 func NewListProcessor(sc *storage.Client, sub *pubsub.Subscription, topic *pubsub.Topic, st *stats.Tracker) *TaskProcessor {
-	depthFirstListHandler := list.NewDepthFirstListHandler(sc)
+	depthFirstListHandler := list.NewDepthFirstListHandler(sc, st)
 	return &TaskProcessor{
 		TaskSub:       sub,
 		ProgressTopic: topic,

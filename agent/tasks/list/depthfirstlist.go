@@ -25,6 +25,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 
 	listfilepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
@@ -40,10 +41,11 @@ type DepthFirstListHandler struct {
 	resumableChunkSize    int
 	listFileSizeThreshold int
 	allowedDirBytes       int
+	statsTracker          *stats.Tracker // For tracking bytes sent/copied.
 }
 
 // NewDepthFirstListHandler returns a new DepthFirstListHandler.
-func NewDepthFirstListHandler(storageClient *storage.Client) *DepthFirstListHandler {
+func NewDepthFirstListHandler(storageClient *storage.Client, st *stats.Tracker) *DepthFirstListHandler {
 	// Convert maxMemoryForListingDirectories to bytes and divide it equally between
 	// the list task processing threads.
 	allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *NumberConcurrentListTasks
@@ -52,6 +54,7 @@ func NewDepthFirstListHandler(storageClient *storage.Client) *DepthFirstListHand
 		resumableChunkSize:    *listTaskChunkSize,
 		listFileSizeThreshold: *listFileSizeThreshold,
 		allowedDirBytes:       allowedDirBytes,
+		statsTracker:          st,
 	}
 }
 
@@ -220,14 +223,15 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	}
 
 	w := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstListResultObject, listSpec.ExpectedGenerationNum, h.resumableChunkSize)
+	bw := h.statsTracker.NewByteTrackingWriter(w)
 
-	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(w, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, false /* writeDirs */)
+	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(bw, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, false /* writeDirs */)
 	if err != nil {
 		w.CloseWithError(err)
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
-	if err = writeDirectories(w, unlistedDirs); err != nil {
+	if err = writeDirectories(bw, unlistedDirs); err != nil {
 		w.CloseWithError(err)
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}

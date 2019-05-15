@@ -21,6 +21,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -36,10 +37,11 @@ type ListHandlerV3 struct {
 	resumableChunkSize    int
 	listFileSizeThreshold int
 	allowedDirBytes       int
+	statsTracker          *stats.Tracker // For tracking bytes sent/copied.
 }
 
 // NewListHandlerV3 returns a new ListHandlerV3.
-func NewListHandlerV3(storageClient *storage.Client) *ListHandlerV3 {
+func NewListHandlerV3(storageClient *storage.Client, st *stats.Tracker) *ListHandlerV3 {
 	// Convert maxMemoryForListingDirectories to bytes and divide it equally between
 	// the list task processing threads.
 	allowedDirBytes := *maxMemoryForListingDirectories * 1024 * 1024 / *NumberConcurrentListTasks
@@ -48,6 +50,7 @@ func NewListHandlerV3(storageClient *storage.Client) *ListHandlerV3 {
 		resumableChunkSize:    *listTaskChunkSize,
 		listFileSizeThreshold: *listFileSizeThreshold,
 		allowedDirBytes:       allowedDirBytes,
+		statsTracker:          st,
 	}
 }
 
@@ -65,7 +68,9 @@ func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *
 	// Write list file BEFORE the unexplored dirs file. This ordering is important to ensure that if
 	// two agents are processing the same task, one will succeed and the other will fail.
 	listFileW := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstListResultObject, listSpec.ListResultExpectedGenerationNum, h.resumableChunkSize)
-	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(listFileW, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, true /* writeDirs */)
+	listBtw := h.statsTracker.NewByteTrackingWriter(listFileW)
+
+	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(listBtw, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, true /* writeDirs */)
 	if err != nil {
 		listFileW.CloseWithError(err)
 		if os.IsNotExist(err) {
@@ -78,7 +83,8 @@ func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *
 	}
 
 	unexploredDirsW := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstUnexploredDirsObject, listSpec.UnexploredDirsExpectedGenerationNum, h.resumableChunkSize)
-	if err = writeDirectories(unexploredDirsW, unlistedDirs); err != nil {
+	unexploredBtw := h.statsTracker.NewByteTrackingWriter(unexploredDirsW)
+	if err = writeDirectories(unexploredBtw, unlistedDirs); err != nil {
 		unexploredDirsW.CloseWithError(err)
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}

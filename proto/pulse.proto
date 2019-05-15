@@ -25,6 +25,7 @@ message Msg {
   string agent_logs_dir = 4;  // The directory where the agents writes its logs.
   int64 agent_transferred_bytes = 6;  // Bytes the Agent wrote 'to the wire'.
   int64 agent_uptime_ms = 7;  // Time in millis since agent startup.
+  int64 agent_transferred_list_bytes = 8;  // Bytes the Agent wrote during listing.
 
   reserved 2, 5;  // Don't reuse tags.
 }

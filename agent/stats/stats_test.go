@@ -28,6 +28,12 @@ import (
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
+type input struct {
+	t  bool  // A tick. If true, no bytes will be recorded for this input.
+	cB int64 // Copy bytes.
+	lB int64 // List bytes.
+}
+
 func TestTrackerRecordBWLimit(t *testing.T) {
 	st := NewTracker(context.Background())
 	var wg sync.WaitGroup
@@ -66,16 +72,17 @@ func TestTrackerRecordCtrlMsg(t *testing.T) {
 
 func TestTrackerAccumulatedBytesCopied(t *testing.T) {
 	tests := []struct {
-		desc   string
-		inputs []interface{}
-		want   int64
+		desc          string
+		inputs        []input
+		wantCopyBytes int64
+		wantListBytes int64
 	}{
-		{"Zero, no recorded bytes", []interface{}{"t"}, 0},
-		{"Zero, recorded bytes with no accumulator tick", []interface{}{10}, 0},
-		{"Ten, bytes recorded once", []interface{}{10, "t"}, 10},
-		{"Six, bytes recorded thrice", []interface{}{1, 2, 3, "t"}, 6},
-		{"Six, bytes recorded thrice, only one tick", []interface{}{1, 2, 3, "t", 4, 5, 6}, 6},
-		{"Twentyone, multiple bytes and ticks", []interface{}{1, 2, 3, "t", 4, 5, 6, "t"}, 21},
+		{"Zero, no recorded bytes", []input{{t: true}}, 0, 0},
+		{"Zero, recorded bytes with no accumulator tick", []input{{cB: 10}}, 0, 0},
+		{"Ten, bytes recorded once", []input{{cB: 10}, {t: true}}, 10, 0},
+		{"Six, bytes recorded thrice", []input{{cB: 1, lB: 2}, {cB: 2}, {cB: 3}, {t: true}}, 6, 2},
+		{"Six, bytes recorded thrice, only one tick", []input{{cB: 1, lB: 3}, {cB: 2}, {cB: 3}, {t: true}, {cB: 4}, {cB: 5, lB: 1}, {cB: 6}}, 6, 3},
+		{"Twentyone, multiple bytes and ticks", []input{{cB: 1}, {cB: 2}, {cB: 3}, {t: true}, {cB: 4}, {cB: 5}, {cB: 6}, {t: true}}, 21, 0},
 	}
 	for _, tc := range tests {
 		// Must be done before creating the Tracker.
@@ -89,33 +96,39 @@ func TestTrackerAccumulatedBytesCopied(t *testing.T) {
 		var wg sync.WaitGroup
 		st.selectDone = func() { wg.Done() }
 
-		// AccumulatedBytesCopied should start at zero.
-		if got := st.AccumulatedBytesCopied(); got != 0 {
-			t.Errorf("AccumulatedBytesCopied got %v, want 0", got)
+		// AccumulatedBytes should start at zero.
+		if got := st.AccumulatedCopyBytes(); got != 0 {
+			t.Errorf("AccumulatedBytes got %v, want 0", got)
 		}
 
 		// Record all the mocked inputs and ticks.
 		for _, i := range tc.inputs {
 			wg.Add(1)
-			switch v := i.(type) {
-			case int:
-				st.RecordBytesSent(int64(v))
-			case string:
+			if i.t {
 				mockAccumulatorTicker.Tick()
-			default:
-				t.Fatalf("Unrecognized input type: %T %v", i, i)
+			} else {
+				wg.Add(1) // Additional wg.Add(1) needed for second record to chan.
+				st.RecordCopyBytesSent(i.cB)
+				st.RecordListBytesSent(i.lB)
 			}
 			wg.Wait() // Allow the Tracker to collect the input.
 		}
 
 		// Validate expected accumulated bytes.
-		if got := st.AccumulatedBytesCopied(); got != tc.want {
-			t.Errorf("AccumultedBytesCopied got %v, want %v", got, tc.want)
+		if got := st.AccumulatedCopyBytes(); got != tc.wantCopyBytes {
+			t.Errorf("AccumulatedCopyBytes() got %v, want %v", got, tc.wantCopyBytes)
+		}
+
+		if got := st.AccumulatedListBytes(); got != tc.wantListBytes {
+			t.Errorf("AccumulatedListBytes() got %v, want %v", got, tc.wantListBytes)
 		}
 
 		// AccumulatdBytesCopied should be zero again.
-		if got := st.AccumulatedBytesCopied(); got != 0 {
-			t.Errorf("AccumultedBytesCopied got %v, want 0", got)
+		if got := st.AccumulatedCopyBytes(); got != 0 {
+			t.Errorf("AccumultedBytesCopied() got %v, want 0", got)
+		}
+		if got := st.AccumulatedListBytes(); got != 0 {
+			t.Errorf("AccumulatedListBytes() got %v, want 0", got)
 		}
 	}
 }
@@ -216,7 +229,7 @@ func TestTrackerDisplayStats(t *testing.T) {
 			case *taskpb.TaskRespMsg:
 				st.RecordTaskResp(v, 50*time.Millisecond)
 			case int:
-				st.RecordBytesSent(int64(v))
+				st.RecordCopyBytesSent(int64(v))
 			case time.Time:
 				st.RecordCtrlMsg(v)
 			default:

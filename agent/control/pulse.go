@@ -131,7 +131,8 @@ func (ps *PulseSender) sendPulses(ctx context.Context) {
 }
 
 func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
-	transferredBytes := ps.statsTracker.AccumulatedBytesCopied()
+	transferredCopyBytes := ps.statsTracker.AccumulatedCopyBytes()
+	transferredListBytes := ps.statsTracker.AccumulatedListBytes()
 	return &pulsepb.Msg{
 		AgentId: &pulsepb.AgentId{
 			HostName:  ps.hostname,
@@ -140,8 +141,9 @@ func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
 		},
 		AgentVersion:          ps.version,
 		AgentLogsDir:          ps.logsDir,
-		AgentTransferredBytes: transferredBytes,
+		AgentTransferredBytes: transferredCopyBytes,
 		// Seconds() returns the duration as a floating point
-		AgentUptimeMs: int64(time.Now().Sub(ps.startTime).Seconds() * 1000),
+		AgentUptimeMs:             int64(time.Now().Sub(ps.startTime).Seconds() * 1000),
+		AgentTransferredListBytes: transferredListBytes,
 	}
 }

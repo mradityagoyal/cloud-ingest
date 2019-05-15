@@ -52,28 +52,36 @@ type periodicStats struct {
 	taskDurations    map[string][]time.Duration
 	taskFailures     map[string]int
 	bytesCopied      int64
+	listBytesCopied  int64
 	ctrlMsgsReceived int64
 	pulseMsgsSent    int64
 }
 
 type lifetimeStats struct {
-	taskDone    map[string]uint64
-	bytesCopied int64
+	taskDone        map[string]uint64
+	bytesCopied     int64
+	listBytesCopied int64
 
 	ctrlMsgTime time.Time
 	bwLimit     int64
+}
+
+type accumulator struct {
+	mu               sync.Mutex
+	bytesSentChan    chan int64
+	accumulatedBytes int64
+	prevBytes        int64
 }
 
 // Tracker collects stats about the Agent, provides a display to STDOUT, and
 // periodically writes to the INFO log. Stats are collected by calling the
 // various Record* functions as appropriate.
 type Tracker struct {
-	taskDurChan   chan taskDur   // Channel to record task durations.
-	taskFailChan  chan string    // Channel to record task failures.
-	bytesSentChan chan int64     // Channel to record bytesSent.
-	bwLimitChan   chan int64     // Channel to record the bandwidth limit.
-	ctrlMsgChan   chan time.Time // Channel to record control message timing.
-	pulseMsgChan  chan struct{}  // Channel to record send pulse messages.
+	taskDurChan  chan taskDur   // Channel to record task durations.
+	taskFailChan chan string    // Channel to record task failures.
+	bwLimitChan  chan int64     // Channel to record the bandwidth limit.
+	ctrlMsgChan  chan time.Time // Channel to record control message timing.
+	pulseMsgChan chan struct{}  // Channel to record send pulse messages.
 
 	periodic  periodicStats       // Reset after every time they're INFO logged.
 	lifetime  lifetimeStats       // Cumulative for the lifetime of this procces.
@@ -81,11 +89,10 @@ type Tracker struct {
 
 	spinnerIdx int // For displaying the mighty spinner.
 
-	// These fields support func AccumulatedBytesCopied, which allows the
+	// These fields support func AccumulatedBytes, which allows the
 	// PulseSender to send the count of transferred bytes with each pulse.
-	accumulatedBytesMu sync.Mutex
-	accumulatedBytes   int64
-	prevBytesCopied    int64
+	copyBytes accumulator
+	listBytes accumulator
 
 	// Testing hooks.
 	selectDone        func()
@@ -98,12 +105,11 @@ type Tracker struct {
 func NewTracker(ctx context.Context) *Tracker {
 	t := &Tracker{
 		// Large buffers to avoid blocking.
-		taskDurChan:   make(chan taskDur, 100),
-		taskFailChan:  make(chan string, 10),
-		bytesSentChan: make(chan int64, 100),
-		bwLimitChan:   make(chan int64, 10),
-		ctrlMsgChan:   make(chan time.Time, 10),
-		pulseMsgChan:  make(chan struct{}, 10),
+		taskDurChan:  make(chan taskDur, 100),
+		taskFailChan: make(chan string, 10),
+		bwLimitChan:  make(chan int64, 10),
+		ctrlMsgChan:  make(chan time.Time, 10),
+		pulseMsgChan: make(chan struct{}, 10),
 		periodic: periodicStats{
 			taskDurations: make(map[string][]time.Duration),
 			taskFailures:  make(map[string]int),
@@ -113,6 +119,8 @@ func NewTracker(ctx context.Context) *Tracker {
 			ctrlMsgTime: time.Now(),
 			bwLimit:     math.MaxInt32,
 		},
+		copyBytes:         accumulator{bytesSentChan: make(chan int64, 100)},
+		listBytes:         accumulator{bytesSentChan: make(chan int64, 100)},
 		tpTracker:         throughput.NewTracker(ctx),
 		selectDone:        func() {},
 		logTicker:         common.NewClockTicker(statsLogFreq),
@@ -121,6 +129,38 @@ func NewTracker(ctx context.Context) *Tracker {
 	}
 	go t.track(ctx)
 	return t
+}
+
+// AccumulatedBytes returns the number of bytesCopied since the last call to
+// this function. This function is *NOT* idempotent, as calling it resets the
+// accumulatedBytes.
+//
+// Returns zero for a nil receiver.
+func (a *accumulator) AccumulatedBytes() int64 {
+	if a == nil {
+		return 0
+	}
+	a.mu.Lock()
+	// defers stack, set to 0 will happen before the mutex unlocks.
+	defer a.mu.Unlock()
+	defer func() { a.accumulatedBytes = 0 }()
+	return a.accumulatedBytes
+}
+
+// AccumulatedCopyBytes convenience function for CopyBytes.AccumulatedBytes()
+func (t *Tracker) AccumulatedCopyBytes() int64 {
+	if t == nil {
+		return 0
+	}
+	return t.copyBytes.AccumulatedBytes()
+}
+
+// AccumulatedListBytes convenience function for ListBytes.AccumulatedBytes()
+func (t *Tracker) AccumulatedListBytes() int64 {
+	if t == nil {
+		return 0
+	}
+	return t.listBytes.AccumulatedBytes()
 }
 
 // RecordTaskResp tracks the count and duration of completed tasks.
@@ -172,22 +212,56 @@ func (btr ByteTrackingReader) Read(buf []byte) (n int, err error) {
 	if n, err = btr.reader.Read(buf); err != nil {
 		return 0, err
 	}
-	btr.tracker.RecordBytesSent(int64(n))
+	btr.tracker.RecordCopyBytesSent(int64(n))
 	return n, nil
 }
 
-// RecordBytesSent tracks the count of bytes sent, and enables throughput tracking.
+// ByteTrackingWriter is an io.Writer that records how many bytes are written
+// and adds them up to the throughput tracker.
+type ByteTrackingWriter struct {
+	writer  io.Writer
+	tracker *Tracker
+}
+
+// NewByteTrackingWriter returns a ByteTrackingWriter.
+func (t *Tracker) NewByteTrackingWriter(w io.Writer) io.Writer {
+	if t == nil {
+		return nil
+	}
+	return ByteTrackingWriter{writer: w, tracker: t}
+}
+
+// Write implements the io.Writer interface.
+func (btw ByteTrackingWriter) Write(p []byte) (n int, err error) {
+	nb := len(p)
+	btw.tracker.RecordCopyBytesSent(int64(nb))
+	btw.writer.Write(p)
+	return nb, nil
+}
+
+// RecordCopyBytesSent tracks the count of bytes sent, and enables throughput tracking.
 // For accurate throughput measurement this function should be called every time
 // bytes are sent on the wire. More frequent and granular calls to this function
 // will provide a more accurate throughput measurement.
 //
 // Takes no action for a nil receiver.
-func (t *Tracker) RecordBytesSent(bytes int64) {
+func (t *Tracker) RecordCopyBytesSent(bytes int64) {
 	if t == nil {
 		return
 	}
 	t.tpTracker.RecordBytesSent(bytes)
-	t.bytesSentChan <- bytes
+	t.copyBytes.bytesSentChan <- bytes
+}
+
+// RecordListBytesSent tracks the count of list bytes sent
+// (analogous to RecordCopyBytesSent).
+//
+// Takes no action for a nil receiver.
+func (t *Tracker) RecordListBytesSent(bytes int64) {
+	if t == nil {
+		return
+	}
+	t.listBytes.bytesSentChan <- bytes
 }
 
 // RecordBWLimit tracks the current bandwidth limit.
@@ -220,22 +294,6 @@ func (t *Tracker) RecordPulseMsg() {
 	t.pulseMsgChan <- struct{}{}
 }
 
-// AccumulatedBytesCopied returns the number of bytesCopied since the last call to
-// this function. This function is *NOT* idempotent, as calling it resets the
-// accumulatedBytes.
-//
-// Returns zero for a nil receiver.
-func (t *Tracker) AccumulatedBytesCopied() int64 {
-	if t == nil {
-		return 0
-	}
-	t.accumulatedBytesMu.Lock()
-	// defers stack, set to 0 will happen before the mutex unlocks.
-	defer t.accumulatedBytesMu.Unlock()
-	defer func() { t.accumulatedBytes = 0 }()
-	return t.accumulatedBytes
-}
-
 func (t *Tracker) track(ctx context.Context) {
 	for {
 		select {
@@ -249,9 +307,12 @@ func (t *Tracker) track(ctx context.Context) {
 			t.lifetime.taskDone[tr.task]++
 		case task := <-t.taskFailChan:
 			t.periodic.taskFailures[task]++
-		case bytes := <-t.bytesSentChan:
-			t.periodic.bytesCopied += bytes
-			t.lifetime.bytesCopied += bytes
+		case copyBytes := <-t.copyBytes.bytesSentChan:
+			t.periodic.bytesCopied += copyBytes
+			t.lifetime.bytesCopied += copyBytes
+		case listBytes := <-t.listBytes.bytesSentChan:
+			t.periodic.listBytesCopied += listBytes
+			t.lifetime.listBytesCopied += listBytes
 		case agentBW := <-t.bwLimitChan:
 			t.lifetime.bwLimit = agentBW
 		case time := <-t.ctrlMsgChan:
@@ -264,13 +325,21 @@ func (t *Tracker) track(ctx context.Context) {
 		case <-t.displayTicker.GetChannel():
 			t.displayStats()
 		case <-t.accumulatorTicker.GetChannel():
-			t.accumulatedBytesMu.Lock()
-			t.accumulatedBytes += t.lifetime.bytesCopied - t.prevBytesCopied
-			t.prevBytesCopied = t.lifetime.bytesCopied
-			t.accumulatedBytesMu.Unlock()
+			t.accumulateByteStats()
 		}
 		t.selectDone() // Testing hook.
 	}
+}
+
+func (t *Tracker) accumulateByteStats() {
+	t.copyBytes.mu.Lock()
+	t.copyBytes.accumulatedBytes += t.lifetime.bytesCopied - t.copyBytes.prevBytes
+	t.copyBytes.prevBytes = t.lifetime.bytesCopied
+	t.copyBytes.mu.Unlock()
+	t.listBytes.mu.Lock()
+	t.listBytes.accumulatedBytes += t.lifetime.listBytesCopied - t.listBytes.prevBytes
+	t.listBytes.prevBytes = t.lifetime.listBytesCopied
+	t.listBytes.mu.Unlock()
 }
 
 func (t *Tracker) displayStats() string {
