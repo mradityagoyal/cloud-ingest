@@ -67,7 +67,7 @@ const (
 	// Agent to copy the entire file but does not specify a chunk size. This
 	// happens by sending a BytesToCopy value <= 0 in the CopyTaskSpec.
 	veneerClientDefaultChunkSize = 1 << 27 // 128MiB.
-	maxRetryCount                = 2
+	maxRetryCount                = 1
 )
 
 var (

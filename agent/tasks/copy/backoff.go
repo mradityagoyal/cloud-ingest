@@ -7,7 +7,7 @@ import (
 var (
 	minBackOffDelay  = 1 * time.Second
 	maxBackOffDelay  = 32 * time.Second
-	totalDelayCutoff = 15 * time.Minute
+	totalDelayCutoff = 5 * time.Minute
 )
 
 // Backoff provides a back-off scheme for retrying events.

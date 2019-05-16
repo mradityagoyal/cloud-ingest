@@ -15,6 +15,7 @@ major job run versions.
 ### Changed
 - Memory usage improvements for file copies.
 - The 'copy memory limiter' is removed, which likely improves Agent performance.
+- Reduced the number of copy handler retries.
 
 ## [1.0.7] - 2019-04-18
 ### Changed
