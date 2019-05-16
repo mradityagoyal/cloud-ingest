@@ -204,11 +204,11 @@ func (t *Tracker) NewByteTrackingReader(r io.Reader) io.Reader {
 	if t == nil {
 		return r
 	}
-	return ByteTrackingReader{reader: r, tracker: t}
+	return &ByteTrackingReader{reader: r, tracker: t}
 }
 
 // Read implements the io.Reader interface.
-func (btr ByteTrackingReader) Read(buf []byte) (n int, err error) {
+func (btr *ByteTrackingReader) Read(buf []byte) (n int, err error) {
 	if n, err = btr.reader.Read(buf); err != nil {
 		return 0, err
 	}
@@ -228,11 +228,11 @@ func (t *Tracker) NewByteTrackingWriter(w io.Writer) io.Writer {
 	if t == nil {
 		return nil
 	}
-	return ByteTrackingWriter{writer: w, tracker: t}
+	return &ByteTrackingWriter{writer: w, tracker: t}
 }
 
 // Write implements the io.Writer interface.
-func (btw ByteTrackingWriter) Write(p []byte) (n int, err error) {
+func (btw *ByteTrackingWriter) Write(p []byte) (n int, err error) {
 	nb := len(p)
 	btw.tracker.RecordCopyBytesSent(int64(nb))
 	btw.writer.Write(p)

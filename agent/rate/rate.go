@@ -82,11 +82,11 @@ type RateLimitingReader struct {
 
 // NewRateLimitingReader returns a RateLimitingReader.
 func NewRateLimitingReader(r io.Reader) io.Reader {
-	return RateLimitingReader{reader: r}
+	return &RateLimitingReader{reader: r}
 }
 
 // Read implements the io.Reader interface.
-func (rlr RateLimitingReader) Read(buf []byte) (n int, err error) {
+func (rlr *RateLimitingReader) Read(buf []byte) (n int, err error) {
 	// Shrink the read buf if necessary. This ensures the read doesn't just
 	// block for one massive copy, and instead hands out data every second.
 	mu.RLock()

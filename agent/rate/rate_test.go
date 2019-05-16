@@ -90,8 +90,8 @@ func TestRateLimitingReaderReadNoBufferResize(t *testing.T) {
 	projectBWLimiter.WaitN(context.Background(), math.MaxInt32)
 
 	r := NewRateLimitingReader(reader)
-	if _, ok := r.(RateLimitingReader); !ok {
-		t.Errorf("want type RateLimitingReader, got type %T", reader)
+	if _, ok := r.(*RateLimitingReader); !ok {
+		t.Errorf("want type *rate.RateLimitingReader, got type %T", reader)
 	}
 
 	writeBuf := make([]byte, 10)
@@ -120,8 +120,8 @@ func TestRateLimitingReaderReadBufferResize(t *testing.T) {
 	projectBWLimiter.WaitN(context.Background(), math.MaxInt32)
 
 	r := NewRateLimitingReader(reader)
-	if _, ok := r.(RateLimitingReader); !ok {
-		t.Errorf("want type RateLimitingReader, got type %T", reader)
+	if _, ok := r.(*RateLimitingReader); !ok {
+		t.Errorf("want type *rate.RateLimitingReader, got type %T", reader)
 	}
 
 	writeBuf := make([]byte, 2000)

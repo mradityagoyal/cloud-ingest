@@ -464,6 +464,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 
 		srcFile.Seek(c.BytesCopied, 0)
 		var r io.Reader = io.LimitReader(srcFile, bytesToCopy) // Wrap the srcFile in a LimitReader.
+		r = NewSemAcquiringReader(r, ctx)                      // Wrap with a SemAcquiringReader.
 		r = bufio.NewReaderSize(r, *fileReadBuf)               // Wrap with a buffered reader.
 		r = rate.NewRateLimitingReader(r)                      // Wrap with a RateLimitingReader.
 		r = h.statsTracker.NewByteTrackingReader(r)            // Wrap with a ByteTrackingReader.
