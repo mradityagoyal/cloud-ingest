@@ -16,6 +16,7 @@ limitations under the License.
 package copy
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/base64"
@@ -72,6 +73,7 @@ const (
 var (
 	internalTesting   = flag.Bool("internal-testing", false, "Agent running for Google internal testing purposes.")
 	concurrentCopyMax = flag.Int("concurrent-copy-max", 100, "The maximum allowed number of concurrent file copies.")
+	fileReadBuf       = flag.Int("file-read-buf", 1*1024*1024, "Read buffer size for each concurrent file copy. Increasing this raises Agent memory usage, but decreases potential reads to the source file system.")
 )
 
 // NewResumableHttpClient creates a new http.Client suitable for resumable copies.
@@ -470,6 +472,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 
 		srcFile.Seek(c.BytesCopied, 0)
 		var r io.Reader = io.LimitReader(srcFile, bytesToCopy) // Wrap the srcFile in a LimitReader.
+		r = bufio.NewReaderSize(r, *fileReadBuf)               // Wrap with a buffered reader.
 		r = rate.NewRateLimitingReader(r)                      // Wrap with a RateLimitingReader.
 		r = h.statsTracker.NewByteTrackingReader(r)            // Wrap with a ByteTrackingReader.
 		srcCRC32C = c.Crc32C                                   // Set the initial crc32.
