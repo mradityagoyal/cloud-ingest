@@ -50,7 +50,7 @@ test: test-agent ## Run all unit tests.
 .PHONY: test-agent
 test-agent: go-mocks ## Run all go unit tests.
 	@echo -e "\n== Running Go Tests =="
-	@go test $(GO_TARGETS)
+	@go test -race $(GO_TARGETS)
 
 .PHONY: build
 build: setup build-agent ## Refresh dependencies, Build, test, and install everything.

@@ -21,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/google/go-cmp/cmp"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
@@ -38,6 +39,13 @@ func TestLogMsgFormatAndParse(t *testing.T) {
 		sample{listTaskRespMsg, 4 * time.Millisecond},
 		sample{listTaskRespMsg, 5 * time.Millisecond},
 		sample{listTaskRespMsg, 6 * time.Millisecond},
+	}
+	unusedMockTicker := common.NewMockTicker()
+	statsDisplayTickerMaker = func() common.Ticker {
+		return unusedMockTicker
+	}
+	accumulatorTickerMaker = func() common.Ticker {
+		return unusedMockTicker
 	}
 	st := NewTracker(context.Background())
 	var wg sync.WaitGroup

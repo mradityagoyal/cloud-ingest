@@ -38,6 +38,9 @@ const (
 )
 
 var (
+	statsDisplayTickerMaker = func() common.Ticker {
+		return common.NewClockTicker(statsDisplayFreq)
+	}
 	accumulatorTickerMaker = func() common.Ticker {
 		return common.NewClockTicker(accumulatorFreq)
 	}
@@ -124,7 +127,7 @@ func NewTracker(ctx context.Context) *Tracker {
 		tpTracker:         throughput.NewTracker(ctx),
 		selectDone:        func() {},
 		logTicker:         common.NewClockTicker(statsLogFreq),
-		displayTicker:     common.NewClockTicker(statsDisplayFreq),
+		displayTicker:     statsDisplayTickerMaker(),
 		accumulatorTicker: accumulatorTickerMaker(),
 	}
 	go t.track(ctx)
