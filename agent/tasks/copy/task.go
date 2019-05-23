@@ -34,3 +34,30 @@ func checkCopyTaskSpec(c *taskpb.CopySpec) (resumedCopy bool, err error) {
 
 	return false, nil
 }
+
+func checkCopyDownloadTaskSpec(c *taskpb.CopySpec) (resumedCopy bool, err error) {
+	if c.SrcFile == "" {
+		return false, errors.New("empty SrcFile")
+	} else if c.DstBucket == "" {
+		return false, errors.New("empty DstBucket")
+	} else if c.DstObject == "" {
+		return false, errors.New("empty DstObject")
+	} else if c.ExpectedGenerationNum < 0 {
+		return false, fmt.Errorf("invalid ExpectedGen'Num: %v", c.ExpectedGenerationNum)
+	} else if c.BytesCopied < 0 {
+		return false, fmt.Errorf("BytesCopied <= 0: %v", c.BytesCopied)
+	}
+
+	if c.BytesCopied > 0 {
+		// A resumed copy must have appropriate values for all of these parameters.
+		// Note1: we place no restrictions on what constitutes a valid mtime.
+		// Note2: A zero CRC32C is valid (just suspicious).
+		// Note3: There's no need to check "BytesToCopy", all values have valid meanings.
+		if c.FileBytes <= 0 {
+			return true, fmt.Errorf("resumedCopy but FileBytes <= 0: %v", c.FileBytes)
+		}
+		return true, nil
+	}
+
+	return false, nil
+}

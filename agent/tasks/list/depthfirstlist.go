@@ -33,6 +33,8 @@ import (
 
 	listfilepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
+
+	"google.golang.org/api/iterator"
 )
 
 // DepthFirstListHandler is responsible for handling depth-first list tasks.
@@ -243,12 +245,78 @@ func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, sett
 	return listMD, dirStore, nil
 }
 
+// TODO(thobrla): better factoring w/copy
+func (h *DepthFirstListHandler) parseBucketAndPrefixName(src string) (bucket string, prefix string, err error) {
+	s := strings.TrimPrefix(src, "gs://")
+	spl := strings.SplitN(s, "/", 2)
+	if len(spl) == 1 {
+		return spl[0], "", nil
+	} else if len(spl) != 2 {
+		return "", "", fmt.Errorf("couldn't parse bucket/prefix from string %s", src)
+	}
+	return spl[0], spl[1], nil
+}
+
+// TODO(thobrla): better factoring of this function w/Do()
+func (h *DepthFirstListHandler) ListGCS(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, settings listSettings, w io.Writer) error {
+	listSpec := taskReqMsg.Spec.GetListSpec()
+
+	// TODO: add log to return
+	glog.Infof("list: parsing gcs name")
+	bucket, prefix, err := h.parseBucketAndPrefixName(listSpec.SrcDirectories[0])
+	if err != nil {
+		return err
+	}
+	bucketAndPrefix := fmt.Sprintf("%s/%s", bucket, prefix)
+	glog.Infof("list: got gcs name %s", bucketAndPrefix)
+
+	query := &storage.Query{
+		Prefix:   prefix,
+		Versions: false,
+	}
+	iter := h.gcs.ListObjects(ctx, bucket, query)
+	var entries []*listfilepb.ListFileEntry
+	for {
+		oa, err := iter.Next()
+		if err == iterator.Done {
+			glog.Infof("list: iterator done")
+			break
+		}
+		if err != nil {
+			return err
+		}
+		entries = append(entries, fileInfoEntry(fmt.Sprintf("%s/%s:%d", oa.Bucket, oa.Name, oa.Generation), oa.Created.Unix(), oa.Size))
+		if len(entries)%1000 == 1 {
+			glog.Infof("list: processed %d entries", len(entries))
+		}
+	}
+
+	if settings.includeDirHeader {
+		glog.Infof("Writing dir header")
+		if err := writeProtobuf(w, dirHeaderEntry(bucketAndPrefix, int64(len(entries)))); err != nil {
+			return err
+		}
+	}
+	for i, entry := range entries {
+		if i%1000 == 1 {
+			glog.Infof("list: writing entry (%d): %s", i, entry.GetFileInfo().Path)
+		}
+		if err := writeProtobuf(w, entry); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, reqStart time.Time) *taskpb.TaskRespMsg {
+	glog.Infof("list: entering handler")
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {
 		err := errors.New("ListHandler.Do taskReqMsg.Spec is not ListSpec")
 		return common.BuildTaskRespMsg(taskReqMsg, nil, nil, err)
 	}
+	glog.Infof("list: got list spec")
 
 	log := &taskpb.Log{
 		Log: &taskpb.Log_ListLog{ListLog: &taskpb.ListLog{}},
@@ -257,10 +325,28 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	w := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstListResultObject, listSpec.ExpectedGenerationNum, h.resumableChunkSize)
 
 	fileWriter := h.statsTracker.NewListByteTrackingWriter(w, true)
+
 	settings := listSettings{
 		listFileSizeThreshold: h.listFileSizeThreshold,
 		maxDirBytes:           h.allowedDirBytes,
 	}
+
+	// TODO (thobrla): incremental listing of GCS as opposed to one huge object
+	// TODO (thobrla): migrate to listv3 handler
+
+	if len(listSpec.SrcDirectories) == 1 && strings.HasPrefix(listSpec.SrcDirectories[0], "gs://") {
+		glog.Infof("list: found 1 gs dir")
+		err := h.ListGCS(ctx, taskReqMsg, settings, fileWriter)
+		if err != nil {
+			return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
+		}
+		if err = w.Close(); err != nil {
+			return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
+		}
+		return common.BuildTaskRespMsg(taskReqMsg, nil, log, nil)
+	}
+	glog.Infof("list: did not find 1 gs dir - len == %d, sd = %v", len(listSpec.SrcDirectories), listSpec.SrcDirectories)
+
 	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(fileWriter, listSpec, settings, h.statsTracker)
 	if err != nil {
 		w.CloseWithError(err)

@@ -32,6 +32,7 @@ import (
 	"path"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,6 +41,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context/ctxhttp"
@@ -49,8 +51,6 @@ import (
 	"google.golang.org/api/option"
 	raw "google.golang.org/api/storage/v1"
 	htransport "google.golang.org/api/transport/http"
-
-	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 const (
@@ -153,7 +153,207 @@ func (h *CopyHandler) checkFileStats(beforeStats os.FileInfo, f *os.File) error 
 	return nil
 }
 
+func (h *CopyHandler) parseBucketAndObjectName(src string) (bucket string, object string, err error) {
+	s := strings.TrimPrefix(src, "gs://")
+	spl := strings.SplitN(s, "/", 2)
+	if len(spl) != 2 {
+		return "", "", fmt.Errorf("couldn't parse bucket/object from string %s", src)
+	}
+	return spl[0], spl[1], nil
+}
+
+func (h *CopyHandler) handleDownloadSpec(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopyLog, error) {
+	cl := &taskpb.CopyLog{
+		SrcFile: copySpec.SrcFile,
+		DstFile: copySpec.DstObject,
+	}
+
+	bn, on, err := h.parseBucketAndObjectName(copySpec.SrcFile)
+	if err != nil {
+		return cl, err
+	}
+
+	// Challenge: how to ensure two agents writing simultaneously to a file don't
+	// conflict with each other?
+	// Proposed solution: assume it is always safe to write the same bytes to
+	// the same offset.  Without this we need some global lock service.
+	// Challenge: if the generation number changes, how to clean up old files?
+	// Proposed solution: temporary file contains generation number. When worker
+	// notices that generation in spec does not match generation in GCS, it
+	// attempts to delete the old file, and must finish the deletion
+	// attempt before responding on Pub/Sub.
+	// As a safeguard, check generation number at the end of the copied chunk
+	// as opposed to the beginning, and always clean up before replying?
+
+	// Open the cloud object metadata and read the generation number
+	// If the temporary file does not exist OR we are starting at offset 0
+	// (Re)create the temporary file with the correct total size
+	// Seek to the correct offset in the temporary file.
+	// Download the desired range to the temporary file.
+	// If the file is done:
+	// Confirm the E2E checksum we calculated on the download.
+	// Rename the file to its final name
+
+	// Quick impl:
+	//   Create temporary file with generation number on start.
+	//   Write chunks.
+	//   Check generation number at end of each chunk.
+	//   Rename at the end.
+
+	resumedCopy, err := checkCopyDownloadTaskSpec(copySpec)
+	if err != nil {
+		return cl, err
+	}
+
+	if resumedCopy {
+		//glog.Infof("download: resumed copy, bucket %s object %s", bn, on)
+	} else {
+		//glog.Infof("download: new copy, bucket %s object %s", bn, on)
+	}
+
+	oa, err := h.gcs.GetAttrs(ctx, bn, on)
+	//glog.Infof("download: got object attrs")
+	if err != nil {
+		return cl, err
+	}
+	genStr := strconv.FormatInt(oa.Generation, 10)
+	if err != nil {
+		return cl, err
+	}
+	//glog.Infof("download: got generation")
+
+	// Temporary filename is destination.generationnumber
+	var fb strings.Builder
+	fb.WriteString(copySpec.DstObject)
+	fb.WriteString(".")
+	fb.WriteString(genStr)
+	fn := fb.String()
+
+	var f *os.File
+	if !resumedCopy {
+		err := os.MkdirAll(path.Dir(fn), 0777)
+		if err != nil {
+			return cl, err
+		}
+
+		f, err = os.Create(fn)
+		//glog.Infof("download: Created file %s", fn)
+		if err != nil {
+			return cl, err
+		}
+
+		defer f.Close()
+		if err = os.Truncate(fn, oa.Size); err != nil {
+			return cl, err
+		}
+		//glog.Infof("download: Truncated file %s", fn)
+	} else {
+		f, err = os.OpenFile(fn, os.O_WRONLY, 0666)
+		if err != nil {
+			return cl, err
+		}
+		defer f.Close()
+	}
+
+	// TODO(thobrla): consolidate bytesToCopy instances
+	//glog.Infof("setting bytes from copyspec")
+	bytesToCopy := int64(1 << 25)
+	if copySpec.FileBytes-copySpec.BytesCopied <= bytesToCopy {
+		// TODO(thobrla): respect size sent by DCP
+		bytesToCopy = copySpec.FileBytes - copySpec.BytesCopied
+		//bytesToCopy = oa.Size - copySpec.BytesCopied
+	}
+	//glog.Infof("creating gcs reader for %s bytestoCopy %d", on, bytesToCopy)
+	srcReader, err := h.gcs.NewRangeReader(ctx, bn, on, copySpec.BytesCopied, bytesToCopy)
+	if err != nil {
+		//glog.Infof("gcs reader err %v", err)
+
+		return cl, err
+	}
+
+	//log.Infof("created gcs reader")
+	err = h.downloadChunk(ctx, copySpec, srcReader, oa, f, fn, cl, bytesToCopy)
+	if err != nil {
+		return cl, err
+	}
+
+	// This populates the log entry for the audit logs and for tracking
+	// bytes. Bytes are only counted when the task moves to "success", so
+	// there won't be any double counting.
+	cl.SrcBytes = oa.Size
+	cl.SrcMTime = oa.Created.Unix()
+
+	// TODO: We've written data.  Confirm generation number hasn't changed.
+	return cl, nil
+}
+
+func (h *CopyHandler) downloadChunk(ctx context.Context, c *taskpb.CopySpec, srcReader io.Reader,
+	srcAttrs *storage.ObjectAttrs, dstFile *os.File, tempName string, cl *taskpb.CopyLog, bytesToCopy int64) error {
+	final := false
+	if bytesToCopy <= 0 || bytesToCopy+c.BytesCopied >= srcAttrs.Size {
+		// c.BytesToCopy <= 0 indicates that the rest of the file should be copied.
+		bytesToCopy = srcAttrs.Size - c.BytesCopied
+		final = true
+	}
+
+	//glog.Infof("download: downloading chunk")
+
+	pos, err := dstFile.Seek(c.BytesCopied, 0)
+	if err != nil {
+		return err
+	}
+	if pos != c.BytesCopied {
+		glog.Errorf("Seek expected pos %d, got %d", c.BytesCopied, pos)
+	}
+	// TODO(thobrla) TODO: timing-aware download
+	// TODO(thobrla) TODO: bytes tracking reader
+	var r io.Reader = io.LimitReader(srcReader, bytesToCopy) // Wrap the srcFile in a LimitReader.
+	r = rate.NewRateLimitingReader(r)                        // Wrap with a RateLimitingReader.
+	srcCRC32C := c.Crc32C                                    // Set the initial crc32.
+	r = NewCRC32UpdatingReader(r, &srcCRC32C)                // Wrap with a CRC32UpdatingReader.
+	tr := stats.NewTimingReader(r)                           // Wrap with a TimingReader.
+	w := bufio.NewWriterSize(dstFile, *fileReadBuf)          // Wrap with a buffered writer.
+
+	// TODO(thobrla): Fix up stats tracker to calculate timing for downloads and then record pulse stats
+	written, err := io.Copy(w, tr)
+	if err != nil {
+		return err
+	}
+
+	// Ensure any remaining buffered bytes are written.
+	if err = w.Flush(); err != nil {
+		return err
+	}
+	//glog.Infof("downloadChunk: Wrote %d bytes at offset %d", written, pos)
+
+	if int64(written) != bytesToCopy {
+		return fmt.Errorf("file %s wrote %d bytes, expected %d", c.DstObject, written, bytesToCopy)
+	}
+
+	c.BytesCopied = bytesToCopy + c.BytesCopied
+
+	if final {
+		err = dstFile.Close()
+		if err != nil {
+			return err
+		}
+		//glog.Infof("downloadChunk: finalized %s --> %s", tempName, c.DstObject)
+		if err := os.Rename(tempName, c.DstObject); err != nil {
+			return err
+		}
+	} else {
+		// TODO(thobrla): Stop trying to trick the DCP into doing a "resumable" download
+		c.ResumableUploadId = "placeholder"
+	}
+
+	return nil
+}
+
 func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopyLog, error) {
+	if strings.HasPrefix(copySpec.SrcFile, "gs://") {
+		return h.handleDownloadSpec(ctx, copySpec)
+	}
+
 	cl := &taskpb.CopyLog{
 		SrcFile: copySpec.SrcFile,
 		DstFile: path.Join(copySpec.DstBucket, copySpec.DstObject),
