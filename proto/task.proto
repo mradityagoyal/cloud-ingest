@@ -2,6 +2,7 @@ syntax = "proto3";
 
 package cloud_ingest_task;
 option go_package = "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto";
+import "google/protobuf/timestamp.proto";
 
 // Specifies the task operation that a task performs.
 enum Type {
@@ -157,6 +158,12 @@ message TaskRespMsg {
   Log log = 5;
   Spec req_spec = 6;
   Spec resp_spec = 7;
+  // Pub/Sub request message publish time.
+  google.protobuf.Timestamp req_publish_time = 10;
+  // Agent-measured start of request processing.
+  google.protobuf.Timestamp req_start_time = 11;
+  // Agent-measured Pub/Sub response publish time.
+  google.protobuf.Timestamp resp_publish_time = 12;
 }
 
 // Contains log information for a task. This message is suitable for the "Log"

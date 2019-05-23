@@ -20,12 +20,29 @@ option go_package = "github.com/GoogleCloudPlatform/cloud-ingest/proto/pulse_go_
 // The Agent periodically sends this msg to the DCP. The DCP uses this info to
 // know that the Agent is alive, and to expose info about that Agent.
 message Msg {
-  AgentId agent_id = 1;  // The unique id for each agent.
+  AgentId agent_id = 1;       // The unique id for each agent.
   string agent_version = 3;   // The version of the agent.
   string agent_logs_dir = 4;  // The directory where the agents writes its logs.
-  int64 agent_transferred_bytes = 6;  // Bytes the Agent wrote 'to the wire'.
   int64 agent_uptime_ms = 7;  // Time in millis since agent startup.
-  int64 agent_transferred_list_bytes = 8;  // Bytes the Agent wrote during listing.
+
+  // Below measurements are accumulated and reset with each pulse sent.
+  int64 agent_transferred_bytes = 6;  // Bytes the Agent wrote 'to the wire'.
+  // Bytes the Agent wrote during listing.
+  int64 agent_transferred_list_bytes = 8;
+  int64 copy_open_ms = 9;    // Duration in millis spent doing file open.
+  int64 copy_stat_ms = 10;   // Duration in millis spent doing file stat.
+  int64 copy_seek_ms = 11;   // Duration in millis spent doing seek.
+  int64 copy_read_ms = 12;   // Duration in millis reading source.
+  int64 copy_write_ms = 13;  // Duration in millis spent writing to destination.
+  int64 copy_internal_retries = 14;  // Number of internal retries.
+  // Duration in millis spent opening directories.
+  int64 list_dir_open_ms = 15;
+  // Duration in millis spent reading directories.
+  int64 list_dir_read_ms = 16;
+  // Duration in millis spent writing file listing output.
+  int64 list_file_write_ms = 17;
+  // Duration in millis spent writing unexplored dir listing output.
+  int64 list_dir_write_ms = 18;
 
   reserved 2, 5;  // Don't reuse tags.
 }
