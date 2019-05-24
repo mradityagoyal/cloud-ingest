@@ -22,6 +22,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
@@ -62,12 +63,16 @@ func NewDepthFirstListHandler(storageClient *storage.Client, st *stats.Tracker) 
 // given dirStore.
 // It returns the discovered files (and directories if writeDirs is true) sorted in case sensitive
 // alphabetical order by path. The given listMD is updated with the number of files/dirs found.
-func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMetadata, writeDirs bool) ([]*listfilepb.ListFileEntry, error) {
+func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMetadata, writeDirs bool, statsTracker *stats.Tracker) ([]*listfilepb.ListFileEntry, error) {
+	openStart := time.Now()
 	f, err := os.Open(dir)
+	statsTracker.RecordPulseStats(&stats.PulseStats{ListDirOpenMs: stats.DurMs(openStart)})
 	if err != nil {
 		return nil, err
 	}
+	readStart := time.Now()
 	osFileInfos, err := f.Readdir(-1)
+	statsTracker.RecordPulseStats(&stats.PulseStats{ListDirReadMs: stats.DurMs(readStart)})
 	f.Close()
 	if err != nil {
 		return nil, err
@@ -118,7 +123,7 @@ func writeDirectories(w io.Writer, dirStore *DirectoryInfoStore) error {
 // adds any directories to the list of directories to be listed. If includeDirs is true, both files
 // and directories are written to the list file.
 // processDirectories returns listing file metadata gathered while processing directories.
-func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeThreshold, maxDirBytes int, includeDirs bool, listSpec taskpb.ListSpec) (*listingFileMetadata, error) {
+func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeThreshold, maxDirBytes int, includeDirs bool, listSpec taskpb.ListSpec, statsTracker *stats.Tracker) (*listingFileMetadata, error) {
 	totalEntries := 0
 	listMD := &listingFileMetadata{}
 
@@ -130,7 +135,7 @@ func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeT
 		if dirToProcess == nil {
 			break
 		}
-		entries, err := processDir(dirToProcess.Path, dirStore, listMD, includeDirs)
+		entries, err := processDir(dirToProcess.Path, dirStore, listMD, includeDirs, statsTracker)
 		if err != nil {
 			if listSpec.RootDirectory != "" && os.IsNotExist(err) {
 				if err := handleNotFoundDir(dirToProcess.Path, listSpec, listMD); err == nil {
@@ -193,7 +198,7 @@ func isListedInSpec(dir string, spec taskpb.ListSpec) bool {
 // file. Otherwise, just files are written.
 // Unlisted directories (any directories that were found or included in the list spec but weren't
 // listed) are stored in the returned directory info store.
-func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, listFileSizeThreshold, maxDirBytes int, writeDirs bool) (*listingFileMetadata, *DirectoryInfoStore, error) {
+func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, listFileSizeThreshold, maxDirBytes int, writeDirs bool, statsTracker *stats.Tracker) (*listingFileMetadata, *DirectoryInfoStore, error) {
 	// Add directories from list spec into the DirStore.
 	// Directories will be explored in alphabetical, depth first order.
 	dirStore := NewDirectoryInfoStore()
@@ -203,7 +208,7 @@ func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, list
 		}
 	}
 
-	listMD, err := processDirectories(w, dirStore, listFileSizeThreshold, maxDirBytes, writeDirs, *listSpec)
+	listMD, err := processDirectories(w, dirStore, listFileSizeThreshold, maxDirBytes, writeDirs, *listSpec, statsTracker)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -223,15 +228,16 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	}
 
 	w := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstListResultObject, listSpec.ExpectedGenerationNum, h.resumableChunkSize)
-	bw := h.statsTracker.NewByteTrackingWriter(w)
 
-	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(bw, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, false /* writeDirs */)
+	fileWriter := h.statsTracker.NewListByteTrackingWriter(w, true)
+	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(fileWriter, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, false /* writeDirs */, h.statsTracker)
 	if err != nil {
 		w.CloseWithError(err)
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}
 
-	if err = writeDirectories(bw, unlistedDirs); err != nil {
+	dirWriter := h.statsTracker.NewListByteTrackingWriter(w, false)
+	if err = writeDirectories(dirWriter, unlistedDirs); err != nil {
 		w.CloseWithError(err)
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}

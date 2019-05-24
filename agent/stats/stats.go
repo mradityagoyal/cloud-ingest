@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"reflect"
 	"sort"
 	"sync"
 	"time"
@@ -55,25 +56,48 @@ type periodicStats struct {
 	taskDurations    map[string][]time.Duration
 	taskFailures     map[string]int
 	bytesCopied      int64
-	listBytesCopied  int64
 	ctrlMsgsReceived int64
 	pulseMsgsSent    int64
 }
 
 type lifetimeStats struct {
-	taskDone        map[string]uint64
-	bytesCopied     int64
-	listBytesCopied int64
+	PulseStats // Embedded struct.
 
+	taskDone    map[string]uint64
 	ctrlMsgTime time.Time
 	bwLimit     int64
 }
 
-type accumulator struct {
-	mu               sync.Mutex
-	bytesSentChan    chan int64
-	accumulatedBytes int64
-	prevBytes        int64
+// PulseStats contains stats which are sent with each Agent pulse message.
+type PulseStats struct {
+	CopyBytes           int64
+	ListBytes           int64
+	CopyOpenMs          int64
+	CopyStatMs          int64
+	CopySeekMs          int64
+	CopyReadMs          int64
+	CopyWriteMs         int64
+	CopyInternalRetries int64
+	ListDirOpenMs       int64
+	ListDirReadMs       int64
+	ListFileWriteMs     int64
+	ListDirWriteMs      int64
+}
+
+func (ps1 *PulseStats) add(ps2 *PulseStats) {
+	ps1v := reflect.ValueOf(ps1).Elem()
+	ps2v := reflect.ValueOf(ps2).Elem()
+	for i := 0; i < ps1v.NumField(); i++ {
+		ps1v.Field(i).SetInt(ps1v.Field(i).Int() + ps2v.Field(i).Int())
+	}
+}
+
+func (ps1 *PulseStats) sub(ps2 *PulseStats) {
+	ps1v := reflect.ValueOf(ps1).Elem()
+	ps2v := reflect.ValueOf(ps2).Elem()
+	for i := 0; i < ps1v.NumField(); i++ {
+		ps1v.Field(i).SetInt(ps1v.Field(i).Int() - ps2v.Field(i).Int())
+	}
 }
 
 // Tracker collects stats about the Agent, provides a display to STDOUT, and
@@ -92,10 +116,11 @@ type Tracker struct {
 
 	spinnerIdx int // For displaying the mighty spinner.
 
-	// These fields support func AccumulatedBytes, which allows the
-	// PulseSender to send the count of transferred bytes with each pulse.
-	copyBytes accumulator
-	listBytes accumulator
+	// For managing accumulated pulse stats.
+	pulseStatsMu   sync.Mutex
+	pulseStatsChan chan *PulseStats
+	currPulseStats PulseStats
+	prevPulseStats PulseStats
 
 	// Testing hooks.
 	selectDone        func()
@@ -122,8 +147,7 @@ func NewTracker(ctx context.Context) *Tracker {
 			ctrlMsgTime: time.Now(),
 			bwLimit:     math.MaxInt32,
 		},
-		copyBytes:         accumulator{bytesSentChan: make(chan int64, 100)},
-		listBytes:         accumulator{bytesSentChan: make(chan int64, 100)},
+		pulseStatsChan:    make(chan *PulseStats, 100),
 		tpTracker:         throughput.NewTracker(ctx),
 		selectDone:        func() {},
 		logTicker:         common.NewClockTicker(statsLogFreq),
@@ -134,36 +158,17 @@ func NewTracker(ctx context.Context) *Tracker {
 	return t
 }
 
-// AccumulatedBytes returns the number of bytesCopied since the last call to
-// this function. This function is *NOT* idempotent, as calling it resets the
-// accumulatedBytes.
-//
-// Returns zero for a nil receiver.
-func (a *accumulator) AccumulatedBytes() int64 {
-	if a == nil {
-		return 0
-	}
-	a.mu.Lock()
-	// defers stack, set to 0 will happen before the mutex unlocks.
-	defer a.mu.Unlock()
-	defer func() { a.accumulatedBytes = 0 }()
-	return a.accumulatedBytes
-}
-
-// AccumulatedCopyBytes convenience function for CopyBytes.AccumulatedBytes()
-func (t *Tracker) AccumulatedCopyBytes() int64 {
+// AccumulatedPulseStats returns the PulseStats since the last time this function was called.
+// This function is *NOT* idempotent, as calling it resets the underlying PulseStats.
+func (t *Tracker) AccumulatedPulseStats() *PulseStats {
 	if t == nil {
-		return 0
+		return &PulseStats{}
 	}
-	return t.copyBytes.AccumulatedBytes()
-}
-
-// AccumulatedListBytes convenience function for ListBytes.AccumulatedBytes()
-func (t *Tracker) AccumulatedListBytes() int64 {
-	if t == nil {
-		return 0
-	}
-	return t.listBytes.AccumulatedBytes()
+	t.pulseStatsMu.Lock()
+	defer t.pulseStatsMu.Unlock()
+	d := t.currPulseStats
+	t.currPulseStats = PulseStats{}
+	return &d
 }
 
 // RecordTaskResp tracks the count and duration of completed tasks.
@@ -193,82 +198,106 @@ func (t *Tracker) RecordTaskResp(resp *taskpb.TaskRespMsg, dur time.Duration) {
 	}
 }
 
-// ByteTrackingReader is an io.Reader that wraps another io.Reader and
+// CopyByteTrackingReader is an io.Reader that wraps another io.Reader and
 // performs byte tracking during the Read function.
-type ByteTrackingReader struct {
+type CopyByteTrackingReader struct {
 	reader  io.Reader
 	tracker *Tracker
 }
 
-// NewByteTrackingReader returns a ByteTrackingReader.
-//
+// NewCopyByteTrackingReader returns a CopyByteTrackingReader.
 // Returns the passed in reader for a nil receiver.
-func (t *Tracker) NewByteTrackingReader(r io.Reader) io.Reader {
+func (t *Tracker) NewCopyByteTrackingReader(r io.Reader) io.Reader {
 	if t == nil {
 		return r
 	}
-	return &ByteTrackingReader{reader: r, tracker: t}
+	return &CopyByteTrackingReader{reader: r, tracker: t}
 }
 
 // Read implements the io.Reader interface.
-func (btr *ByteTrackingReader) Read(buf []byte) (n int, err error) {
-	if n, err = btr.reader.Read(buf); err != nil {
-		return 0, err
+func (cbtr *CopyByteTrackingReader) Read(buf []byte) (n int, err error) {
+	start := time.Now()
+	n, err = cbtr.reader.Read(buf)
+	cbtr.tracker.pulseStatsChan <- &PulseStats{
+		CopyReadMs: DurMs(start),
+		CopyBytes:  int64(n),
 	}
-	btr.tracker.RecordCopyBytesSent(int64(n))
-	return n, nil
+	cbtr.tracker.tpTracker.RecordBytesSent(int64(n))
+	return n, err
 }
 
-// ByteTrackingWriter is an io.Writer that records how many bytes are written
-// and adds them up to the throughput tracker.
-type ByteTrackingWriter struct {
+// TimingReader is an io.Reader that wraps another io.Reader and
+// tracks the total duration of the Read calls.
+type TimingReader struct {
+	reader  io.Reader
+	readDur time.Duration
+}
+
+// NewTimingReader returns a TimingReader.
+func NewTimingReader(r io.Reader) *TimingReader {
+	return &TimingReader{reader: r}
+}
+
+// Read implements the io.Reader interface.
+func (tr *TimingReader) Read(buf []byte) (n int, err error) {
+	start := time.Now()
+	n, err = tr.reader.Read(buf)
+	tr.readDur += time.Now().Sub(start)
+	return n, err
+}
+
+// ReadDur returns the total duration of this reader's Read calls.
+func (tr *TimingReader) ReadDur() time.Duration {
+	return tr.readDur
+}
+
+// ListByteTrackingWriter is an io.Writer that wraps another io.Writer and
+// performs byte tracking during the Write function.
+type ListByteTrackingWriter struct {
 	writer  io.Writer
 	tracker *Tracker
+	file    bool
 }
 
-// NewByteTrackingWriter returns a ByteTrackingWriter.
-func (t *Tracker) NewByteTrackingWriter(w io.Writer) io.Writer {
+// NewListByteTrackingWriter returns a ListByteTrackingWriter. If 'file' is true, timing stats
+// will be written for ListFileWriteMs. If false, timing stats will be written for ListDirWriteMs.
+// Returns the passed in writer for a nil receiver.
+func (t *Tracker) NewListByteTrackingWriter(w io.Writer, file bool) io.Writer {
 	if t == nil {
-		return nil
+		return w
 	}
-	return &ByteTrackingWriter{writer: w, tracker: t}
+	return &ListByteTrackingWriter{writer: w, tracker: t, file: file}
 }
 
 // Write implements the io.Writer interface.
-func (btw *ByteTrackingWriter) Write(p []byte) (n int, err error) {
-	nb := len(p)
-	btw.tracker.RecordCopyBytesSent(int64(nb))
-	btw.writer.Write(p)
-	return nb, nil
+func (lbtw *ListByteTrackingWriter) Write(p []byte) (n int, err error) {
+	start := time.Now()
+	n, err = lbtw.writer.Write(p)
+	ps := &PulseStats{ListBytes: int64(n)}
+	if lbtw.file {
+		ps.ListFileWriteMs = DurMs(start)
+	} else {
+		ps.ListDirWriteMs = DurMs(start)
+	}
+	lbtw.tracker.pulseStatsChan <- ps
+	return n, err
 }
 
-// RecordCopyBytesSent tracks the count of bytes sent, and enables throughput tracking.
-// For accurate throughput measurement this function should be called every time
-// bytes are sent on the wire. More frequent and granular calls to this function
-// will provide a more accurate throughput measurement.
-//
+// RecordPulseStats tracks stats contained within 'ps'.
 // Takes no action for a nil receiver.
-func (t *Tracker) RecordCopyBytesSent(bytes int64) {
+func (t *Tracker) RecordPulseStats(ps *PulseStats) {
 	if t == nil {
 		return
 	}
-	t.tpTracker.RecordBytesSent(bytes)
-	t.copyBytes.bytesSentChan <- bytes
+	t.pulseStatsChan <- ps
 }
 
-// RecordListBytesSent tracks the count of list bytes sent
-// (analogous to RecordCopyBytesSent).
-//
-// Takes no action for a nil receiver.
-func (t *Tracker) RecordListBytesSent(bytes int64) {
-	if t == nil {
-		return
-	}
-	t.listBytes.bytesSentChan <- bytes
+// DurMs returns the duration in millis between time.Now() and 'start'.
+func DurMs(start time.Time) int64 {
+	return time.Now().Sub(start).Nanoseconds() / 1000000
 }
 
 // RecordBWLimit tracks the current bandwidth limit.
-//
 // Takes no action for a nil receiver.
 func (t *Tracker) RecordBWLimit(agentBW int64) {
 	if t == nil {
@@ -278,8 +307,7 @@ func (t *Tracker) RecordBWLimit(agentBW int64) {
 }
 
 // RecordCtrlMsg tracks received control messages.
-//
-// Will take no action if the receiver is nil.
+// Takes no action for a nil receiver.
 func (t *Tracker) RecordCtrlMsg(time time.Time) {
 	if t == nil {
 		return
@@ -288,7 +316,6 @@ func (t *Tracker) RecordCtrlMsg(time time.Time) {
 }
 
 // RecordPulseMsg tracks sent pulse messages.
-//
 // Takes no action for a nil receiver.
 func (t *Tracker) RecordPulseMsg() {
 	if t == nil {
@@ -310,12 +337,9 @@ func (t *Tracker) track(ctx context.Context) {
 			t.lifetime.taskDone[tr.task]++
 		case task := <-t.taskFailChan:
 			t.periodic.taskFailures[task]++
-		case copyBytes := <-t.copyBytes.bytesSentChan:
-			t.periodic.bytesCopied += copyBytes
-			t.lifetime.bytesCopied += copyBytes
-		case listBytes := <-t.listBytes.bytesSentChan:
-			t.periodic.listBytesCopied += listBytes
-			t.lifetime.listBytesCopied += listBytes
+		case ps := <-t.pulseStatsChan:
+			t.periodic.bytesCopied += ps.CopyBytes
+			t.lifetime.PulseStats.add(ps)
 		case agentBW := <-t.bwLimitChan:
 			t.lifetime.bwLimit = agentBW
 		case time := <-t.ctrlMsgChan:
@@ -328,21 +352,18 @@ func (t *Tracker) track(ctx context.Context) {
 		case <-t.displayTicker.GetChannel():
 			t.displayStats()
 		case <-t.accumulatorTicker.GetChannel():
-			t.accumulateByteStats()
+			t.accumulatePulseStats()
 		}
 		t.selectDone() // Testing hook.
 	}
 }
 
-func (t *Tracker) accumulateByteStats() {
-	t.copyBytes.mu.Lock()
-	t.copyBytes.accumulatedBytes += t.lifetime.bytesCopied - t.copyBytes.prevBytes
-	t.copyBytes.prevBytes = t.lifetime.bytesCopied
-	t.copyBytes.mu.Unlock()
-	t.listBytes.mu.Lock()
-	t.listBytes.accumulatedBytes += t.lifetime.listBytesCopied - t.listBytes.prevBytes
-	t.listBytes.prevBytes = t.lifetime.listBytesCopied
-	t.listBytes.mu.Unlock()
+func (t *Tracker) accumulatePulseStats() {
+	t.pulseStatsMu.Lock()
+	defer t.pulseStatsMu.Unlock()
+	t.currPulseStats.add(&t.lifetime.PulseStats)
+	t.currPulseStats.sub(&t.prevPulseStats)
+	t.prevPulseStats = t.lifetime.PulseStats
 }
 
 func (t *Tracker) displayStats() string {
@@ -351,7 +372,7 @@ func (t *Tracker) displayStats() string {
 	if txLim := t.lifetime.bwLimit; txLim > 0 && txLim < math.MaxInt32 {
 		txRate += fmt.Sprintf(" (capped at %v/s)", byteCountBinary(t.lifetime.bwLimit, 7))
 	}
-	txSum := fmt.Sprintf("txSum:%v", byteCountBinary(t.lifetime.bytesCopied, 7))
+	txSum := fmt.Sprintf("txSum:%v", byteCountBinary(t.lifetime.CopyBytes, 7))
 
 	// Generate the task response counts.
 	taskResps := "taskResps["

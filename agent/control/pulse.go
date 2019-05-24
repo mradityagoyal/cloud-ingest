@@ -34,7 +34,7 @@ import (
 )
 
 var (
-	agentIDPrefix = flag.String("agent-id-prefix", "", "A a prefix to include on the agent id")
+	agentIDPrefix   = flag.String("agent-id-prefix", "", "A a prefix to include on the agent id")
 	sendTickerMaker = func() common.Ticker {
 		return common.NewClockTicker(pulseFrequency)
 	}
@@ -131,19 +131,29 @@ func (ps *PulseSender) sendPulses(ctx context.Context) {
 }
 
 func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
-	transferredCopyBytes := ps.statsTracker.AccumulatedCopyBytes()
-	transferredListBytes := ps.statsTracker.AccumulatedListBytes()
+	s := ps.statsTracker.AccumulatedPulseStats()
 	return &pulsepb.Msg{
 		AgentId: &pulsepb.AgentId{
 			HostName:  ps.hostname,
 			ProcessId: fmt.Sprintf("%v", ps.pid),
 			Prefix:    ps.prefix,
 		},
-		AgentVersion:          ps.version,
-		AgentLogsDir:          ps.logsDir,
-		AgentTransferredBytes: transferredCopyBytes,
-		// Seconds() returns the duration as a floating point
-		AgentUptimeMs:             int64(time.Now().Sub(ps.startTime).Seconds() * 1000),
-		AgentTransferredListBytes: transferredListBytes,
+		AgentVersion:  ps.version,
+		AgentLogsDir:  ps.logsDir,
+		AgentUptimeMs: stats.DurMs(ps.startTime),
+
+		// Accumulated stats, reset with each pulse message.
+		AgentTransferredBytes:     s.CopyBytes,
+		AgentTransferredListBytes: s.ListBytes,
+		CopyOpenMs:                s.CopyOpenMs,
+		CopyStatMs:                s.CopyStatMs,
+		CopySeekMs:                s.CopySeekMs,
+		CopyReadMs:                s.CopyReadMs,
+		CopyWriteMs:               s.CopyWriteMs,
+		CopyInternalRetries:       s.CopyInternalRetries,
+		ListDirOpenMs:             s.ListDirOpenMs,
+		ListDirReadMs:             s.ListDirReadMs,
+		ListFileWriteMs:           s.ListFileWriteMs,
+		ListDirWriteMs:            s.ListDirWriteMs,
 	}
 }

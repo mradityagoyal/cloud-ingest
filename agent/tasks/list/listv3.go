@@ -68,9 +68,9 @@ func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *
 	// Write list file BEFORE the unexplored dirs file. This ordering is important to ensure that if
 	// two agents are processing the same task, one will succeed and the other will fail.
 	listFileW := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstListResultObject, listSpec.ListResultExpectedGenerationNum, h.resumableChunkSize)
-	listBtw := h.statsTracker.NewByteTrackingWriter(listFileW)
+	listBtw := h.statsTracker.NewListByteTrackingWriter(listFileW, true)
 
-	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(listBtw, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, true /* writeDirs */)
+	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(listBtw, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, true /* writeDirs */, h.statsTracker)
 	if err != nil {
 		listFileW.CloseWithError(err)
 		if os.IsNotExist(err) {
@@ -83,7 +83,7 @@ func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *
 	}
 
 	unexploredDirsW := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstUnexploredDirsObject, listSpec.UnexploredDirsExpectedGenerationNum, h.resumableChunkSize)
-	unexploredBtw := h.statsTracker.NewByteTrackingWriter(unexploredDirsW)
+	unexploredBtw := h.statsTracker.NewListByteTrackingWriter(unexploredDirsW, false)
 	if err = writeDirectories(unexploredBtw, unlistedDirs); err != nil {
 		unexploredDirsW.CloseWithError(err)
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)

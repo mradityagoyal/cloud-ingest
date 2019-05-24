@@ -41,10 +41,6 @@ func TestPulseSender(t *testing.T) {
 		mockPulseTopic := pubsubinternal.NewMockPSTopic(ctrl)
 
 		st := stats.NewTracker(ctx)
-		st.RecordCopyBytesSent(123)
-		st.RecordCopyBytesSent(456)
-		st.RecordCopyBytesSent(789)
-
 		mockSendTicker := common.NewMockTicker()
 		sendTickerMaker = func() common.Ticker {
 			return mockSendTicker

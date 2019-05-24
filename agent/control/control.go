@@ -71,7 +71,7 @@ func (ch *ControlHandler) processMessage(_ context.Context, msg *pubsub.Message)
 	var controlMsg controlpb.Control
 	if err := proto.Unmarshal(msg.Data, &controlMsg); err != nil {
 		glog.Errorf("error decoding msg %s, publish time: %v, error %v", string(msg.Data), msg.PublishTime, err)
-		// Non-recoverable error. Will Ack the message to avoid delivering again.
+		// Non-recoverable error. Will Ack the message to avoid redelivery.
 		return
 	}
 

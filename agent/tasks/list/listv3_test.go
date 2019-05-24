@@ -158,7 +158,7 @@ func TestListV3DirFoundThenDeleted(t *testing.T) {
 		t.Fatalf("DirectoryInfoStore.Add() got error: %v", err)
 	}
 	// Have to test helper method to avoid race conditions.
-	listMD, err := processDirectories(listWriter, dirStore, 10000, 500000, true, *taskReqMsg.Spec.GetListSpec())
+	listMD, err := processDirectories(listWriter, dirStore, 10000, 500000, true, *taskReqMsg.Spec.GetListSpec(), nil)
 	if err != nil {
 		t.Errorf("processDirectories() got error %v", err)
 	}

@@ -53,7 +53,8 @@ func TestLogMsgFormatAndParse(t *testing.T) {
 	for i, s := range samples {
 		wg.Add(4)
 		st.RecordTaskResp(s.trm, s.d)
-		st.RecordCopyBytesSent(int64(i))
+		st.tpTracker.RecordBytesSent(int64(i))
+		st.pulseStatsChan <- &PulseStats{CopyBytes: int64(i)}
 		st.RecordCtrlMsg(time.Now())
 		st.RecordPulseMsg()
 		wg.Wait() // Force the Tracker to collect the recorded stats.

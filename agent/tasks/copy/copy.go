@@ -119,28 +119,30 @@ func NewCopyHandler(storageClient *storage.Client, hc *http.Client, st *stats.Tr
 	}
 }
 
-func checkResumableFileStats(c *taskpb.CopySpec, stats os.FileInfo) error {
-	if c.FileBytes != stats.Size() {
+func checkResumableFileStats(c *taskpb.CopySpec, fileinfo os.FileInfo) error {
+	if c.FileBytes != fileinfo.Size() {
 		return common.AgentError{
 			Msg: fmt.Sprintf(
 				"File size changed during the copy. Expected:%+v, got:%+v",
-				c.FileBytes, stats.Size()),
+				c.FileBytes, fileinfo.Size()),
 			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
-	if c.FileMTime != stats.ModTime().Unix() {
+	if c.FileMTime != fileinfo.ModTime().Unix() {
 		return common.AgentError{
 			Msg: fmt.Sprintf(
 				"File mtime changed during the copy. Expected:%+v, got:%+v",
-				c.FileMTime, stats.ModTime().Unix()),
+				c.FileMTime, fileinfo.ModTime().Unix()),
 			FailureType: taskpb.FailureType_FILE_MODIFIED_FAILURE,
 		}
 	}
 	return nil
 }
 
-func checkFileStats(beforeStats os.FileInfo, f *os.File) error {
+func (h *CopyHandler) checkFileStats(beforeStats os.FileInfo, f *os.File) error {
+	statStart := time.Now()
 	afterStats, err := f.Stat()
+	h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyStatMs: stats.DurMs(statStart)})
 	if err != nil {
 		return err
 	}
@@ -169,24 +171,29 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 	}
 
 	// Open the on-premises file, and check the file stats if necessary.
+	openStart := time.Now()
 	srcFile, err := os.Open(copySpec.SrcFile)
+	h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyOpenMs: stats.DurMs(openStart)})
 	if err != nil {
 		return cl, err
 	}
 	defer srcFile.Close()
-	stats, err := srcFile.Stat()
+
+	statStart := time.Now()
+	fileinfo, err := srcFile.Stat()
+	h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyStatMs: stats.DurMs(statStart)})
 	if err != nil {
 		return cl, err
 	}
 	// This populates the log entry for the audit logs and for tracking
 	// bytes. Bytes are only counted when the task moves to "success", so
 	// there won't be any double counting.
-	cl.SrcBytes = stats.Size()
-	cl.SrcMTime = stats.ModTime().Unix()
+	cl.SrcBytes = fileinfo.Size()
+	cl.SrcMTime = fileinfo.ModTime().Unix()
 	if resumedCopy {
 		// TODO(b/74009003): When implementing "synchronization" rethink how
 		// the file stat parameters are set and compared.
-		if err = checkResumableFileStats(copySpec, stats); err != nil {
+		if err = checkResumableFileStats(copySpec, fileinfo); err != nil {
 			return cl, err
 		}
 	}
@@ -194,27 +201,27 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 	// Copy the entire file or start a resumable copy.
 	if !resumedCopy {
 		// Start a copy. If the file is small enough copy the entire file, otherwise begin a resumable copy.
-		if stats.Size() <= int64(*copyEntireFileLimit) || *copyChunkSize <= 0 {
-			err = h.copyEntireFile(ctx, copySpec, srcFile, stats, cl)
+		if fileinfo.Size() <= int64(*copyEntireFileLimit) || *copyChunkSize <= 0 {
+			err = h.copyEntireFile(ctx, copySpec, srcFile, fileinfo, cl)
 			if err != nil {
 				return cl, err
 			}
 		} else {
-			if err := h.prepareResumableCopy(ctx, copySpec, srcFile, stats); err != nil {
+			if err := h.prepareResumableCopy(ctx, copySpec, srcFile, fileinfo); err != nil {
 				return cl, err
 			}
 			resumedCopy = true
 		}
 	}
 	if resumedCopy {
-		err = h.copyResumableChunk(ctx, copySpec, srcFile, stats, cl)
+		err = h.copyResumableChunk(ctx, copySpec, srcFile, fileinfo, cl)
 		if err != nil {
 			return cl, err
 		}
 	}
 
-	// Now that data has been sent, check that the file stats haven't changed.
-	if err = checkFileStats(stats, srcFile); err != nil {
+	// Now that data has been sent, check that the fileinfo stats haven't changed.
+	if err = h.checkFileStats(fileinfo, srcFile); err != nil {
 		return cl, err
 	}
 
@@ -262,6 +269,7 @@ func (h *CopyHandler) handleCopySpecWithRetries(ctx context.Context, copySpec *t
 		if err == nil || !isRetryableError(err) {
 			break
 		}
+		h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyInternalRetries: 1})
 	}
 	return spec, copyLog, err
 }
@@ -311,14 +319,14 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	return common.BuildTaskRespMsg(taskReqMsg, respSpec, log, err)
 }
 
-func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, cl *taskpb.CopyLog) error {
+func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, fileinfo os.FileInfo, cl *taskpb.CopyLog) error {
 	w := h.gcs.NewWriterWithCondition(ctx, c.DstBucket, c.DstObject,
 		common.GetGCSGenerationNumCondition(c.ExpectedGenerationNum))
 
-	bufSize := stats.Size()
+	bufSize := fileinfo.Size()
 	if t, ok := w.(*storage.Writer); ok {
 		t.Metadata = map[string]string{
-			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
+			MTIME_ATTR_NAME: strconv.FormatInt(fileinfo.ModTime().Unix(), 10),
 		}
 		if *copyChunkSize <= 0 {
 			bufSize = veneerClientDefaultChunkSize
@@ -327,12 +335,16 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 	}
 
 	var srcCRC32C uint32
-	r := rate.NewRateLimitingReader(srcFile)    // Wrap the srcFile with a RateLimitingReader.
-	r = h.statsTracker.NewByteTrackingReader(r) // Wrap with a ByteTrackingReader.
-	r = NewCRC32UpdatingReader(r, &srcCRC32C)   // Wrap with a CRC32UpdatingReader.
+	r := h.statsTracker.NewCopyByteTrackingReader(srcFile) // Wrap the srcFile with a CopyByteTrackingReader.
+	r = rate.NewRateLimitingReader(r)                      // Wrap with a RateLimitingReader.
+	r = NewCRC32UpdatingReader(r, &srcCRC32C)              // Wrap with a CRC32UpdatingReader.
+	tr := stats.NewTimingReader(r)                         // Wrap with a TimingReader.
 
 	// Copy the file using io.Copy. This allocates a small temp buffer and handles the Read+Write calls.
-	if _, err := io.Copy(w, r); err != nil {
+	writeStart := time.Now()
+	_, err := io.Copy(w, tr)
+	h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyWriteMs: stats.DurMs(writeStart.Add(tr.ReadDur()))})
+	if err != nil {
 		w.CloseWithError(err)
 		return err
 	}
@@ -346,7 +358,7 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 	cl.DstCrc32C = dstAttrs.CRC32C
 	cl.DstMTime = dstAttrs.Updated.Unix()
 	cl.SrcCrc32C = srcCRC32C
-	cl.BytesCopied = stats.Size()
+	cl.BytesCopied = fileinfo.Size()
 
 	// Verify the CRC32C.
 	if dstAttrs.CRC32C != srcCRC32C {
@@ -373,7 +385,7 @@ func contentType(srcFile io.Reader) string {
 // prepareResumableCopy makes a request to GCS to begin a resumable copy. It
 // updates the copy spec (with the resuambleUploadId and other file metadata)
 // which will be sent to the DCP for future work on this resumable copy task.
-func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySpec, srcFile io.Reader, stats os.FileInfo) error {
+func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySpec, srcFile io.Reader, fileinfo os.FileInfo) error {
 	// Create the request URL.
 	urlParams := make(gensupport.URLParams)
 	urlParams.Set("ifGenerationMatch", fmt.Sprint(c.ExpectedGenerationNum))
@@ -387,7 +399,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 		Name:   c.DstObject,
 		Bucket: c.DstBucket,
 		Metadata: map[string]string{
-			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
+			MTIME_ATTR_NAME: strconv.FormatInt(fileinfo.ModTime().Unix(), 10),
 		},
 	}
 	body := new(bytes.Buffer)
@@ -405,7 +417,7 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 	reqHeaders.Set("Content-Type", "application/json; charset=UTF-8")
 	reqHeaders.Set("Content-Length", fmt.Sprint(body.Len()))
 	reqHeaders.Set("User-Agent", userAgentStr)
-	reqHeaders.Set("X-Upload-Content-Length", fmt.Sprint(stats.Size()))
+	reqHeaders.Set("X-Upload-Content-Length", fmt.Sprint(fileinfo.Size()))
 	reqHeaders.Set("X-Upload-Content-Type", contentType(srcFile))
 
 	// Stitch all the pieces together into an HTTP request.
@@ -427,8 +439,8 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 	}
 
 	// This function was successful, update the copy spec.
-	c.FileBytes = stats.Size()
-	c.FileMTime = stats.ModTime().Unix()
+	c.FileBytes = fileinfo.Size()
+	c.FileMTime = fileinfo.ModTime().Unix()
 	// TODO(b/74009190): Consider renaming this, or somehow indicating that
 	// this is a full URL. The Agent needs to be aware that this is a full
 	// URL, however the DCP really only cares that this is some sort of ID.
@@ -440,12 +452,12 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 // copyResumableChunk sends a chunk of the srcFile to GCS as part of a resumable
 // copy task. This function also updates the CopySpec and CopyLog, both of
 // which are sent to the DCP.
-func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, cl *taskpb.CopyLog) error {
+func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, fileinfo os.FileInfo, cl *taskpb.CopyLog) error {
 	final := false
 	bytesToCopy := int64(*copyChunkSize)
-	if bytesToCopy <= 0 || bytesToCopy+c.BytesCopied >= stats.Size() {
+	if bytesToCopy <= 0 || bytesToCopy+c.BytesCopied >= fileinfo.Size() {
 		// bytesToCopy <= 0 indicates that the rest of the file should be copied.
-		bytesToCopy = stats.Size() - c.BytesCopied
+		bytesToCopy = fileinfo.Size() - c.BytesCopied
 		final = true
 	}
 
@@ -463,17 +475,25 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 		case <-time.After(delay):
 		}
 
-		srcFile.Seek(c.BytesCopied, 0)
-		var r io.Reader = io.LimitReader(srcFile, bytesToCopy) // Wrap the srcFile in a LimitReader.
+		seekStart := time.Now()
+		_, err = srcFile.Seek(c.BytesCopied, 0)
+		h.statsTracker.RecordPulseStats(&stats.PulseStats{CopySeekMs: stats.DurMs(seekStart)})
+		if err != nil {
+			return err
+		}
+		r := h.statsTracker.NewCopyByteTrackingReader(srcFile) // Wrap the srcFile in a CopyByteTrackingReader.
+		r = io.LimitReader(r, bytesToCopy)                     // Wrap with a LimitReader.
 		r = NewSemAcquiringReader(r, ctx)                      // Wrap with a SemAcquiringReader.
 		r = bufio.NewReaderSize(r, *fileReadBuf)               // Wrap with a buffered reader.
 		r = rate.NewRateLimitingReader(r)                      // Wrap with a RateLimitingReader.
-		r = h.statsTracker.NewByteTrackingReader(r)            // Wrap with a ByteTrackingReader.
 		srcCRC32C = c.Crc32C                                   // Set the initial crc32.
 		r = NewCRC32UpdatingReader(r, &srcCRC32C)              // Wrap with a CRC32UpdatingReader.
+		tr := stats.NewTimingReader(r)                         // Wrap with a TimingReader.
 
 		// Perform the copy!
-		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, r, c.BytesCopied, int64(bytesToCopy), final)
+		writeStart := time.Now()
+		resp, err = h.resumedCopyRequest(ctx, c.ResumableUploadId, tr, c.BytesCopied, int64(bytesToCopy), final)
+		h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyWriteMs: stats.DurMs(writeStart.Add(tr.ReadDur()))})
 
 		var status int
 		if resp != nil {
@@ -482,6 +502,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 
 		// Check if we should retry the request.
 		if shouldRetry(status, err) {
+			h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyInternalRetries: 1})
 			var retry bool
 			if delay, retry = backoff.GetDelay(); retry {
 				if resp != nil && resp.Body != nil {
