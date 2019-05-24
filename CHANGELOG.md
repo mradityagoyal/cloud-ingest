@@ -10,11 +10,13 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+
+## [1.0.9] - 2019-05-24
 ### Changed
 - Make the incremental copy chunk size flag controlled, default to 128MiB.
   Increase the default PubSub message timeout to 20m.
 
-## [1.0.8] - 2019-05-24
+## [1.0.8] - 2019-05-17
 ### Added
 - AgentUpdate to control message
 ### Changed
