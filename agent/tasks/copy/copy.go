@@ -74,6 +74,7 @@ var (
 	internalTesting   = flag.Bool("internal-testing", false, "Agent running for Google internal testing purposes.")
 	concurrentCopyMax = flag.Int("concurrent-copy-max", 100, "The maximum allowed number of concurrent file copies.")
 	fileReadBuf       = flag.Int("file-read-buf", 1*1024*1024, "Read buffer size for each concurrent file copy. Increasing this raises Agent memory usage, but decreases potential reads to the source file system.")
+	copyChunkSize     = flag.Int("copy-chunk-size-mibs", 128*1024*1024, "The amount of bytes to send in a single HTTP request.")
 )
 
 // NewResumableHttpClient creates a new http.Client suitable for resumable copies.
@@ -191,9 +192,9 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 
 	// Copy the entire file or start a resumable copy.
 	if !resumedCopy {
-		// Start a copy. If the file is small enough (or BytesToCopy indicates so)
+		// Start a copy. If the file is small enough (or copyChunkSize indicates so)
 		// copy the entire file now. Otherwise, begin a resumable copy.
-		if stats.Size() <= copySpec.BytesToCopy || copySpec.BytesToCopy <= 0 {
+		if stats.Size() <= int64(*copyChunkSize) || *copyChunkSize <= 0 {
 			err = h.copyEntireFile(ctx, copySpec, srcFile, stats, cl)
 			if err != nil {
 				return cl, err
@@ -319,7 +320,7 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 		t.Metadata = map[string]string{
 			MTIME_ATTR_NAME: strconv.FormatInt(stats.ModTime().Unix(), 10),
 		}
-		if c.BytesToCopy <= 0 {
+		if *copyChunkSize <= 0 {
 			bufSize = veneerClientDefaultChunkSize
 		}
 		t.ChunkSize = int(bufSize)
@@ -441,9 +442,9 @@ func (h *CopyHandler) prepareResumableCopy(ctx context.Context, c *taskpb.CopySp
 // which are sent to the DCP.
 func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, stats os.FileInfo, cl *taskpb.CopyLog) error {
 	final := false
-	bytesToCopy := c.BytesToCopy
+	bytesToCopy := int64(*copyChunkSize)
 	if bytesToCopy <= 0 || bytesToCopy+c.BytesCopied >= stats.Size() {
-		// c.BytesToCopy <= 0 indicates that the rest of the file should be copied.
+		// bytesToCopy <= 0 indicates that the rest of the file should be copied.
 		bytesToCopy = stats.Size() - c.BytesCopied
 		final = true
 	}

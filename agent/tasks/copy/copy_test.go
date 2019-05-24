@@ -71,6 +71,7 @@ func CheckSuccessMsg(taskRelRsrcName string, taskRespMsg *taskpb.TaskRespMsg, t 
 }
 
 func testCopySpec(expGenNum, bytesToCopy int64, ruID string) *taskpb.Spec {
+	*copyChunkSize = int(bytesToCopy)
 	return &taskpb.Spec{
 		Spec: &taskpb.Spec_CopySpec{
 			CopySpec: &taskpb.CopySpec{
@@ -432,6 +433,7 @@ func TestCopyBundle(t *testing.T) {
 		}
 	}
 }
+
 func TestCopyHandlerDoResumable(t *testing.T) {
 	h := CopyHandler{concurrentCopySem: semaphore.NewWeighted(1)}
 	h.httpDoFunc = func(ctx context.Context, h *http.Client, req *http.Request) (*http.Response, error) {
@@ -468,6 +470,7 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskReqMsg.Spec.GetCopySpec().BytesToCopy = 10
+	*copyChunkSize = 10
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
 	CheckSuccessMsg("task", taskRespMsg, t)
 
