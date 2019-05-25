@@ -71,10 +71,11 @@ const (
 )
 
 var (
-	internalTesting   = flag.Bool("internal-testing", false, "Agent running for Google internal testing purposes.")
-	concurrentCopyMax = flag.Int("concurrent-copy-max", 100, "The maximum allowed number of concurrent file copies.")
-	fileReadBuf       = flag.Int("file-read-buf", 1*1024*1024, "Read buffer size for each concurrent file copy. Increasing this raises Agent memory usage, but decreases potential reads to the source file system.")
-	copyChunkSize     = flag.Int("copy-chunk-size-mibs", 128*1024*1024, "The amount of bytes to send in a single HTTP request.")
+	internalTesting     = flag.Bool("internal-testing", false, "Agent running for Google internal testing purposes.")
+	concurrentCopyMax   = flag.Int("concurrent-copy-max", 100, "The maximum allowed number of concurrent file copies.")
+	fileReadBuf         = flag.Int("file-read-buf", 1*1024*1024, "Read buffer size for each concurrent file copy. Increasing this raises Agent memory usage, but decreases potential reads to the source file system.")
+	copyChunkSize       = flag.Int("copy-chunk-size", 128*1024*1024, "The amount of bytes to send in a single HTTP request.")
+	copyEntireFileLimit = flag.Int("copy-entire-file-limit", 8*1024*1024, "Copy a file in a single HTTP request if it's below this size.")
 )
 
 // NewResumableHttpClient creates a new http.Client suitable for resumable copies.
@@ -192,9 +193,8 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 
 	// Copy the entire file or start a resumable copy.
 	if !resumedCopy {
-		// Start a copy. If the file is small enough (or copyChunkSize indicates so)
-		// copy the entire file now. Otherwise, begin a resumable copy.
-		if stats.Size() <= int64(*copyChunkSize) || *copyChunkSize <= 0 {
+		// Start a copy. If the file is small enough copy the entire file, otherwise begin a resumable copy.
+		if stats.Size() <= int64(*copyEntireFileLimit) || *copyChunkSize <= 0 {
 			err = h.copyEntireFile(ctx, copySpec, srcFile, stats, cl)
 			if err != nil {
 				return cl, err

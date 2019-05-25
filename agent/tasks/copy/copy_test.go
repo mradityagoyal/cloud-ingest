@@ -471,6 +471,7 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
 	taskReqMsg.Spec.GetCopySpec().BytesToCopy = 10
 	*copyChunkSize = 10
+	*copyEntireFileLimit = 10
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
 	CheckSuccessMsg("task", taskRespMsg, t)
 
