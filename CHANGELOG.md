@@ -15,6 +15,7 @@ major job run versions.
 ### Changed
 - Make the incremental copy chunk size flag controlled, default to 128MiB.
   Increase the default PubSub message timeout to 20m.
+- Flag control which files use the resumable vs veneer copy paths.
 
 ## [1.0.8] - 2019-05-17
 ### Added
