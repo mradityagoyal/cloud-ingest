@@ -15,6 +15,25 @@ source $(dirname ${BASH_SOURCE[0]})/release-helpers.sh
 # The "clone a commit-id from repo" requirement ensures we never mistakenly
 # release local changes.
 
+function upload_artifacts() {
+  local asset_dir=$1
+  local release_version=$2
+  local gcs_prefix=$3
+  local metadata_version=$4
+
+  # Upload our artifacts to the new release version.
+  echo "Uploading Artifacts..."
+  echo ""
+  gsutil -m cp $asset_dir/* $gcs_prefix/$release_version/
+  echo ""
+
+  # Set the value of AgentVersion metadata field for agent binary.
+  echo "Setting AgentVersion metadata field to $metadata_version"
+  echo ""
+  gsutil setmeta -h "x-goog-meta-AgentVersion:$metadata_version" $gcs_prefix/$release_version/*.tar.gz
+  echo ""
+}
+
 # Basic command line dependencies needed to run this script.
 command -v git > /dev/null 2>&1 || die "git is not installed. Bailing!"
 command -v go > /dev/null 2>&1 || die "go is not installed. Bailing!"
@@ -131,10 +150,12 @@ popd > /dev/null
 echo "Done building."
 echo ""
 
-# Upload our artifacts to the new release version.
-echo "Uploading Artifacts..."
-echo ""
-gsutil -m cp $ASSET_DIR/* $GCS_VERSIONS_PREFIX/$release_version/
-echo ""
+# Upload our artifacts to the new release version and set the AgentVersion
+# metadata fields for agent binary.
+upload_artifacts $ASSET_DIR $release_version $GCS_VERSIONS_PREFIX $release_version
+
+# Upload the same artifacts to the canary release bucket and set the
+# AgentVersion metadata fields for agent binary.
+upload_artifacts $ASSET_DIR $release_version $GCS_CANARY_VERSIONS_PREFIX "$release_version+next-version"
 
 echo "Done!"

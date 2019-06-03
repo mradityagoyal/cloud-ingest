@@ -76,16 +76,16 @@ def agent_release_version(url):
     A string that represents the version of the agent binary.
 
   Raises:
-    KeyError: An error occurred if the 'Version' field does not exist in the
-              object's metadata.
+    KeyError: An error occurred if the 'AgentVersion' field does not exist in
+              the object's metadata.
   """
   version = ''
   response = None
   try:
     response = requests.get(url)
     response.encoding = 'utf-8'
-    version = response.json()['metadata']['Version']
-    logging.info('Agent source URL: %s, version: %s', url, version)
+    version = response.json()['metadata']['AgentVersion']
+    logging.info('Agent source URL: %s, agent version: %s', url, version)
     return version
   except requests.exceptions.RequestException as err:
     logging.error('Error occurs when sending request to %s, error: %s',

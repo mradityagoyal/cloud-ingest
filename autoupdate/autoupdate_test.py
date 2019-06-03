@@ -56,7 +56,7 @@ class MockResponse(object):
 def mock_requests_get(*args, **keywargs):
   del keywargs
   if args[0] == TEST_OBJECT_HAS_VERSION:
-    return MockResponse(200, {'metadata': {'Version': TEST_OBJECT_HAS_VERSION}})
+    return MockResponse(200, {'metadata': {'AgentVersion': TEST_OBJECT_HAS_VERSION}})
   elif args[0] == TEST_OBJECT_MISSING_VERSION:
     return MockResponse(200, {})
   elif args[0] == TEST_OBJECT_NOT_EXIST:
