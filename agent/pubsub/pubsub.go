@@ -15,20 +15,24 @@ import (
 )
 
 const (
-	listProgressTopicID = "cloud-ingest-list-progress"
-	copyProgressTopicID = "cloud-ingest-copy-progress"
-	pulseTopicID        = "cloud-ingest-pulse"
-	controlTopicID      = "cloud-ingest-control"
+	listProgressTopicID   = "cloud-ingest-list-progress"
+	copyProgressTopicID   = "cloud-ingest-copy-progress"
+	deleteProgressTopicID = "cloud-ingest-delete-object-progress"
+	pulseTopicID          = "cloud-ingest-pulse"
+	controlTopicID        = "cloud-ingest-control"
 
 	listSubscriptionID    = "cloud-ingest-list"
 	copySubscriptionID    = "cloud-ingest-copy"
+	deleteSubscriptionID  = "cloud-ingest-delete-object"
 	controlSubscriptionID = "cloud-ingest-control"
 )
 
 var (
 	pubsubPrefix             = flag.String("pubsub-prefix", "", "Prefix of Pub/Sub topics and subscriptions names.")
 	maxPubSubLeaseExtenstion = flag.Duration("pubsub-lease-extension", 20*time.Minute, "The max duration to extend the leases for a Pub/Sub message. If 0, will use the default Pub/Sub client value (10 mins).")
-	copySubGoroutines        = flag.Int("threads", 100, "The number of goroutines that serve the copy subscription. If 0, will use the default Pub/Sub client value (1000).")
+	copySubGoroutines        = flag.Int("threads", 100, "This flag is no longer used and will be soon deprecated.")
+	maxConcurrentCopyTasks   = flag.Int("number-concurrent-copy-tasks", 100, "The maximum number of copy tasks the agent will process at any given time. If 0, will use the default Pub/Sub client value (1000).")
+	maxConcurrentDeleteTasks = flag.Int("number-concurrent-delete-tasks", 10, "The maximum number of delete tasks the agent will process at any given time. If 0, will use the default Pub/Sub client value (1000).")
 )
 
 // waitOnSubscription blocks until either the PubSub subscription exists, or returns an err.
@@ -110,9 +114,9 @@ func subscribeToControlTopic(ctx context.Context, client *pubsub.Client, topic *
 // * MaxOutstandingMessages: It's also capped by the memory, and this will speed up processing of small files.
 // * MaxOutstandingBytes:    1GB memory should not be a problem for a modern machine.
 // * NumGoroutines:          Does not need more than 1 routine to pull Pub/Sub messages.
-func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client) (listSub, copySub, controlSub *pubsub.Subscription, listTopic, copyTopic, pulseTopic *pubsub.Topic) {
+func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client) (listSub, copySub, controlSub, deleteSub *pubsub.Subscription, listTopic, copyTopic, pulseTopic, deleteTopic *pubsub.Topic) {
 	var wg sync.WaitGroup
-	wg.Add(6)
+	wg.Add(8)
 	go func() {
 		defer wg.Done()
 		listSub = pubSubClient.Subscription(*pubsubPrefix + listSubscriptionID)
@@ -134,7 +138,7 @@ func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client)
 		defer wg.Done()
 		copySub = pubSubClient.Subscription(*pubsubPrefix + copySubscriptionID)
 		copySub.ReceiveSettings.MaxExtension = *maxPubSubLeaseExtenstion
-		copySub.ReceiveSettings.MaxOutstandingMessages = *copySubGoroutines
+		copySub.ReceiveSettings.MaxOutstandingMessages = *maxConcurrentCopyTasks
 		copySub.ReceiveSettings.Synchronous = true
 		if err := waitOnSubscription(ctx, copySub); err != nil {
 			glog.Fatalf("Could not find copy subscription %s, error %+v", copySub.String(), err)
@@ -170,8 +174,25 @@ func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client)
 			glog.Fatalf("Could not get PulseTopic: %s, got err: %v ", pulseTopic.ID(), err)
 		}
 	}()
+	go func() {
+		defer wg.Done()
+		deleteSub = pubSubClient.Subscription(*pubsubPrefix + deleteSubscriptionID)
+		deleteSub.ReceiveSettings.MaxExtension = *maxPubSubLeaseExtenstion
+		deleteSub.ReceiveSettings.MaxOutstandingMessages = *maxConcurrentDeleteTasks
+		deleteSub.ReceiveSettings.Synchronous = true
+		if err := waitOnSubscription(ctx, deleteSub); err != nil {
+			glog.Fatalf("Could not find delete subscription %s, error %+v", deleteSub.String(), err)
+		}
+	}()
+	go func() {
+		defer wg.Done()
+		deleteTopic = pubSubClient.Topic(*pubsubPrefix + deleteProgressTopicID)
+		if err := waitOnTopic(ctx, deleteTopic); err != nil {
+			glog.Fatalf("Could not find delete topic %s, error %+v", deleteTopic.ID(), err)
+		}
+	}()
 	wg.Wait()
 	fmt.Println("All PubSub topics and subscriptions are ready.")
 
-	return listSub, copySub, controlSub, listTopic, copyTopic, pulseTopic
+	return listSub, copySub, controlSub, deleteSub, listTopic, copyTopic, pulseTopic, deleteTopic
 }

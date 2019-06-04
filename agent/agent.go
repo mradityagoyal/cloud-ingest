@@ -144,7 +144,7 @@ func main() {
 	pubSubClient, storageClient, httpc := createClients(ctx)
 
 	// Create the PubSub topics and subscriptions.
-	listSub, copySub, controlSub, listTopic, copyTopic, pulseTopic := pubsubinternal.CreatePubSubTopicsAndSubs(ctx, pubSubClient)
+	listSub, copySub, controlSub, _, listTopic, copyTopic, pulseTopic, _ := pubsubinternal.CreatePubSubTopicsAndSubs(ctx, pubSubClient)
 	defer controlSub.Delete(context.Background())
 	var st *stats.Tracker
 	if *enableStatsTracker {
