@@ -28,6 +28,7 @@ from __future__ import print_function
 
 import argparse
 import os
+import socket
 import subprocess
 import sys
 import tarfile
@@ -256,6 +257,7 @@ def main():
   # All arguments passed into the auto-update script are stored in unknown and
   # will be passed into the agent start command later.
   _, unknown = parser.parse_known_args()
+  unknown.append('--container-id=%s' % socket.gethostname())
   FLAGS(sys.argv, known_only=True)
 
   setup_logging()

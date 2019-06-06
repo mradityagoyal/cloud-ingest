@@ -21,9 +21,9 @@ import (
 	"os"
 
 	"cloud.google.com/go/storage"
-	"github.com/golang/glog"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
+	"github.com/golang/glog"
 	"google.golang.org/api/googleapi"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
@@ -72,7 +72,7 @@ func BuildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, log 
 		ReqSpec:         taskReqMsg.Spec,
 		RespSpec:        respSpec,
 		Log:             log,
-		AgentId:	 common.AgentID(),
+		AgentId:         common.AgentID(),
 	}
 	if err != nil {
 		taskRespMsg.Status = "FAILURE"

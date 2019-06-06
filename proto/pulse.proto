@@ -50,7 +50,9 @@ message Msg {
 // This message stores a unique identifier for each agent.
 // The DCP can use this to separate each agent and monitor future behaviors.
 message AgentId {
-  string host_name = 1;   // The host name of the client running the agent.
-  string process_id = 2;  // The process id of the client running the agent.
-  string prefix = 3;      // A user-specified ID string prefix.
+  string host_name = 1;     // The host name of the client running the agent.
+  string process_id = 2;    // The process id of the client running the agent.
+  string prefix = 3;        // A user-specified ID string prefix.
+  string container_id = 4;  // Container ID. Only populated when agent is
+                            // running inside a container.
 }

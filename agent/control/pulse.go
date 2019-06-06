@@ -47,11 +47,12 @@ type PulseSender struct {
 	pulseTopic pubsubinternal.PSTopic // The pubsub topic to send pulses on.
 
 	// These fields contain the contents of the pulse message.
-	hostname string
-	pid      int
-	logsDir  string
-	prefix   string
-	version  string
+	hostname    string
+	pid         int
+	logsDir     string
+	prefix      string
+	containerID string
+	version     string
 
 	// Used to get live bandwidth measurements.
 	statsTracker *stats.Tracker
@@ -71,6 +72,7 @@ func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir strin
 		hostname:     common.Hostname(),
 		pid:          os.Getpid(),
 		prefix:       *common.AgentIDPrefix,
+		containerID:  *common.ContainerID,
 		logsDir:      logsDir,
 		version:      versions.AgentVersion().String(),
 		statsTracker: st,
@@ -114,9 +116,10 @@ func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
 	s := ps.statsTracker.AccumulatedPulseStats()
 	return &pulsepb.Msg{
 		AgentId: &pulsepb.AgentId{
-			HostName:  ps.hostname,
-			ProcessId: fmt.Sprintf("%v", ps.pid),
-			Prefix:    ps.prefix,
+			HostName:    ps.hostname,
+			ProcessId:   fmt.Sprintf("%v", ps.pid),
+			Prefix:      ps.prefix,
+			ContainerId: ps.containerID,
 		},
 		AgentVersion:  ps.version,
 		AgentLogsDir:  ps.logsDir,
