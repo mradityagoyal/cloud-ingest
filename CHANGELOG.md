@@ -9,10 +9,12 @@ A minor version bump means support for a new major job run version was added.
 A patch version bump is used for any change that does not affect the supported range of
 major job run versions.
 
-## [Unreleased]
+## [1.0.10] - 2019-06-06
 ### Added
 - Detailed PulseStats.
 - Task timing stats and agent ID in response messages.
+- HTTP 408s made retryable in the resumable copy path.
+- Auto-update script and Dockerfile added
 
 ## [1.0.9] - 2019-05-29
 ### Changed
