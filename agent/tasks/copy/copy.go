@@ -625,6 +625,9 @@ func shouldRetry(status int, err error) bool {
 	if 500 <= status && status <= 599 {
 		return true
 	}
+	if status == 408 {
+		return true
+	}
 	if status == http.StatusTooManyRequests {
 		return true
 	}

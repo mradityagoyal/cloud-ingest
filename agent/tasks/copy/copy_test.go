@@ -856,6 +856,7 @@ func TestShouldRetry(t *testing.T) {
 		{status: 200, want: false},
 		{status: 308, want: false},
 		{status: 403, want: false},
+		{status: 408, want: true},
 		{status: 429, want: true},
 		{status: 500, want: true},
 		{status: 503, want: true},
