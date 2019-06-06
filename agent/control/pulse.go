@@ -17,7 +17,6 @@ package control
 
 import (
 	"context"
-	"flag"
 	"fmt"
 	"os"
 	"time"
@@ -34,7 +33,6 @@ import (
 )
 
 var (
-	agentIDPrefix   = flag.String("agent-id-prefix", "", "A a prefix to include on the agent id")
 	sendTickerMaker = func() common.Ticker {
 		return common.NewClockTicker(pulseFrequency)
 	}
@@ -43,24 +41,6 @@ var (
 const (
 	pulseFrequency = 10 * time.Second // The frequency to send pulses.
 )
-
-// Hostname returns the hostname string.
-func Hostname() string {
-	hn, err := os.Hostname()
-	if err != nil {
-		hn = "hostnameunknown"
-	}
-	return hn
-}
-
-// AgentID returns the ID of this agent.
-func AgentID() *pulsepb.AgentId {
-	return &pulsepb.AgentId{
-		HostName:  Hostname(),
-		ProcessId: fmt.Sprintf("%v", os.Getpid()),
-		Prefix:    *agentIDPrefix,
-	}
-}
 
 // PulseSender periodically sends "pulses" on the topic passed in during construction.
 type PulseSender struct {
@@ -88,9 +68,9 @@ type PulseSender struct {
 func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir string, st *stats.Tracker) *PulseSender {
 	ps := &PulseSender{
 		pulseTopic:   t,
-		hostname:     Hostname(),
+		hostname:     common.Hostname(),
 		pid:          os.Getpid(),
-		prefix:       *agentIDPrefix,
+		prefix:       *common.AgentIDPrefix,
 		logsDir:      logsDir,
 		version:      versions.AgentVersion().String(),
 		statsTracker: st,

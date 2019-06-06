@@ -21,6 +21,7 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/agentupdate"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/golang/glog"
@@ -82,7 +83,7 @@ func (ch *ControlHandler) processMessage(_ context.Context, msg *pubsub.Message)
 	}
 
 	ch.processJobRunBandwidths(controlMsg.GetJobRunsBandwidths(), ch.statsTracker)
-	ch.processAgentUpdateMsg(controlMsg.GetAgentUpdates(), AgentID(), ch.logDir)
+	ch.processAgentUpdateMsg(controlMsg.GetAgentUpdates(), common.AgentID(), ch.logDir)
 
 	ch.lastUpdate = msg.PublishTime
 	ch.statsTracker.RecordCtrlMsg(msg.PublishTime)

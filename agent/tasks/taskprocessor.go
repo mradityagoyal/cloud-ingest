@@ -30,6 +30,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/list"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -91,6 +92,28 @@ func (tp *TaskProcessor) Process(ctx context.Context) {
 	}
 }
 
+func addTaskTimestamps(resp *taskpb.TaskRespMsg, reqStart, msgPublishTime time.Time) {
+	reqPublishTime, err := ptypes.TimestampProto(msgPublishTime)
+	if err != nil {
+		glog.Errorf("could not parse request publish time %v for task %v, err: %v", msgPublishTime, resp.ReqSpec, err)
+		return
+	}
+	reqStartTime, err := ptypes.TimestampProto(reqStart)
+	if err != nil {
+		glog.Errorf("could not parse task processing start time %v for task %v, err: %v", reqStartTime, resp.ReqSpec, err)
+		return
+	}
+	now := time.Now()
+	respPublishTime, err := ptypes.TimestampProto(now)
+	if err != nil {
+		glog.Errorf("could not parse task response publish time %v for task %v, err: %v", now, resp.ReqSpec, err)
+		return
+	}
+	resp.ReqPublishTime = reqPublishTime
+	resp.ReqStartTime = reqStartTime
+	resp.RespPublishTime = respPublishTime
+}
+
 func (tp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message) {
 	var taskReqMsg taskpb.TaskReqMsg
 	if err := proto.Unmarshal(msg.Data, &taskReqMsg); err != nil {
@@ -100,15 +123,15 @@ func (tp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		return
 	}
 
+	reqStart := time.Now()
 	var taskRespMsg *taskpb.TaskRespMsg
 	if rate.IsJobRunActive(taskReqMsg.JobrunRelRsrcName) {
 		handler, agentErr := tp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
 		if agentErr != nil {
 			taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
 		} else {
-			start := time.Now()
 			taskRespMsg = handler.Do(ctx, &taskReqMsg)
-			tp.StatsTracker.RecordTaskResp(taskRespMsg, time.Now().Sub(start))
+			tp.StatsTracker.RecordTaskResp(taskRespMsg, time.Now().Sub(reqStart))
 		}
 	} else {
 		taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, common.AgentError{
@@ -130,6 +153,9 @@ func (tp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		// The work will remain on PubSub and eventually be taken up by another worker.
 		return
 	}
+
+	addTaskTimestamps(taskRespMsg, reqStart, msg.PublishTime)
+
 	serializedTaskRespMsg, err := proto.Marshal(taskRespMsg)
 	if err != nil {
 		glog.Errorf("Cannot marshal pb %+v with err %v", taskRespMsg, err)

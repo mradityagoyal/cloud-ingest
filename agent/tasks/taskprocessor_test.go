@@ -7,9 +7,11 @@ import (
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/pubsub/pstest"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"google.golang.org/api/option"
 	"google.golang.org/grpc"
 
@@ -133,6 +135,7 @@ func TestTaskProcessorProcessMessage(t *testing.T) {
 	want := &taskpb.TaskRespMsg{
 		TaskRelRsrcName: taskReqMsg.TaskRelRsrcName,
 		Status:          "SUCCESS",
+		AgentId:         common.AgentID(),
 	}
 	wp := TaskProcessor{
 		TaskSub:       workSub,
@@ -157,6 +160,26 @@ func TestTaskProcessorProcessMessage(t *testing.T) {
 
 	if taskRespMsg.TaskRelRsrcName != want.TaskRelRsrcName || taskRespMsg.Status != want.Status {
 		t.Errorf("wp.processMessage(%v) = %v, want %v", taskReqMsg, taskRespMsg, want)
+	}
+
+	rqpt, err := ptypes.Timestamp(taskRespMsg.ReqPublishTime)
+	if err != nil {
+		t.Errorf("could not convert request publish time %v to timestamp with error %v", rqpt, err)
+	}
+	rqst, err := ptypes.Timestamp(taskRespMsg.ReqStartTime)
+	if err != nil {
+		t.Errorf("could not convert request processing start time %v to timestamp with error %v", rqst, err)
+	}
+	rppt, err := ptypes.Timestamp(taskRespMsg.RespPublishTime)
+	if err != nil {
+		t.Errorf("could not convert response publish time %v to timestamp with error %v", rppt, err)
+	}
+
+	if !rqpt.Before(rqst) {
+		t.Errorf("request publish time %v later than request processing time %v", rqpt, rqst)
+	}
+	if !rqst.Before(rppt) {
+		t.Errorf("request processing start time %v later than response publish time %v", rqst, rppt)
 	}
 }
 

@@ -12,6 +12,7 @@ major job run versions.
 ## [Unreleased]
 ### Added
 - Detailed PulseStats.
+- Task timing stats and agent ID in response messages.
 
 ## [1.0.9] - 2019-05-29
 ### Changed
