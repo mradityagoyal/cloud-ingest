@@ -24,6 +24,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
@@ -115,7 +116,7 @@ func writeListingFile(fileInfos []os.FileInfo, srcDir string, w io.Writer) (*lis
 	return &listingFileMetadata{bytes: bytesFound, files: filesFound, dirsDiscovered: dirsFound}, nil
 }
 
-func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+func (h *ListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, reqStart time.Time) *taskpb.TaskRespMsg {
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {
 		err := errors.New("ListHandler.Do taskReqMsg.Spec is not ListSpec")

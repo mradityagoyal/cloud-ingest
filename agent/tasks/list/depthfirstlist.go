@@ -216,7 +216,7 @@ func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, list
 	return listMD, dirStore, nil
 }
 
-func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, reqStart time.Time) *taskpb.TaskRespMsg {
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {
 		err := errors.New("ListHandler.Do taskReqMsg.Spec is not ListSpec")

@@ -24,7 +24,7 @@ type TestTaskHandler struct {
 }
 
 // Do handles the TaskReqMsg and returns a TaskRespMsg.
-func (h *TestTaskHandler) Do(_ context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+func (h *TestTaskHandler) Do(_ context.Context, taskReqMsg *taskpb.TaskReqMsg, reqStart time.Time) *taskpb.TaskRespMsg {
 	return h.responses[taskReqMsg.TaskRelRsrcName]
 }
 

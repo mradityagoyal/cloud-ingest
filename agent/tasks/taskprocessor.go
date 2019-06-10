@@ -38,7 +38,7 @@ import (
 // TaskHandler is an interface to handle different task types.
 type TaskHandler interface {
 	// Do handles the TaskReqMsg and returns a TaskRespMsg.
-	Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg
+	Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, reqStart time.Time) *taskpb.TaskRespMsg
 }
 
 // TaskProcessor processes tasks of a certain type. It listens to subscription
@@ -130,7 +130,7 @@ func (tp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		if agentErr != nil {
 			taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
 		} else {
-			taskRespMsg = handler.Do(ctx, &taskReqMsg)
+			taskRespMsg = handler.Do(ctx, &taskReqMsg, reqStart)
 			tp.StatsTracker.RecordTaskResp(taskRespMsg, time.Now().Sub(reqStart))
 		}
 	} else {

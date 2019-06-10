@@ -21,6 +21,7 @@ import (
 	"os"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
@@ -58,7 +59,7 @@ func TestDepthFirstListDirNotFound(t *testing.T) {
 
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqParams := testDepthFirstListTaskReqMsg("task", []string{"dir does not exist"})
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
@@ -83,7 +84,7 @@ func TestDepthFirstListSuccessEmptyDir(t *testing.T) {
 
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -136,7 +137,7 @@ func TestDepthFirstListSuccessFlatDir(t *testing.T) {
 	st := stats.NewTracker(ctx)
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -194,7 +195,7 @@ func TestDepthFirstListFailsFileWithNewline(t *testing.T) {
 	st := stats.NewTracker(ctx)
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
 	// term, we will escape file with newlines.
 	CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
@@ -252,7 +253,7 @@ func TestDepthFirstListSuccessNestedDirSmallListFile(t *testing.T) {
 	st := stats.NewTracker(ctx)
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 1, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -330,7 +331,7 @@ func TestDepthFirstListSuccessNestedDirLargeListFile(t *testing.T) {
 	st := stats.NewTracker(ctx)
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 1000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -388,7 +389,7 @@ func TestDepthFirstListMakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) 
 	st := stats.NewTracker(ctx)
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 1, statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -476,7 +477,7 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	st := stats.NewTracker(ctx)
 	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: directoryInfoProtoOverhead*2 + len(childOfNestedTmpDir) + len(child2OfNestedTmpDir), statsTracker: st}
 	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{tmpDir})
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",

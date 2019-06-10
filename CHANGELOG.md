@@ -9,6 +9,10 @@ A minor version bump means support for a new major job run version was added.
 A patch version bump is used for any change that does not affect the supported range of
 major job run versions.
 
+## Unreleased
+### Added
+- Time aware copy tasks.
+
 ## [1.0.11] - 2019-06-12
 ### Added
 - Added container ID in AgentID.

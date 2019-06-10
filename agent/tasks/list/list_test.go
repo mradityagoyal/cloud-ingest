@@ -163,7 +163,7 @@ func TestDirNotFound(t *testing.T) {
 
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg("task", "dir does not exist")
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("expected nothing written but found: %s", writer.WrittenString())
@@ -189,7 +189,7 @@ func TestListSuccessEmptyDir(t *testing.T) {
 
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -236,7 +236,7 @@ func TestListSuccessFlatDir(t *testing.T) {
 
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",
@@ -288,7 +288,7 @@ func TestListFailsFileWithNewline(t *testing.T) {
 
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
 	// term, we will escape file with newlines.
 	CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
@@ -337,7 +337,7 @@ func TestListSuccessNestedDir(t *testing.T) {
 
 	h := ListHandler{gcs: mockGCS}
 	taskReqParams := testListTaskReqMsg(taskRelRsrcName, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqParams)
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if writer.WrittenString() != expectedListResult.String() {
 		t.Errorf("expected to write \"%s\", found: \"%s\"",

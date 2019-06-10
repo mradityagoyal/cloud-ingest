@@ -54,20 +54,12 @@ import (
 	"google.golang.org/api/option"
 	raw "google.golang.org/api/storage/v1"
 	htransport "google.golang.org/api/transport/http"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 const (
 	userAgent         = "google-cloud-ingest-on-premises-agent TransferService/1.0 (GPN:transferservice_onpremnfs; Data moved from onpremnfs to GCS)"
 	userAgentInternal = "google-cloud-ingest-on-premises-agent"
 	MTIME_ATTR_NAME   = "goog-reserved-file-mtime"
-
-	// Note: this default chunk size is only used if the DCP instructs the
-	// Agent to copy the entire file but does not specify a chunk size. This
-	// happens by sending a BytesToCopy value <= 0 in the CopyTaskSpec.
-	veneerClientDefaultChunkSize = 1 << 27 // 128MiB.
-	maxRetryCount                = 1
 )
 
 var (
@@ -76,6 +68,7 @@ var (
 	fileReadBuf         = flag.Int("file-read-buf", 1*1024*1024, "Read buffer size for each concurrent file copy. Increasing this raises Agent memory usage, but decreases potential reads to the source file system.")
 	copyChunkSize       = flag.Int("copy-chunk-size", 128*1024*1024, "The amount of bytes to send in a single HTTP request.")
 	copyEntireFileLimit = flag.Int("copy-entire-file-limit", 8*1024*1024, "Copy a file in a single HTTP request if it's below this size.")
+	copyWorkDuration    = flag.Duration("copy-work-duration", 1*time.Minute, "The amount of time to spend copying a single file.")
 )
 
 // NewResumableHttpClient creates a new http.Client suitable for resumable copies.
@@ -250,38 +243,42 @@ func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, err
 	return &log, err
 }
 
-func isRetryableError(err error) bool {
-	switch status.Code(err) {
-	case codes.NotFound, codes.PermissionDenied, codes.Unauthenticated, codes.Unimplemented, codes.ResourceExhausted, codes.AlreadyExists:
-		return false
-	default:
-		return true
-	}
+func shouldDoTimeAwareCopy(copySpec *taskpb.CopySpec, reqStart time.Time, jobRunRelRsrcName string) bool {
+	// Do a time aware copy iteration iff
+	// 1. The copy is resuamble.
+	// 2. There are bytes left to copy.
+	// 3. We haven't exceeded the work duration.
+	// 4. The JobRun is active (not paused).
+	return copySpec.ResumableUploadId != "" && copySpec.BytesCopied < copySpec.FileBytes && time.Now().Before(reqStart.Add(*copyWorkDuration)) && rate.IsJobRunActive(jobRunRelRsrcName)
 }
 
-func (h *CopyHandler) handleCopySpecWithRetries(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopySpec, *taskpb.CopyLog, error) {
-	var err error
-	var copyLog *taskpb.CopyLog
-	var spec *taskpb.CopySpec
-	for i := 0; i < maxRetryCount; i++ {
-		spec = proto.Clone(copySpec).(*taskpb.CopySpec)
-		copyLog, err = h.handleCopySpec(ctx, spec)
-		if err == nil || !isRetryableError(err) {
-			break
+func (h *CopyHandler) handleCopySpecTimeAware(ctx context.Context, copySpec *taskpb.CopySpec, reqStart time.Time, jobRunRelRsrcName string) (*taskpb.CopySpec, *taskpb.CopyLog, error) {
+	// Perform the initial copy.
+	copyLog, err := h.handleCopySpec(ctx, copySpec) // Updates 'copySpec' in place.
+	if err != nil {
+		return copySpec, copyLog, err
+	}
+	// If the file copy is resumable and timing allows then continue working on the copy.
+	for shouldDoTimeAwareCopy(copySpec, reqStart, jobRunRelRsrcName) {
+		goodSpec := proto.Clone(copySpec).(*taskpb.CopySpec)
+		goodCopyLog := proto.Clone(copyLog).(*taskpb.CopyLog)
+		copyLog, err = h.handleCopySpec(ctx, copySpec)
+		if err != nil {
+			// If we have a previously good state just return that.
+			return goodSpec, goodCopyLog, nil
 		}
-		h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyInternalRetries: 1})
 	}
-	return spec, copyLog, err
+	return copySpec, copyLog, err
 }
 
-func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, error) {
+func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *taskpb.CopyBundleSpec, reqStart time.Time, jobRunRelRsrcName string) (*taskpb.CopyBundleLog, error) {
 	var wg sync.WaitGroup
 	for _, bf := range bundleSpec.BundledFiles {
 		wg.Add(1)
 		go func(bf *taskpb.BundledFile) {
 			defer wg.Done()
 			var err error
-			bf.CopySpec, bf.CopyLog, err = h.handleCopySpecWithRetries(ctx, bf.CopySpec)
+			bf.CopySpec, bf.CopyLog, err = h.handleCopySpecTimeAware(ctx, bf.CopySpec, reqStart, jobRunRelRsrcName)
 			bf.FailureType = common.GetFailureTypeFromError(err)
 			bf.FailureMessage = fmt.Sprint(err)
 			if err == nil {
@@ -295,7 +292,7 @@ func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *task
 	return getBundleLogAndError(bundleSpec)
 }
 
-func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, reqStart time.Time) *taskpb.TaskRespMsg {
 	var respSpec *taskpb.Spec
 	var log *taskpb.Log
 	var err error
@@ -303,13 +300,13 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 	if taskReqMsg.Spec.GetCopySpec() != nil {
 		var cl *taskpb.CopyLog
 		copySpec := proto.Clone(taskReqMsg.Spec.GetCopySpec()).(*taskpb.CopySpec)
-		copySpec, cl, err = h.handleCopySpecWithRetries(ctx, copySpec)
+		copySpec, cl, err = h.handleCopySpecTimeAware(ctx, copySpec, reqStart, taskReqMsg.JobrunRelRsrcName)
 		respSpec = &taskpb.Spec{Spec: &taskpb.Spec_CopySpec{copySpec}}
 		log = &taskpb.Log{Log: &taskpb.Log_CopyLog{cl}}
 	} else if taskReqMsg.Spec.GetCopyBundleSpec() != nil {
 		var cbl *taskpb.CopyBundleLog
 		bundleSpec := proto.Clone(taskReqMsg.Spec.GetCopyBundleSpec()).(*taskpb.CopyBundleSpec)
-		cbl, err = h.handleCopyBundleSpec(ctx, bundleSpec)
+		cbl, err = h.handleCopyBundleSpec(ctx, bundleSpec, reqStart, taskReqMsg.JobrunRelRsrcName)
 		respSpec = &taskpb.Spec{Spec: &taskpb.Spec_CopyBundleSpec{bundleSpec}}
 		log = &taskpb.Log{Log: &taskpb.Log_CopyBundleLog{cbl}}
 	} else {
@@ -320,18 +317,9 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *ta
 }
 
 func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, srcFile *os.File, fileinfo os.FileInfo, cl *taskpb.CopyLog) error {
-	w := h.gcs.NewWriterWithCondition(ctx, c.DstBucket, c.DstObject,
-		common.GetGCSGenerationNumCondition(c.ExpectedGenerationNum))
-
-	bufSize := fileinfo.Size()
+	w := h.gcs.NewWriterWithCondition(ctx, c.DstBucket, c.DstObject, common.GetGCSGenerationNumCondition(c.ExpectedGenerationNum))
 	if t, ok := w.(*storage.Writer); ok {
-		t.Metadata = map[string]string{
-			MTIME_ATTR_NAME: strconv.FormatInt(fileinfo.ModTime().Unix(), 10),
-		}
-		if *copyChunkSize <= 0 {
-			bufSize = veneerClientDefaultChunkSize
-		}
-		t.ChunkSize = int(bufSize)
+		t.Metadata = map[string]string{MTIME_ATTR_NAME: strconv.FormatInt(fileinfo.ModTime().Unix(), 10)}
 	}
 
 	var srcCRC32C uint32

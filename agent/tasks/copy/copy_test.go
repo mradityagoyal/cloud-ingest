@@ -32,12 +32,14 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/golang/mock/gomock"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/sync/semaphore"
 	raw "google.golang.org/api/storage/v1"
 
+	controlpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/control_go_proto"
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
@@ -101,7 +103,7 @@ func TestSourceNotFound(t *testing.T) {
 	h := CopyHandler{concurrentCopySem: semaphore.NewWeighted(1)}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = "file does not exist"
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckFailureWithType("task", taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskRespMsg, t)
 }
 
@@ -116,8 +118,7 @@ func TestCRC32CMismtach(t *testing.T) {
 	defer os.Remove(tmpFile)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
-	mockGCS.EXPECT().NewWriterWithCondition(
-		context.Background(), "bucket", "object", gomock.Any()).Return(writer).Times(maxRetryCount)
+	mockGCS.EXPECT().NewWriterWithCondition(context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := CopyHandler{
 		gcs:               mockGCS,
@@ -125,7 +126,7 @@ func TestCRC32CMismtach(t *testing.T) {
 	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckFailureWithType("task", taskpb.FailureType_HASH_MISMATCH_FAILURE, taskRespMsg, t)
 }
 
@@ -144,8 +145,7 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	defer os.Remove(tmpFile)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
-	mockGCS.EXPECT().NewWriterWithCondition(
-		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
+	mockGCS.EXPECT().NewWriterWithCondition(context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := CopyHandler{
 		gcs:               mockGCS,
@@ -153,7 +153,7 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg("task", taskRespMsg, t)
 	if writer.WrittenString() != testFileContent {
 		t.Errorf("written string want \"%s\", got \"%s\"",
@@ -198,8 +198,7 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	defer os.Remove(tmpFile)
 
 	mockGCS := gcloud.NewMockGCS(mockCtrl)
-	mockGCS.EXPECT().NewWriterWithCondition(
-		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
+	mockGCS.EXPECT().NewWriterWithCondition(context.Background(), "bucket", "object", gomock.Any()).Return(writer)
 
 	h := CopyHandler{
 		gcs:               mockGCS,
@@ -207,7 +206,7 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	}
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg("task", taskRespMsg, t)
 	if writer.WrittenString() != "" {
 		t.Errorf("written string want \"%s\", got \"%s\"",
@@ -245,10 +244,9 @@ func TestCopyBundle(t *testing.T) {
 		bucket   string
 		object   string
 
-		wantStatus     taskpb.Status
-		wantFailure    taskpb.FailureType
-		wantLog        *taskpb.CopyLog
-		wantRetryTimes int
+		wantStatus  taskpb.Status
+		wantFailure taskpb.FailureType
+		wantLog     *taskpb.CopyLog
 	}
 
 	tests := []struct {
@@ -262,24 +260,22 @@ func TestCopyBundle(t *testing.T) {
 			desc: "test file bundle success",
 			bundledFiles: []*bundledFileTestData{
 				&bundledFileTestData{
-					fileName:       "test-file-1",
-					fileData:       "File 1 data content",
-					crc:            0x3CAC94DC,
-					size:           19,
-					bucket:         "bucket",
-					object:         "object1",
-					wantStatus:     taskpb.Status_SUCCESS,
-					wantRetryTimes: 1,
+					fileName:   "test-file-1",
+					fileData:   "File 1 data content",
+					crc:        0x3CAC94DC,
+					size:       19,
+					bucket:     "bucket",
+					object:     "object1",
+					wantStatus: taskpb.Status_SUCCESS,
 				},
 				&bundledFileTestData{
-					fileName:       "test-file-2",
-					fileData:       "The data of File 2",
-					crc:            0xACDDCFCD,
-					size:           18,
-					bucket:         "bucket",
-					object:         "object2",
-					wantStatus:     taskpb.Status_SUCCESS,
-					wantRetryTimes: 1,
+					fileName:   "test-file-2",
+					fileData:   "The data of File 2",
+					crc:        0xACDDCFCD,
+					size:       18,
+					bucket:     "bucket",
+					object:     "object2",
+					wantStatus: taskpb.Status_SUCCESS,
 				},
 			},
 			bundleStatus: taskpb.Status_SUCCESS,
@@ -292,25 +288,23 @@ func TestCopyBundle(t *testing.T) {
 			desc: "test partial files success",
 			bundledFiles: []*bundledFileTestData{
 				&bundledFileTestData{
-					fileName:       "test-file-1",
-					fileData:       "File 1 data content",
-					crc:            0x12345678, // This is invalid CRC to simulate failure.
-					size:           19,
-					bucket:         "bucket",
-					object:         "object1",
-					wantStatus:     taskpb.Status_FAILED,
-					wantFailure:    taskpb.FailureType_HASH_MISMATCH_FAILURE,
-					wantRetryTimes: maxRetryCount,
+					fileName:    "test-file-1",
+					fileData:    "File 1 data content",
+					crc:         0x12345678, // This is invalid CRC to simulate failure.
+					size:        19,
+					bucket:      "bucket",
+					object:      "object1",
+					wantStatus:  taskpb.Status_FAILED,
+					wantFailure: taskpb.FailureType_HASH_MISMATCH_FAILURE,
 				},
 				&bundledFileTestData{
-					fileName:       "test-file-2",
-					fileData:       "The data of File 2",
-					crc:            0xACDDCFCD,
-					size:           18,
-					bucket:         "bucket",
-					object:         "object2",
-					wantStatus:     taskpb.Status_SUCCESS,
-					wantRetryTimes: 1,
+					fileName:   "test-file-2",
+					fileData:   "The data of File 2",
+					crc:        0xACDDCFCD,
+					size:       18,
+					bucket:     "bucket",
+					object:     "object2",
+					wantStatus: taskpb.Status_SUCCESS,
 				},
 			},
 			bundleStatus:  taskpb.Status_FAILED,
@@ -361,8 +355,7 @@ func TestCopyBundle(t *testing.T) {
 			file.fileName = common.CreateTmpFile("", file.fileName, file.fileData)
 			defer os.Remove(file.fileName)
 
-			mockGCS.EXPECT().NewWriterWithCondition(
-				context.Background(), file.bucket, file.object, gomock.Any()).DoAndReturn(writerFunc).Times(file.wantRetryTimes)
+			mockGCS.EXPECT().NewWriterWithCondition(context.Background(), file.bucket, file.object, gomock.Any()).DoAndReturn(writerFunc)
 
 			bundleSpec.BundledFiles = append(bundleSpec.BundledFiles, &taskpb.BundledFile{
 				CopySpec: &taskpb.CopySpec{
@@ -381,7 +374,7 @@ func TestCopyBundle(t *testing.T) {
 			TaskRelRsrcName: "task",
 			Spec:            &taskpb.Spec{Spec: &taskpb.Spec_CopyBundleSpec{bundleSpec}},
 		}
-		taskRespMsg := h.Do(context.Background(), taskReqMsg)
+		taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 
 		// Check for the overall task status
 		t.Logf("CopyHandler.Do(%q)", tc.desc)
@@ -472,7 +465,7 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 	taskReqMsg.Spec.GetCopySpec().BytesToCopy = 10
 	*copyChunkSize = 10
 	*copyEntireFileLimit = 10
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg("task", taskRespMsg, t)
 
 	srcStats, _ := os.Stat(tmpFile)
@@ -870,6 +863,87 @@ func TestShouldRetry(t *testing.T) {
 	for _, tt := range testCases {
 		if got := shouldRetry(tt.status, tt.err); got != tt.want {
 			t.Errorf("shouldRetry(%d, %v) = %t; want %t", tt.status, tt.err, got, tt.want)
+		}
+	}
+}
+
+func TestShouldDoTimeAwareCopy(t *testing.T) {
+	testCases := []struct {
+		desc        string
+		copySpec    *taskpb.CopySpec
+		reqStartDur time.Duration
+		jrRRN       string
+		want        bool
+	}{
+		{
+			"No resumable ID",
+			&taskpb.CopySpec{
+				ResumableUploadId: "",
+				BytesCopied:       5,
+				FileBytes:         10,
+			},
+			5*time.Second - *copyWorkDuration,
+			"jrRRN_test",
+			false,
+		},
+		{
+			"No bytes left to copy",
+			&taskpb.CopySpec{
+				ResumableUploadId: "id",
+				BytesCopied:       10,
+				FileBytes:         10,
+			},
+			5*time.Second - *copyWorkDuration,
+			"jrRRN_test",
+			false,
+		},
+		{
+			"Not enough time",
+			&taskpb.CopySpec{
+				ResumableUploadId: "id",
+				BytesCopied:       5,
+				FileBytes:         10,
+			},
+			-5*time.Second - *copyWorkDuration,
+			"jrRRN_test",
+			false,
+		},
+		{
+			"Paused job run",
+			&taskpb.CopySpec{
+				ResumableUploadId: "id",
+				BytesCopied:       5,
+				FileBytes:         10,
+			},
+			5*time.Second - *copyWorkDuration,
+			"Bogus job run name, not in jobBWS map.",
+			false,
+		},
+		{
+			"Success",
+			&taskpb.CopySpec{
+				ResumableUploadId: "id",
+				BytesCopied:       5,
+				FileBytes:         10,
+			},
+			5*time.Second - *copyWorkDuration,
+			"jrRRN_test",
+			true,
+		},
+	}
+	for _, tc := range testCases {
+		// Set the active/paused jobs.
+		jobBWs := []*controlpb.JobRunBandwidth{
+			&controlpb.JobRunBandwidth{
+				JobrunRelRsrcName: "jrRRN_test",
+				Bandwidth:         10 * 1024 * 1024,
+			},
+		}
+		rate.ProcessJobRunBandwidths(jobBWs, nil)
+
+		reqStart := time.Now().Add(tc.reqStartDur)
+		if got := shouldDoTimeAwareCopy(tc.copySpec, reqStart, tc.jrRRN); got != tc.want {
+			t.Errorf("%v: shouldDoTimeAwareCopy(...) got %v, want %v", tc.desc, got, tc.want)
 		}
 	}
 }
