@@ -2,22 +2,26 @@ syntax = "proto3";
 
 package cloud_ingest_task;
 option go_package = "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto";
+
 import "google/protobuf/timestamp.proto";
 import "pulse.proto";
 
 // Specifies the task operation that a task performs.
 enum Type {
-  UNSET_TYPE = 0;    // Unknown task type.
-  LIST = 1;          // Lists the files in an on-premises directory.
-  PROCESS_LIST = 2;  // A task that processes the list task output.
-  COPY = 3;          // Upload a file from the on-premises directory to GCS.
-  COPY_BUNDLE = 4;   // Upload a bundle of files from on-premises to GCS.
+  UNSET_TYPE = 0;               // Unknown task type.
+  LIST = 1;                     // Lists the files in an on-prem dir.
+  PROCESS_LIST = 2;             // Processes the list task output.
+  COPY = 3;                     // Upload a file from on-prem to GCS.
+  COPY_BUNDLE = 4;              // Upload a bundle of files from on-prem to GCS.
+  PROCESS_UNEXPLORED_DIRS = 5;  // Process unexplored dirs output by list tasks.
+  DELETE_BUNDLE = 6;            // Delete a bundle of objects in GCS;
+  PROCESS_DELETE_DIRS = 7;      // Delete a list of "directories" in GCS.
 }
 
 // Specifies the current status of the cloud ingest task.
 enum Status {
   UNSET_STATUS = 0;  // TaskStatus is unspecified.
-  QUEUED = 1;        // The task is in progress.
+  READY = 1;         // The task is ready to be performed.
   FAILED = 2;        // The task was completed but failed.
   SUCCESS = 3;       // The task was completed and succeeded.
 }
@@ -44,6 +48,9 @@ enum FailureType {
 
   // The agent processing this task could not find the source directory.
   SOURCE_DIR_NOT_FOUND = 11;
+
+  // The name of the file is invalid.
+  INVALID_FILE_NAME = 12;
 }
 
 // Contains information about a task. A task is a unit of work, one of:
@@ -51,6 +58,10 @@ enum FailureType {
 // 2) processing a list file
 // 3) copying a single file
 // 4) copying a bundle of files
+// 5) processing a list of unexplored directories
+// 6) deleting a bundle of objects.
+// 7) processing a list of "directories" and generating delete bundle tasks
+// for children of those "directories".
 // Tasks might be incremental and require multiple request-response round trips
 // to complete.
 message Spec {
@@ -59,7 +70,11 @@ message Spec {
     ProcessListSpec process_list_spec = 2;
     CopySpec copy_spec = 3;
     CopyBundleSpec copy_bundle_spec = 4;
+    ProcessUnexploredDirsSpec process_unexplored_dirs_spec = 5;
+    DeleteBundleSpec delete_bundle_spec = 6;
+    ProcessDeleteDirsSpec process_delete_dirs_spec = 7;
   }
+  int64 issuance_number = 8;
 }
 
 // Contains the information about a list task. A list task is responsible for
@@ -99,6 +114,20 @@ message ProcessListSpec {
   int64 byte_offset = 4;              // List file bytes processed so far.
 }
 
+// Contains the information about a process unlisted dirs task. A process
+// unlisted dirs task is responsible for processing the unexplored dirs file
+// produced by a list task.
+message ProcessUnexploredDirsSpec {
+  // GCS bucket for list task output.
+  string dst_list_result_bucket = 1;
+
+  // GCS object for the unexplored dirs file.
+  string dst_unexplored_dirs_object = 2;
+
+  // Unexplored dirs file bytes processed so far.
+  int64 byte_offset = 3;
+}
+
 // Contains the information about a copy task. A copy task is responsible for
 // copying a single file.
 message CopySpec {
@@ -106,9 +135,7 @@ message CopySpec {
   string dst_bucket = 2;              // The GCS destination bucket.
   string dst_object = 3;              // The GCS destination object.
   int64 expected_generation_num = 4;  // The expected GCS generation number.
-
-  // Fields for bandwidth management.
-  int64 bandwidth = 5;  // This copy's bandwidth limit, 0 means inf bandwidth.
+  reserved 5;                         // Don't reuse tags.
 
   // Fields only for managing resumable copies.
   int64 file_bytes = 6;             // The file size, in bytes.
@@ -135,6 +162,40 @@ message BundledFile {
 // responsible for copying multiple files to GCS.
 message CopyBundleSpec {
   repeated BundledFile bundled_files = 1;
+}
+
+// Contains the information to delete a GCS object.
+message DeleteObjectSpec {
+  string dst_bucket = 1;        // The GCS destination bucket.
+  string dst_object = 2;        // The GCS destination object.
+  int64 generation_num = 3;     // The GCS generation number of existing object.
+  int64 dst_object_bytes = 4;   // Size of the GCS object.
+}
+
+// Contains the information for a single object within a Delete Bundle task.
+message BundledObject {
+  DeleteObjectSpec delete_object_spec = 1;
+  Status status = 2;
+  FailureType failure_type = 3;
+  string failure_message = 4;
+}
+
+// Contains the information about a Delete Bundle task. A Delete Bundle
+// task is responsible for deleting multiple objects in GCS.
+message DeleteBundleSpec {
+  repeated BundledObject bundled_objects = 1;
+}
+
+// Contains the information about a Process Delete Dirs task. A Process Delete
+// Dirs task is responsible for generating delete bundle tasks for
+// children of deleted directories. Deleting a directory results in
+// deleting all objects in GCS with a shared prefix.
+message ProcessDeleteDirsSpec {
+  string dst_bucket = 1;          // The GCS destination bucket.
+  repeated string prefix = 2;     // GCS object prefixes.
+  int64 prefix_offset = 3;        // Num dirs/prefixes processed so far.
+  int64 object_offset = 4;        // Num objects processed within a prefix.
+  string continuation_token = 5;  // Token to resume listing.
 }
 
 // Contains the message sent from the DCP to an Agent to issue a task request.
@@ -177,6 +238,8 @@ message Log {
     ProcessListLog process_list_log = 2;
     CopyLog copy_log = 3;
     CopyBundleLog copy_bundle_log = 4;
+    ProcessUnexploredDirsLog process_unexplored_dirs_log = 5;
+    DeleteBundleLog delete_bundle_log = 6;
   }
 }
 
@@ -208,6 +271,13 @@ message ProcessListLog {
   int64 ending_offset = 3;
 }
 
+// Contains log fields for a ProcessUnexploredDirs task.
+message ProcessUnexploredDirsLog {
+  int64 entries_processed = 1;
+  int64 starting_offset = 2;
+  int64 ending_offset = 3;
+}
+
 // Contains log fields for a Copy task.
 message CopyLog {
   string src_file = 1;
@@ -223,13 +293,40 @@ message CopyLog {
   int64 bytes_copied = 9;
 }
 
-// Contains log fields for a CopyBundle task. Note these fields are in aggregate
-// and apply to the overall CopyBundle task. For log info about the individual
-// files, examine the CopyBundleSpec's within the resp_spec.
+message BundledFileLog {
+  Status status = 1;
+  FailureType failure_type = 2;
+  string failure_message = 3;
+  CopyLog copy_log = 4;
+}
+
+// Contains log fields for a CopyBundle task.
 message CopyBundleLog {
   int64 files_copied = 1;
   int64 bytes_copied = 2;
 
   int64 files_failed = 3;
   int64 bytes_failed = 4;
+
+  repeated BundledFileLog bundled_files_logs = 5;
+}
+
+message BundledObjectLog {
+  Status status = 1;
+  FailureType failure_type = 2;
+  string failure_message = 3;
+  string dst_bucket = 6;
+  string dst_object = 4;
+  int64 dst_object_bytes = 5;
+}
+
+// Contains log fields for a DeleteBundle task.
+message DeleteBundleLog {
+  int64 objects_deleted = 1;
+  int64 bytes_deleted = 2;
+
+  int64 objects_failed = 3;
+  int64 bytes_failed = 4;
+
+  repeated BundledObjectLog bundled_objects_logs = 5;
 }
