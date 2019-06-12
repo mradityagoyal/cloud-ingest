@@ -9,6 +9,11 @@ A minor version bump means support for a new major job run version was added.
 A patch version bump is used for any change that does not affect the supported range of
 major job run versions.
 
+## [1.0.11] - 2019-06-12
+### Added
+- Added container ID in AgentID.
+- Waiting on a delete topic and subscription in agent.
+
 ## [1.0.10] - 2019-06-06
 ### Added
 - Detailed PulseStats.
