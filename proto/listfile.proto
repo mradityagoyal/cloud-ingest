@@ -8,6 +8,7 @@ message ListFileEntry {
   oneof entry {
     FileInfo file_info = 1;
     DirectoryInfo directory_info = 2;
+    DirectoryHeader directory_header = 3;
   }
 }
 
@@ -27,4 +28,16 @@ message FileInfo {
 message DirectoryInfo {
   // The full path of the directory in the format used by the local OS.
   string path = 1;
+}
+
+// Contains information about the directory that's being listed.
+// The contents (files and directories) of the directory will appear below
+// the DirectoryHeader in the list file.
+message DirectoryHeader {
+  // The full path of the directory in the format used by the local OS.
+  string path = 1;
+
+  // The number of list file entries, each representing a file or directory
+  // present in the directory specified by path, that follow this header.
+  int64 num_entries = 2;
 }

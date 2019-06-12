@@ -123,19 +123,18 @@ func writeDirectories(w io.Writer, dirStore *DirectoryInfoStore) error {
 // adds any directories to the list of directories to be listed. If includeDirs is true, both files
 // and directories are written to the list file.
 // processDirectories returns listing file metadata gathered while processing directories.
-func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeThreshold, maxDirBytes int, includeDirs bool, listSpec taskpb.ListSpec, statsTracker *stats.Tracker) (*listingFileMetadata, error) {
+func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, settings listSettings, listSpec taskpb.ListSpec, statsTracker *stats.Tracker) (*listingFileMetadata, error) {
 	totalEntries := 0
 	listMD := &listingFileMetadata{}
 
 	// Ensure that at least one directory is listed. Without the firstTime flag, the initial list
 	// of directories could exceed the memory limit, resulting in no directories being listed.
-	firstTime := true
-	for firstTime || (dirStore.Size() < maxDirBytes && totalEntries+dirStore.Len() < listFileSizeThreshold) {
+	for firstTime := true; firstTime || (dirStore.Size() < settings.maxDirBytes && totalEntries+dirStore.Len() < settings.listFileSizeThreshold); {
 		dirToProcess := dirStore.RemoveFirst()
 		if dirToProcess == nil {
 			break
 		}
-		entries, err := processDir(dirToProcess.Path, dirStore, listMD, includeDirs, statsTracker)
+		entries, err := processDir(dirToProcess.Path, dirStore, listMD, settings.includeDirs, statsTracker)
 		if err != nil {
 			if listSpec.RootDirectory != "" && os.IsNotExist(err) {
 				if err := handleNotFoundDir(dirToProcess.Path, listSpec, listMD); err == nil {
@@ -144,6 +143,11 @@ func processDirectories(w io.Writer, dirStore *DirectoryInfoStore, listFileSizeT
 				}
 			}
 			return nil, err
+		}
+		if settings.includeDirHeader {
+			if err := writeProtobuf(w, dirHeaderEntry(dirToProcess.Path, int64(len(entries)))); err != nil {
+				return nil, err
+			}
 		}
 		for _, entry := range entries {
 			if err := writeProtobuf(w, entry); err != nil {
@@ -198,7 +202,7 @@ func isListedInSpec(dir string, spec taskpb.ListSpec) bool {
 // file. Otherwise, just files are written.
 // Unlisted directories (any directories that were found or included in the list spec but weren't
 // listed) are stored in the returned directory info store.
-func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, listFileSizeThreshold, maxDirBytes int, writeDirs bool, statsTracker *stats.Tracker) (*listingFileMetadata, *DirectoryInfoStore, error) {
+func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, settings listSettings, statsTracker *stats.Tracker) (*listingFileMetadata, *DirectoryInfoStore, error) {
 	// Add directories from list spec into the DirStore.
 	// Directories will be explored in alphabetical, depth first order.
 	dirStore := NewDirectoryInfoStore()
@@ -208,7 +212,7 @@ func listDirectoriesAndWriteResults(w io.Writer, listSpec *taskpb.ListSpec, list
 		}
 	}
 
-	listMD, err := processDirectories(w, dirStore, listFileSizeThreshold, maxDirBytes, writeDirs, *listSpec, statsTracker)
+	listMD, err := processDirectories(w, dirStore, settings, *listSpec, statsTracker)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -230,7 +234,11 @@ func (h *DepthFirstListHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskR
 	w := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstListResultObject, listSpec.ExpectedGenerationNum, h.resumableChunkSize)
 
 	fileWriter := h.statsTracker.NewListByteTrackingWriter(w, true)
-	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(fileWriter, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, false /* writeDirs */, h.statsTracker)
+	settings := listSettings{
+		listFileSizeThreshold: h.listFileSizeThreshold,
+		maxDirBytes:           h.allowedDirBytes,
+	}
+	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(fileWriter, listSpec, settings, h.statsTracker)
 	if err != nil {
 		w.CloseWithError(err)
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)

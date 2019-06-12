@@ -43,6 +43,18 @@ type listingFileMetadata struct {
 	dirsNotFound                                            []string
 }
 
+type listSettings struct {
+	listFileSizeThreshold int
+	maxDirBytes           int
+
+	// includeDirs determines whether directories will be included in the list file. If includeDirs is
+	// false, only files will be written to the list file.
+	includeDirs bool
+	// includeDirHeader determines whether a header including the path of the directory being listed
+	// is written to the list file before its contents.
+	includeDirHeader bool
+}
+
 func dirInfoEntry(path string) *listfilepb.ListFileEntry {
 	return &listfilepb.ListFileEntry{
 		Entry: &listfilepb.ListFileEntry_DirectoryInfo{
@@ -60,6 +72,17 @@ func fileInfoEntry(path string, lastModTime, size int64) *listfilepb.ListFileEnt
 				Path:             path,
 				LastModifiedTime: lastModTime,
 				Size:             size,
+			},
+		},
+	}
+}
+
+func dirHeaderEntry(path string, numEntries int64) *listfilepb.ListFileEntry {
+	return &listfilepb.ListFileEntry{
+		Entry: &listfilepb.ListFileEntry_DirectoryHeader{
+			DirectoryHeader: &listfilepb.DirectoryHeader{
+				Path:       path,
+				NumEntries: numEntries,
 			},
 		},
 	}

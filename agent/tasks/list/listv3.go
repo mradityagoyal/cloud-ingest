@@ -70,7 +70,13 @@ func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *
 	listFileW := gcsWriterWithCondition(ctx, h.gcs, listSpec.DstListResultBucket, listSpec.DstListResultObject, listSpec.ListResultExpectedGenerationNum, h.resumableChunkSize)
 	listBtw := h.statsTracker.NewListByteTrackingWriter(listFileW, true)
 
-	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(listBtw, listSpec, h.listFileSizeThreshold, h.allowedDirBytes, true /* writeDirs */, h.statsTracker)
+	settings := listSettings{
+		listFileSizeThreshold: h.listFileSizeThreshold,
+		maxDirBytes:           h.allowedDirBytes,
+		includeDirs:           true,
+		includeDirHeader:      true,
+	}
+	listMD, unlistedDirs, err := listDirectoriesAndWriteResults(listBtw, listSpec, settings, h.statsTracker)
 	if err != nil {
 		listFileW.CloseWithError(err)
 		if os.IsNotExist(err) {

@@ -73,9 +73,14 @@ func sortAndWriteEntries(t *testing.T, w io.Writer, entries []*listfilepb.ListFi
 		t.Fatalf("got error: %v", err)
 	}
 	for _, entry := range entries {
-		if err := writeProtobuf(w, entry); err != nil {
-			t.Fatalf("writeProtobuf got error: %v", err)
-		}
+		writeEntry(t, w, entry)
+	}
+}
+
+func writeEntry(t *testing.T, w io.Writer, entry *listfilepb.ListFileEntry) {
+	t.Helper()
+	if err := writeProtobuf(w, entry); err != nil {
+		t.Fatalf("writeProtobuf got error: %v", err)
 	}
 }
 
@@ -158,7 +163,7 @@ func TestListV3DirFoundThenDeleted(t *testing.T) {
 		t.Fatalf("DirectoryInfoStore.Add() got error: %v", err)
 	}
 	// Have to test helper method to avoid race conditions.
-	listMD, err := processDirectories(listWriter, dirStore, 10000, 500000, true, *taskReqMsg.Spec.GetListSpec(), nil)
+	listMD, err := processDirectories(listWriter, dirStore, listSettings{listFileSizeThreshold: 10000, maxDirBytes: 500000, includeDirs: true, includeDirHeader: true}, *taskReqMsg.Spec.GetListSpec(), nil)
 	if err != nil {
 		t.Errorf("processDirectories() got error %v", err)
 	}
@@ -168,8 +173,11 @@ func TestListV3DirFoundThenDeleted(t *testing.T) {
 }
 
 func TestListV3SuccessEmptyDir(t *testing.T) {
+	var expectedListResult bytes.Buffer
+
 	tmpDir := common.CreateTmpDir("", "test-list-agent-")
 	defer os.RemoveAll(tmpDir)
+	writeEntry(t, &expectedListResult, dirHeaderEntry(tmpDir, 0))
 
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
@@ -189,7 +197,7 @@ func TestListV3SuccessEmptyDir(t *testing.T) {
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
 	taskRespMsg := h.Do(context.Background(), taskReqMsg)
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
-	if listWriter.WrittenString() != "" {
+	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
 			listWriter.WrittenString(), "")
 	}
@@ -220,6 +228,7 @@ func TestListV3SuccessFlatDir(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		dirEntries = append(dirEntries, createFile(t, tmpDir, "test-file-", fileContent))
 	}
+	writeEntry(t, &expectedListResult, dirHeaderEntry(tmpDir, int64(len(dirEntries))))
 	sortAndWriteEntries(t, &expectedListResult, dirEntries)
 
 	mockCtrl := gomock.NewController(t)
@@ -307,6 +316,7 @@ func TestListV3SuccessNestedDirSmallListFile(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		dirEntries = append(dirEntries, createFile(t, tmpDir, "test-file-", fileContent))
 	}
+	writeEntry(t, &expectedListResult, dirHeaderEntry(tmpDir, int64(len(dirEntries))))
 	sortAndWriteEntries(t, &expectedListResult, dirEntries)
 
 	// Create some files in the sub-dir. These should not be in the list output.
@@ -379,13 +389,18 @@ func TestListV3SuccessNestedDirLargeListFile(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		dirEntries = append(dirEntries, createFile(t, tmpDir, "test-file-", fileContent))
 	}
+	writeEntry(t, &expectedListResult, dirHeaderEntry(tmpDir, int64(len(dirEntries))))
 	sortAndWriteEntries(t, &expectedListResult, dirEntries)
+
+	// Write header for empty directory
+	writeEntry(t, &expectedListResult, dirHeaderEntry(emptyDir, 0))
 
 	// Create some files in the sub-dir.
 	dirEntries = nil
 	for i := 0; i < 10; i++ {
 		dirEntries = append(dirEntries, createFile(t, nestedTmpDir, "test-file-", fileContent))
 	}
+	writeEntry(t, &expectedListResult, dirHeaderEntry(nestedTmpDir, int64(len(dirEntries))))
 	sortAndWriteEntries(t, &expectedListResult, dirEntries)
 
 	mockCtrl := gomock.NewController(t)
@@ -437,6 +452,7 @@ func TestListV3MakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		dirEntries = append(dirEntries, createFile(t, tmpDir, "test-file-", fileContent))
 	}
+	writeEntry(t, &expectedListResult, dirHeaderEntry(tmpDir, int64(len(dirEntries))))
 	sortAndWriteEntries(t, &expectedListResult, dirEntries)
 
 	mockCtrl := gomock.NewController(t)
@@ -496,6 +512,7 @@ func TestListV3SuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		dirEntries = append(dirEntries, createFile(t, tmpDir, "test-file-", fileContent))
 	}
+	writeEntry(t, &expectedListResult, dirHeaderEntry(tmpDir, int64(len(dirEntries))))
 	sortAndWriteEntries(t, &expectedListResult, dirEntries)
 
 	// Create some files in the sub-dir and add them to the expected list file. Also add the child dirs.
@@ -505,6 +522,7 @@ func TestListV3SuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	for i := 0; i < 10; i++ {
 		dirEntries = append(dirEntries, createFile(t, nestedTmpDir, "test-file-", fileContent))
 	}
+	writeEntry(t, &expectedListResult, dirHeaderEntry(nestedTmpDir, int64(len(dirEntries))))
 	sortAndWriteEntries(t, &expectedListResult, dirEntries)
 
 	// Create some files in the sub-dir's child dir. These should not be in the list output.
