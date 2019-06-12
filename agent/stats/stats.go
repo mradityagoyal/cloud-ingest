@@ -70,18 +70,19 @@ type lifetimeStats struct {
 
 // PulseStats contains stats which are sent with each Agent pulse message.
 type PulseStats struct {
-	CopyBytes           int64
-	ListBytes           int64
-	CopyOpenMs          int64
-	CopyStatMs          int64
-	CopySeekMs          int64
-	CopyReadMs          int64
-	CopyWriteMs         int64
-	CopyInternalRetries int64
-	ListDirOpenMs       int64
-	ListDirReadMs       int64
-	ListFileWriteMs     int64
-	ListDirWriteMs      int64
+	CopyBytes             int64
+	ListBytes             int64
+	CopyOpenMs            int64
+	CopyStatMs            int64
+	CopySeekMs            int64
+	CopyReadMs            int64
+	CopyWriteMs           int64
+	CopyInternalRetries   int64
+	DeleteInternalRetries int64
+	ListDirOpenMs         int64
+	ListDirReadMs         int64
+	ListFileWriteMs       int64
+	ListDirWriteMs        int64
 }
 
 func (ps1 *PulseStats) add(ps2 *PulseStats) {

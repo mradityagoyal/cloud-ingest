@@ -48,6 +48,8 @@ func GetFailureTypeFromError(err error) taskpb.FailureType {
 			return taskpb.FailureType_PERMISSION_FAILURE
 		case http.StatusUnauthorized:
 			return taskpb.FailureType_PERMISSION_FAILURE
+		case http.StatusNotFound:
+			return taskpb.FailureType_FILE_NOT_FOUND_FAILURE
 		}
 	}
 	if t, ok := err.(AgentError); ok {
@@ -79,8 +81,8 @@ func BuildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, log 
 		taskRespMsg.FailureType = GetFailureTypeFromError(err)
 		taskRespMsg.FailureMessage = fmt.Sprint(err)
 		if taskRespMsg.FailureType != taskpb.FailureType_NOT_ACTIVE_JOBRUN {
-			if taskReqMsg.Spec.GetCopyBundleSpec() != nil {
-				glog.Warningf("Encountered error in processing CopyBundle: %v, see previous log lines for details", taskReqMsg.TaskRelRsrcName)
+			if taskReqMsg.Spec.GetCopyBundleSpec() != nil || taskReqMsg.Spec.GetDeleteBundleSpec() != nil {
+				glog.Warningf("Encountered error in processing bundled task: %v, see previous log lines for details", taskReqMsg.TaskRelRsrcName)
 			} else {
 				glog.Warningf("Encountered error in processing taskReqMsg: %+v, err: %v", taskReqMsg, err)
 			}

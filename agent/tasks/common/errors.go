@@ -19,6 +19,8 @@ import (
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
+const MaxRetryCount = 1
+
 type AgentError struct {
 	Msg         string
 	FailureType taskpb.FailureType
@@ -26,4 +28,14 @@ type AgentError struct {
 
 func (ae AgentError) Error() string {
 	return ae.Msg
+}
+
+// IsRetryableError returns true if an error is retryable and false otherwise.
+func IsRetryableError(err error) bool {
+	switch GetFailureTypeFromError(err) {
+	case taskpb.FailureType_PERMISSION_FAILURE, taskpb.FailureType_FILE_NOT_FOUND_FAILURE, taskpb.FailureType_SOURCE_DIR_NOT_FOUND, taskpb.FailureType_PRECONDITION_FAILURE:
+		return false
+	default:
+		return true
+	}
 }

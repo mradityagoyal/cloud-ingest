@@ -64,17 +64,17 @@ func (mr *MockGCSMockRecorder) DeleteBucket(ctx, bucketName interface{}) *gomock
 }
 
 // DeleteObject mocks base method
-func (m *MockGCS) DeleteObject(ctx context.Context, bucketName, objectName string) error {
+func (m *MockGCS) DeleteObject(ctx context.Context, bucketName, objectName string, genNumber int64) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeleteObject", ctx, bucketName, objectName)
+	ret := m.ctrl.Call(m, "DeleteObject", ctx, bucketName, objectName, genNumber)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // DeleteObject indicates an expected call of DeleteObject
-func (mr *MockGCSMockRecorder) DeleteObject(ctx, bucketName, objectName interface{}) *gomock.Call {
+func (mr *MockGCSMockRecorder) DeleteObject(ctx, bucketName, objectName, genNumber interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*MockGCS)(nil).DeleteObject), ctx, bucketName, objectName)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteObject", reflect.TypeOf((*MockGCS)(nil).DeleteObject), ctx, bucketName, objectName, genNumber)
 }
 
 // GetAttrs mocks base method

@@ -66,13 +66,13 @@ func TestTrackerRecordCtrlMsg(t *testing.T) {
 
 var (
 	psEmpty = &PulseStats{}
-	ps1     = &PulseStats{1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}
-	ps2     = &PulseStats{0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1}
-	ps3     = &PulseStats{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} // ps3 = ps1 + ps2
-	ps4     = &PulseStats{1, 2, 3, 1, 2, 3, 1, 2, 3, 1, 2, 3}
-	ps5     = &PulseStats{2, 4, 6, 2, 4, 6, 2, 4, 6, 2, 4, 6} // ps5 = ps4 + ps4
-	ps6     = &PulseStats{9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9}
-	ps7     = &PulseStats{8, 7, 6, 8, 7, 6, 8, 7, 6, 8, 7, 6} // ps7 = ps6 - ps4
+	ps1     = &PulseStats{1, 0, 1, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0}
+	ps2     = &PulseStats{0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1}
+	ps3     = &PulseStats{1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1} // ps3 = ps1 + ps2
+	ps4     = &PulseStats{1, 2, 3, 1, 2, 3, 1, 2, 2, 3, 1, 2, 3}
+	ps5     = &PulseStats{2, 4, 6, 2, 4, 6, 2, 4, 4, 6, 2, 4, 6} // ps5 = ps4 + ps4
+	ps6     = &PulseStats{9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9, 9}
+	ps7     = &PulseStats{8, 7, 6, 8, 7, 6, 8, 7, 7, 6, 8, 7, 6} // ps7 = ps6 - ps4
 )
 
 func TestTrackerAccumulatedPulseStats(t *testing.T) {

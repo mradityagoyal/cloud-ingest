@@ -35,25 +35,21 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-
-	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
-
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
-
 	"golang.org/x/net/context/ctxhttp"
 	"golang.org/x/sync/semaphore"
-
 	"google.golang.org/api/gensupport"
 	"google.golang.org/api/googleapi"
 	"google.golang.org/api/option"
 	raw "google.golang.org/api/storage/v1"
 	htransport "google.golang.org/api/transport/http"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 const (

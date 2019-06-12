@@ -178,6 +178,7 @@ message BundledObject {
   Status status = 2;
   FailureType failure_type = 3;
   string failure_message = 4;
+  BundledObjectLog bundled_object_log = 5;
 }
 
 // Contains the information about a Delete Bundle task. A Delete Bundle

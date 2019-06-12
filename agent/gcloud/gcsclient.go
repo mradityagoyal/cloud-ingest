@@ -28,7 +28,7 @@ import (
 type GCS interface {
 	CreateBucket(ctx context.Context, projectId, bucketName string, attrs *storage.BucketAttrs) error
 	DeleteBucket(ctx context.Context, bucketName string) error
-	DeleteObject(ctx context.Context, bucketName string, objectName string) error
+	DeleteObject(ctx context.Context, bucketName, objectName string, genNumber int64) error
 	GetAttrs(ctx context.Context, bucketName, objectName string) (*storage.ObjectAttrs, error)
 	ListObjects(ctx context.Context, bucketName string, query *storage.Query) ObjectIterator
 	NewRangeReader(ctx context.Context, bucketName, objectName string, offset, length int64) (io.ReadCloser, error)
@@ -67,8 +67,11 @@ func (gcs *GCSClient) DeleteBucket(ctx context.Context, bucketName string) error
 	return gcs.client.Bucket(bucketName).Delete(ctx)
 }
 
-func (gcs *GCSClient) DeleteObject(ctx context.Context, bucketName string, objectName string) error {
-	return gcs.client.Bucket(bucketName).Object(objectName).Delete(ctx)
+func (gcs *GCSClient) DeleteObject(ctx context.Context, bucketName, objectName string, genNumber int64) error {
+	// Object generation number should only be used as a pre-condition to delete an object. This ensures that the right version of the
+	// object is deleted and does not prohibit creating an archive. If generation number is passed in as an attribute, the object and
+	// its corresponding archive will be deleted, leaving the customer with no recourse.
+	return gcs.client.Bucket(bucketName).Object(objectName).If(storage.Conditions{GenerationMatch: genNumber}).Delete(ctx)
 }
 
 func (gcs *GCSClient) GetAttrs(ctx context.Context, bucketName, objectName string) (*storage.ObjectAttrs, error) {

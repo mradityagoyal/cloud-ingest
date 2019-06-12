@@ -17,12 +17,15 @@ package common
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
 	"strings"
 
 	"cloud.google.com/go/storage"
+
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 type stringReadCloser struct {
@@ -125,4 +128,30 @@ func CreateTmpDir(dir, prefix string) string {
 		log.Fatal(err)
 	}
 	return tmpDir
+}
+
+func IsValidFailureMsg(taskRelRsrcName string, failureType taskpb.FailureType, taskRespMsg *taskpb.TaskRespMsg) (bool, string) {
+	if taskRespMsg.TaskRelRsrcName != taskRelRsrcName {
+		return false, fmt.Sprintf("want task id \"%s\", got \"%s\"", taskRelRsrcName, taskRespMsg.TaskRelRsrcName)
+	}
+	if taskRespMsg.Status != "FAILURE" {
+		return false, fmt.Sprintf("want task fail, found: %s", taskRespMsg.Status)
+	}
+	if taskRespMsg.FailureType != failureType {
+		return false, fmt.Sprintf("want task to fail with %s type, got: %s",
+			taskpb.FailureType_name[int32(failureType)],
+			taskpb.FailureType_name[int32(taskRespMsg.FailureType)])
+	}
+
+	return true, ""
+}
+
+func IsValidSuccessMsg(taskRelRsrcName string, taskRespMsg *taskpb.TaskRespMsg) (bool, string) {
+	if taskRespMsg.TaskRelRsrcName != taskRelRsrcName {
+		return false, fmt.Sprintf("want task id \"%s\", got \"%s\"", taskRelRsrcName, taskRespMsg.TaskRelRsrcName)
+	}
+	if taskRespMsg.Status != "SUCCESS" {
+		return false, fmt.Sprintf("want message success, got: %s", taskRespMsg.Status)
+	}
+	return true, ""
 }
