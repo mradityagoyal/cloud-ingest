@@ -9,7 +9,9 @@ A minor version bump means support for a new major job run version was added.
 A patch version bump is used for any change that does not affect the supported range of
 major job run versions.
 
-## Unreleased
+## [2.0.0] - 2019-06-12
+### Removed
+- Support for JobRunVersion 0.
 ### Added
 - Time aware copy tasks.
 
