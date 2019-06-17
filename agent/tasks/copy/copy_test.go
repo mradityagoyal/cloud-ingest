@@ -336,12 +336,10 @@ func TestCopyBundle(t *testing.T) {
 				size:   file.size,
 				writer: nil,
 			}
-
 			file.fileName = common.CreateTmpFile("", file.fileName, file.fileData)
 			defer os.Remove(file.fileName)
 
 			mockGCS.EXPECT().NewWriterWithCondition(context.Background(), file.bucket, file.object, gomock.Any()).DoAndReturn(writerFunc)
-
 			bundleSpec.BundledFiles = append(bundleSpec.BundledFiles, &taskpb.BundledFile{
 				CopySpec: &taskpb.CopySpec{
 					DstBucket: file.bucket,
@@ -854,6 +852,136 @@ func TestShouldRetry(t *testing.T) {
 	for _, tt := range testCases {
 		if got := shouldRetry(tt.status, tt.err); got != tt.want {
 			t.Errorf("shouldRetry(%d, %v) = %t; want %t", tt.status, tt.err, got, tt.want)
+		}
+	}
+}
+
+func TestGetBundleLogAndError(t *testing.T) {
+	testCases := []struct {
+		desc            string
+		copyBundleSpec  *taskpb.CopyBundleSpec
+		wantStatus      taskpb.Status
+		wantFailureType taskpb.FailureType
+		wantLog         *taskpb.CopyBundleLog
+	}{
+		{
+			desc: "All success",
+			copyBundleSpec: &taskpb.CopyBundleSpec{
+				BundledFiles: []*taskpb.BundledFile{
+					&taskpb.BundledFile{
+						Status: taskpb.Status_SUCCESS,
+						CopyLog: &taskpb.CopyLog{
+							BytesCopied: 1,
+						},
+						CopySpec: &taskpb.CopySpec{
+							SrcFile: testFileContent,
+						},
+					},
+				},
+			},
+			wantStatus: taskpb.Status_SUCCESS,
+			wantLog: &taskpb.CopyBundleLog{
+				FilesCopied: 1,
+				BytesCopied: 1,
+			},
+		},
+		{
+			desc: "Service-induced error only",
+			copyBundleSpec: &taskpb.CopyBundleSpec{
+				BundledFiles: []*taskpb.BundledFile{
+					&taskpb.BundledFile{
+						Status:         taskpb.Status_FAILED,
+						FailureType:    taskpb.FailureType_HASH_MISMATCH_FAILURE,
+						FailureMessage: taskpb.FailureType_HASH_MISMATCH_FAILURE.String(),
+						CopyLog: &taskpb.CopyLog{
+							SrcBytes: 1,
+						},
+						CopySpec: &taskpb.CopySpec{
+							SrcFile: testFileContent,
+						},
+					},
+				},
+			},
+			wantStatus:      taskpb.Status_FAILED,
+			wantFailureType: taskpb.FailureType_UNKNOWN_FAILURE,
+			wantLog: &taskpb.CopyBundleLog{
+				FilesFailed: 1,
+				BytesFailed: 1,
+			},
+		},
+		{
+			desc: "Not service-induced error only",
+			copyBundleSpec: &taskpb.CopyBundleSpec{
+				BundledFiles: []*taskpb.BundledFile{
+					&taskpb.BundledFile{
+						Status:         taskpb.Status_FAILED,
+						FailureType:    taskpb.FailureType_FILE_NOT_FOUND_FAILURE,
+						FailureMessage: taskpb.FailureType_FILE_NOT_FOUND_FAILURE.String(),
+						CopyLog: &taskpb.CopyLog{
+							SrcBytes: 1,
+						},
+						CopySpec: &taskpb.CopySpec{
+							SrcFile: testFileContent,
+						},
+					},
+				},
+			},
+			wantStatus:      taskpb.Status_FAILED,
+			wantFailureType: taskpb.FailureType_NOT_SERVICE_INDUCED_UNKNOWN_FAILURE,
+			wantLog: &taskpb.CopyBundleLog{
+				FilesFailed: 1,
+				BytesFailed: 1,
+			},
+		},
+		{
+			desc: "Both service and not service induced errors",
+			copyBundleSpec: &taskpb.CopyBundleSpec{
+				BundledFiles: []*taskpb.BundledFile{
+					&taskpb.BundledFile{
+						Status:         taskpb.Status_FAILED,
+						FailureType:    taskpb.FailureType_FILE_NOT_FOUND_FAILURE,
+						FailureMessage: taskpb.FailureType_FILE_NOT_FOUND_FAILURE.String(),
+						CopyLog: &taskpb.CopyLog{
+							SrcBytes: 1,
+						},
+						CopySpec: &taskpb.CopySpec{
+							SrcFile: testFileContent,
+						},
+					},
+					&taskpb.BundledFile{
+						Status:         taskpb.Status_FAILED,
+						FailureType:    taskpb.FailureType_HASH_MISMATCH_FAILURE,
+						FailureMessage: taskpb.FailureType_HASH_MISMATCH_FAILURE.String(),
+						CopyLog: &taskpb.CopyLog{
+							SrcBytes: 2,
+						},
+						CopySpec: &taskpb.CopySpec{
+							SrcFile: testFileContent,
+						},
+					},
+				},
+			},
+			wantStatus:      taskpb.Status_FAILED,
+			wantFailureType: taskpb.FailureType_UNKNOWN_FAILURE,
+			wantLog: &taskpb.CopyBundleLog{
+				FilesFailed: 2,
+				BytesFailed: 3,
+			},
+		},
+	}
+	for _, tc := range testCases {
+		log, err := getBundleLogAndError(tc.copyBundleSpec)
+		if err != nil {
+			if log.BytesFailed != tc.wantLog.BytesFailed {
+				t.Errorf("test case: %s of getBundleLogAndError, got bytesfailed: %+v, want: %+v", tc.desc, log.BytesFailed, tc.wantLog.BytesFailed)
+			}
+			if log.FilesFailed != tc.wantLog.FilesFailed {
+				t.Errorf("test case: %s of getBundleLogAndError, got filesfailed: %+v, want: %+v", tc.desc, log.FilesFailed, tc.wantLog.FilesFailed)
+			}
+			failureType := common.GetFailureTypeFromError(err)
+			if failureType != tc.wantFailureType {
+				t.Errorf("test case: %s of getBundleLogAndError, got failureType: %+v, want: %+v", tc.desc, failureType, tc.wantFailureType)
+			}
 		}
 	}
 }

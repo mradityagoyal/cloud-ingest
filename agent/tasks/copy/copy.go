@@ -217,13 +217,26 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 	return cl, nil
 }
 
+func isServiceInducedError(failureType taskpb.FailureType) bool {
+	switch failureType {
+	case taskpb.FailureType_UNKNOWN_FAILURE, taskpb.FailureType_HASH_MISMATCH_FAILURE:
+		return true
+	default:
+		return false
+	}
+}
+
 func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, error) {
 	var log taskpb.CopyBundleLog
+	var atLeastOneServiceInducedError bool
 	for _, bf := range bs.BundledFiles {
 		if bf.Status == taskpb.Status_SUCCESS {
 			log.FilesCopied++
 			log.BytesCopied += bf.CopyLog.BytesCopied
 		} else {
+			if !atLeastOneServiceInducedError && isServiceInducedError(bf.FailureType) {
+				atLeastOneServiceInducedError = true
+			}
 			log.FilesFailed++
 			log.BytesFailed += bf.CopyLog.SrcBytes
 			glog.Warningf("bundledFile %v, failed with err: %v", bf.CopySpec.SrcFile, bf.FailureMessage)
@@ -231,9 +244,13 @@ func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, err
 	}
 	var err error
 	if log.FilesFailed > 0 {
+		failureType := taskpb.FailureType_NOT_SERVICE_INDUCED_UNKNOWN_FAILURE
+		if atLeastOneServiceInducedError {
+			failureType = taskpb.FailureType_UNKNOWN_FAILURE
+		}
 		err = common.AgentError{
 			Msg:         fmt.Sprintf("CopyBundle had %v failures", log.FilesFailed),
-			FailureType: taskpb.FailureType_UNKNOWN_FAILURE,
+			FailureType: failureType,
 		}
 	}
 	return &log, err

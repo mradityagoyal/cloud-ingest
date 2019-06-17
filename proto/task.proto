@@ -51,6 +51,9 @@ enum FailureType {
 
   // The name of the file is invalid.
   INVALID_FILE_NAME = 12;
+
+  // The agent processing a copybundle task and all bundle files fail with not service-induced error.
+  NOT_SERVICE_INDUCED_UNKNOWN_FAILURE = 13;
 }
 
 // Contains information about a task. A task is a unit of work, one of:
