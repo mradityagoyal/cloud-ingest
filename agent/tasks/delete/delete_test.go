@@ -50,6 +50,7 @@ func TestDeleteBundle(t *testing.T) {
 
 	object_not_found_error := &googleapi.Error{Code: http.StatusNotFound, Message: "object not found"}
 	gateway_error := &googleapi.Error{Code: http.StatusBadGateway, Message: "bad gateway"}
+	permission_denied_error := &googleapi.Error{Code: http.StatusUnauthorized, Message: "permission denied"}
 
 	tests := []struct {
 		desc           string
@@ -87,6 +88,36 @@ func TestDeleteBundle(t *testing.T) {
 			},
 		},
 		{
+			desc: "test delete bundle success with not found",
+			bundledObjects: []*bundledObjectTestData{
+				&bundledObjectTestData{
+					size:           19,
+					bucket:         "bucket",
+					objectName:     "object1",
+					wantStatus:     taskpb.Status_SUCCESS,
+					genNum:         1,
+					wantError:      nil,
+					wantRetryTimes: 1,
+				},
+				&bundledObjectTestData{
+					size:           18,
+					bucket:         "bucket",
+					objectName:     "object2",
+					wantStatus:     taskpb.Status_SUCCESS,
+					genNum:         2,
+					wantError:      object_not_found_error,
+					wantRetryTimes: 1,
+				},
+			},
+			bundleStatus: taskpb.Status_SUCCESS,
+			bundleLog: &taskpb.DeleteBundleLog{
+				ObjectsDeleted: 2,
+				BytesDeleted:   37,
+				ObjectsFailed:  0,
+				BytesFailed:    0,
+			},
+		},
+		{
 			desc: "test delete bundle partial failure",
 			bundledObjects: []*bundledObjectTestData{
 				&bundledObjectTestData{
@@ -104,9 +135,9 @@ func TestDeleteBundle(t *testing.T) {
 					objectName:         "object2",
 					wantStatus:         taskpb.Status_FAILED,
 					genNum:             2,
-					wantError:          object_not_found_error,
-					wantFailureType:    taskpb.FailureType_FILE_NOT_FOUND_FAILURE,
-					wantFailureMessage: fmt.Sprint(object_not_found_error),
+					wantError:          permission_denied_error,
+					wantFailureType:    taskpb.FailureType_PERMISSION_FAILURE,
+					wantFailureMessage: fmt.Sprint(permission_denied_error),
 					wantRetryTimes:     1,
 				},
 			},
@@ -131,7 +162,7 @@ func TestDeleteBundle(t *testing.T) {
 					wantError:          gateway_error,
 					wantFailureType:    taskpb.FailureType_UNKNOWN_FAILURE,
 					wantFailureMessage: fmt.Sprint(gateway_error),
-					wantRetryTimes:     common.MaxRetryCount,
+					wantRetryTimes:     maxRetryCount,
 				},
 				&bundledObjectTestData{
 					size:               18,
@@ -139,9 +170,9 @@ func TestDeleteBundle(t *testing.T) {
 					objectName:         "object2",
 					wantStatus:         taskpb.Status_FAILED,
 					genNum:             2,
-					wantError:          object_not_found_error,
-					wantFailureType:    taskpb.FailureType_FILE_NOT_FOUND_FAILURE,
-					wantFailureMessage: fmt.Sprint(object_not_found_error),
+					wantError:          permission_denied_error,
+					wantFailureType:    taskpb.FailureType_PERMISSION_FAILURE,
+					wantFailureMessage: fmt.Sprint(permission_denied_error),
 					wantRetryTimes:     1,
 				},
 			},

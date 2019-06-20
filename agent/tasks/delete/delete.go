@@ -37,11 +37,23 @@ var (
 	concurrentDeleteMax = flag.Int("concurrent-delete-max", 10, "The maximum allowed number of concurrent delete objects.")
 )
 
+const maxRetryCount = 3
+
 // DeleteHandler is responsible for handling delete tasks.
 type DeleteHandler struct {
 	gcs                 gcloud.GCS
 	concurrentDeleteSem *semaphore.Weighted // Limits the number of concurrent goroutines deleting objects.
 	statsTracker        *stats.Tracker      // For tracking bytes deleted.
+}
+
+// isRetryableError returns true if an error is retryable and false otherwise.
+func isRetryableError(err error) bool {
+	switch common.GetFailureTypeFromError(err) {
+	case taskpb.FailureType_PERMISSION_FAILURE, taskpb.FailureType_PRECONDITION_FAILURE:
+		return false
+	default:
+		return true
+	}
 }
 
 // NewDeleteHandler creates a DeleteHandler with storage.Client and http.Client.
@@ -115,9 +127,15 @@ func (h *DeleteHandler) handleDeleteObjectSpec(ctx context.Context, deleteSpec *
 	defer h.concurrentDeleteSem.Release(1)
 
 	var err error
-	for i := 0; i < common.MaxRetryCount; i++ {
+	for i := 0; i < maxRetryCount; i++ {
 		err = h.gcs.DeleteObject(ctx, deleteSpec.DstBucket, deleteSpec.DstObject, deleteSpec.GenerationNum)
-		if err == nil || !common.IsRetryableError(err) {
+		// Reset object not found failure to appear like there was no failure.
+		// If an object was not found in the destination bucket at the time of deletion, the resultant
+		// state is the same as an object being deleted successfully.
+		if err != nil && common.GetFailureTypeFromError(err) == taskpb.FailureType_FILE_NOT_FOUND_FAILURE {
+			err = nil
+		}
+		if err == nil || !isRetryableError(err) {
 			break
 		}
 		h.statsTracker.RecordPulseStats(&stats.PulseStats{DeleteInternalRetries: 1})
