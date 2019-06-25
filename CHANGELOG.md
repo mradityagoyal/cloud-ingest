@@ -9,6 +9,15 @@ A minor version bump means support for a new major job run version was added.
 A patch version bump is used for any change that does not affect the supported range of
 major job run versions.
 
+## [Unreleased]
+
+## [2.0.1] - 2019-06-25
+### Added
+- Delete object handler.
+- Not service induced failure type for copybundle task.
+### Changed
+- ListV3 handler to write a dir header for each dir listed.
+
 ## [2.0.0] - 2019-06-12
 ### Removed
 - Support for JobRunVersion 0.
