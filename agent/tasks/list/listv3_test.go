@@ -21,6 +21,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
@@ -95,7 +96,7 @@ func TestListV3DirAndSrcDirNotFound(t *testing.T) {
 	st := stats.NewTracker(ctx)
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqMsg := testListV3TaskReqMsg("task", []string{"dir does not exist"}, "can't find me either")
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckFailureWithType("task", taskpb.FailureType_SOURCE_DIR_NOT_FOUND, taskRespMsg, t)
 	if listWriter.WrittenString() != "" {
 		t.Errorf("expected nothing written to list file but found: %s", listWriter.WrittenString())
@@ -124,7 +125,7 @@ func TestListV3DirInListSpecNotFound(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{notFoundDir}, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != "" {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
@@ -195,7 +196,7 @@ func TestListV3SuccessEmptyDir(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
@@ -247,7 +248,7 @@ func TestListV3SuccessFlatDir(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
@@ -292,7 +293,7 @@ func TestListV3FailsFileWithNewline(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	// TODO(b/111502687): Failing with UNKNOWN_FAILURE is temporary. In the long
 	// term, we will escape file with newlines.
 	CheckFailureWithType(taskRelRsrcName, taskpb.FailureType_UNKNOWN_FAILURE, taskRespMsg, t)
@@ -344,7 +345,7 @@ func TestListV3SuccessNestedDirSmallListFile(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 1, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
@@ -416,7 +417,7 @@ func TestListV3SuccessNestedDirLargeListFile(t *testing.T) {
 	st := stats.NewTracker(ctx)
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 1000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
@@ -471,7 +472,7 @@ func TestListV3MakesProgressWhenSrcDirsExceedsMemDirLimit(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 1, statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",
@@ -550,7 +551,7 @@ func TestListV3SuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 	h := ListHandlerV3{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: directoryInfoProtoOverhead*2 + len(childOfNestedTmpDir) + len(child2OfNestedTmpDir), statsTracker: st}
 	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
 	taskReqMsg := testListV3TaskReqMsg(taskRelRsrcName, []string{tmpDir}, tmpDir)
-	taskRespMsg := h.Do(context.Background(), taskReqMsg)
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
 	if listWriter.WrittenString() != expectedListResult.String() {
 		t.Errorf("got list file: \"%s\", want: \"%s\"",

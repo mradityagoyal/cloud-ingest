@@ -61,6 +61,7 @@ func NewListProcessor(sc *storage.Client, sub *pubsub.Subscription, topic *pubsu
 		Handlers: NewHandlerRegistry(map[uint64]TaskHandler{
 			1: depthFirstListHandler,
 			2: depthFirstListHandler,
+			3: list.NewListHandlerV3(sc, st),
 		}),
 		StatsTracker: st,
 	}
@@ -76,6 +77,7 @@ func NewCopyProcessor(sc *storage.Client, hc *http.Client, sub *pubsub.Subscript
 		Handlers: NewHandlerRegistry(map[uint64]TaskHandler{
 			1: copyHandler,
 			2: copyHandler,
+			3: copyHandler,
 		}),
 		StatsTracker: st,
 	}

@@ -19,6 +19,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
@@ -55,7 +56,7 @@ func NewListHandlerV3(storageClient *storage.Client, st *stats.Tracker) *ListHan
 	}
 }
 
-func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, _ time.Time) *taskpb.TaskRespMsg {
 	listSpec := taskReqMsg.Spec.GetListSpec()
 	if listSpec == nil {
 		err := errors.New("ListHandlerV3.Do taskReqMsg.Spec is not ListSpec")

@@ -10,7 +10,10 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+
+## [2.1.0] - 2019-07-31
 ### Added
+- Support for JobRunVersion 3 (synchronization).
 - Updating task proto to eventually carry dest MD5.
 
 ## [2.0.3] - 2019-07-24
