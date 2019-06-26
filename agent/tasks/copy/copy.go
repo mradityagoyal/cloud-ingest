@@ -30,6 +30,7 @@ import (
 	"net/http"
 	"os"
 	"path"
+	"runtime"
 	"strconv"
 	"sync"
 	"time"
@@ -60,7 +61,8 @@ const (
 
 var (
 	internalTesting     = flag.Bool("internal-testing", false, "Agent running for Google internal testing purposes.")
-	concurrentCopyMax   = flag.Int("concurrent-copy-max", 100, "The maximum allowed number of concurrent file copies.")
+	copyFilesPerCPU     = flag.Int("copy-files-per-cpu", 8, "Files to copy (per CPU) in parallel. Can be overridden by setting copy-files.")
+	copyFiles           = flag.Int("copy-files", 0, "Files to copy in parallel. If > 0 this will override copy-files-per-cpu.")
 	fileReadBuf         = flag.Int("file-read-buf", 1*1024*1024, "Read buffer size for each concurrent file copy. Increasing this raises Agent memory usage, but decreases potential reads to the source file system.")
 	copyChunkSize       = flag.Int("copy-chunk-size", 128*1024*1024, "The amount of bytes to send in a single HTTP request.")
 	copyEntireFileLimit = flag.Int("copy-entire-file-limit", 8*1024*1024, "Copy a file in a single HTTP request if it's below this size.")
@@ -99,10 +101,15 @@ type CopyHandler struct {
 
 // NewCopyHandler creates a CopyHandler with storage.Client and http.Client.
 func NewCopyHandler(storageClient *storage.Client, hc *http.Client, st *stats.Tracker) *CopyHandler {
+	cf := *copyFiles
+	if cf <= 0 {
+		cf = *copyFilesPerCPU * runtime.NumCPU()
+	}
+	glog.Info("CopyHandler initialized with copy-files:", cf)
 	return &CopyHandler{
 		gcs:               gcloud.NewGCSClient(storageClient),
 		hc:                hc,
-		concurrentCopySem: semaphore.NewWeighted(int64(*concurrentCopyMax)),
+		concurrentCopySem: semaphore.NewWeighted(int64(cf)),
 		httpDoFunc:        ctxhttp.Do,
 		statsTracker:      st,
 	}
@@ -147,8 +154,6 @@ func (h *CopyHandler) checkFileStats(beforeStats os.FileInfo, f *os.File) error 
 }
 
 func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopyLog, error) {
-	h.concurrentCopySem.Acquire(ctx, 1)
-	defer h.concurrentCopySem.Release(1)
 	cl := &taskpb.CopyLog{
 		SrcFile: copySpec.SrcFile,
 		DstFile: path.Join(copySpec.DstBucket, copySpec.DstObject),
@@ -289,6 +294,11 @@ func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *task
 	for _, bf := range bundleSpec.BundledFiles {
 		wg.Add(1)
 		go func(bf *taskpb.BundledFile) {
+			if len(bundleSpec.BundledFiles) > 1 {
+				// Apply concurrency limiting to copy tasks with multiple bundled files.
+				h.concurrentCopySem.Acquire(ctx, 1)
+				defer h.concurrentCopySem.Release(1)
+			}
 			defer wg.Done()
 			var err error
 			bf.CopySpec, bf.CopyLog, err = h.handleCopySpecTimeAware(ctx, bf.CopySpec, reqStart, jobRunRelRsrcName)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"hash/fnv"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -30,9 +31,10 @@ const (
 var (
 	pubsubPrefix             = flag.String("pubsub-prefix", "", "Prefix of Pub/Sub topics and subscriptions names.")
 	maxPubSubLeaseExtenstion = flag.Duration("pubsub-lease-extension", 20*time.Minute, "The max duration to extend the leases for a Pub/Sub message. If 0, will use the default Pub/Sub client value (10 mins).")
-	copySubGoroutines        = flag.Int("threads", 100, "This flag is no longer used and will be soon deprecated.")
-	maxConcurrentCopyTasks   = flag.Int("number-concurrent-copy-tasks", 100, "The maximum number of copy tasks the agent will process at any given time. If 0, will use the default Pub/Sub client value (1000).")
-	maxConcurrentDeleteTasks = flag.Int("number-concurrent-delete-tasks", 10, "The maximum number of delete tasks the agent will process at any given time. If 0, will use the default Pub/Sub client value (1000).")
+	_                        = flag.Int("threads", 100, "This flag is no longer used and will be soon deprecated.")
+	copyTasksPerCPU          = flag.Int("copy-tasks-per-cpu", 2, "Copy tasks to process (per CPU) in parallel. Can be overridden by setting copy-tasks.")
+	copyTasks                = flag.Int("copy-tasks", 0, "Copy tasks to process in parallel. If > 0 this will override copy-tasks-per-cpu.")
+	deleteTasks              = flag.Int("delete-tasks", 10, "Max delete tasks the agent will process at any given time. If 0, will use the default Pub/Sub client value (1000).")
 )
 
 // waitOnSubscription blocks until either the PubSub subscription exists, or returns an err.
@@ -138,7 +140,12 @@ func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client)
 		defer wg.Done()
 		copySub = pubSubClient.Subscription(*pubsubPrefix + copySubscriptionID)
 		copySub.ReceiveSettings.MaxExtension = *maxPubSubLeaseExtenstion
-		copySub.ReceiveSettings.MaxOutstandingMessages = *maxConcurrentCopyTasks
+		ct := *copyTasks
+		if ct <= 0 {
+			ct = *copyTasksPerCPU * runtime.NumCPU()
+		}
+		glog.Info("CopySub MaxoutstandingMessages:", ct)
+		copySub.ReceiveSettings.MaxOutstandingMessages = ct
 		copySub.ReceiveSettings.Synchronous = true
 		if err := waitOnSubscription(ctx, copySub); err != nil {
 			glog.Fatalf("Could not find copy subscription %s, error %+v", copySub.String(), err)
@@ -178,7 +185,7 @@ func CreatePubSubTopicsAndSubs(ctx context.Context, pubSubClient *pubsub.Client)
 		defer wg.Done()
 		deleteSub = pubSubClient.Subscription(*pubsubPrefix + deleteSubscriptionID)
 		deleteSub.ReceiveSettings.MaxExtension = *maxPubSubLeaseExtenstion
-		deleteSub.ReceiveSettings.MaxOutstandingMessages = *maxConcurrentDeleteTasks
+		deleteSub.ReceiveSettings.MaxOutstandingMessages = *deleteTasks
 		deleteSub.ReceiveSettings.Synchronous = true
 		if err := waitOnSubscription(ctx, deleteSub); err != nil {
 			glog.Fatalf("Could not find delete subscription %s, error %+v", deleteSub.String(), err)
