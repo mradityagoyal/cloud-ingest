@@ -40,8 +40,10 @@ func TestCheckCopyTaskSpec(t *testing.T) {
 
 		// Resumed copy.
 		{tCopySpec("f", "b", "o", 0, 20, 1, 10, 99, 10, "ruID"), w{true, ""}},
+		{tCopySpec("f", "b", "o", 0, 0, 1, 10, 99, 10, "ruID"), w{true, ""}},
 		{tCopySpec("f", "b", "o", 0, -1, 1, 10, 99, 10, "ruID"), w{true, "but FileBytes"}},
 		{tCopySpec("f", "b", "o", 0, 20, 0, 10, 99, 10, "ruID"), w{true, ""}}, // mtime 0 ok.
+		{tCopySpec("f", "b", "o", 0, 20, 1, 0, 99, 10, "ruID"), w{true, ""}},
 		{tCopySpec("f", "b", "o", 0, 20, 1, -1, 99, 10, "ruID"), w{true, "but BytesCopied"}},
 		{tCopySpec("f", "b", "o", 0, 20, 1, 10, 0, 10, "ruID"), w{true, ""}}, // CRC32C 0 ok.
 		{tCopySpec("f", "b", "o", 0, 20, 1, 10, 99, 0, "ruID"), w{true, ""}}, // b'ToCopy 0 ok.
