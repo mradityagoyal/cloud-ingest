@@ -129,7 +129,7 @@ func (tp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 			taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
 		} else {
 			taskRespMsg = handler.Do(ctx, &taskReqMsg, reqStart)
-			tp.StatsTracker.RecordTaskResp(taskRespMsg, time.Now().Sub(reqStart))
+			tp.StatsTracker.RecordTaskResp(taskRespMsg)
 		}
 	} else {
 		taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, common.AgentError{

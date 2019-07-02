@@ -29,6 +29,11 @@ import (
 )
 
 func TestTrackerRecordBWLimit(t *testing.T) {
+	// Create an unused mock ticker to prevent accidental calls to selectDone.
+	unusedMockTicker := common.NewMockTicker()
+	accumulatorTickerMaker = func() common.Ticker { return unusedMockTicker }
+	displayTickerMaker = func() common.Ticker { return unusedMockTicker }
+
 	st := NewTracker(context.Background())
 	var wg sync.WaitGroup
 	st.selectDone = func() { wg.Done() } // The test hook.
@@ -40,27 +45,6 @@ func TestTrackerRecordBWLimit(t *testing.T) {
 	wg.Wait() // Force the Tracker to collect the recorded stats.
 	if got, want := st.lifetime.bwLimit, int64(123456); got != want {
 		t.Errorf("bwLimit = %v, want:%v", got, want)
-	}
-}
-
-func TestTrackerRecordCtrlMsg(t *testing.T) {
-	st := NewTracker(context.Background())
-	var wg sync.WaitGroup
-	st.selectDone = func() { wg.Done() } // The test hook.
-	if got, want := st.periodic.ctrlMsgsReceived, int64(0); got != want {
-		t.Fatalf("initial ctrlMsgsReceived = %v, want:%v", got, want)
-	}
-	s := st.lifetime.ctrlMsgTime
-	for i := 0; i < 10; i++ {
-		wg.Add(1)
-		st.RecordCtrlMsg(time.Now())
-		wg.Wait() // Force the Tracker to collect the recorded stats.
-	}
-	if got, want := st.periodic.ctrlMsgsReceived, int64(10); got != want {
-		t.Errorf("ctrlMsgsReceived = %v, want:%v", got, want)
-	}
-	if c := st.lifetime.ctrlMsgTime; !c.After(s) {
-		t.Errorf("ctrlMsgTime %v not after starting ctrlMsgTime %v", c, s)
 	}
 }
 
@@ -91,9 +75,9 @@ func TestTrackerAccumulatedPulseStats(t *testing.T) {
 	for _, tc := range tests {
 		// Must be done before creating the Tracker.
 		mockAccumulatorTicker := common.NewMockTicker()
-		accumulatorTickerMaker = func() common.Ticker {
-			return mockAccumulatorTicker
-		}
+		accumulatorTickerMaker = func() common.Ticker { return mockAccumulatorTicker }
+		unusedMockDisplayTicker := common.NewMockTicker()
+		displayTickerMaker = func() common.Ticker { return unusedMockDisplayTicker }
 
 		st := NewTracker(context.Background())
 
@@ -251,6 +235,11 @@ func TestTrackerDisplayStats(t *testing.T) {
 		},
 	}
 	for _, tc := range tests {
+		// Create an unused mock ticker to prevent accidental calls to selectDone.
+		unusedMockTicker := common.NewMockTicker()
+		accumulatorTickerMaker = func() common.Ticker { return unusedMockTicker }
+		displayTickerMaker = func() common.Ticker { return unusedMockTicker }
+
 		st := NewTracker(context.Background())
 
 		// Set up the test hooks.
@@ -262,7 +251,7 @@ func TestTrackerDisplayStats(t *testing.T) {
 			wg.Add(1)
 			switch v := i.(type) {
 			case *taskpb.TaskRespMsg:
-				st.RecordTaskResp(v, 50*time.Millisecond)
+				st.RecordTaskResp(v)
 			case int:
 				st.tpTracker.RecordBytesSent(int64(v))
 				st.pulseStatsChan <- &PulseStats{CopyBytes: int64(v)}
