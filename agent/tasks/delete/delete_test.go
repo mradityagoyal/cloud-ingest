@@ -36,10 +36,14 @@ func TestDeleteBundle(t *testing.T) {
 	defer mockCtrl.Finish()
 
 	type bundledObjectTestData struct {
-		size       int64
-		bucket     string
-		objectName string
-		genNum     int64
+		size           int64
+		bucket         string
+		objectName     string
+		genNum         int64
+		status         taskpb.Status
+		failureType    taskpb.FailureType
+		failureMessage string
+		log            *taskpb.BundledObjectLog
 
 		wantStatus         taskpb.Status
 		wantFailureType    taskpb.FailureType
@@ -183,6 +187,66 @@ func TestDeleteBundle(t *testing.T) {
 				BytesFailed:   37,
 			},
 		},
+		{
+			desc: "test delete bundle retry with a permanent failure and success",
+			bundledObjects: []*bundledObjectTestData{
+				&bundledObjectTestData{
+					size:               19,
+					bucket:             "bucket",
+					objectName:         "object1",
+					wantStatus:         taskpb.Status_FAILED,
+					genNum:             1,
+					wantError:          gateway_error,
+					wantFailureType:    taskpb.FailureType_UNKNOWN_FAILURE,
+					wantFailureMessage: fmt.Sprint(gateway_error),
+					wantRetryTimes:     maxRetryCount,
+				},
+				&bundledObjectTestData{
+					size:           18,
+					bucket:         "bucket",
+					objectName:     "object2",
+					status:         taskpb.Status_FAILED,
+					failureType:    taskpb.FailureType_PERMISSION_FAILURE,
+					failureMessage: fmt.Sprint(permission_denied_error),
+					log: &taskpb.BundledObjectLog{
+						DstBucket:      "bucket",
+						DstObject:      "object2",
+						DstObjectBytes: 18,
+						Status:         taskpb.Status_FAILED,
+						FailureMessage: fmt.Sprint(permission_denied_error),
+						FailureType:    taskpb.FailureType_PERMISSION_FAILURE,
+					},
+					wantStatus:         taskpb.Status_FAILED,
+					genNum:             2,
+					wantFailureType:    taskpb.FailureType_PERMISSION_FAILURE,
+					wantFailureMessage: fmt.Sprint(permission_denied_error),
+					wantRetryTimes:     0,
+				},
+				&bundledObjectTestData{
+					size:       19,
+					bucket:     "bucket",
+					objectName: "object3",
+					status:     taskpb.Status_SUCCESS,
+					log: &taskpb.BundledObjectLog{
+						DstBucket:      "bucket",
+						DstObject:      "object3",
+						DstObjectBytes: 19,
+						Status:         taskpb.Status_SUCCESS,
+					},
+					wantStatus:     taskpb.Status_SUCCESS,
+					genNum:         1,
+					wantRetryTimes: 0,
+				},
+			},
+			bundleStatus:  taskpb.Status_FAILED,
+			bundleFailure: taskpb.FailureType_UNKNOWN_FAILURE,
+			bundleLog: &taskpb.DeleteBundleLog{
+				ObjectsDeleted: 1,
+				BytesDeleted:   19,
+				ObjectsFailed:  2,
+				BytesFailed:    37,
+			},
+		},
 	}
 	for _, tc := range tests {
 		mockGCS := gcloud.NewMockGCS(mockCtrl)
@@ -196,6 +260,10 @@ func TestDeleteBundle(t *testing.T) {
 					DstObjectBytes: object.size,
 					GenerationNum:  object.genNum,
 				},
+				Status:           object.status,
+				FailureType:      object.failureType,
+				FailureMessage:   object.failureMessage,
+				BundledObjectLog: object.log,
 			})
 
 			mockGCS.EXPECT().DeleteObject(
@@ -224,12 +292,6 @@ func TestDeleteBundle(t *testing.T) {
 			}
 		}
 
-		// Check for the overall bundle log.
-		wantLog := &taskpb.Log{Log: &taskpb.Log_DeleteBundleLog{tc.bundleLog}}
-		if !proto.Equal(taskRespMsg.Log, wantLog) {
-			t.Errorf("DeleteHandler.Do(%q), got log = %+v, want: %+v", tc.desc, taskRespMsg.Log, wantLog)
-		}
-
 		// Check the status of each of the deleted objects.
 		resBundledObjects := taskRespMsg.RespSpec.GetDeleteBundleSpec().BundledObjects
 		for i, object := range tc.bundledObjects {
@@ -253,6 +315,14 @@ func TestDeleteBundle(t *testing.T) {
 			if resBundledObjects[i].FailureType != object.wantFailureType {
 				t.Errorf("DeleteHandler.Do(%q), got failureType: %s, want: %s", tc.desc, resBundledObjects[i].FailureType, object.wantFailureType)
 			}
+
+			tc.bundleLog.BundledObjectsLogs = append(tc.bundleLog.BundledObjectsLogs, wantLog)
+		}
+
+		// Check for the overall bundle log.
+		wantLog := &taskpb.Log{Log: &taskpb.Log_DeleteBundleLog{tc.bundleLog}}
+		if !proto.Equal(taskRespMsg.Log, wantLog) {
+			t.Errorf("DeleteHandler.Do(%q), got log = %+v, want: %+v", tc.desc, taskRespMsg.Log, wantLog)
 		}
 	}
 }

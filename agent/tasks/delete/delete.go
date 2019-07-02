@@ -87,14 +87,17 @@ func (h *DeleteHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *
 func (h *DeleteHandler) handleDeleteBundleSpec(ctx context.Context, bundleSpec *taskpb.DeleteBundleSpec) (*taskpb.DeleteBundleLog, error) {
 	var wg sync.WaitGroup
 	for _, bo := range bundleSpec.BundledObjects {
-		wg.Add(1)
-		go func(bo *taskpb.BundledObject) {
-			defer wg.Done()
-			bo.BundledObjectLog = h.handleDeleteObjectSpec(ctx, bo.DeleteObjectSpec)
-			bo.FailureType = bo.BundledObjectLog.FailureType
-			bo.FailureMessage = bo.BundledObjectLog.FailureMessage
-			bo.Status = bo.BundledObjectLog.Status
-		}(bo)
+		// In case of end to end retries we do not want to retry successes and permanent failures.
+		if bo.Status != taskpb.Status_SUCCESS && bo.Status != taskpb.Status_FAILED {
+			wg.Add(1)
+			go func(bo *taskpb.BundledObject) {
+				defer wg.Done()
+				bo.BundledObjectLog = h.handleDeleteObjectSpec(ctx, bo.DeleteObjectSpec)
+				bo.FailureType = bo.BundledObjectLog.FailureType
+				bo.FailureMessage = bo.BundledObjectLog.FailureMessage
+				bo.Status = bo.BundledObjectLog.Status
+			}(bo)
+		}
 	}
 	wg.Wait()
 	return getBundleLogAndError(bundleSpec)
@@ -111,6 +114,7 @@ func getBundleLogAndError(bs *taskpb.DeleteBundleSpec) (*taskpb.DeleteBundleLog,
 			log.BytesFailed += bo.BundledObjectLog.DstObjectBytes
 			glog.Warningf("bundledObject %v from bucket %v, failed with err: %v", bo.DeleteObjectSpec.DstObject, bo.DeleteObjectSpec.DstBucket, bo.FailureMessage)
 		}
+		log.BundledObjectsLogs = append(log.BundledObjectsLogs, bo.BundledObjectLog)
 	}
 	var err error
 	if log.ObjectsFailed > 0 {
