@@ -15,7 +15,6 @@ FROM google/cloud-sdk:slim
 
 # Install dependencies.
 RUN pip install absl-py
-RUN pip install requests
 
 # Copy the autoupdate script.
 WORKDIR /cloud-ingest

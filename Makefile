@@ -32,7 +32,7 @@ go-mocks: ## Generate go mock files.
 	@$(foreach file, $(FILES_TO_MOCK), $(call generate_mock,$(file)))
 
 .PHONY: lint
-lint: lint-agent lint-changelog ## Run all code style validators.
+lint: lint-agent lint-changelog lint-autoupdate ## Run all code style validators.
 
 .PHONY: lint-agent
 lint-agent: ## Run Go format.
@@ -44,21 +44,34 @@ lint-changelog: ## Validate changelog format.
 	@echo -e "\n== Validating Changelog Format =="
 	@go run "$(RELEASE_DIR)/validatechangelog.go" -buildType dev
 
+.PHONY: lint-autoupdate
+lint-autoupdate: ## Run for auto-update script
+	@echo -e "\n== Formatting Auto-update Script =="
+	@glint ./autoupdate/*.py
+
 .PHONY: test
-test: test-agent ## Run all unit tests.
+test: test-agent test-autoupdate ## Run all unit tests.
 
 .PHONY: test-agent
 test-agent: go-mocks ## Run all go unit tests.
 	@echo -e "\n== Running Go Tests =="
 	@go test -race $(GO_TARGETS)
 
+.PHONY: test-autoupdate
+test-autoupdate: ## Run all unit tests for autoupdate
+	@echo -e "\n== Running Auto-update Tests =="
+	@python ./autoupdate/autoupdate_test.py
+
 .PHONY: build
-build: setup build-agent ## Refresh dependencies, Build, test, and install everything.
+build: setup build-agent build-autoupdate ## Refresh dependencies, Build, test, and install everything.
 
 .PHONY: build-agent
 build-agent: install-changelog-parser go-mocks lint-agent lint-changelog test-agent ## Build, test, and install Go binaries.
 	@echo -e "\n== Building/Installing Go Binaries =="
 	@go install -v $(GO_TARGETS)
+
+.PHONY: build-autoupdate
+build-autoupdate: lint-autoupdate test-autoupdate ## Lint, test auto-update script
 
 .PHONY: validate-release-changelog
 validate-release-changelog: ## Validate changelog format and new release version.

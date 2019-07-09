@@ -45,22 +45,23 @@ class MockPopen(object):
 
 class MockResponse(object):
 
-  def __init__(self, status_code, json_data):
+  def __init__(self, status_code, str_data):
     self.status_code = status_code
-    self.json_data = json_data
+    self.str_data = str_data
 
-  def json(self):
-    return self.json_data
+  def read(self):
+    return self.str_data
 
 
-def mock_requests_get(*args, **keywargs):
+def mock_urllib_urlopen(*args, **keywargs):
   del keywargs
   if args[0] == TEST_OBJECT_HAS_VERSION:
-    return MockResponse(200, {'metadata': {'AgentVersion': TEST_OBJECT_HAS_VERSION}})
+    return MockResponse(
+        200, '{"metadata": {"AgentVersion": "TEST_OBJECT_HAS_VERSION"}}')
   elif args[0] == TEST_OBJECT_MISSING_VERSION:
-    return MockResponse(200, {})
+    return MockResponse(200, '{}')
   elif args[0] == TEST_OBJECT_NOT_EXIST:
-    return MockResponse(404, {})
+    return MockResponse(404, '{}')
   return MockResponse(404, None)
 
 
@@ -78,18 +79,18 @@ def delete_agent_update_source_file(pid):
 
 class AgentReleaseVersionTest(unittest.TestCase):
 
-  @mock.patch('requests.get', side_effect=mock_requests_get)
+  @mock.patch('urllib.urlopen', side_effect=mock_urllib_urlopen)
   def testAgentReleaseVersion_Successful(self, _):
     want = TEST_OBJECT_HAS_VERSION
     got = autoupdate.agent_release_version(TEST_OBJECT_HAS_VERSION)
     self.assertEqual(got, want)
 
-  @mock.patch('requests.get', side_effect=mock_requests_get)
+  @mock.patch('urllib.urlopen', side_effect=mock_urllib_urlopen)
   def testAgentReleaseVersionMissing_Successful(self, _):
     got = autoupdate.agent_release_version(TEST_OBJECT_MISSING_VERSION)
     self.assertIsNone(got)
 
-  @mock.patch('requests.get', side_effect=mock_requests_get)
+  @mock.patch('urllib.urlopen', side_effect=mock_urllib_urlopen)
   def testAgentReleaseVersionObjectMissing_Successful(self, _):
     got = autoupdate.agent_release_version(TEST_OBJECT_NOT_EXIST)
     self.assertIsNone(got)

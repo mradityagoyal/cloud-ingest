@@ -27,15 +27,16 @@ from __future__ import division
 from __future__ import print_function
 
 import argparse
+import json
 import os
 import socket
 import subprocess
 import sys
 import tarfile
 import time
+import urllib
 from absl import flags
 from absl import logging
-import requests
 
 STABLE_AGENT_BINARY_ADDRESS = 'https://www.googleapis.com/storage/v1/b/cloud-ingest-pub/o/agent%2fcurrent%2fagent-linux_amd64.tar.gz'
 AGENT_BINARY_FILE_NAME = 'agent-linux_amd64.tar.gz'
@@ -82,13 +83,12 @@ def agent_release_version(url):
   version = ''
   response = None
   try:
-    response = requests.get(url)
-    response.encoding = 'utf-8'
-    version = response.json()['metadata']['AgentVersion']
+    response = urllib.urlopen(url).read()
+    version = json.loads(response)['metadata']['AgentVersion']
     logging.info('Agent source URL: %s, agent version: %s', url, version)
     return version
-  except requests.exceptions.RequestException as err:
-    logging.error('Error occurs when sending request to %s, error: %s',
+  except IOError as err:
+    logging.error('Error occurs when opening url %s, error: %s',
                   url, str(err))
   except (ValueError, KeyError) as err:
     logging.error('Error occurs when decoding the response: %s, URL: %s',
@@ -136,9 +136,7 @@ def download_and_start_agent(process, url, args):
       process.terminate()
       process.wait()
     download_url = url + POSTFIX
-    response = requests.get(download_url)
-    with open(AGENT_BINARY_FILE_NAME, 'wb') as agent:
-      agent.write(response.content)
+    urllib.urlretrieve(download_url, AGENT_BINARY_FILE_NAME)
     logging.info('Agent is downloaded successfully')
 
     extract_agent_binary()
@@ -147,9 +145,6 @@ def download_and_start_agent(process, url, args):
     process = subprocess.Popen(start_args)
     logging.info('PID: %d', process.pid)
     return process
-  except requests.exceptions.RequestException as ex:
-    logging.error('Error occurs when sending request to download agent binary, '
-                  'url: %s, error: %s', url, str(ex))
   except IOError as ex:
     logging.error('IOError occurs when download and start agent: %s',
                   str(ex))
@@ -222,7 +217,7 @@ def check_and_update_agent_if_needed(process, local_version, args):
 
     # The local agent does not need to be updated.
     return process, latest_prod_version
-  except Exception as ex:
+  except Exception as ex:  # pylint: disable=broad-except
     logging.error('Unknown exception occurs in '
                   'check_and_update_agent_if_needed, err: %s', str(ex))
     return process, local_version
@@ -248,7 +243,7 @@ def setup_logging():
     logging.get_absl_handler().use_absl_log_file('', log_dir)
   except OSError as err:
     logging.error('Failed to create log directory, err %s', str(err))
-  except Exception as ex:
+  except Exception as ex:  # pylint: disable=broad-except
     logging.error('Unknown exception occurs in setup_logging, err: %s', str(ex))
 
 
