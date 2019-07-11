@@ -60,11 +60,13 @@ function build_release_assets() {
 
     if [[ $build_os == "windows" ]]; then
       GOOS=$build_os GOARCH=$build_arch go build -gcflags "$gcflags" -asmflags "$asmflags" -ldflags "$ldflags" -o $artifact_dir/$os_arch/$BINARY_NAME.exe $MAIN_SOURCE
+      chmod 755 $artifact_dir/$os_arch/$BINARY_NAME.exe
       pushd $artifact_dir/$os_arch > /dev/null
       zip -r -q $asset_dir/$BINARY_NAME-$os_arch.zip *
       popd > /dev/null
     else
       GOOS=$build_os GOARCH=$build_arch go build -gcflags "$gcflags" -asmflags "$asmflags" -ldflags "$ldflags" -o $artifact_dir/$os_arch/$BINARY_NAME $MAIN_SOURCE
+      chmod 755 $artifact_dir/$os_arch/$BINARY_NAME
       tar -czf $asset_dir/$BINARY_NAME-$os_arch.tar.gz -C $artifact_dir/$os_arch $BINARY_NAME LICENSE
     fi
   done
