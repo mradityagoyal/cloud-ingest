@@ -17,6 +17,7 @@ package list
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 
 	"cloud.google.com/go/storage"
@@ -80,7 +81,10 @@ func (h *ListHandlerV3) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *
 	if err != nil {
 		listFileW.CloseWithError(err)
 		if os.IsNotExist(err) {
-			err = common.AgentError{FailureType: taskpb.FailureType_SOURCE_DIR_NOT_FOUND}
+			err = common.AgentError{
+				FailureType: taskpb.FailureType_SOURCE_DIR_NOT_FOUND,
+				Msg:         fmt.Sprintf("Could not find the job's source directory (%q). Error: %q", listSpec.RootDirectory, err.Error()),
+			}
 		}
 		return common.BuildTaskRespMsg(taskReqMsg, nil, log, err)
 	}

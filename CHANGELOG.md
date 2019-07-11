@@ -12,6 +12,7 @@ major job run versions.
 ## [Unreleased]
 ### Added
 - CPU based concurrency scaling.
+- A failure message for when the source directory is not found.
 
 ## [2.0.1] - 2019-06-25
 ### Removed

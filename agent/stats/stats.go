@@ -121,8 +121,8 @@ func NewTracker(ctx context.Context) *Tracker {
 	t := &Tracker{
 		// Large buffers to avoid blocking.
 		taskDoneChan: make(chan string, 100),
-		bwLimitChan: make(chan int64, 10),
-		ctrlMsgChan: make(chan time.Time, 10),
+		bwLimitChan:  make(chan int64, 10),
+		ctrlMsgChan:  make(chan time.Time, 10),
 		lifetime: lifetimeStats{
 			taskDone:    map[string]uint64{"copy": 0, "list": 0},
 			ctrlMsgTime: time.Now(),
