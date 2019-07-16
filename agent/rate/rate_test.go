@@ -107,8 +107,8 @@ func TestRateLimitingReaderReadNoBufferResize(t *testing.T) {
 		t.Errorf("want Read 10 bytes, got %d", n)
 	}
 	totalTime := time.Since(start)
-	if totalTime < 10*time.Millisecond {
-		t.Errorf("total time want >=10ms, got %v", totalTime)
+	if totalTime < 9*time.Millisecond {
+		t.Errorf("total time want >=9ms, got %v", totalTime)
 	}
 }
 

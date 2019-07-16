@@ -49,8 +49,8 @@ const (
 	testTenByteCRC32C = 1069694901 // CRC32C of the first 10-bytes of testFileContent.
 )
 
-func testCopySpec(expGenNum, bytesToCopy int64, ruID string) *taskpb.Spec {
-	*copyChunkSize = int(bytesToCopy)
+func testCopySpec(expGenNum, ccSize int64, ruID string) *taskpb.Spec {
+	*copyChunkSize = int(ccSize)
 	return &taskpb.Spec{
 		Spec: &taskpb.Spec_CopySpec{
 			CopySpec: &taskpb.CopySpec{
@@ -61,7 +61,6 @@ func testCopySpec(expGenNum, bytesToCopy int64, ruID string) *taskpb.Spec {
 				FileBytes:             0,
 				FileMTime:             0,
 				BytesCopied:           0,
-				BytesToCopy:           bytesToCopy,
 				ResumableUploadId:     ruID,
 				Crc32C:                0,
 			},
@@ -449,7 +448,6 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 
 	taskReqMsg := testCopyTaskReqMsg()
 	taskReqMsg.Spec.GetCopySpec().SrcFile = tmpFile
-	taskReqMsg.Spec.GetCopySpec().BytesToCopy = 10
 	*copyChunkSize = 10
 	*copyEntireFileLimit = 10
 	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
@@ -477,7 +475,6 @@ func TestCopyHandlerDoResumable(t *testing.T) {
 
 	wantTaskRespSpec := testCopyTaskReqMsg().Spec
 	wantTaskRespSpec.GetCopySpec().SrcFile = tmpFile
-	wantTaskRespSpec.GetCopySpec().BytesToCopy = 10
 	wantTaskRespSpec.GetCopySpec().BytesCopied = 10
 	wantTaskRespSpec.GetCopySpec().Crc32C = testTenByteCRC32C
 	wantTaskRespSpec.GetCopySpec().FileBytes = int64(len(testFileContent))

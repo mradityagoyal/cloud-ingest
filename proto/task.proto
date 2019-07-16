@@ -145,8 +145,9 @@ message CopySpec {
   int64 file_m_time = 7;            // The file modified time (Unix).
   int64 bytes_copied = 8;           // The count of bytes copied so far.
   uint32 crc32c = 9;                // The CRC32C of the bytes copied so far.
-  int64 bytes_to_copy = 10;         // Number of bytes to copy in a chunk.
   string resumable_upload_id = 11;  // The resumable upload ID.
+
+  reserved 10;
 }
 
 // Contains the information for a single file within a Copy Bundle task.
