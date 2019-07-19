@@ -1,7 +1,11 @@
 package list
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
+
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
@@ -26,5 +30,42 @@ func CheckSuccessMsg(taskRelRsrcName string, taskRespMsg *taskpb.TaskRespMsg, t 
 	}
 	if taskRespMsg.Status != "SUCCESS" {
 		t.Errorf("want message success, got: %s", taskRespMsg.Status)
+	}
+}
+
+func TestDoesSymlinkPointToDir(t *testing.T) {
+	// Create temp dirs and file.
+	tmpDir := common.CreateTmpDir("", "dir")
+	defer os.RemoveAll(tmpDir)
+	tmpNestedDir := common.CreateTmpDir(tmpDir, "nestedDir")
+	tmpFile := common.CreateTmpFile(tmpDir, "tmpfile", "dummyFileContent")
+
+	// Create up the symlinks.
+	dirSymlink := filepath.Join(tmpDir, "dirSymlink")
+	err := os.Symlink(tmpNestedDir, dirSymlink)
+	if err != nil {
+		t.Fatalf("os.Symlink(%q, %q) got err: %v", tmpNestedDir, dirSymlink, err)
+	}
+	fileSymlink := filepath.Join(tmpDir, "fileSymlink")
+	err = os.Symlink(tmpFile, fileSymlink)
+	if err != nil {
+		t.Fatalf("os.Symlink(%q, %q) got err: %v", tmpFile, fileSymlink, err)
+	}
+
+	// Test doesSymlinkPointToDir.
+	gotDirSymlink, err := doesSymlinkPointToDir("", dirSymlink)
+	if err != nil {
+		t.Errorf("doesSymlinkPointToDir(\"\", %q) got err: %v", dirSymlink, err)
+	}
+	if gotDirSymlink == false {
+		t.Errorf("doesSymlinkPointToDir(\"\", %q) = false, want true", dirSymlink)
+	}
+
+	gotFileSymlink, err := doesSymlinkPointToDir("", fileSymlink)
+	if err != nil {
+		t.Errorf("doesSymlinkPointToDir(\"\", %q) got err: %v", fileSymlink, err)
+	}
+	if gotFileSymlink == true {
+		t.Errorf("doesSymlinkPointToDir(\"\", %q) = true, want false", fileSymlink)
 	}
 }

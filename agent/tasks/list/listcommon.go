@@ -19,6 +19,9 @@ import (
 	"context"
 	"errors"
 	"flag"
+	"fmt"
+	"os"
+	"path/filepath"
 	"sort"
 
 	"cloud.google.com/go/storage"
@@ -36,6 +39,8 @@ var (
 	listFileSizeThreshold          = flag.Int("list-file-size-threshold", 50000, "List tasks will keep listing directories until the number of listed files and directories exceeds this threshold, or until there are no more files/directories to list")
 	listTaskChunkSize              = flag.Int("list-task-chunk-size", 8*1024*1024, "The resumable upload chunk size used for list tasks, defaults to 8MiB.")
 	maxMemoryForListingDirectories = flag.Int("max-memory-for-listing-directories", 20, "Maximum amount of memory agent will use in total (not per task) to store directories before writing them to a list file. Value is in MiB.")
+
+	followSymlinks = flag.Bool("follow-symlinks", false, "If true symlinks will be followed, if false symlinks will be ignored. BEWARE: there is no cycle protection!")
 )
 
 type listingFileMetadata struct {
@@ -133,4 +138,17 @@ func getPath(entry *listfilepb.ListFileEntry) (string, error) {
 	} else {
 		return "", errors.New("unknown list file entry type")
 	}
+}
+
+func doesSymlinkPointToDir(dir, path string) (bool, error) {
+	realPath, err := os.Readlink(path) // Resolves chained symlinks.
+	if err != nil {
+		return false, fmt.Errorf("Readlink(%v) got err %v\n", path, err)
+	}
+	realPath = filepath.Join(dir, realPath)
+	fi, err := os.Stat(realPath)
+	if err != nil {
+		return false, fmt.Errorf("Stat(%q) got err %v\n", realPath, err)
+	}
+	return fi.IsDir(), nil
 }

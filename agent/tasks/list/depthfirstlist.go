@@ -28,6 +28,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
+	"github.com/golang/glog"
 
 	listfilepb "github.com/GoogleCloudPlatform/cloud-ingest/proto/listfile_go_proto"
 	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
@@ -78,13 +79,27 @@ func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMet
 		return nil, err
 	}
 
+	var symlinksSkipped int
 	var entries []*listfilepb.ListFileEntry
 	for _, osFileInfo := range osFileInfos {
 		if strings.Contains(osFileInfo.Name(), "\n") {
 			return nil, errors.New("the listing contains file with newlines")
 		}
 		path := filepath.Join(dir, osFileInfo.Name())
-		if osFileInfo.IsDir() {
+		isSymlinkToDir := false
+		if osFileInfo.Mode()&os.ModeSymlink != 0 {
+			if !*followSymlinks {
+				symlinksSkipped++
+				continue
+			}
+			isSymlinkToDir, err = doesSymlinkPointToDir(dir, path)
+			if err != nil {
+				glog.Warningf("skipping symlink, isSymlinkToDir(%q) got err: %v", path, err)
+				symlinksSkipped++
+				continue
+			}
+		}
+		if osFileInfo.IsDir() || isSymlinkToDir {
 			dirInfo := listfilepb.DirectoryInfo{Path: path}
 			err := dirStore.Add(dirInfo)
 			if err != nil {
@@ -100,6 +115,9 @@ func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMet
 			listMD.files++
 			listMD.bytes += size
 		}
+	}
+	if symlinksSkipped > 0 {
+		glog.Infof("skipped %v symlinks when listing %q", symlinksSkipped, dir)
 	}
 
 	err = sortListFileEntries(entries)
