@@ -16,21 +16,53 @@ source $(dirname ${BASH_SOURCE[0]})/release-helpers.sh
 # release local changes.
 
 function upload_artifacts() {
-  local asset_dir=$1
-  local release_version=$2
-  local gcs_prefix=$3
-  local metadata_version=$4
+  local release_version=$1
+  local gcs_prefix=$2
+  local asset_dir=$3
 
   # Upload our artifacts to the new release version.
   echo "Uploading Artifacts..."
   echo ""
-  gsutil -m cp $asset_dir/* $gcs_prefix/$release_version/
+  gsutil -m cp $asset_dir/* $gcs_prefix/
   echo ""
 
   # Set the value of AgentVersion metadata field for agent binary.
-  echo "Setting AgentVersion metadata field to $metadata_version"
+  echo "Setting AgentVersion metadata field to $release_version"
   echo ""
-  gsutil setmeta -h "x-goog-meta-AgentVersion:$metadata_version" $gcs_prefix/$release_version/*.tar.gz
+  gsutil setmeta -h "x-goog-meta-AgentVersion:$release_version" $gcs_prefix/*.tar.gz
+  echo ""
+}
+
+function build_release_assets() {
+  local release_version=$1
+  local asset_dir=$2
+  local artifact_dir=$3
+
+  ldflags="-X main.buildVersion=$release_version -X main.buildCommit=$GIT_COMMIT_ID -X main.buildDate=$build_date"
+  # Build for every OS/Arch combination we support.
+  echo""
+  echo "Building release assets..."
+  for os_arch in ${BUILD_PLATFORMS[@]}; do
+    build_os=$(echo $os_arch | cut -f1 -d_)
+    build_arch=$(echo $os_arch | cut -f2 -d_)
+    echo "Building for $build_os/$build_arch..."
+    mkdir -p $artifact_dir/$os_arch
+
+    # Bundle the license.
+    cp $REPO_DIR/LICENSE $artifact_dir/$os_arch
+
+    if [[ $build_os == "windows" ]]; then
+      GOOS=$build_os GOARCH=$build_arch go build -gcflags "$gcflags" -asmflags "$asmflags" -ldflags "$ldflags" -o $artifact_dir/$os_arch/$BINARY_NAME.exe $MAIN_SOURCE
+      pushd $artifact_dir/$os_arch > /dev/null
+      zip -r -q $asset_dir/$BINARY_NAME-$os_arch.zip *
+      popd > /dev/null
+    else
+      GOOS=$build_os GOARCH=$build_arch go build -gcflags "$gcflags" -asmflags "$asmflags" -ldflags "$ldflags" -o $artifact_dir/$os_arch/$BINARY_NAME $MAIN_SOURCE
+      tar -czf $asset_dir/$BINARY_NAME-$os_arch.tar.gz -C $artifact_dir/$os_arch $BINARY_NAME LICENSE
+    fi
+  done
+
+  echo "Done building."
   echo ""
 }
 
@@ -107,7 +139,6 @@ release_version=$(prompt_with_regex "Enter new version number (must be of format
 # Additional flags to pass to the compiler. Currently just release information
 # to compile in.
 build_date=$(date -u +%Y-%m-%dT%H:%M:%S%Z)
-ldflags="-X main.buildVersion=$release_version -X main.buildCommit=$GIT_COMMIT_ID -X main.buildDate=$build_date"
 
 # Trim the path up to GOPATH, so the dev environment path isn't visible in stack
 # traces. We have to do GOPATH and not REPO_DIR here, to ensure that a stack
@@ -123,39 +154,28 @@ echo "Version: $release_version" > $VERSION_FILE
 echo "Commit: $GIT_COMMIT_ID" >> $VERSION_FILE
 echo "Build Date: $build_date" >> $VERSION_FILE
 
-# Build for every OS/Arch combination we support.
-echo""
-echo "Building release assets..."
-for os_arch in ${BUILD_PLATFORMS[@]}; do
-  build_os=$(echo $os_arch | cut -f1 -d_)
-  build_arch=$(echo $os_arch | cut -f2 -d_)
-  echo "Building for $build_os/$build_arch..."
-  mkdir -p $ARTIFACT_DIR/$os_arch
+# Create a separate asset directory to store the next version of agent used in
+# testing.
+mkdir -p $ASSET_DIR-next
+cp $VERSION_FILE $ASSET_DIR-next
 
-  # Bundle the license.
-  cp $REPO_DIR/LICENSE $ARTIFACT_DIR/$os_arch
+build_release_assets $release_version $ASSET_DIR $ARTIFACT_DIR
+build_release_assets $release_version+next-version $ASSET_DIR-next $ARTIFACT_DIR-next
 
-  if [[ $build_os == "windows" ]]; then
-    GOOS=$build_os GOARCH=$build_arch go build -gcflags "$gcflags" -asmflags "$asmflags" -ldflags "$ldflags" -o $ARTIFACT_DIR/$os_arch/$BINARY_NAME.exe $MAIN_SOURCE
-    pushd $ARTIFACT_DIR/$os_arch > /dev/null
-    zip -r -q $ASSET_DIR/$BINARY_NAME-$os_arch.zip *
-    popd > /dev/null
-  else
-    GOOS=$build_os GOARCH=$build_arch go build -gcflags "$gcflags" -asmflags "$asmflags" -ldflags "$ldflags" -o $ARTIFACT_DIR/$os_arch/$BINARY_NAME $MAIN_SOURCE
-    tar -czf $ASSET_DIR/$BINARY_NAME-$os_arch.tar.gz -C $ARTIFACT_DIR/$os_arch $BINARY_NAME LICENSE
-  fi
-done
 popd > /dev/null
 
-echo "Done building."
-echo ""
+# Prefixes of GCS buckets that agent will be uploaded to.
+PROD_AGENT_UPLOAD_PREFIXES=($GCS_VERSIONS_PREFIX/$release_version $GCS_CANARY_PREFIX/prod)
+NEXT_AGENT_UPLOAD_PREFIXES=($GCS_CANARY_PREFIX/next)
 
-# Upload our artifacts to the new release version and set the AgentVersion
-# metadata fields for agent binary.
-upload_artifacts $ASSET_DIR $release_version $GCS_VERSIONS_PREFIX $release_version
+# Upload our artifacts to GCS and set the AgentVersion metadata fields for agent
+# binary.
+for gcs_prefix in ${PROD_AGENT_UPLOAD_PREFIXES[@]}; do
+  upload_artifacts $release_version $gcs_prefix $ASSET_DIR
+done
 
-# Upload the same artifacts to the canary release bucket and set the
-# AgentVersion metadata fields for agent binary.
-upload_artifacts $ASSET_DIR $release_version $GCS_CANARY_VERSIONS_PREFIX "$release_version+next-version"
+for gcs_prefix in ${NEXT_AGENT_UPLOAD_PREFIXES[@]}; do
+  upload_artifacts $release_version+next-version $gcs_prefix $ASSET_DIR-next
+done
 
 echo "Done!"
