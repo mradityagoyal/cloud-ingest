@@ -19,6 +19,7 @@ RUN pip install absl-py
 # Copy the autoupdate script.
 WORKDIR /cloud-ingest
 ADD ./autoupdate.py /cloud-ingest
+RUN ["chmod", "755", "/cloud-ingest/autoupdate.py"]
 ADD ./THIRD_PARTY_NOTICES /cloud-ingest/THIRD_PARTY_NOTICES
 
 ENTRYPOINT ["./autoupdate.py"]

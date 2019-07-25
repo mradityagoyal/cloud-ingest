@@ -249,11 +249,16 @@ def setup_logging():
 
 def main():
   parser = argparse.ArgumentParser()
+  parser.add_argument('--stable_agent_url')
+  FLAGS(sys.argv, known_only=True)
   # All arguments passed into the auto-update script are stored in unknown and
   # will be passed into the agent start command later.
   _, unknown = parser.parse_known_args()
   unknown.append('--container-id=%s' % socket.gethostname())
-  FLAGS(sys.argv, known_only=True)
+  # Remove all empty strings from the arguments list because subprocess.popen
+  # stops reading arguments after empty string.
+  args = filter(lambda arg: arg != '', unknown)
+  logging.info('Arguments that passed to agent: %s', args)
 
   setup_logging()
   # Temporarily setting the version to be empty and process to be None, these
@@ -263,7 +268,7 @@ def main():
 
   while True:
     process, version = check_and_update_agent_if_needed(
-        process, version, unknown)
+        process, version, args)
     time.sleep(CHECK_INTERVAL_SECONDS)
 
 if __name__ == '__main__':
