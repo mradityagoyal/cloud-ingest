@@ -294,6 +294,7 @@ message CopyLog {
   int64 dst_bytes = 6;
   int64 dst_m_time = 7;  // Unix.
   uint32 dst_crc32c = 8;
+  string dst_md5 = 10;
 
   int64 bytes_copied = 9;
 }
