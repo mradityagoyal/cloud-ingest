@@ -17,6 +17,8 @@ package control
 
 import (
 	"context"
+	"fmt"
+	"os"
 	"sync"
 	"testing"
 
@@ -48,8 +50,6 @@ func TestPulseSender(t *testing.T) {
 
 		logsDir := "/tmp/mylogs"
 		ps := NewPulseSender(ctx, mockPulseTopic, logsDir, st)
-		ps.hostname = "hostname"
-		ps.pid = 1234
 		ps.version = "1.2.3"
 
 		mockPulseTopic.EXPECT().Publish(ctx, gomock.Any()).MaxTimes(numPulses).MinTimes(numPulses).Return(mockPublishResult)
@@ -70,20 +70,26 @@ func TestPulseMsg(t *testing.T) {
 		return (cmp.Equal(x.AgentId, y.AgentId) && x.AgentLogsDir == y.AgentLogsDir &&
 			x.AgentVersion == y.AgentVersion)
 	})
+
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "hostnameunknown"
+	}
+	pid := fmt.Sprintf("%v", os.Getpid())
+
 	tests := []struct {
-		hostname string
-		pid      int
-		prefix   string
-		logsDir  string
-		version  string
-		want     *pulsepb.Msg
+		prefix      string
+		logsDir     string
+		version     string
+		containerID string
+		want        *pulsepb.Msg
 	}{
 		{
-			"hostname", 1234, "", "/tmp/mylogs", "1.2.3",
+			"", "/tmp/mylogs", "1.2.3", "",
 			&pulsepb.Msg{
 				AgentId: &pulsepb.AgentId{
-					HostName:  "hostname",
-					ProcessId: "1234",
+					HostName:  hostname,
+					ProcessId: pid,
 					Prefix:    "",
 				},
 				AgentVersion: "1.2.3",
@@ -91,25 +97,36 @@ func TestPulseMsg(t *testing.T) {
 			},
 		},
 		{
-			"69c1725fc298", 11, "myagent", "/tmp/mylogs2", "5.6.7",
+			"myagent", "/tmp/mylogs2", "5.6.7", "",
 			&pulsepb.Msg{
 				AgentId: &pulsepb.AgentId{
-					HostName:  "69c1725fc298",
-					ProcessId: "11",
+					HostName:  hostname,
+					ProcessId: pid,
 					Prefix:    "myagent",
 				},
 				AgentVersion: "5.6.7",
 				AgentLogsDir: "/tmp/mylogs2",
 			},
 		},
+		{
+			"myagent", "/tmp/mylogs", "1.2.3", "containerID",
+			&pulsepb.Msg{
+				AgentId: &pulsepb.AgentId{
+					HostName:    "hostnameunknown",
+					Prefix:      "myagent",
+					ContainerId: "containerID",
+				},
+				AgentVersion: "1.2.3",
+				AgentLogsDir: "/tmp/mylogs",
+			},
+		},
 	}
 	for _, tc := range tests {
+		common.AgentIDPrefix = &(tc.prefix)
+		common.ContainerID = &(tc.containerID)
 		ps := &PulseSender{
-			hostname: tc.hostname,
-			pid:      tc.pid,
-			prefix:   tc.prefix,
-			logsDir:  tc.logsDir,
-			version:  tc.version,
+			logsDir: tc.logsDir,
+			version: tc.version,
 		}
 		if got := ps.pulseMsg(); !cmp.Equal(got, tc.want, agentMsgCmpOpt) {
 			t.Errorf("ps.pulseMsg() = %v, want %v", got, tc.want)

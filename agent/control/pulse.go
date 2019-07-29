@@ -17,8 +17,6 @@ package control
 
 import (
 	"context"
-	"fmt"
-	"os"
 	"time"
 
 	"cloud.google.com/go/pubsub"
@@ -47,12 +45,8 @@ type PulseSender struct {
 	pulseTopic pubsubinternal.PSTopic // The pubsub topic to send pulses on.
 
 	// These fields contain the contents of the pulse message.
-	hostname    string
-	pid         int
-	logsDir     string
-	prefix      string
-	containerID string
-	version     string
+	logsDir string
+	version string
 
 	// Used to get live bandwidth measurements.
 	statsTracker *stats.Tracker
@@ -68,11 +62,7 @@ type PulseSender struct {
 // NewPulseSender returns a new PulseSender.
 func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir string, st *stats.Tracker) *PulseSender {
 	ps := &PulseSender{
-		pulseTopic:   t,
-		hostname:     common.Hostname(),
-		pid:          os.Getpid(),
-		prefix:       *common.AgentIDPrefix,
-		containerID:  *common.ContainerID,
+		pulseTopic: t,
 		logsDir:      logsDir,
 		version:      versions.AgentVersion().String(),
 		statsTracker: st,
@@ -113,12 +103,7 @@ func (ps *PulseSender) sendPulses(ctx context.Context) {
 func (ps *PulseSender) pulseMsg() *pulsepb.Msg {
 	s := ps.statsTracker.AccumulatedPulseStats()
 	return &pulsepb.Msg{
-		AgentId: &pulsepb.AgentId{
-			HostName:    ps.hostname,
-			ProcessId:   fmt.Sprintf("%v", ps.pid),
-			Prefix:      ps.prefix,
-			ContainerId: ps.containerID,
-		},
+		AgentId:       common.AgentID(),
 		AgentVersion:  ps.version,
 		AgentLogsDir:  ps.logsDir,
 		AgentUptimeMs: stats.DurMs(ps.startTime),

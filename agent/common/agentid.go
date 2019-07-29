@@ -27,11 +27,20 @@ func Hostname() string {
 	return hn
 }
 
+// ProcessID returns the PID as a string.
+func ProcessID() string {
+	// Only set PID when agent is not running inside a container.
+	if *ContainerID != "" {
+		return ""
+	}
+	return fmt.Sprintf("%v", os.Getpid())
+}
+
 // AgentID returns the ID of this agent.
 func AgentID() *pulsepb.AgentId {
 	return &pulsepb.AgentId{
 		HostName:    Hostname(),
-		ProcessId:   fmt.Sprintf("%v", os.Getpid()),
+		ProcessId:   ProcessID(),
 		Prefix:      *AgentIDPrefix,
 		ContainerId: *ContainerID,
 	}
