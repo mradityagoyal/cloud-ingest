@@ -31,6 +31,13 @@ function upload_artifacts() {
   echo ""
   gsutil setmeta -h "x-goog-meta-AgentVersion:$release_version" $gcs_prefix/*.tar.gz
   echo ""
+
+  # Set Cache-Control to private to prevent agent update script from downloading
+  # stale agent tarball.
+  echo "Setting Cache-Control metadata field to private..."
+  echo ""
+  gsutil setmeta -h "Cache-Control:private" $gcs_prefix/*.tar.gz
+  echo ""
 }
 
 function build_release_assets() {
