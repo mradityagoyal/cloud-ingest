@@ -62,7 +62,7 @@ type PulseSender struct {
 // NewPulseSender returns a new PulseSender.
 func NewPulseSender(ctx context.Context, t pubsubinternal.PSTopic, logsDir string, st *stats.Tracker) *PulseSender {
 	ps := &PulseSender{
-		pulseTopic: t,
+		pulseTopic:   t,
 		logsDir:      logsDir,
 		version:      versions.AgentVersion().String(),
 		statsTracker: st,

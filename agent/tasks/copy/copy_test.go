@@ -18,6 +18,7 @@ package copy
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -47,6 +48,10 @@ const (
 	testFileContent   = "Ephemeral test file content for copy_test.go."
 	testCRC32C        = 3923584507 // CRC32C of testFileContent.
 	testTenByteCRC32C = 1069694901 // CRC32C of the first 10-bytes of testFileContent.
+
+	// echo -n "<content>" | openssl dgst -md5 -binary |  openssl enc -base64
+	testMD5  = "fZffxoPtxWX7SJhvXn+xpA==" // MD5 hash of testFileContent.
+	emptyMD5 = "1B2M2Y8AsgTpgAmY7PhCfg=="
 )
 
 func testCopySpec(expGenNum, ccSize int64, ruID string) *taskpb.Spec {
@@ -73,6 +78,14 @@ func testCopyTaskReqMsg() *taskpb.TaskReqMsg {
 		TaskRelRsrcName: "task",
 		Spec:            testCopySpec(0, 0, ""),
 	}
+}
+
+func decodeBase64(s string) []byte {
+	b, err := base64.StdEncoding.DecodeString(s)
+	if err != nil {
+		panic(err)
+	}
+	return b
 }
 
 func TestSourceNotFound(t *testing.T) {
@@ -117,6 +130,7 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 	gcsModTime := time.Now()
 	writer := common.NewStringWriteCloser(&storage.ObjectAttrs{
 		CRC32C:  uint32(testCRC32C),
+		MD5:     decodeBase64(testMD5),
 		Size:    int64(len(testFileContent)),
 		Updated: gcsModTime,
 	})
@@ -155,6 +169,7 @@ func TestCopyEntireFileSuccess(t *testing.T) {
 				DstBytes:  int64(len(testFileContent)),
 				DstMTime:  gcsModTime.Unix(),
 				DstCrc32C: testCRC32C,
+				DstMd5:    testMD5,
 
 				BytesCopied: int64(len(testFileContent)),
 			},
@@ -172,6 +187,7 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 	gcsModTime := time.Now()
 	writer := common.NewStringWriteCloser(&storage.ObjectAttrs{
 		CRC32C:  uint32(0),
+		MD5:     decodeBase64(emptyMD5),
 		Size:    int64(0),
 		Updated: gcsModTime,
 	})
@@ -206,6 +222,8 @@ func TestCopyEntireFileEmpty(t *testing.T) {
 
 				DstFile:  "bucket/object",
 				DstMTime: gcsModTime.Unix(),
+
+				DstMd5: emptyMD5,
 			},
 		},
 	}
@@ -224,6 +242,7 @@ func TestCopyBundle(t *testing.T) {
 		fileName string
 		fileData string
 		crc      uint32
+		md5      string
 		size     int64
 		bucket   string
 		object   string
@@ -247,6 +266,7 @@ func TestCopyBundle(t *testing.T) {
 					fileName:   "test-file-1",
 					fileData:   "File 1 data content",
 					crc:        0x3CAC94DC,
+					md5:        "jcyONsQHdwpArinDNHGt4g==",
 					size:       19,
 					bucket:     "bucket",
 					object:     "object1",
@@ -256,6 +276,7 @@ func TestCopyBundle(t *testing.T) {
 					fileName:   "test-file-2",
 					fileData:   "The data of File 2",
 					crc:        0xACDDCFCD,
+					md5:        "GA7ULBaaY4JwZdMY2f2U6g==",
 					size:       18,
 					bucket:     "bucket",
 					object:     "object2",
@@ -285,6 +306,7 @@ func TestCopyBundle(t *testing.T) {
 					fileName:   "test-file-2",
 					fileData:   "The data of File 2",
 					crc:        0xACDDCFCD,
+					md5:        "GA7ULBaaY4JwZdMY2f2U6g==",
 					size:       18,
 					bucket:     "bucket",
 					object:     "object2",
@@ -306,6 +328,7 @@ func TestCopyBundle(t *testing.T) {
 		bundleSpec := &taskpb.CopyBundleSpec{}
 		type fileInfo struct {
 			crc    uint32
+			md5    []byte
 			size   int64
 			writer *common.StringWriteCloser
 		}
@@ -314,9 +337,11 @@ func TestCopyBundle(t *testing.T) {
 		writerFunc := func(ctx context.Context, bucket, object string, cond interface{}) *common.StringWriteCloser {
 			mapIndex := fmt.Sprintf("%s/%s", bucket, object)
 			fileCrc := objectMap[mapIndex].crc
+			fileMD5 := objectMap[mapIndex].md5
 			fileSize := objectMap[mapIndex].size
 			filewriter := common.NewStringWriteCloser(&storage.ObjectAttrs{
 				CRC32C:  fileCrc,
+				MD5:     fileMD5,
 				Size:    fileSize,
 				Updated: gcsModTime,
 			})
@@ -332,6 +357,7 @@ func TestCopyBundle(t *testing.T) {
 		for _, file := range tc.bundledFiles {
 			objectMap[fmt.Sprintf("%s/%s", file.bucket, file.object)] = fileInfo{
 				crc:    file.crc,
+				md5:    decodeBase64(file.md5),
 				size:   file.size,
 				writer: nil,
 			}
@@ -394,6 +420,7 @@ func TestCopyBundle(t *testing.T) {
 				DstBytes:  file.size,
 				DstMTime:  gcsModTime.Unix(),
 				DstCrc32C: file.crc,
+				DstMd5:    file.md5,
 
 				BytesCopied: file.size,
 			}
@@ -604,6 +631,7 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 		object := &raw.Object{
 			Name:    "object",
 			Bucket:  "bucket",
+			Md5Hash: testMD5,
 			Crc32c:  encodeUint32(testCRC32C),
 			Size:    uint64(len(testFileContent)),
 			Updated: "2012-11-01T22:08:41+00:00",
@@ -654,6 +682,7 @@ func TestCopyResumableChunkFinal(t *testing.T) {
 
 				DstBytes:    int64(len(testFileContent)),
 				DstCrc32C:   testCRC32C,
+				DstMd5:      testMD5,
 				DstMTime:    1351807721,
 				BytesCopied: int64(len(testFileContent)),
 			},

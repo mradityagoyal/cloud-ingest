@@ -369,6 +369,7 @@ func (h *CopyHandler) copyEntireFile(ctx context.Context, c *taskpb.CopySpec, sr
 	cl.DstCrc32C = dstAttrs.CRC32C
 	cl.DstMTime = dstAttrs.Updated.Unix()
 	cl.SrcCrc32C = srcCRC32C
+	cl.DstMd5 = base64.StdEncoding.EncodeToString(dstAttrs.MD5)
 	cl.BytesCopied = fileinfo.Size()
 
 	// Verify the CRC32C.
@@ -558,6 +559,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 			}
 		}
 		cl.DstCrc32C = dstCRC32C
+		cl.DstMd5 = obj.Md5Hash
 		cl.DstBytes = int64(obj.Size)
 		var t time.Time
 		if err := t.UnmarshalText([]byte(obj.Updated)); err != nil {

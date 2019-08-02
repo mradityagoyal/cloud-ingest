@@ -10,6 +10,8 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 
 ## [Unreleased]
+### Added
+- Sending destination MD5 back through CopyLog.
 
 ## [2.1.0] - 2019-07-31
 ### Added
