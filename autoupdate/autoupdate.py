@@ -50,6 +50,8 @@ FLAGS = flags.FLAGS
 # Flag used in integration tests to pass a test URL as stable agent binary URL.
 flags.DEFINE_string('stable_agent_url', STABLE_AGENT_BINARY_ADDRESS,
                     'URL of stable agent binary')
+flags.DEFINE_integer('check_interval_seconds', CHECK_INTERVAL_SECONDS,
+                     'Agent version check interval')
 
 
 def delete_agent_source_file(process):
@@ -135,6 +137,7 @@ def download_and_start_agent(process, url, args):
       delete_agent_source_file(process)
       process.terminate()
       process.wait()
+
     download_url = url + POSTFIX
     urllib.urlretrieve(download_url, AGENT_BINARY_FILE_NAME)
     logging.info('Agent is downloaded successfully')
@@ -204,6 +207,8 @@ def check_and_update_agent_if_needed(process, local_version, args):
                    'starting update process...',
                    latest_prod_version, local_version)
       process = download_and_start_agent(process, update_source, args)
+    else:
+      latest_prod_version = local_version
 
     if not is_process_alive(process):
       # Agent did not start successfully or the previous running agent is not
@@ -250,6 +255,7 @@ def setup_logging():
 def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--stable_agent_url')
+  parser.add_argument('--check_interval_seconds')
   FLAGS(sys.argv, known_only=True)
   # All arguments passed into the auto-update script are stored in unknown and
   # will be passed into the agent start command later.
@@ -269,7 +275,7 @@ def main():
   while True:
     process, version = check_and_update_agent_if_needed(
         process, version, args)
-    time.sleep(CHECK_INTERVAL_SECONDS)
+    time.sleep(FLAGS.check_interval_seconds)
 
 if __name__ == '__main__':
   main()
