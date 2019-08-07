@@ -27,6 +27,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/copy"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/delete"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/list"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
@@ -55,13 +56,15 @@ type TaskProcessor struct {
 // Run the Process func on the newly returned TaskProcessor to begin processing tasks.
 func NewListProcessor(sc *storage.Client, sub *pubsub.Subscription, topic *pubsub.Topic, st *stats.Tracker) *TaskProcessor {
 	depthFirstListHandler := list.NewDepthFirstListHandler(sc, st)
+	listHandlerV3 := list.NewListHandlerV3(sc, st)
 	return &TaskProcessor{
 		TaskSub:       sub,
 		ProgressTopic: topic,
 		Handlers: NewHandlerRegistry(map[uint64]TaskHandler{
 			1: depthFirstListHandler,
 			2: depthFirstListHandler,
-			3: list.NewListHandlerV3(sc, st),
+			3: listHandlerV3,
+			4: listHandlerV3,
 		}),
 		StatsTracker: st,
 	}
@@ -78,6 +81,21 @@ func NewCopyProcessor(sc *storage.Client, hc *http.Client, sub *pubsub.Subscript
 			1: copyHandler,
 			2: copyHandler,
 			3: copyHandler,
+			4: copyHandler,
+		}),
+		StatsTracker: st,
+	}
+}
+
+// NewDeleteProcessor returns a TaskProcessor for handling Delete tasks.
+// Run the Process func on the newly returned TaskProcessor to begin processing tasks.
+func NewDeleteProcessor(sc *storage.Client, sub *pubsub.Subscription, topic *pubsub.Topic, st *stats.Tracker) *TaskProcessor {
+	return &TaskProcessor{
+		TaskSub:       sub,
+		ProgressTopic: topic,
+		// Delete task req messages are unsupported in job run major versions 1-3.
+		Handlers: NewHandlerRegistry(map[uint64]TaskHandler{
+			4: delete.NewDeleteHandler(sc, st),
 		}),
 		StatsTracker: st,
 	}

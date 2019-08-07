@@ -172,7 +172,7 @@ func main() {
 	pubSubClient, storageClient, httpc := createClients(ctx)
 
 	// Create the PubSub topics and subscriptions.
-	listSub, copySub, controlSub, _, listTopic, copyTopic, pulseTopic, _ := pubsubinternal.CreatePubSubTopicsAndSubs(ctx, pubSubClient)
+	listSub, copySub, controlSub, deleteSub, listTopic, copyTopic, pulseTopic, deleteTopic := pubsubinternal.CreatePubSubTopicsAndSubs(ctx, pubSubClient)
 	defer controlSub.Delete(context.Background())
 	var st *stats.Tracker
 	if *enableStatsTracker {
@@ -189,6 +189,9 @@ func main() {
 
 	copyProcessor := tasks.NewCopyProcessor(storageClient, httpc, copySub, copyTopic, st)
 	go copyProcessor.Process(ctx)
+
+	deleteProcessor := tasks.NewDeleteProcessor(storageClient, deleteSub, deleteTopic, st)
+	go deleteProcessor.Process(ctx)
 
 	// Block until the ctx is cancelled.
 	select {

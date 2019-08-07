@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"net/http"
 	"testing"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
@@ -278,7 +279,7 @@ func TestDeleteBundle(t *testing.T) {
 			TaskRelRsrcName: "task",
 			Spec:            &taskpb.Spec{Spec: &taskpb.Spec_DeleteBundleSpec{bundleSpec}},
 		}
-		taskRespMsg := h.Do(context.Background(), taskReqMsg)
+		taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
 
 		// Check for the overall task status.
 		t.Logf("DeleteHandler.Do(%q)", tc.desc)

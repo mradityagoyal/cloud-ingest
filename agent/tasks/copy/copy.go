@@ -735,7 +735,7 @@ func (h *CopyHandler) copyResumableChunk(ctx context.Context, c *taskpb.CopySpec
 	}
 	if resp.StatusCode == 410 {
 		return common.AgentError{
-			Msg: fmt.Sprintf("GCS HTTP 410 for file %s, uploadid %v", c.SrcFile, c.ResumableUploadId),
+			Msg:         fmt.Sprintf("GCS HTTP 410 for file %s, uploadid %v", c.SrcFile, c.ResumableUploadId),
 			FailureType: taskpb.FailureType_GCS_RESUMABLE_ID_GONE_FAILURE,
 		}
 	}

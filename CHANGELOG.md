@@ -10,6 +10,10 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 ## [Unreleased]
 
+## [2.2.0] - 2019-08-20
+### Added
+- Support for JobRunVersion 4 (delete at sink).
+
 ## [2.1.4] - 2019-08-14
 ### Changed
 - Improved listing newline error message

@@ -21,6 +21,7 @@ import (
 	"flag"
 	"fmt"
 	"sync"
+	"time"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
@@ -66,7 +67,7 @@ func NewDeleteHandler(storageClient *storage.Client, st *stats.Tracker) *DeleteH
 }
 
 // Do implements a handler to delete a bundle of objects in GCS.
-func (h *DeleteHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg) *taskpb.TaskRespMsg {
+func (h *DeleteHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, _ time.Time) *taskpb.TaskRespMsg {
 	var respSpec *taskpb.Spec
 	var log *taskpb.Log
 	var err error
