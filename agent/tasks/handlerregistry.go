@@ -24,13 +24,6 @@ func NewHandlerRegistry(majorVersionToHandlers map[uint64]TaskHandler) *HandlerR
 		handlers[v] = h
 	}
 
-	supportedVersions := versions.SupportedJobRuns()
-	for _, v := range supportedVersions {
-		if _, exists := handlers[v.Major]; !exists {
-			glog.Fatalf("Lacking handler for supported major version %d", v.Major)
-		}
-	}
-
 	return &HandlerRegistry{
 		handlers: handlers,
 	}
@@ -53,7 +46,7 @@ func (h *HandlerRegistry) HandlerForTaskReqMsg(taskReqMsg *taskpb.TaskReqMsg) (T
 	if !exists {
 		glog.Errorf("Handler does not exist for job run major version %d required for task request message %v", jobRunVersion.Major, taskReqMsg)
 		return nil, &common.AgentError{
-			fmt.Sprintf("Agent (version %v) does not support job run major version %v.", versions.AgentVersion(), jobRunVersion.Major),
+			fmt.Sprintf("Agent (version %v) does not support job run major version %v for task request message %v.", versions.AgentVersion(), jobRunVersion.Major, taskReqMsg.String()),
 			taskpb.FailureType_AGENT_UNSUPPORTED_VERSION,
 		}
 	}
