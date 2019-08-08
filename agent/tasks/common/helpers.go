@@ -48,8 +48,6 @@ func GetFailureTypeFromError(err error) taskpb.FailureType {
 			return taskpb.FailureType_PERMISSION_FAILURE
 		case http.StatusUnauthorized:
 			return taskpb.FailureType_PERMISSION_FAILURE
-		case http.StatusNotFound:
-			return taskpb.FailureType_FILE_NOT_FOUND_FAILURE
 		}
 	}
 	if t, ok := err.(AgentError); ok {

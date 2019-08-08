@@ -21,6 +21,7 @@ import (
 	"net/http"
 	"testing"
 
+	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
 	"github.com/golang/mock/gomock"
@@ -52,7 +53,6 @@ func TestDeleteBundle(t *testing.T) {
 		wantError          error
 	}
 
-	object_not_found_error := &googleapi.Error{Code: http.StatusNotFound, Message: "object not found"}
 	gateway_error := &googleapi.Error{Code: http.StatusBadGateway, Message: "bad gateway"}
 	permission_denied_error := &googleapi.Error{Code: http.StatusUnauthorized, Message: "permission denied"}
 
@@ -109,7 +109,7 @@ func TestDeleteBundle(t *testing.T) {
 					objectName:     "object2",
 					wantStatus:     taskpb.Status_SUCCESS,
 					genNum:         2,
-					wantError:      object_not_found_error,
+					wantError:      storage.ErrObjectNotExist,
 					wantRetryTimes: 1,
 				},
 			},

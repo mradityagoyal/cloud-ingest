@@ -136,7 +136,7 @@ func (h *DeleteHandler) handleDeleteObjectSpec(ctx context.Context, deleteSpec *
 		// Reset object not found failure to appear like there was no failure.
 		// If an object was not found in the destination bucket at the time of deletion, the resultant
 		// state is the same as an object being deleted successfully.
-		if err != nil && common.GetFailureTypeFromError(err) == taskpb.FailureType_FILE_NOT_FOUND_FAILURE {
+		if err == storage.ErrObjectNotExist {
 			err = nil
 		}
 		if err == nil || !isRetryableError(err) {

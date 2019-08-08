@@ -153,8 +153,10 @@ func TestPulseStatsSub(t *testing.T) {
 }
 
 var (
-	copyTaskRespMsg = &taskpb.TaskRespMsg{ReqSpec: &taskpb.Spec{Spec: &taskpb.Spec_CopySpec{CopySpec: &taskpb.CopySpec{}}}}
-	listTaskRespMsg = &taskpb.TaskRespMsg{ReqSpec: &taskpb.Spec{Spec: &taskpb.Spec_ListSpec{ListSpec: &taskpb.ListSpec{}}}}
+	copyTaskRespMsg       = &taskpb.TaskRespMsg{ReqSpec: &taskpb.Spec{Spec: &taskpb.Spec_CopySpec{CopySpec: &taskpb.CopySpec{}}}}
+	copyBundleTaskRespMsg = &taskpb.TaskRespMsg{ReqSpec: &taskpb.Spec{Spec: &taskpb.Spec_CopyBundleSpec{CopyBundleSpec: &taskpb.CopyBundleSpec{}}}}
+	listTaskRespMsg       = &taskpb.TaskRespMsg{ReqSpec: &taskpb.Spec{Spec: &taskpb.Spec_ListSpec{ListSpec: &taskpb.ListSpec{}}}}
+	deleteTaskRespMsg     = &taskpb.TaskRespMsg{ReqSpec: &taskpb.Spec{Spec: &taskpb.Spec_DeleteBundleSpec{DeleteBundleSpec: &taskpb.DeleteBundleSpec{}}}}
 )
 
 func TestTrackerDisplayStats(t *testing.T) {
@@ -175,11 +177,11 @@ func TestTrackerDisplayStats(t *testing.T) {
 		},
 		{
 			"Responded tasks",
-			[]interface{}{copyTaskRespMsg, copyTaskRespMsg, listTaskRespMsg},
+			[]interface{}{copyTaskRespMsg, copyBundleTaskRespMsg, listTaskRespMsg, deleteTaskRespMsg},
 			[]string{
 				"txRate:      0B/s",
 				"txSum:      0B",
-				"taskResps[copy:2 list:1]",
+				"taskResps[copy:2 delete:1 list:1]",
 				"ctrlMsgAge:0s (ok)",
 			},
 		},

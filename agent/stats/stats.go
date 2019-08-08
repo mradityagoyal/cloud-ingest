@@ -157,12 +157,12 @@ func (t *Tracker) RecordTaskResp(resp *taskpb.TaskRespMsg) {
 		return
 	}
 	task := ""
-	if resp.ReqSpec.GetCopySpec() != nil {
+	if resp.ReqSpec.GetCopySpec() != nil || resp.ReqSpec.GetCopyBundleSpec() != nil {
 		task = "copy"
 	} else if resp.ReqSpec.GetListSpec() != nil {
 		task = "list"
-	} else if resp.ReqSpec.GetCopyBundleSpec() != nil {
-		task = "copy"
+	} else if resp.ReqSpec.GetDeleteBundleSpec() != nil {
+		task = "delete"
 	} else {
 		glog.Errorf("resp.ReqSpec doesn't match any known spec type: %v", resp.ReqSpec)
 	}
