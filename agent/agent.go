@@ -20,20 +20,24 @@ import (
 	"flag"
 	"fmt"
 	"net/http"
+	_ "net/http/pprof" // Needed to run the pprof server
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"cloud.google.com/go/pubsub"
 	"cloud.google.com/go/storage"
+	"github.com/golang/glog"
+	"google.golang.org/api/option"
+
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/control"
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/profile"
 	pubsubinternal "github.com/GoogleCloudPlatform/cloud-ingest/agent/pubsub"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/copy"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/versions"
-	"github.com/golang/glog"
-	"google.golang.org/api/option"
 )
 
 var (
@@ -41,6 +45,11 @@ var (
 	credsFile          = flag.String("creds-file", "", "The service account JSON key file. Use the default credentials if empty.")
 	printVersion       = flag.Bool("version", false, "Print build/version info and exit.")
 	enableStatsTracker = flag.Bool("enable-stats-log", true, "Enable stats logging to INFO logs.")
+
+	cpuProfile    = flag.Bool("cpu-profile", false, "Whether to record cpu usage and store the data in the log directory")
+	heapProfile   = flag.Bool("mem-profile", false, "Whether to record heap usage and store the data in the log directory")
+	profileFreq   = flag.Duration("profile-freq", 60*time.Second, "The duration between capturing usage profiles (defaults to 60s).")
+	profileServer = flag.Bool("profile-server", false, "Whether to run a pprof server at localhost:6060")
 
 	// Fields used to display version information. These defaults are
 	// overridden when the release script builds in values through ldflags.
@@ -131,6 +140,17 @@ func main() {
 		printVersionInfo()
 		os.Exit(0)
 	}
+
+	if *profileServer && (*cpuProfile || *heapProfile) {
+		glog.Fatalf("Can't enable the profile server and continuous profiling simultaneously.")
+	}
+
+	if *profileServer {
+		go func() {
+			glog.Info(http.ListenAndServe("localhost:6060", nil))
+		}()
+	}
+
 	err := versions.SetAgentVersion(buildVersion)
 	if err != nil {
 		glog.Fatalf("failed to set agent version with error %v", err)
@@ -139,6 +159,14 @@ func main() {
 	logDir, err := createLogDirIfNeeded()
 	if err != nil {
 		glog.Fatalf("error accessing log output dir %s: %v\n", logDir, err)
+	}
+
+	if *cpuProfile || *heapProfile {
+		go func() {
+			if err := profile.ContinuouslyRecord(ctx, logDir, *heapProfile, *cpuProfile, *profileFreq); err != nil {
+				glog.Fatalf("profiling failed: %v", err)
+			}
+		}()
 	}
 
 	pubSubClient, storageClient, httpc := createClients(ctx)
