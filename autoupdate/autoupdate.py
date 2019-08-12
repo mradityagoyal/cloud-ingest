@@ -38,6 +38,9 @@ import urllib
 from absl import flags
 from absl import logging
 
+VALID_URL_PREFIX = [
+    'https://www.googleapis.com/storage/v1/b/cloud-ingest-pub/o/',
+    'https://www.googleapis.com/storage/v1/b/cloud-ingest-canary/o/']
 STABLE_AGENT_BINARY_ADDRESS = 'https://www.googleapis.com/storage/v1/b/cloud-ingest-pub/o/agent%2fcurrent%2fagent-linux_amd64.tar.gz'
 AGENT_BINARY_FILE_NAME = 'agent-linux_amd64.tar.gz'
 POSTFIX = '?alt=media'
@@ -156,6 +159,13 @@ def download_and_start_agent(process, url, args):
                   str(ex))
 
 
+def is_valid_url(url):
+  for prefix in VALID_URL_PREFIX:
+    if url.startswith(prefix):
+      return True
+  return False
+
+
 def update_url(process):
   """Get the agent update source URL.
 
@@ -174,7 +184,12 @@ def update_url(process):
   filename = logging.find_log_dir() + 'agent_source_%d.txt' % process.pid
   try:
     f = open(filename, 'r')
-    return f.read()
+    url = f.read()
+    if is_valid_url(url):
+      return url
+    else:
+      logging.error('URL is not valid, using default stable URL.')
+      return FLAGS.stable_agent_url
   except IOError:
     return FLAGS.stable_agent_url
 
@@ -263,8 +278,13 @@ def main():
   unknown.append('--container-id=%s' % socket.gethostname())
   # Remove all empty strings from the arguments list because subprocess.popen
   # stops reading arguments after empty string.
-  args = filter(lambda arg: arg != '', unknown)
+  args = [arg for arg in unknown if bool(arg)]
   logging.info('Arguments that passed to agent: %s', args)
+
+  if not is_valid_url(FLAGS.stable_agent_url):
+    logging.error('Stable URL %s is not valid, exiting auto update script...',
+                  FLAGS.stable_agent_url)
+    os._exit(0)
 
   setup_logging()
   # Temporarily setting the version to be empty and process to be None, these
