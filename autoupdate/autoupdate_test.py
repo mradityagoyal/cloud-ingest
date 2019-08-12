@@ -116,7 +116,7 @@ class UpdateURLTest(unittest.TestCase):
 
   def testUpdateURL_Successful(self):
     mock_process = MockPopen(1, None)
-    want = 'Test agent update source URL'
+    want = 'https://www.googleapis.com/storage/v1/b/cloud-ingest-canary/o/test'
     create_agent_update_source_file(mock_process.pid, want)
 
     got = autoupdate.update_url(mock_process)
@@ -131,6 +131,21 @@ class UpdateURLTest(unittest.TestCase):
     got = autoupdate.update_url(mock_process)
     self.assertEqual(got, want)
 
+
+class ValidateUpdateURLTest(unittest.TestCase):
+
+  def testValidateValidUpdateURL_Successful(self):
+    tc = ['https://www.googleapis.com/storage/v1/b/cloud-ingest-pub/o/test',
+          'https://www.googleapis.com/storage/v1/b/cloud-ingest-canary/o/test']
+    for test in tc:
+      self.assertTrue(autoupdate.is_valid_url(test))
+
+  def testValidateInvalidUpdateURL_Successful(self):
+    tc = ['https://www.googleapis.com/storage/v1/b/cloud-ingest-pub/b/test',
+          'http://www.googleapis.com/storage/v1/b/cloud-ingest-pub/o/test',
+          '']
+    for test in tc:
+      self.assertFalse(autoupdate.is_valid_url(test))
 
 if __name__ == '__main__':
   unittest.main()
