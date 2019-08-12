@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
+	"path"
 	"path/filepath"
 	"runtime/pprof"
 	"time"
@@ -24,7 +25,7 @@ func ContinuouslyRecord(ctx context.Context, logDir string, heap, cpu bool, prof
 	profiler := profiler{
 		profileCPU: cpu,
 		frequency:  profileFreq,
-		logDir:     logDir,
+		logDir:     path.Join(logDir, profileDir),
 	}
 	if heap {
 		profiler.profiles = []string{heapProfile}
@@ -44,8 +45,8 @@ type profiler struct {
 }
 
 func (p *profiler) startProfiling(ctx context.Context) error {
-	if err := createProfileDirIfNotExist(profileDir); err != nil {
-		return fmt.Errorf("failed to create profile dir %s: %v", profileDir, err)
+	if err := createProfileDirIfNotExist(p.logDir); err != nil {
+		return fmt.Errorf("failed to create profile dir %s: %v", p.logDir, err)
 	}
 	if p.profileCPU {
 		if err := p.startCPUProfile(); err != nil {
@@ -57,7 +58,9 @@ func (p *profiler) startProfiling(ctx context.Context) error {
 	for {
 		select {
 		case <-t.C:
-			p.emitProfile()
+			if err := p.emitProfile(); err != nil {
+				return fmt.Errorf("failed to emit usage profile")
+			}
 		case <-ctx.Done():
 			t.Stop()
 			glog.Infof("Stopping profiler...")
@@ -109,7 +112,7 @@ func (p *profiler) emitProfile() error {
 
 	// Emit the CPU profile.
 	if p.profileCPU {
-		cpuFileName := filepath.Join(p.logDir, profileDir, fmt.Sprintf("profile.cpu.%s", suffix))
+		cpuFileName := filepath.Join(p.logDir, fmt.Sprintf("profile.cpu.%s", suffix))
 		if err := p.stopCPUProfile(); err != nil {
 			return fmt.Errorf("failed to stop the cpu profile: %v", err)
 		}
@@ -119,7 +122,7 @@ func (p *profiler) emitProfile() error {
 	}
 
 	for _, profile := range p.profiles {
-		fileName := filepath.Join(p.logDir, profileDir, fmt.Sprintf("profile.%s.%s", profile, suffix))
+		fileName := filepath.Join(p.logDir, fmt.Sprintf("profile.%s.%s", profile, suffix))
 		if err := dumpProfile(fileName, profile); err != nil {
 			return err
 		}
