@@ -18,6 +18,7 @@ package list
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io"
 	"os"
 	"path/filepath"
@@ -83,7 +84,11 @@ func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMet
 	var entries []*listfilepb.ListFileEntry
 	for _, osFileInfo := range osFileInfos {
 		if strings.Contains(osFileInfo.Name(), "\n") {
-			return nil, errors.New("the listing contains file with newlines")
+			fileOrDir := "file"
+			if osFileInfo.IsDir() {
+				fileOrDir = "directory"
+			}
+			return nil, fmt.Errorf("the listing contains a %s with newlines in the name: %q", fileOrDir, osFileInfo.Name())
 		}
 		path := filepath.Join(dir, osFileInfo.Name())
 		isSymlinkToDir := false
