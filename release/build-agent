@@ -137,14 +137,14 @@ pushd $REPO_DIR > /dev/null
 echo "Retrieving code to release..."
 if [[ $IS_AUTOMATED == true ]]; then
   # Automation would need to get the repo via HTTPs
-  git clone https://github.com/GoogleCloudPlatform/cloud-ingest.git
+  git clone https://github.com/$GIT_REPO_NAME.git .
 else
   git clone git@github.com:$GIT_REPO_NAME.git .
 fi
 
 if [[ -z $GIT_COMMIT_ID && $IS_AUTOMATED == true ]]; then
   echo "Automated build with no explicit commit id, using last commit to changelog"
-  GIT_COMMIT_ID=$(git log -1 $REPO_DIR/CHANGELOG.md | grep commit | gawk 'match($0, /^commit (.*)/, out) {print out[1]}')
+  GIT_COMMIT_ID=$(git log -1 ${REPO_DIR}/CHANGELOG.md | grep commit | gawk 'match($0, /^commit (.*)/, out) {print out[1]}')
   echo "Last commit id is ${GIT_COMMIT_ID}"
 fi
 [[ ! -z $GIT_COMMIT_ID ]] || die "Git commit id was not passed in or found from changelog."
