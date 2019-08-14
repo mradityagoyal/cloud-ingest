@@ -10,6 +10,11 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 ## [Unreleased]
 
+## [2.1.4] - 2019-08-14
+### Changed
+- Improved listing newline error message
+- Updated build script to upload canary candidate to cloud-ingest-canary-candidate buckets
+
 ## [2.1.3] - 2019-08-12
 ### Changed
 - Profiling directory path
