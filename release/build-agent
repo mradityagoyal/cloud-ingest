@@ -135,7 +135,12 @@ pushd $REPO_DIR > /dev/null
 
 # Grab code to release (repo@commit).
 echo "Retrieving code to release..."
-git clone git@github.com:$GIT_REPO_NAME.git .
+if [[ $IS_AUTOMATED == true ]]; then
+  # Automation would need to get the repo via HTTPs
+  git clone https://github.com/GoogleCloudPlatform/cloud-ingest.git
+else
+  git clone git@github.com:$GIT_REPO_NAME.git .
+fi
 
 if [[ -z $GIT_COMMIT_ID && $IS_AUTOMATED == true ]]; then
   echo "Automated build with no explicit commit id, using last commit to changelog"
