@@ -9,6 +9,15 @@ A minor version bump means support for a new major job run version was added.
 A patch version bump is used for any change that does not affect the supported range of
 major job run versions.
 ## [Unreleased]
+
+## [2.1.3] - 2019-08-12
+### Changed
+- Profiling directory path
+
+## [2.1.2] - 2019-08-09
+### Added
+- Flags for profiling
+
 ## [2.1.1] - 2019-08-06
 ### Added
 - Sending destination MD5 back through CopyLog.

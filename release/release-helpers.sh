@@ -10,7 +10,7 @@ VERSION_REGEX=^v[0-9]+\.[0-9]+\.[0-9]+$
 
 # GCS_CANARY_PREFIX is the GCS 'folder' in which we archive all test
 # builds of the agents which are used in the auto-update integration tests.
-GCS_CANARY_PREFIX=gs://cloud-ingest-canary/agent
+GCS_CANARY_PREFIX=gs://cloud-ingest-canary-candidate/agent
 
 # die outputs a message and exits with a non-zero status.
 function die() {
