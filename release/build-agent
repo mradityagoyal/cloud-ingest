@@ -89,8 +89,27 @@ command -v gsutil > /dev/null 2>&1 || die "gsutil is not installed. Bailing!"
 # e.g. To add Windows, add 'windows_amd64' to this list.
 BUILD_PLATFORMS=(linux_amd64)
 
-# Git repo stuff.
-GIT_COMMIT_ID=$1
+# Check for flags
+GIT_COMMIT_ID=""
+IS_AUTOMATED=false
+while [[ ! $# -eq 0 ]]
+do
+	case "$1" in
+		--automated | -a)
+			IS_AUTOMATED=true
+			echo "Automation set to true, build will continue with no user prompt."
+			shift
+			;;
+    --git_commit_id | -g)
+      [[ ! -z $2 ]] || die "INVALID ARGUMENT: Git commit flag with no corresponding id."
+      GIT_COMMIT_ID=$2
+      shift # Shift the flag
+      shift # Shift the commit id
+      ;;
+  *) die "INVALID ARGUMENT: ${1} is not a recognized Flag."
+	esac
+done
+
 GIT_REPO_NAME=GoogleCloudPlatform/cloud-ingest
 
 # Local directories of relevance.
@@ -108,7 +127,6 @@ BINARY_NAME=agent
 
 # Validate input and state.
 [[ -d $RELEASE_DIR ]] || die "Directory $RELEASE_DIR does not exist."
-[[ $GIT_COMMIT_ID =~ ^[0-9a-f]{40}$ ]] || die "First argument should be git commit ID."
 
 # Clean up any old release work, and start fresh.
 rm -rf $WORKING_DIR
@@ -118,6 +136,15 @@ pushd $REPO_DIR > /dev/null
 # Grab code to release (repo@commit).
 echo "Retrieving code to release..."
 git clone git@github.com:$GIT_REPO_NAME.git .
+
+if [[ -z $GIT_COMMIT_ID && $IS_AUTOMATED == true ]]; then
+  echo "Automated build with no explicit commit id, using last commit to changelog"
+  GIT_COMMIT_ID=$(git log -1 $REPO_DIR/CHANGELOG.md | grep commit | gawk 'match($0, /^commit (.*)/, out) {print out[1]}')
+  echo "Last commit id is ${GIT_COMMIT_ID}"
+fi
+[[ ! -z $GIT_COMMIT_ID ]] || die "Git commit id was not passed in or found from changelog."
+[[ $GIT_COMMIT_ID =~ $GIT_COMMIT_REGEX ]] || die "Git commit ID \"${GIT_COMMIT_ID}\" does not match git commit regex: ${GIT_COMMIT_REGEX}."
+
 git checkout $GIT_COMMIT_ID
 echo "Done retrieving code."
 echo ""
@@ -142,7 +169,12 @@ echo "$all_releases"
 echo""
 
 # Read a new release version, and verify it is unique.
-release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "$VERSION_REGEX")
+if [[ $IS_AUTOMATED ]]; then
+  release_version=$(go run $RELEASE_DIR/getnewestversion.go)
+  echo "Calculating release version automatically via the changelog. Chose ${release_version}."
+else
+  release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "$VERSION_REGEX")
+fi
 [[ ! $all_releases =~ "/$release_version/" ]] || die "Version $release_version already exists."
 
 # Additional flags to pass to the compiler. Currently just release information
@@ -177,14 +209,18 @@ popd > /dev/null
 PROD_AGENT_UPLOAD_PREFIXES=($GCS_VERSIONS_PREFIX/$release_version $GCS_CANARY_PREFIX/prod)
 NEXT_AGENT_UPLOAD_PREFIXES=($GCS_CANARY_PREFIX/next)
 
+if [[ $IS_AUTOMATED == true ]]; then
+  upload_artifacts $release_version $GCS_STAGING_PREFIX $ASSET_DIR
+else
+echo "DELETE MEEEE...."
 # Upload our artifacts to GCS and set the AgentVersion metadata fields for agent
 # binary.
-for gcs_prefix in ${PROD_AGENT_UPLOAD_PREFIXES[@]}; do
-  upload_artifacts $release_version $gcs_prefix $ASSET_DIR
-done
+#for gcs_prefix in ${PROD_AGENT_UPLOAD_PREFIXES[@]}; do
+#  # upload_artifacts $release_version $gcs_prefix $ASSET_DIR
+#done
 
-for gcs_prefix in ${NEXT_AGENT_UPLOAD_PREFIXES[@]}; do
-  upload_artifacts $release_version+next-version $gcs_prefix $ASSET_DIR-next
-done
-
+#for gcs_prefix in ${NEXT_AGENT_UPLOAD_PREFIXES[@]}; do
+#  # upload_artifacts $release_version+next-version $gcs_prefix $ASSET_DIR-next
+#done
+fi
 echo "Done!"
