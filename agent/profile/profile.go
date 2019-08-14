@@ -3,7 +3,6 @@ package profile
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path"
 	"path/filepath"
@@ -18,10 +17,11 @@ const (
 	profileDir  = "profiles"
 )
 
-// ContinuouslyRecord will write the specified profiles (either heap, CPU or both) to a profileDir
-// created under the given logDir every profileFreq seconds. Profiling continues until the given
-// context is cancelled.
-func ContinuouslyRecord(ctx context.Context, logDir string, heap, cpu bool, profileFreq time.Duration) error {
+// ContinuouslyRecord starts a go routine that writes the specified profiles (either heap, CPU or
+// both) to a profileDir created under the given logDir every profileFreq seconds. Profiling
+// continues until the given context is cancelled.
+// If any error occurs, the profiling go routine will perform a fatal log call.
+func ContinuouslyRecord(ctx context.Context, logDir string, heap, cpu bool, profileFreq time.Duration) {
 	profiler := profiler{
 		profileCPU: cpu,
 		frequency:  profileFreq,
@@ -31,14 +31,18 @@ func ContinuouslyRecord(ctx context.Context, logDir string, heap, cpu bool, prof
 		profiler.profiles = []string{heapProfile}
 	}
 
-	return profiler.startProfiling(ctx)
+	go func() {
+		if err := profiler.startProfiling(ctx); err != nil {
+			glog.Fatalf("profiling failed: %v", err)
+		}
+	}()
 }
 
 type profiler struct {
 	profileCPU bool
 	profiles   []string
 
-	frequency time.Duration // ContinuouslyRecord frequency in seconds
+	frequency time.Duration
 	logDir    string
 
 	cpuTmpFile *os.File
@@ -91,7 +95,7 @@ func createProfileDirIfNotExist(profileDir string) error {
 
 func (p *profiler) startCPUProfile() error {
 	var err error
-	p.cpuTmpFile, err = ioutil.TempFile("", "agent-cpu-profile")
+	p.cpuTmpFile, err = os.OpenFile(path.Join(p.logDir, "agent-cpu-profile"), os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}

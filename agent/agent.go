@@ -48,7 +48,7 @@ var (
 
 	cpuProfile    = flag.Bool("cpu-profile", false, "Whether to record cpu usage and store the data in the log directory")
 	heapProfile   = flag.Bool("mem-profile", false, "Whether to record heap usage and store the data in the log directory")
-	profileFreq   = flag.Duration("profile-freq", 60*time.Second, "The duration between capturing usage profiles (defaults to 60s).")
+	profileFreq   = flag.Duration("profile-freq", 60*time.Second, "The duration between capturing usage profiles")
 	profileServer = flag.Bool("profile-server", false, "Whether to run a pprof server at localhost:6060")
 
 	// Fields used to display version information. These defaults are
@@ -162,11 +162,7 @@ func main() {
 	}
 
 	if *cpuProfile || *heapProfile {
-		go func() {
-			if err := profile.ContinuouslyRecord(ctx, logDir, *heapProfile, *cpuProfile, *profileFreq); err != nil {
-				glog.Fatalf("profiling failed: %v", err)
-			}
-		}()
+		profile.ContinuouslyRecord(ctx, logDir, *heapProfile, *cpuProfile, *profileFreq)
 	}
 
 	pubSubClient, storageClient, httpc := createClients(ctx)
