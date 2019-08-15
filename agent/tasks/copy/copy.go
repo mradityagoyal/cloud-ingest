@@ -41,7 +41,6 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
-	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context/ctxhttp"
@@ -51,6 +50,7 @@ import (
 	"google.golang.org/api/option"
 	raw "google.golang.org/api/storage/v1"
 	htransport "google.golang.org/api/transport/http"
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 const (
@@ -307,7 +307,9 @@ func (h *CopyHandler) downloadChunk(ctx context.Context, c *taskpb.CopySpec, src
 	}
 	// TODO(thobrla) TODO: timing-aware download
 	// TODO(thobrla) TODO: bytes tracking reader
-	var r io.Reader = io.LimitReader(srcReader, bytesToCopy) // Wrap the srcFile in a LimitReader.
+	// var r io.Reader = io.LimitReader(srcReader, bytesToCopy) // Wrap the srcFile in a LimitReader.
+	r := h.statsTracker.NewCopyByteTrackingReader(srcReader) // Wrap the srcReader with a CopyByteTrackingReader.
+	r = io.LimitReader(r, bytesToCopy)                       // Wrap the srcFile in a LimitReader
 	r = rate.NewRateLimitingReader(r)                        // Wrap with a RateLimitingReader.
 	srcCRC32C := c.Crc32C                                    // Set the initial crc32.
 	r = NewCRC32UpdatingReader(r, &srcCRC32C)                // Wrap with a CRC32UpdatingReader.
