@@ -21,6 +21,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -32,6 +33,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	agentcommon "github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
@@ -1090,5 +1092,66 @@ func TestShouldDoTimeAwareCopy(t *testing.T) {
 		if got := shouldDoTimeAwareCopy(tc.copySpec, reqStart, tc.jrRRN); got != tc.want {
 			t.Errorf("%v: shouldDoTimeAwareCopy(...) got %v, want %v", tc.desc, got, tc.want)
 		}
+	}
+}
+
+func TestCopyEntireFileWithMountDirectorySuccess(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+
+	gcsModTime := time.Now()
+	writer := common.NewStringWriteCloser(&storage.ObjectAttrs{
+		CRC32C:  uint32(testCRC32C),
+		MD5:     decodeBase64(testMD5),
+		Size:    int64(len(testFileContent)),
+		Updated: gcsModTime,
+	})
+
+	agentcommon.SetMountDirectory(os.TempDir())
+	flag.Lookup("enable-directory-prefix").Value.Set("true")
+	defer flag.Lookup("enable-directory-prefix").Value.Set("false")
+
+	tmpFile := common.CreateTmpFile("", "test-agent", testFileContent)
+	defer os.Remove(tmpFile)
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().NewWriterWithCondition(context.Background(), "bucket", "object", gomock.Any()).Return(writer)
+
+	h := CopyHandler{
+		gcs:               mockGCS,
+		concurrentCopySem: semaphore.NewWeighted(1),
+	}
+	taskReqMsg := testCopyTaskReqMsg()
+	taskReqMsg.Spec.GetCopySpec().SrcFile = strings.TrimPrefix(tmpFile, os.TempDir())
+	taskRespMsg := h.Do(context.Background(), taskReqMsg, time.Now())
+	if isValid, errMsg := common.IsValidSuccessMsg("task", taskRespMsg); !isValid {
+		t.Error(errMsg)
+	}
+	if writer.WrittenString() != testFileContent {
+		t.Errorf("written string want \"%s\", got \"%s\"",
+			testFileContent, writer.WrittenString())
+	}
+
+	srcStats, _ := os.Stat(tmpFile)
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_CopyLog{
+			CopyLog: &taskpb.CopyLog{
+				SrcFile:   strings.TrimPrefix(tmpFile, os.TempDir()),
+				SrcBytes:  int64(len(testFileContent)),
+				SrcMTime:  srcStats.ModTime().Unix(),
+				SrcCrc32C: testCRC32C,
+
+				DstFile:   "bucket/object",
+				DstBytes:  int64(len(testFileContent)),
+				DstMTime:  gcsModTime.Unix(),
+				DstCrc32C: testCRC32C,
+				DstMd5:    testMD5,
+
+				BytesCopied: int64(len(testFileContent)),
+			},
+		},
+	}
+	if !proto.Equal(taskRespMsg.Log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", taskRespMsg.Log, wantLog)
 	}
 }

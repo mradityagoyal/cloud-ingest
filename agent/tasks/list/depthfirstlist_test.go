@@ -18,11 +18,14 @@ package list
 import (
 	"bytes"
 	"context"
+	"flag"
 	"os"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 
+	agentcommon "github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
@@ -492,6 +495,68 @@ func TestDepthFirstListSuccessNestedDirSmallMemoryLimitListFile(t *testing.T) {
 				DirsFound:     3,
 				DirsListed:    2,
 				DirsNotListed: 2,
+			},
+		},
+	}
+	if !proto.Equal(taskRespMsg.Log, wantLog) {
+		t.Errorf("log = %+v, want: %+v", taskRespMsg.Log, wantLog)
+	}
+}
+
+func TestDepthFirstListWithMountDirSuccess(t *testing.T) {
+	mockCtrl := gomock.NewController(t)
+	defer mockCtrl.Finish()
+	writer := &common.StringWriteCloser{}
+
+	taskRelRsrcName := "projects/project_A/jobConfigs/config_B/jobRuns/run_C/tasks/task_D"
+	var expectedListResult bytes.Buffer
+
+	agentcommon.SetMountDirectory(os.TempDir())
+	flag.Lookup("enable-directory-prefix").Value.Set("true")
+	defer flag.Lookup("enable-directory-prefix").Value.Set("false")
+
+	tmpDir := common.CreateTmpDir("", "test-list-agent-")
+	defer os.RemoveAll(tmpDir)
+
+	fileContent := "0123456789"
+	filePaths := make([]string, 10)
+	i := 0
+	for ; i < 10; i++ {
+		filePaths[i] = common.CreateTmpFile(tmpDir, "test-file-", fileContent)
+	}
+
+	// The results of the list are sorted.
+	sort.Strings(filePaths)
+	for _, path := range filePaths {
+		fileInfo, err := os.Stat(path)
+		if err != nil {
+			t.Fatalf("got error: %v", err)
+		}
+		path = strings.TrimPrefix(path, os.TempDir())
+		entry := listpb.ListFileEntry{Entry: &listpb.ListFileEntry_FileInfo{FileInfo: &listpb.FileInfo{Path: path, LastModifiedTime: fileInfo.ModTime().Unix(), Size: fileInfo.Size()}}}
+		writeProtobuf(&expectedListResult, &entry)
+	}
+
+	mockGCS := gcloud.NewMockGCS(mockCtrl)
+	mockGCS.EXPECT().NewWriterWithCondition(
+		context.Background(), "bucket", "object", gomock.Any()).Return(writer)
+	ctx := context.Background()
+	st := stats.NewTracker(ctx)
+	h := DepthFirstListHandler{gcs: mockGCS, listFileSizeThreshold: 10000, allowedDirBytes: 5 * 1024 * 1024, statsTracker: st}
+	taskReqParams := testDepthFirstListTaskReqMsg(taskRelRsrcName, []string{strings.TrimPrefix(tmpDir, os.TempDir())})
+	taskRespMsg := h.Do(context.Background(), taskReqParams, time.Now())
+	CheckSuccessMsg(taskRelRsrcName, taskRespMsg, t)
+	if writer.WrittenString() != expectedListResult.String() {
+		t.Errorf("expected to write \"%s\", found: \"%s\"",
+			expectedListResult.String(), writer.WrittenString())
+	}
+
+	wantLog := &taskpb.Log{
+		Log: &taskpb.Log_ListLog{
+			ListLog: &taskpb.ListLog{
+				FilesFound: 10,
+				BytesFound: 100,
+				DirsListed: 1,
 			},
 		},
 	}

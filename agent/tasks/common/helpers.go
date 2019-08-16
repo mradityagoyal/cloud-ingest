@@ -16,7 +16,6 @@ limitations under the License.
 package common
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 
@@ -77,7 +76,7 @@ func BuildTaskRespMsg(taskReqMsg *taskpb.TaskReqMsg, respSpec *taskpb.Spec, log 
 	if err != nil {
 		taskRespMsg.Status = "FAILURE"
 		taskRespMsg.FailureType = GetFailureTypeFromError(err)
-		taskRespMsg.FailureMessage = fmt.Sprint(err)
+		taskRespMsg.FailureMessage = common.TaskFailureMsg(err)
 		if taskRespMsg.FailureType != taskpb.FailureType_NOT_ACTIVE_JOBRUN {
 			if taskReqMsg.Spec.GetCopyBundleSpec() != nil || taskReqMsg.Spec.GetDeleteBundleSpec() != nil {
 				glog.Warningf("Encountered error in processing bundled task: %v, see previous log lines for details", taskReqMsg.TaskRelRsrcName)

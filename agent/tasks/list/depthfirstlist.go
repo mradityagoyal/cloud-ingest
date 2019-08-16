@@ -26,6 +26,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	agentcommon "github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
@@ -67,7 +68,8 @@ func NewDepthFirstListHandler(storageClient *storage.Client, st *stats.Tracker) 
 // alphabetical order by path. The given listMD is updated with the number of files/dirs found.
 func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMetadata, writeDirs bool, statsTracker *stats.Tracker) ([]*listfilepb.ListFileEntry, error) {
 	openStart := time.Now()
-	f, err := os.Open(dir)
+	osDir := agentcommon.OSPath(dir)
+	f, err := os.Open(osDir)
 	statsTracker.RecordPulseStats(&stats.PulseStats{ListDirOpenMs: stats.DurMs(openStart)})
 	if err != nil {
 		return nil, err
@@ -91,15 +93,16 @@ func processDir(dir string, dirStore *DirectoryInfoStore, listMD *listingFileMet
 			return nil, fmt.Errorf("the listing contains a %s with newlines in the name: %q", fileOrDir, osFileInfo.Name())
 		}
 		path := filepath.Join(dir, osFileInfo.Name())
+		osPath := agentcommon.OSPath(path)
 		isSymlinkToDir := false
 		if osFileInfo.Mode()&os.ModeSymlink != 0 {
 			if !*followSymlinks {
 				symlinksSkipped++
 				continue
 			}
-			isSymlinkToDir, err = doesSymlinkPointToDir(dir, path)
+			isSymlinkToDir, err = doesSymlinkPointToDir(osDir, osPath)
 			if err != nil {
-				glog.Warningf("skipping symlink, isSymlinkToDir(%q) got err: %v", path, err)
+				glog.Warningf("skipping symlink, isSymlinkToDir(%q) got err: %v", osPath, err)
 				symlinksSkipped++
 				continue
 			}
