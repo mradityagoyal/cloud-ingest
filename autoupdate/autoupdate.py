@@ -48,6 +48,7 @@ POSTFIX = '?alt=media'
 # to store the logs from this script.
 LOG_FOLDER_NAME = '/autoupdate'
 CHECK_INTERVAL_SECONDS = 5 * 60
+MOUNT_DIR = '/transfer_root'
 
 FLAGS = flags.FLAGS
 # Flag used in integration tests to pass a test URL as stable agent binary URL.
@@ -55,6 +56,8 @@ flags.DEFINE_string('stable_agent_url', STABLE_AGENT_BINARY_ADDRESS,
                     'URL of stable agent binary')
 flags.DEFINE_integer('check_interval_seconds', CHECK_INTERVAL_SECONDS,
                      'Agent version check interval')
+flags.DEFINE_boolean('enable_mount_directory', False,
+                     'Enable adding mount directory')
 
 
 def delete_agent_source_file(process):
@@ -257,12 +260,16 @@ def setup_logging():
   else:
     log_dir = logging.find_log_dir() + LOG_FOLDER_NAME
 
+  if FLAGS.enable_mount_directory:
+    log_dir = MOUNT_DIR + log_dir
+
   try:
     if not os.path.exists(log_dir):
       os.makedirs(log_dir)
     logging.get_absl_handler().use_absl_log_file('', log_dir)
   except OSError as err:
-    logging.error('Failed to create log directory, err %s', str(err))
+    logging.error('Failed to create log directory %s, err %s',
+                  log_dir, str(err))
   except Exception as ex:  # pylint: disable=broad-except
     logging.error('Unknown exception occurs in setup_logging, err: %s', str(ex))
 
@@ -271,15 +278,21 @@ def main():
   parser = argparse.ArgumentParser()
   parser.add_argument('--stable_agent_url')
   parser.add_argument('--check_interval_seconds')
+  # This flag is used to enable add mounting directory prefix to provide more
+  # flexibility for quick start users.
+  parser.add_argument('--enable_mount_directory', action='store_true')
+
   FLAGS(sys.argv, known_only=True)
   # All arguments passed into the auto-update script are stored in unknown and
   # will be passed into the agent start command later.
   _, unknown = parser.parse_known_args()
   unknown.append('--container-id=%s' % socket.gethostname())
+  # Enable directory mounting prefix for agent.
+  if FLAGS.enable_mount_directory:
+    unknown.append('--enable-directory-prefix')
   # Remove all empty strings from the arguments list because subprocess.popen
   # stops reading arguments after empty string.
   args = [arg for arg in unknown if bool(arg)]
-  logging.info('Arguments that passed to agent: %s', args)
 
   if not is_valid_url(FLAGS.stable_agent_url):
     logging.error('Stable URL %s is not valid, exiting auto update script...',
@@ -287,6 +300,7 @@ def main():
     sys.exit()
 
   setup_logging()
+  logging.info('Arguments that passed to agent: %s', args)
   # Temporarily setting the version to be empty and process to be None, these
   # values will be reset later.
   version = ''

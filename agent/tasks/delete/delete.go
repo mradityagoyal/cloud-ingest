@@ -24,6 +24,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	agentcommon "github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
@@ -154,7 +155,7 @@ func (h *DeleteHandler) handleDeleteObjectSpec(ctx context.Context, deleteSpec *
 
 	if err != nil {
 		dl.FailureType = common.GetFailureTypeFromError(err)
-		dl.FailureMessage = err.Error()
+		dl.FailureMessage = agentcommon.TaskFailureMsg(err)
 		dl.Status = taskpb.Status_FAILED
 	} else {
 		dl.Status = taskpb.Status_SUCCESS

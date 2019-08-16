@@ -37,6 +37,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
+	agentcommon "github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/gcloud"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
@@ -368,7 +369,8 @@ func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopyS
 
 	// Open the on-premises file, and check the file stats if necessary.
 	openStart := time.Now()
-	srcFile, err := os.Open(copySpec.SrcFile)
+	srcFileOSPath := agentcommon.OSPath(copySpec.SrcFile)
+	srcFile, err := os.Open(srcFileOSPath)
 	h.statsTracker.RecordPulseStats(&stats.PulseStats{CopyOpenMs: stats.DurMs(openStart)})
 	if err != nil {
 		return cl, err
@@ -505,7 +507,7 @@ func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *task
 			var err error
 			bf.CopySpec, bf.CopyLog, err = h.handleCopySpecTimeAware(ctx, bf.CopySpec, reqStart, jobRunRelRsrcName)
 			bf.FailureType = common.GetFailureTypeFromError(err)
-			bf.FailureMessage = fmt.Sprint(err)
+			bf.FailureMessage = agentcommon.TaskFailureMsg(err)
 			if err == nil {
 				bf.Status = taskpb.Status_SUCCESS
 			} else {

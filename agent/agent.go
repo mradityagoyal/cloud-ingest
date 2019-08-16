@@ -31,6 +31,7 @@ import (
 	"github.com/golang/glog"
 	"google.golang.org/api/option"
 
+	"github.com/GoogleCloudPlatform/cloud-ingest/agent/common"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/control"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/profile"
 	pubsubinternal "github.com/GoogleCloudPlatform/cloud-ingest/agent/pubsub"
@@ -74,10 +75,13 @@ func printVersionInfo() {
 
 // createLogDirIfNeeded returns the value of the directory that glog logs will
 // be written, creating that directory if it does not already exist. It returns
-// an error if the directory is invalid or could not be created.
+// an error if the directory is invalid or could not be created. If the agent is
+// running inside a container and enabled to use directory mounting prefix,
+// setting the log directory relative to the mounting directory.
 func createLogDirIfNeeded() (string, error) {
 	if f := flag.Lookup("log_dir"); f != nil && f.Value.String() != "" {
-		logDir := f.Value.String()
+		logDir := common.OSPath(f.Value.String())
+		flag.Lookup("log_dir").Value.Set(logDir)
 		fd, err := os.Stat(logDir)
 
 		if os.IsNotExist(err) {
@@ -94,7 +98,9 @@ func createLogDirIfNeeded() (string, error) {
 
 	// This is coupled with glog's default value since glog
 	// does not provide a way to look up the default.
-	return os.TempDir(), nil
+	logDir := common.OSPath(os.TempDir())
+	flag.Lookup("log_dir").Value.Set(logDir)
+	return logDir, nil
 }
 
 func createClients(ctx context.Context) (*pubsub.Client, *storage.Client, *http.Client) {
