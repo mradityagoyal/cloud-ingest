@@ -284,7 +284,7 @@ def main():
   if not is_valid_url(FLAGS.stable_agent_url):
     logging.error('Stable URL %s is not valid, exiting auto update script...',
                   FLAGS.stable_agent_url)
-    os._exit(0)
+    sys.exit()
 
   setup_logging()
   # Temporarily setting the version to be empty and process to be None, these
