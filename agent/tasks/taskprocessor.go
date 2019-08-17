@@ -141,16 +141,18 @@ func (tp *TaskProcessor) processMessage(ctx context.Context, msg *pubsub.Message
 		return
 	}
 
+	//glog.Infof("Got message %v", taskReqMsg)
+
 	reqStart := time.Now()
 	var taskRespMsg *taskpb.TaskRespMsg
 	if rate.IsJobRunActive(taskReqMsg.JobrunRelRsrcName) {
-	handler, agentErr := tp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
-	if agentErr != nil {
-		taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
-	} else {
-		taskRespMsg = handler.Do(ctx, &taskReqMsg, reqStart)
-		tp.StatsTracker.RecordTaskResp(taskRespMsg)
-	}
+		handler, agentErr := tp.Handlers.HandlerForTaskReqMsg(&taskReqMsg)
+		if agentErr != nil {
+			taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, *agentErr)
+		} else {
+			taskRespMsg = handler.Do(ctx, &taskReqMsg, reqStart)
+			tp.StatsTracker.RecordTaskResp(taskRespMsg)
+		}
 	} else {
 		taskRespMsg = common.BuildTaskRespMsg(&taskReqMsg, nil, nil, common.AgentError{
 			Msg:         fmt.Sprintf("job run %s is not active", taskReqMsg.JobrunRelRsrcName),

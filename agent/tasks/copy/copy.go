@@ -42,6 +42,7 @@ import (
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/rate"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/stats"
 	"github.com/GoogleCloudPlatform/cloud-ingest/agent/tasks/common"
+	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 	"github.com/golang/glog"
 	"github.com/golang/protobuf/proto"
 	"golang.org/x/net/context/ctxhttp"
@@ -51,7 +52,6 @@ import (
 	"google.golang.org/api/option"
 	raw "google.golang.org/api/storage/v1"
 	htransport "google.golang.org/api/transport/http"
-	taskpb "github.com/GoogleCloudPlatform/cloud-ingest/proto/task_go_proto"
 )
 
 const (
@@ -163,16 +163,24 @@ func (h *CopyHandler) parseBucketAndObjectName(src string) (bucket string, objec
 	return spl[0], spl[1], nil
 }
 
-func (h *CopyHandler) handleDownloadSpec(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopyLog, error) {
-	cl := &taskpb.CopyLog{
-		SrcFile: copySpec.SrcFile,
-		DstFile: copySpec.DstObject,
+func (h *CopyHandler) handleDownloadSpec(ctx context.Context, t *taskpb.BundledDownload) (*taskpb.CopyLog, error) {
+	downloadSpec := t.Spec
+	if downloadSpec == nil {
+		return nil, fmt.Errorf("couldn't get download spec from task %v", t)
 	}
 
-	bn, on, err := h.parseBucketAndObjectName(copySpec.SrcFile)
+	cl := &taskpb.CopyLog{
+		SrcFile: downloadSpec.SrcBucket + "/" + downloadSpec.SrcObject,
+		DstFile: downloadSpec.DstFile,
+	}
+
+	resumedCopy, err := checkDownloadTaskSpec(downloadSpec)
 	if err != nil {
 		return cl, err
 	}
+
+	bn := downloadSpec.SrcBucket
+	on := downloadSpec.SrcObject
 
 	// Challenge: how to ensure two agents writing simultaneously to a file don't
 	// conflict with each other?
@@ -201,11 +209,6 @@ func (h *CopyHandler) handleDownloadSpec(ctx context.Context, copySpec *taskpb.C
 	//   Check generation number at end of each chunk.
 	//   Rename at the end.
 
-	resumedCopy, err := checkCopyDownloadTaskSpec(copySpec)
-	if err != nil {
-		return cl, err
-	}
-
 	if resumedCopy {
 		//glog.Infof("download: resumed copy, bucket %s object %s", bn, on)
 	} else {
@@ -225,7 +228,7 @@ func (h *CopyHandler) handleDownloadSpec(ctx context.Context, copySpec *taskpb.C
 
 	// Temporary filename is destination.generationnumber
 	var fb strings.Builder
-	fb.WriteString(copySpec.DstObject)
+	fb.WriteString(downloadSpec.DstFile)
 	fb.WriteString(".")
 	fb.WriteString(genStr)
 	fn := fb.String()
@@ -259,21 +262,20 @@ func (h *CopyHandler) handleDownloadSpec(ctx context.Context, copySpec *taskpb.C
 	// TODO(thobrla): consolidate bytesToCopy instances
 	//glog.Infof("setting bytes from copyspec")
 	bytesToCopy := int64(1 << 25)
-	if copySpec.FileBytes-copySpec.BytesCopied <= bytesToCopy {
+	if downloadSpec.FileBytes-downloadSpec.BytesCopied <= bytesToCopy {
 		// TODO(thobrla): respect size sent by DCP
-		bytesToCopy = copySpec.FileBytes - copySpec.BytesCopied
+		bytesToCopy = downloadSpec.FileBytes - downloadSpec.BytesCopied
 		//bytesToCopy = oa.Size - copySpec.BytesCopied
 	}
 	//glog.Infof("creating gcs reader for %s bytestoCopy %d", on, bytesToCopy)
-	srcReader, err := h.gcs.NewRangeReader(ctx, bn, on, copySpec.BytesCopied, bytesToCopy)
+	srcReader, err := h.gcs.NewRangeReader(ctx, bn, on, downloadSpec.BytesCopied, bytesToCopy)
 	if err != nil {
 		//glog.Infof("gcs reader err %v", err)
-
 		return cl, err
 	}
 
-	//log.Infof("created gcs reader")
-	err = h.downloadChunk(ctx, copySpec, srcReader, oa, f, fn, cl, bytesToCopy)
+	//glog.Infof("created gcs reader")
+	err = h.downloadChunk(ctx, downloadSpec, srcReader, oa, f, fn, cl, bytesToCopy)
 	if err != nil {
 		return cl, err
 	}
@@ -285,34 +287,36 @@ func (h *CopyHandler) handleDownloadSpec(ctx context.Context, copySpec *taskpb.C
 	cl.SrcMTime = oa.Created.Unix()
 
 	// TODO: We've written data.  Confirm generation number hasn't changed.
+	t.Spec = downloadSpec
 	return cl, nil
 }
 
-func (h *CopyHandler) downloadChunk(ctx context.Context, c *taskpb.CopySpec, srcReader io.Reader,
+func (h *CopyHandler) downloadChunk(ctx context.Context, d *taskpb.DownloadSpec, srcReader io.Reader,
 	srcAttrs *storage.ObjectAttrs, dstFile *os.File, tempName string, cl *taskpb.CopyLog, bytesToCopy int64) error {
 	final := false
-	if bytesToCopy <= 0 || bytesToCopy+c.BytesCopied >= srcAttrs.Size {
+	if bytesToCopy <= 0 || bytesToCopy+d.BytesCopied >= srcAttrs.Size {
 		// c.BytesToCopy <= 0 indicates that the rest of the file should be copied.
-		bytesToCopy = srcAttrs.Size - c.BytesCopied
+		bytesToCopy = srcAttrs.Size - d.BytesCopied
 		final = true
 	}
 
 	//glog.Infof("download: downloading chunk")
 
-	pos, err := dstFile.Seek(c.BytesCopied, 0)
+	pos, err := dstFile.Seek(d.BytesCopied, 0)
 	if err != nil {
 		return err
 	}
-	if pos != c.BytesCopied {
-		glog.Errorf("Seek expected pos %d, got %d", c.BytesCopied, pos)
+	if pos != d.BytesCopied {
+		glog.Errorf("Seek expected pos %d, got %d", d.BytesCopied, pos)
 	}
+	var crcPlaceholder uint32
 	// TODO(thobrla) TODO: timing-aware download
 	// TODO(thobrla) TODO: bytes tracking reader
 	// var r io.Reader = io.LimitReader(srcReader, bytesToCopy) // Wrap the srcFile in a LimitReader.
 	r := h.statsTracker.NewCopyByteTrackingReader(srcReader) // Wrap the srcReader with a CopyByteTrackingReader.
 	r = io.LimitReader(r, bytesToCopy)                       // Wrap the srcFile in a LimitReader
 	r = rate.NewRateLimitingReader(r)                        // Wrap with a RateLimitingReader.
-	srcCRC32C := c.Crc32C                                    // Set the initial crc32.
+	srcCRC32C := crcPlaceholder                              // Set the initial crc32.
 	r = NewCRC32UpdatingReader(r, &srcCRC32C)                // Wrap with a CRC32UpdatingReader.
 	tr := stats.NewTimingReader(r)                           // Wrap with a TimingReader.
 	w := bufio.NewWriterSize(dstFile, *fileReadBuf)          // Wrap with a buffered writer.
@@ -330,33 +334,26 @@ func (h *CopyHandler) downloadChunk(ctx context.Context, c *taskpb.CopySpec, src
 	//glog.Infof("downloadChunk: Wrote %d bytes at offset %d", written, pos)
 
 	if int64(written) != bytesToCopy {
-		return fmt.Errorf("file %s wrote %d bytes, expected %d", c.DstObject, written, bytesToCopy)
+		return fmt.Errorf("file %s wrote %d bytes, expected %d", d.DstFile, written, bytesToCopy)
 	}
 
-	c.BytesCopied = bytesToCopy + c.BytesCopied
+	d.BytesCopied = bytesToCopy + d.BytesCopied
 
 	if final {
 		err = dstFile.Close()
 		if err != nil {
 			return err
 		}
-		//glog.Infof("downloadChunk: finalized %s --> %s", tempName, c.DstObject)
-		if err := os.Rename(tempName, c.DstObject); err != nil {
+		//glog.Infof("downloadChunk: finalized %s --> %s", tempName, d.DstFile)
+		if err := os.Rename(tempName, d.DstFile); err != nil {
 			return err
 		}
-	} else {
-		// TODO(thobrla): Stop trying to trick the DCP into doing a "resumable" download
-		c.ResumableUploadId = "placeholder"
 	}
 
 	return nil
 }
 
 func (h *CopyHandler) handleCopySpec(ctx context.Context, copySpec *taskpb.CopySpec) (*taskpb.CopyLog, error) {
-	if strings.HasPrefix(copySpec.SrcFile, "gs://") {
-		return h.handleDownloadSpec(ctx, copySpec)
-	}
-
 	cl := &taskpb.CopyLog{
 		SrcFile: copySpec.SrcFile,
 		DstFile: path.Join(copySpec.DstBucket, copySpec.DstObject),
@@ -465,6 +462,36 @@ func getBundleLogAndError(bs *taskpb.CopyBundleSpec) (*taskpb.CopyBundleLog, err
 	return &log, err
 }
 
+func getDownloadBundleLogAndError(c *taskpb.DownloadBundleSpec) (*taskpb.CopyBundleLog, error) {
+	var log taskpb.CopyBundleLog
+	var atLeastOneServiceInducedError bool
+	for _, t := range c.BundledObjects {
+		if t.Status == taskpb.Status_SUCCESS {
+			log.FilesCopied++
+			log.BytesCopied += t.Log.BytesCopied
+		} else {
+			if !atLeastOneServiceInducedError && isServiceInducedError(t.FailureType) {
+				atLeastOneServiceInducedError = true
+			}
+			log.FilesFailed++
+			log.BytesFailed += t.Log.SrcBytes
+			glog.Warningf("bundledFile %v, failed with err: %v", t.Spec.SrcObject, t.FailureMessage)
+		}
+	}
+	var err error
+	if log.FilesFailed > 0 {
+		failureType := taskpb.FailureType_NOT_SERVICE_INDUCED_UNKNOWN_FAILURE
+		if atLeastOneServiceInducedError {
+			failureType = taskpb.FailureType_UNKNOWN_FAILURE
+		}
+		err = common.AgentError{
+			Msg:         fmt.Sprintf("CopyBundle had %v failures", log.FilesFailed),
+			FailureType: failureType,
+		}
+	}
+	return &log, err
+}
+
 func shouldDoTimeAwareCopy(copySpec *taskpb.CopySpec, reqStart time.Time, jobRunRelRsrcName string) bool {
 	// Do a time aware copy iteration iff
 	// 1. The copy is resuamble.
@@ -519,6 +546,35 @@ func (h *CopyHandler) handleCopyBundleSpec(ctx context.Context, bundleSpec *task
 	return getBundleLogAndError(bundleSpec)
 }
 
+func (h *CopyHandler) handleDownloadBundleSpec(ctx context.Context, bundle *taskpb.DownloadBundleSpec, reqStart time.Time, jobRunRelRsrcName string) (*taskpb.CopyBundleLog, error) {
+	var wg sync.WaitGroup
+	for _, t := range bundle.BundledObjects {
+		wg.Add(1)
+		go func(t *taskpb.BundledDownload) {
+			if len(bundle.BundledObjects) > 1 {
+				// Apply concurrency limiting to copy tasks with multiple bundled files.
+				h.concurrentCopySem.Acquire(ctx, 1)
+				defer h.concurrentCopySem.Release(1)
+			}
+			defer wg.Done()
+			var err error
+			// TODO(thobrla): Implement time aware download.
+			copyLog, err := h.handleDownloadSpec(ctx, t) // Updates 't' in place.
+			t.Log = copyLog
+			t.FailureType = common.GetFailureTypeFromError(err)
+			t.FailureMessage = fmt.Sprint(err)
+			if err == nil {
+				t.Status = taskpb.Status_SUCCESS
+			} else {
+				t.Status = taskpb.Status_FAILED
+			}
+		}(t)
+	}
+	wg.Wait()
+	// TODO(thobrla): Migrate off of CopyBundleLog
+	return getDownloadBundleLogAndError(bundle)
+}
+
 func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, reqStart time.Time) *taskpb.TaskRespMsg {
 	var respSpec *taskpb.Spec
 	var log *taskpb.Log
@@ -535,6 +591,13 @@ func (h *CopyHandler) Do(ctx context.Context, taskReqMsg *taskpb.TaskReqMsg, req
 		bundleSpec := proto.Clone(taskReqMsg.Spec.GetCopyBundleSpec()).(*taskpb.CopyBundleSpec)
 		cbl, err = h.handleCopyBundleSpec(ctx, bundleSpec, reqStart, taskReqMsg.JobrunRelRsrcName)
 		respSpec = &taskpb.Spec{Spec: &taskpb.Spec_CopyBundleSpec{bundleSpec}}
+		log = &taskpb.Log{Log: &taskpb.Log_CopyBundleLog{cbl}}
+	} else if taskReqMsg.Spec.GetDownloadBundleSpec() != nil {
+		// TODO(thobrla): Migrate to a different log type.
+		var cbl *taskpb.CopyBundleLog
+		tcSpec := proto.Clone(taskReqMsg.Spec.GetDownloadBundleSpec()).(*taskpb.DownloadBundleSpec)
+		cbl, err = h.handleDownloadBundleSpec(ctx, tcSpec, reqStart, taskReqMsg.JobrunRelRsrcName)
+		respSpec = &taskpb.Spec{Spec: &taskpb.Spec_DownloadBundleSpec{tcSpec}}
 		log = &taskpb.Log{Log: &taskpb.Log_CopyBundleLog{cbl}}
 	} else {
 		err = errors.New("CopyHandler.Do taskReqMsg.Spec is neither CopySpec nor CopyBundleSpec")

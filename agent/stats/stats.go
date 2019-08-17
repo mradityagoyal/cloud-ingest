@@ -157,7 +157,7 @@ func (t *Tracker) RecordTaskResp(resp *taskpb.TaskRespMsg) {
 		return
 	}
 	task := ""
-	if resp.ReqSpec.GetCopySpec() != nil || resp.ReqSpec.GetCopyBundleSpec() != nil {
+	if resp.ReqSpec.GetCopySpec() != nil || resp.ReqSpec.GetCopyBundleSpec() != nil || resp.ReqSpec.GetDownloadBundleSpec() != nil {
 		task = "copy"
 	} else if resp.ReqSpec.GetListSpec() != nil {
 		task = "list"
