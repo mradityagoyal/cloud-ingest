@@ -142,9 +142,25 @@ else
   git clone git@github.com:$GIT_REPO_NAME.git .
 fi
 
+# Display existing releases.
+echo "Existing Releases (for reference):"
+echo ""
+all_releases=$(gsutil ls $GCS_VERSIONS_PREFIX/)
+echo "$all_releases"
+echo""
+
+# Read a new release version, and verify it is unique.
+if [[ $IS_AUTOMATED ]]; then
+  release_version=$(go run $RELEASE_DIR/getnewestversion.go)
+  echo "Calculating release version automatically via the changelog. Chose ${release_version}."
+else
+  release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "$VERSION_REGEX")
+fi
+[[ ! $all_releases =~ "/$release_version/" ]] || die "Version $release_version already exists."
+
 if [[ -z $GIT_COMMIT_ID && $IS_AUTOMATED == true ]]; then
-  echo "Automated build with no explicit commit id, using last commit to changelog"
-  GIT_COMMIT_ID=$(git log -1 ${REPO_DIR}/CHANGELOG.md | grep commit | gawk 'match($0, /^commit (.*)/, out) {print out[1]}')
+  echo "Automated build with no explicit commit id, using last commit to changelog that updated version."
+  GIT_COMMIT_ID=$(git log -1 -S'[${release_version:1}]' ${REPO_DIR}/CHANGELOG.md | grep commit | gawk 'match($0, /^commit (.*)/, out) {print out[1]}')
   echo "Last commit id is ${GIT_COMMIT_ID}"
 fi
 [[ ! -z $GIT_COMMIT_ID ]] || die "Git commit id was not passed in or found from changelog."
@@ -166,21 +182,6 @@ go test ./... || die "\nUnit tests are failing. Not allowing release to proceed.
 echo "Done running tests."
 echo ""
 
-# Display existing releases.
-echo "Existing Releases (for reference):"
-echo ""
-all_releases=$(gsutil ls $GCS_VERSIONS_PREFIX/)
-echo "$all_releases"
-echo""
-
-# Read a new release version, and verify it is unique.
-if [[ $IS_AUTOMATED ]]; then
-  release_version=$(go run $RELEASE_DIR/getnewestversion.go)
-  echo "Calculating release version automatically via the changelog. Chose ${release_version}."
-else
-  release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "$VERSION_REGEX")
-fi
-[[ ! $all_releases =~ "/$release_version/" ]] || die "Version $release_version already exists."
 
 # Additional flags to pass to the compiler. Currently just release information
 # to compile in.
