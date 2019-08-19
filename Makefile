@@ -72,6 +72,8 @@ build-agent: install-changelog-parser go-mocks lint-agent lint-changelog test-ag
 
 .PHONY: build-autoupdate
 build-autoupdate: lint-autoupdate test-autoupdate ## Lint, test auto-update script
+	@echo -e "\n== Building Agent Autoupdate Image =="
+	@docker build -t tsop-agent-image $(REPO_PATH)/autoupdate
 
 .PHONY: validate-release-changelog
 validate-release-changelog: ## Validate changelog format and new release version.
@@ -82,6 +84,11 @@ validate-release-changelog: ## Validate changelog format and new release version
 build-release-agent: go-mocks lint-agent validate-release-changelog test-agent ## Build, test, and install Go binaries.
 	@echo -e "\n== Building/Installing Go Binaries =="
 	@go install -v $(GO_TARGETS)
+
+.PHONY: build-release-autoupdate
+build-release-autoupdate: build-autoupdate
+	@echo -e "\n== Tagging Agent Autoupdate Image =="
+	@docker tag tsop-agent-image gcr.io/cloud-ingest/tsop-agent-image
 
 # rmdir ... ;true ignores errors if dir does not exist - according to GNU make
 # documentation, prefixing the line with - should accomplish this, but it doesn't work.

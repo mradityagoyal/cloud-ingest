@@ -28,20 +28,24 @@ enum Status {
 
 // Specifies the classes of failures that a task can have.
 enum FailureType {
-  UNSET_FAILURE_TYPE = 0;      // Not used.
-  UNKNOWN_FAILURE = 1;         // The failure type is not known or recognized.
-  FILE_MODIFIED_FAILURE = 2;   // The source file was modified during upload.
-  HASH_MISMATCH_FAILURE = 3;   // Source file hash does not match GCS file hash.
-  PRECONDITION_FAILURE = 4;    // Upload failed due to a precondition failure.
-  FILE_NOT_FOUND_FAILURE = 5;  // Agent asked to upload a non-existent file.
-  PERMISSION_FAILURE = 6;      // Agent lacks permission for requested action.
-  NOT_ACTIVE_JOBRUN = 7;       // The task job run is not active.
+  UNSET_FAILURE_TYPE = 0;           // Not used.
+  UNKNOWN_FAILURE = 1;              // The failure type is not known.
+  FILE_MODIFIED_FAILURE = 2;        // The file was modified during upload.
+  HASH_MISMATCH_FAILURE = 3;        // Source hash doesn't match GCS hash.
+  PRECONDITION_FAILURE = 4;         // Upload failed: GCS precondition failure.
+  FILE_NOT_FOUND_FAILURE = 5;       // Source file for upload non-existent.
+  PERMISSION_FAILURE = 6;           // Agent lacks permission for action.
+  SERVICE_PERMISSION_FAILURE = 15;  // Service lacks permission for action.
+  NOT_ACTIVE_JOBRUN = 7;            // The task job run is not active.
 
   // The agent does not support the task's Job Run Version.
   AGENT_UNSUPPORTED_VERSION = 8;
 
   // The service does not support the task's Job Run Version.
   SERVICE_UNSUPPORTED_VERSION = 9;
+
+  // The task type does not support the task's Job Run Version.
+  TASK_TYPE_UNSUPPORTED_VERSION = 17;
 
   // The task was completed by an agent with a blacklisted agent version.
   BLACKLISTED_AGENT_VERSION = 10;
@@ -52,8 +56,18 @@ enum FailureType {
   // The name of the file is invalid.
   INVALID_FILE_NAME = 12;
 
-  // The agent processing a copybundle task and all bundle files fail with not service-induced error.
+  // The agent processing a copybundle task and all bundle files fail with not
+  // service-induced error.
   NOT_SERVICE_INDUCED_UNKNOWN_FAILURE = 13;
+
+  // The destination bucket is not found.
+  BUCKET_NOT_FOUND = 14;
+
+  // Failed to find a service metadata file (list file or unexplored dirs file).
+  METADATA_OBJECT_NOT_FOUND_FAILURE = 16;
+
+  // GCS returned a HTTP 410 "Gone" for a given resuamble ID.
+  GCS_RESUMABLE_ID_GONE_FAILURE = 18;
 }
 
 // Contains information about a task. A task is a unit of work, one of:
