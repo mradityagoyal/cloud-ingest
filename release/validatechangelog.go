@@ -7,6 +7,7 @@ import (
 	"log"
 	"os"
 	"path"
+	"strings"
 
 	"cloud.google.com/go/storage"
 	"github.com/GoogleCloudPlatform/cloud-ingest/release/changelog"
@@ -66,5 +67,12 @@ func main() {
 		}
 	}
 
-	fmt.Println("Changelog validation passed!")
+	// Handle the unreleased case
+	if versions[0].Version == "" {
+		versions = versions[1:]
+	}
+
+
+	fmt.Printf("Changelog validation passed, newest version is v%s\n" ,
+		strings.Trim(versions[0].Version, "{}"))
 }
