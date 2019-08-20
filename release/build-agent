@@ -135,31 +135,6 @@ BINARY_NAME=agent
 # Validate input and state.
 [[ -d $RELEASE_DIR ]] || die "Directory $RELEASE_DIR does not exist."
 
-# Read a new release version or get one from the changelog.
-if [[ -z $RELEASE_VERSION ]]; then
-  RELEASE_VERSION=$(go run $RELEASE_DIR/newest/getnewestversion.go)
-  echo "Calculating release version automatically via the changelog. Chose ${RELEASE_VERSION}."
-fi
-[[ $RELEASE_VERSION =~ $VERSION_REGEX ]] || die "Agent release version \"${RELEASE_VERSION}\" does not match version regex: ${VERSION_REGEX}."
-[[ ! $all_releases =~ "/$RELEASE_VERSION/" ]] || die "Version $RELEASE_VERSION already exists."
-
-# Read a commit id or get the last change to the changelog that added [$VERSION]
-if [[ -z $GIT_COMMIT_ID ]]; then
-  echo "Automated build with no explicit commit id, using last commit to changelog that updated version."
-  GIT_COMMIT_ID=$(git log -1 -S"[${RELEASE_VERSION:1}]" ${SOURCE_DIR}/CHANGELOG.md | grep -E "^commit ${GIT_COMMIT_REGEX}" | grep -E -o $GIT_COMMIT_REGEX)
-  echo "Last commit id is ${GIT_COMMIT_ID}"
-fi
-[[ ! -z $GIT_COMMIT_ID ]] || die "Git commit id was not passed in or found from changelog."
-[[ $GIT_COMMIT_ID =~ $GIT_COMMIT_REGEX ]] || die "Git commit ID \"${GIT_COMMIT_ID}\" does not match git commit regex: ${GIT_COMMIT_REGEX}."
-
-# Get environments to deploy or use default
-if [[ -z $DEPLOY_TO_ENVS ]];then
-	DEPLOY_TO_ENVS=("TEMP")
-fi
-for env in ${DEPLOY_TO_ENVS[@]}; do
-	[[ $env =~ $ENVS_REGEX ]] || die "Environment val ${env} does not match regex: ${ENVS_REGEX}."
-done
-
 # Clean up any old release work, and start fresh.
 rm -rf $WORKING_DIR
 mkdir -p $REPO_DIR
@@ -184,6 +159,30 @@ go test ./... || die "\nUnit tests are failing. Not allowing release to proceed.
 echo "Done running tests."
 echo ""
 
+# Verify Flags
+if [[ -z $RELEASE_VERSION ]]; then
+  RELEASE_VERSION=$(go run $RELEASE_DIR/newest/getnewestversion.go)
+  echo "Calculating release version automatically via the changelog. Chose ${RELEASE_VERSION}."
+fi
+[[ $RELEASE_VERSION =~ $VERSION_REGEX ]] || die "Agent release version \"${RELEASE_VERSION}\" does not match version regex: ${VERSION_REGEX}."
+[[ ! $all_releases =~ "/$RELEASE_VERSION/" ]] || die "Version $RELEASE_VERSION already exists."
+
+# Read a commit id or get the last change to the changelog that added [$VERSION]
+if [[ -z $GIT_COMMIT_ID ]]; then
+  echo "Automated build with no explicit commit id, using last commit to changelog that updated version."
+  GIT_COMMIT_ID=$(git log -1 -S"[${RELEASE_VERSION:1}]" ${SOURCE_DIR}/CHANGELOG.md | grep -E "^commit ${GIT_COMMIT_REGEX}" | grep -E -o $GIT_COMMIT_REGEX)
+  echo "Last commit id is ${GIT_COMMIT_ID}"
+fi
+[[ ! -z $GIT_COMMIT_ID ]] || die "Git commit id was not passed in or found from changelog."
+[[ $GIT_COMMIT_ID =~ $GIT_COMMIT_REGEX ]] || die "Git commit ID \"${GIT_COMMIT_ID}\" does not match git commit regex: ${GIT_COMMIT_REGEX}."
+
+# Get environments to deploy or use default
+if [[ -z $DEPLOY_TO_ENVS ]];then
+	DEPLOY_TO_ENVS=("TEMP")
+fi
+for env in ${DEPLOY_TO_ENVS[@]}; do
+	[[ $env =~ $ENVS_REGEX ]] || die "Environment val ${env} does not match regex: ${ENVS_REGEX}."
+done
 
 # Additional flags to pass to the compiler. Currently just release information
 # to compile in.
