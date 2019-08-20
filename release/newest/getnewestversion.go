@@ -1,4 +1,4 @@
-package newest
+package main
 
 import (
 	"fmt"

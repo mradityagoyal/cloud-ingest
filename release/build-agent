@@ -122,10 +122,8 @@ GIT_REPO_NAME=GoogleCloudPlatform/cloud-ingest
 # Local directories of relevance.
 SOURCE_DIR=$(go env GOPATH)/src/github.com/$GIT_REPO_NAME
 RELEASE_DIR=$SOURCE_DIR/release
-WORKING_DIR=$RELEASE_DIR/tmp-release-ephemeral
-REPO_DIR=$WORKING_DIR/go/src/github.com/GoogleCloudPlatform/cloud-ingest/
-ARTIFACT_DIR=$WORKING_DIR/build_artifacts
-ASSET_DIR=$WORKING_DIR/assets
+ARTIFACT_DIR=$SOURCE_DIR/build_artifacts
+ASSET_DIR=$SOURCE_DIR/assets
 VERSION_FILE=$ASSET_DIR/VERSIONINFO.txt
 
 # Binary info.
@@ -135,29 +133,9 @@ BINARY_NAME=agent
 # Validate input and state.
 [[ -d $RELEASE_DIR ]] || die "Directory $RELEASE_DIR does not exist."
 
-# Clean up any old release work, and start fresh.
-rm -rf $WORKING_DIR
-mkdir -p $REPO_DIR
-pushd $REPO_DIR > /dev/null
-
-# Grab code to release (repo@commit).
-echo "Retrieving code to release..."
-git clone https://github.com/$GIT_REPO_NAME.git .
-git checkout $GIT_COMMIT_ID
-echo "Done retrieving code."
-echo ""
-
-# Set a temporary go path, so we look for dependencies in the right place.
-GOPATH=$WORKING_DIR/go
 echo "Pulling dependencies and doing full local build and test..."
 make setup-agent build-agent
 echo "Done validating the build."
-
-# Run tests - Never allow releases that fail unit tests.
-echo "Running unit tests..."
-go test ./... || die "\nUnit tests are failing. Not allowing release to proceed."
-echo "Done running tests."
-echo ""
 
 # Verify Flags
 if [[ -z $RELEASE_VERSION ]]; then
@@ -183,6 +161,18 @@ fi
 for env in ${DEPLOY_TO_ENVS[@]}; do
 	[[ $env =~ $ENVS_REGEX ]] || die "Environment val ${env} does not match regex: ${ENVS_REGEX}."
 done
+
+# Grab code to release (repo@commit).
+echo "Retrieving code to release..."
+git checkout $GIT_COMMIT_ID
+echo "Done retrieving code."
+echo ""
+
+# Run tests - Never allow releases that fail unit tests.
+echo "Running unit tests..."
+go test ./... || die "\nUnit tests are failing. Not allowing release to proceed."
+echo "Done running tests."
+echo ""
 
 # Additional flags to pass to the compiler. Currently just release information
 # to compile in.
