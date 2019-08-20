@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # GIT Commit ID (SHA1 Hash) regex
-GIT_COMMIT_REGEX=^[0-9a-f]{40}$
+GIT_COMMIT_REGEX=[0-9a-f]{40}$
 
 # GCS_STAGING_PREFIX is the GCS location for builds
 GCS_STAGING_PREFIX=gs://cloud-ingest-rapid/agent
@@ -22,18 +22,4 @@ GCS_CANARY_PREFIX=gs://cloud-ingest-canary-candidate/agent
 function die() {
   echo -e >&2 "$@"
   exit 1
-}
-
-# prompt_with_regex keeps asking for input until it matches the provided regex.
-function prompt_with_regex() {
-  local msg=$1
-  local regex=$2
-  local input
-  while true; do
-    read -p "$msg: " input
-    if [[ $input =~ $regex ]]; then # matches regex
-      echo $input
-      break
-    fi
-  done
 }
