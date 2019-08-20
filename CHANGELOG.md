@@ -10,6 +10,9 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 ## [Unreleased]
 
+## [3.0.1] - 2019-08-20
+Vinchen Test Version, still not real!
+
 ## [3.0.0] - 2019-08-17
 Vinchen Test Version, not real!
 
