@@ -56,7 +56,7 @@ function build_release_assets() {
     mkdir -p $artifact_dir/$os_arch
 
     # Bundle the license.
-    cp $SOURCE_DIR/LICENSE $artifact_dir/$os_arch
+    cp $REPO_DIR/LICENSE $artifact_dir/$os_arch
 
     if [[ $build_os == "windows" ]]; then
       GOOS=$build_os GOARCH=$build_arch go build -gcflags "$gcflags" -asmflags "$asmflags" -ldflags "$ldflags" -o $artifact_dir/$os_arch/$BINARY_NAME.exe $MAIN_SOURCE
@@ -88,42 +88,18 @@ command -v gsutil > /dev/null 2>&1 || die "gsutil is not installed. Bailing!"
 #
 # e.g. To add Windows, add 'windows_amd64' to this list.
 BUILD_PLATFORMS=(linux_amd64)
-ALL_ENVS=("TEMP" "PROD")
-ENVS_REGEX=$(IFS='|';echo "^(${ALL_ENVS[*]})$";)
 
-# Check for flags
-while [[ ! $# -eq 0 ]]
-do
-	case "$1" in
-    --git_commit_id | -g)
-      [[ ! -z $2 ]] || die "INVALID ARGUMENT: Git commit flag with no corresponding id. Expected: ${GIT_COMMIT_REGEX}."
-      GIT_COMMIT_ID=$2
-      shift # Shift the flag
-      shift # Shift the commit id
-      ;;
-    --release_version | -r)
-      [[ ! -z $2 ]] || die "INVALID ARGUMENT: Release version flag with no corresponding version #. Expected ${VERSION_REGEX}"
-      RELEASE_VERSION=$2
-      shift # Shift the flag
-      shift # Shift the commit id
-      ;;
-    --deploy_to_envs | -e)
-      [[ ! -z $2 ]] || die "INVALID ARGUMENT: Deploy to flag with no corresponding environments. Expected comma separated list with possible vals: ${ALL_ENVS[@]}"
-      IFS=', ' read -r -a DEPLOY_TO_ENVS <<< $2
-      shift # Shift the flag
-      shift # Shift the commit id
-      ;;
-  *) die "INVALID ARGUMENT: ${1} is not a recognized Flag."
-	esac
-done
-
+# Git repo stuff.
+GIT_COMMIT_ID=$1
 GIT_REPO_NAME=GoogleCloudPlatform/cloud-ingest
 
 # Local directories of relevance.
 SOURCE_DIR=$(go env GOPATH)/src/github.com/$GIT_REPO_NAME
 RELEASE_DIR=$SOURCE_DIR/release
-ARTIFACT_DIR=$SOURCE_DIR/build_artifacts
-ASSET_DIR=$SOURCE_DIR/assets
+WORKING_DIR=$RELEASE_DIR/tmp-release-ephemeral
+REPO_DIR=$WORKING_DIR/go/src/github.com/GoogleCloudPlatform/cloud-ingest/
+ARTIFACT_DIR=$WORKING_DIR/build_artifacts
+ASSET_DIR=$WORKING_DIR/assets
 VERSION_FILE=$ASSET_DIR/VERSIONINFO.txt
 
 # Binary info.
@@ -132,47 +108,42 @@ BINARY_NAME=agent
 
 # Validate input and state.
 [[ -d $RELEASE_DIR ]] || die "Directory $RELEASE_DIR does not exist."
+[[ $GIT_COMMIT_ID =~ ^[0-9a-f]{40}$ ]] || die "First argument should be git commit ID."
 
-echo "Pulling dependencies and doing full local build and test..."
-make setup-agent build-agent
-echo "Done validating the build."
-
-# Verify Flags
-if [[ -z $RELEASE_VERSION ]]; then
-  RELEASE_VERSION=$(go run $RELEASE_DIR/newest/getnewestversion.go)
-  echo "Calculating release version automatically via the changelog. Chose ${RELEASE_VERSION}."
-fi
-[[ $RELEASE_VERSION =~ $VERSION_REGEX ]] || die "Agent release version \"${RELEASE_VERSION}\" does not match version regex: ${VERSION_REGEX}."
-[[ ! $all_releases =~ "/$RELEASE_VERSION/" ]] || die "Version $RELEASE_VERSION already exists."
-
-# Read a commit id or get the last change to the changelog that added [$VERSION]
-if [[ -z $GIT_COMMIT_ID ]]; then
-  echo "Automated build with no explicit commit id, using last commit to changelog that updated version."
-  GIT_COMMIT_ID=$(git log -1 -S"[${RELEASE_VERSION:1}]" ${SOURCE_DIR}/CHANGELOG.md | grep -E "^commit ${GIT_COMMIT_REGEX}" | grep -E -o $GIT_COMMIT_REGEX)
-  echo "Last commit id is ${GIT_COMMIT_ID}"
-fi
-[[ ! -z $GIT_COMMIT_ID ]] || die "Git commit id was not passed in or found from changelog."
-[[ $GIT_COMMIT_ID =~ $GIT_COMMIT_REGEX ]] || die "Git commit ID \"${GIT_COMMIT_ID}\" does not match git commit regex: ${GIT_COMMIT_REGEX}."
-
-# Get environments to deploy or use default
-if [[ -z $DEPLOY_TO_ENVS ]];then
-	DEPLOY_TO_ENVS=("TEMP")
-fi
-for env in ${DEPLOY_TO_ENVS[@]}; do
-	[[ $env =~ $ENVS_REGEX ]] || die "Environment val ${env} does not match regex: ${ENVS_REGEX}."
-done
+# Clean up any old release work, and start fresh.
+rm -rf $WORKING_DIR
+mkdir -p $REPO_DIR
+pushd $REPO_DIR > /dev/null
 
 # Grab code to release (repo@commit).
 echo "Retrieving code to release..."
+git clone git@github.com:$GIT_REPO_NAME.git .
 git checkout $GIT_COMMIT_ID
 echo "Done retrieving code."
 echo ""
+
+# Set a temporary go path, so we look for dependencies in the right place.
+GOPATH=$WORKING_DIR/go
+echo "Pulling dependencies and doing full local build and test..."
+make setup-agent build-agent
+echo "Done validating the build."
 
 # Run tests - Never allow releases that fail unit tests.
 echo "Running unit tests..."
 go test ./... || die "\nUnit tests are failing. Not allowing release to proceed."
 echo "Done running tests."
 echo ""
+
+# Display existing releases.
+echo "Existing Releases (for reference):"
+echo ""
+all_releases=$(gsutil ls $GCS_VERSIONS_PREFIX/)
+echo "$all_releases"
+echo""
+
+# Read a new release version, and verify it is unique.
+release_version=$(prompt_with_regex "Enter new version number (must be of format v1.0.0, and not yet in use)" "$VERSION_REGEX")
+[[ ! $all_releases =~ "/$release_version/" ]] || die "Version $release_version already exists."
 
 # Additional flags to pass to the compiler. Currently just release information
 # to compile in.
@@ -188,7 +159,7 @@ asmflags="-trimpath=$GOPATH"
 # Create an asset directory, and write a basic text file with our version info.
 # This is for human convenience; this file will not be parsed programmatically.
 mkdir -p $ASSET_DIR
-echo "Version: $RELEASE_VERSION" > $VERSION_FILE
+echo "Version: $release_version" > $VERSION_FILE
 echo "Commit: $GIT_COMMIT_ID" >> $VERSION_FILE
 echo "Build Date: $build_date" >> $VERSION_FILE
 
@@ -196,33 +167,24 @@ echo "Build Date: $build_date" >> $VERSION_FILE
 # testing.
 mkdir -p $ASSET_DIR-next
 cp $VERSION_FILE $ASSET_DIR-next
-git
-build_release_assets $RELEASE_VERSION $ASSET_DIR $ARTIFACT_DIR
-build_release_assets $RELEASE_VERSION+next-version $ASSET_DIR-next $ARTIFACT_DIR-next
+
+build_release_assets $release_version $ASSET_DIR $ARTIFACT_DIR
+build_release_assets $release_version+next-version $ASSET_DIR-next $ARTIFACT_DIR-next
+
+popd > /dev/null
 
 # Prefixes of GCS buckets that agent will be uploaded to.
-for env in ${DEPLOY_TO_ENVS[@]}; do
-	case $env in
-		"TEMP")
-			upload_artifacts $RELEASE_VERSION $GCS_STAGING_PREFIX $ASSET_DIR
-			;;
-		"PROD")
-			echo "UPLOADED TO PROD, doo doo doo."
-#			PROD_AGENT_UPLOAD_PREFIXES=($GCS_VERSIONS_PREFIX/$release_version $GCS_CANARY_PREFIX/prod)
-#			NEXT_AGENT_UPLOAD_PREFIXES=($GCS_CANARY_PREFIX/next)
-			# Upload our artifacts to GCS and set the AgentVersion metadata fields for agent
-			# binary.
-#			for gcs_prefix in ${PROD_AGENT_UPLOAD_PREFIXES[@]}; do
-#				upload_artifacts $RELEASE_VERSION $gcs_prefix $ASSET_DIR
-#			done
-#
-#			for gcs_prefix in ${NEXT_AGENT_UPLOAD_PREFIXES[@]}; do
-#				upload_artifacts $RELEASE_VERSION+next-version $gcs_prefix $ASSET_DIR-next
-#			done
-			;;
-		*)
-			die "No environments specified, nothing is upload to GCS."
-			;;
-	esac
+PROD_AGENT_UPLOAD_PREFIXES=($GCS_VERSIONS_PREFIX/$release_version $GCS_CANARY_PREFIX/prod)
+NEXT_AGENT_UPLOAD_PREFIXES=($GCS_CANARY_PREFIX/next)
+
+# Upload our artifacts to GCS and set the AgentVersion metadata fields for agent
+# binary.
+for gcs_prefix in ${PROD_AGENT_UPLOAD_PREFIXES[@]}; do
+  upload_artifacts $release_version $gcs_prefix $ASSET_DIR
 done
+
+for gcs_prefix in ${NEXT_AGENT_UPLOAD_PREFIXES[@]}; do
+  upload_artifacts $release_version+next-version $gcs_prefix $ASSET_DIR-next
+done
+
 echo "Done!"
