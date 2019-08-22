@@ -10,6 +10,12 @@ A patch version bump is used for any change that does not affect the supported r
 major job run versions.
 ## [Unreleased]
 
+## [2.2.1] - 2019-08-22
+### Added
+- Support using a mount directory when running inside a container.
+### Changed
+- Cleaned up profiling code.
+
 ## [2.2.0] - 2019-08-20
 ### Added
 - Support for JobRunVersion 4 (delete at sink).
