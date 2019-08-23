@@ -50,7 +50,36 @@ func TestTaskFailureMsg(t *testing.T) {
 	for _, tc := range tests {
 		gotMessage := TaskFailureMsg(tc.err)
 		if gotMessage != tc.expectedMessage {
-			t.Errorf("TaskFailureMsg(%s) failed, want: %s, got: %s", tc.desc, tc.expectedMessage, gotMessage)
+			t.Errorf("TaskFailureMsg(%q) failed, got: %s, want: %s", tc.desc, gotMessage, tc.expectedMessage)
+		}
+	}
+}
+
+func TestLogDir(t *testing.T) {
+	flag.Lookup("enable-directory-prefix").Value.Set("true")
+	defer flag.Lookup("enable-directory-prefix").Value.Set("false")
+
+	tests := []struct {
+		desc string
+		logDir string
+		wantLogDir string
+	}{
+		{
+			desc: "mount directory appears once in log dir",
+			logDir: "/transfer_root/tmp",
+			wantLogDir: "/tmp",
+		},
+		{
+			desc: "mount directory appears multiple times in log dir",
+			logDir: "/transfer_root/transfer_root/tmp",
+			wantLogDir: "/transfer_root/tmp",
+		},
+	}
+
+	for _, tc := range tests {
+		got := LogDir(tc.logDir)
+		if got != tc.wantLogDir {
+			t.Errorf("LogDir failed(%q), got: %s, want: %s", tc.desc, got, tc.wantLogDir)
 		}
 	}
 }

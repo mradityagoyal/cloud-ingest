@@ -32,7 +32,7 @@ func SetMountDirectory(dir string) {
 	mountDirectory = dir
 }
 
-// TaskFailureMsg removes the first occurance of mount directory from the error message if agent is enabled to use mount directory.
+// TaskFailureMsg removes the mount directory from the error message if agent is enabled to use mount directory.
 func TaskFailureMsg(err error) string {
 	if err == nil {
 		return ""
@@ -51,4 +51,12 @@ func OSPath(path string) string {
 		return filepath.Join(mountDirectory, path)
 	}
 	return path
+}
+
+// LogDir removes the mount directory from the log directory if agent is enabled to use mount directory.
+func LogDir(dir string) string {
+	if *enableDirPrefix {
+		dir = strings.Replace(dir, mountDirectory, "", 1)
+	}
+	return dir
 }
