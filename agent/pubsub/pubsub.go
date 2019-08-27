@@ -30,7 +30,7 @@ const (
 
 var (
 	pubsubPrefix             = flag.String("pubsub-prefix", "", "Prefix of Pub/Sub topics and subscriptions names.")
-	maxPubSubLeaseExtenstion = flag.Duration("pubsub-lease-extension", 20*time.Minute, "The max duration to extend the leases for a Pub/Sub message. If 0, will use the default Pub/Sub client value (10 mins).")
+	maxPubSubLeaseExtenstion = flag.Duration("pubsub-lease-extension", 120*time.Minute, "The max duration to extend the leases for a Pub/Sub message. If 0, will use the default Pub/Sub client value (10 mins).")
 	_                        = flag.Int("threads", 100, "This flag is no longer used and will be soon deprecated.")
 	copyTasksPerCPU          = flag.Int("copy-tasks-per-cpu", 2, "Copy tasks to process (per CPU) in parallel. Can be overridden by setting copy-tasks.")
 	copyTasks                = flag.Int("copy-tasks", 0, "Copy tasks to process in parallel. If > 0 this will override copy-tasks-per-cpu.")
